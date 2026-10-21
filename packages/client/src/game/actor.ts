@@ -452,7 +452,10 @@ export class Actor {
 
   /** Novo passo vindo do servidor/predição: encadeia depois do que já está na fila. */
   stepTo(x: number, y: number, ms: number, dir: Dir) {
-    const far = Math.max(Math.abs(x - this.tileX), Math.abs(y - this.tileY)) > SNAP_TILES;
+    // Mede também a partir da posição desenhada: com a aba em segundo plano o Phaser para de atualizar,
+    // mas os passos continuam chegando pelo socket; ao voltar, a fila inteira seria tocada acelerada.
+    const far = Math.max(Math.abs(x - this.tileX), Math.abs(y - this.tileY),
+      Math.abs(x - this.rx / TILE_SIZE), Math.abs(y - this.ry / TILE_SIZE)) > SNAP_TILES;
     this.tileX = x; this.tileY = y;
     if (far) return this.snapTo(x, y, dir);
     const from = this.endPx;
