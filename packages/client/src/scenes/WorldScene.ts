@@ -22,6 +22,7 @@ import { NpcManager, allNpcSheets } from "../game/npcs.ts";
 import { STATUE_RANGE, StatueIndex } from "../game/statues.ts";
 import { QUEST_OBJECT_RANGE, QuestObjectIndex, useQuestObject } from "../game/questObjects.ts";
 import { ChestLabels } from "../game/chestLabels.ts";
+import { onTabReturn, settleActors } from "../game/tabReturn.ts";
 import { KeyboardInput } from "../game/input.ts";
 import { applyTextRes, onTextResChange, sceneTexts } from "../game/textRes.ts";
 import { PixelCamera } from "../game/pixelCamera.ts";
@@ -185,6 +186,9 @@ export class WorldScene extends Phaser.Scene {
     // Grupo: nomes verdes + escudinho nos membros.
     const offParty = partyStore.subscribe(() => this.refreshPartyCues());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offParty);
+    // Voltou para a aba: quem acumulou passos com a aba escondida vai direto ao tile (sem correr a fila acelerado).
+    const offTab = onTabReturn(() => settleActors(this.actors.values(), this.creatures.values()));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offTab);
 
     // Duas "camadas" de render: mundo (câmera principal, com zoom) e UI (nomes nítidos, zoom 1).
     this.worldLayer = this.add.layer().setDepth(0);
