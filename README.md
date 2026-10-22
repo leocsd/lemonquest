@@ -1,5 +1,7 @@
 # The Lemon Quest
 
+<!-- PR de teste: linha adicionada só para validar o fluxo de pull request. -->
+
 Jogo multiplayer no navegador, inspirado em Tibia, feito para jogar com a galera na rede do escritório (~10 jogadores).
 Monorepo com npm workspaces:
 
