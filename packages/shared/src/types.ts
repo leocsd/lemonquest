@@ -86,6 +86,8 @@ export interface PlayerView {
   blessed?: boolean;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; "" = cor natural). Comprado uma vez por conta. */
   tone?: string;
+  /** Montaria visível (cosmética, sem bônus de velocidade). Desbloqueada uma vez por conta. */
+  mount?: boolean;
   /** Encantamento ativo (id em IMBUEMENTS; "" = nenhum). Só vale no PvE. */
   imbuement?: string;
 }

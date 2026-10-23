@@ -14,7 +14,7 @@ import { fmtNum, rarityColor, sellPrice } from "../items/itemInfo.ts";
 import { ItemIcon } from "../items/ItemIcon.tsx";
 import { ItemSlot } from "../items/ItemSlot.tsx";
 import { itemTipStore, shopInstance } from "../items/tipStore.ts";
-import { buyBlessing, buyCasinoTicket, buyImbuement, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
+import { buyBlessing, buyCasinoTicket, buyImbuement, buyItem, buyMount, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
 import { BountyBoard, MaterialRequestBoard, NpcQuestList } from "../quests/NpcQuests.tsx";
 import "./npc.css";
 
@@ -42,6 +42,7 @@ export function NpcWindow() {
         {m.blessing && <BlessingBox npcId={m.npcId} blessing={m.blessing} gold={inv?.gold ?? 0} />}
         {m.casino && <CasinoBox npcId={m.npcId} gold={inv?.gold ?? 0} />}
         {m.imbuement && <ImbuementBox npcId={m.npcId} active={m.imbuement.active} gold={inv?.gold ?? 0} />}
+        {m.mount && <MountBox npcId={m.npcId} mount={m.mount} gold={inv?.gold ?? 0} />}
         {tabs.length > 0 && (
           <div class="npc-tabs" role="tablist">
             {tabs.map((t) => (
@@ -177,6 +178,27 @@ function CasinoBox({ npcId, gold }: { npcId: string; gold: number }) {
       <button class="shop-btn" disabled={!afford} onClick={() => buyCasinoTicket(npcId)} data-tip={afford ? "Prêmio aleatório, nunca poder de combate" : "Ouro insuficiente"}>
         Comprar
       </button>
+    </div>
+  );
+}
+
+function MountBox({ npcId, mount, gold }: { npcId: string; mount: { price: number; owned: boolean }; gold: number }) {
+  const afford = gold >= mount.price;
+  return (
+    <div class="shop-row blessing-row">
+      <div class="shop-main">
+        <div class="shop-name">Montaria</div>
+        <div class="shop-price">
+          {mount.owned
+            ? <span class="good">Já tem: ligue em "Roupas" (O).</span>
+            : <><Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(mount.price)}</span></>}
+        </div>
+      </div>
+      {!mount.owned && (
+        <button class="shop-btn" disabled={!afford} onClick={() => buyMount(npcId)} data-tip={afford ? "Cosmética, sem bônus de velocidade. Vale pra conta toda." : "Ouro insuficiente"}>
+          Comprar
+        </button>
+      )}
     </div>
   );
 }

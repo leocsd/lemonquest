@@ -54,6 +54,7 @@ export const NPCS_FX: Record<string, NpcDef> = {
   casino: { id: "casino", name: "Mascate", sprite: "", greeting: "Oi.", casino: true },
   enchanter: { id: "enchanter", name: "Ervanária", sprite: "", greeting: "Oi.", imbuement: true },
   armory: { id: "armory", name: "Armeiro", sprite: "", greeting: "Oi.", shop: { sells: [{ itemId: "vest", price: 50, limited: true }] } },
+  coach: { id: "coach", name: "Cocheiro", sprite: "", greeting: "Oi.", mount: true },
 };
 export const npcsFx = (id: string) => NPCS_FX[id];
 

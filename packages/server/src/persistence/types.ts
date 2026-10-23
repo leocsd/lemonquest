@@ -47,6 +47,8 @@ export interface CharacterData {
   addons?: number;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; precisa estar liberado na conta). Ausente = cor natural. */
   tone?: string;
+  /** Montaria visível (precisa estar liberada na conta, ver kv `account.mount.<id>`). Ausente = sem montaria. */
+  mount?: boolean;
   /** Encantamento ativo (id em IMBUEMENTS). Ausente = nenhum. */
   imbuement?: string;
   /** Conquistas (systems/achievements.ts): concluídas, contadores e título ativo. */

@@ -1,0 +1,26 @@
+{
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "mounts": {
+    "cidadao": "addons/mount_cidadao_back.png",
+    "cacador": "addons/mount_cacador_back.png",
+    "mago": "addons/mount_mago_back.png",
+    "cavaleiro": "addons/mount_cavaleiro_back.png",
+    "nobre": "addons/mount_nobre_back.png",
+    "invocador": "addons/mount_invocador_back.png",
+    "guerreiro": "addons/mount_guerreiro_back.png",
+    "barbaro": "addons/mount_barbaro_back.png",
+    "druida": "addons/mount_druida_back.png",
+    "bruxo": "addons/mount_bruxo_back.png",
+    "oriental": "addons/mount_oriental_back.png",
+    "pirata": "addons/mount_pirata_back.png",
+    "assassino": "addons/mount_assassino_back.png",
+    "nordico": "addons/mount_nordico_back.png",
+    "mendigo": "addons/mount_mendigo_back.png",
+    "domador": "addons/mount_domador_back.png",
+    "cacador_demonios": "addons/mount_cacador_demonios_back.png",
+    "peregrino": "addons/mount_peregrino_back.png",
+    "senhor_guerra": "addons/mount_senhor_guerra_back.png",
+    "monge": "addons/mount_monge_back.png"
+  }
+}

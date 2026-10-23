@@ -99,10 +99,10 @@ export type PartyActionMsg =
   | { action: "disband" };
 
 /** `tone` ausente ou "" = cor natural; senão precisa estar liberado na conta (ver OutfitTonesMsg). */
-export interface SetOutfitMsg { outfit: string; addons: number; tone?: string }
+export interface SetOutfitMsg { outfit: string; addons: number; tone?: string; mount?: boolean }
 export interface BuyOutfitToneMsg { toneId: string }
-/** S2C.OutfitTones: tons liberados NA CONTA (valem pra qualquer personagem). */
-export interface OutfitTonesMsg { unlocked: string[] }
+/** S2C.OutfitTones: tons liberados NA CONTA (valem pra qualquer personagem), e se a conta já tem montaria. */
+export interface OutfitTonesMsg { unlocked: string[]; ownsMount?: boolean }
 
 export interface TrainOpenMsg { statueId: string }
 export interface TrainOfflineMsg { skill: SkillId }
@@ -138,6 +138,8 @@ export type NpcTradeMsg =
   | { npcId: string; action: "sellAll" }
   /** Compra uma bênção (NpcDef.blessing): preço escala com o level, consumida na próxima morte. */
   | { npcId: string; action: "blessing" }
+  /** Desbloqueia a montaria pra conta (NpcDef.mount, MOUNT_PRICE). Ligar/desligar é SetOutfitMsg.mount. */
+  | { npcId: string; action: "mount" }
   /** Compra uma ficha de cassino (NpcDef.casino): prêmio aleatório, nunca poder de combate. */
   | { npcId: string; action: "casino" }
   /** Compra/troca o encantamento ativo (NpcDef.imbuement): substitui o anterior, sem reembolso. */
@@ -331,6 +333,8 @@ export interface NpcOpenMsg {
   casino?: boolean;
   /** Vende encantamento (NpcDef.imbuement): efeito ativo do personagem, se houver. */
   imbuement?: { active: string };
+  /** Vende montaria (NpcDef.mount): preço fixo (MOUNT_PRICE) e se a conta já tem. */
+  mount?: { price: number; owned: boolean };
 }
 export interface TravelMsg { npcId: string; dest: string }
 export interface LookGroundMsg { groundId: string }

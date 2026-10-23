@@ -29,7 +29,7 @@ import { PixelCamera } from "../game/pixelCamera.ts";
 import { Predictor } from "../game/predictor.ts";
 import { sfx, type SfxName } from "../game/sfx.ts";
 import { SpellEffects } from "../game/spellFx.ts";
-import { ADDON_SHEET_LIST, ALL_SHEETS, outfitLook } from "../game/sprites.ts";
+import { ADDON_SHEET_LIST, ALL_SHEETS, MOUNT_SHEET_LIST, outfitLook } from "../game/sprites.ts";
 import { closeCtxMenu, openCtxMenu, openOutfit, type CtxMenuItem } from "../ui/outfit/outfit.ts";
 import { lookCreature, lookNpc, lookPlayer, lookQuestObject, type LookContent } from "../game/lookInfo.ts";
 import { expectLookItem, showLook } from "../ui/look/look.ts";
@@ -161,7 +161,7 @@ export class WorldScene extends Phaser.Scene {
   preload() {
     this.trackLoading();
     preloadWorldMap(this);
-    for (const s of [...ALL_SHEETS, ...ADDON_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()]) {
+    for (const s of [...ALL_SHEETS, ...ADDON_SHEET_LIST, ...MOUNT_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()]) {
       this.load.spritesheet(s.key, `${import.meta.env.BASE_URL}${s.url}`, { frameWidth: s.frameWidth, frameHeight: s.frameHeight });
     }
     CombatFx.preload(this);
@@ -170,7 +170,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Alimenta a tela de carregamento com o progresso REAL do loader (mapa, tilesets, sprites, efeitos). */
   private trackLoading() {
-    const sheetKeys = new Set([...ALL_SHEETS, ...ADDON_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()].map((s) => s.key));
+    const sheetKeys = new Set([...ALL_SHEETS, ...ADDON_SHEET_LIST, ...MOUNT_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()].map((s) => s.key));
     const labelFor = (key: string) =>
       key === MAP_KEY || key.startsWith("tileset:") ? "Carregando mapa…" : sheetKeys.has(key) ? "Carregando personagens…" : "Carregando efeitos…";
     this.load.on(Phaser.Loader.Events.PROGRESS, (v: number) => loading.report("files", v));
@@ -402,8 +402,8 @@ export class WorldScene extends Phaser.Scene {
   addPlayer(id: string, p: PlayerView) {
     if (this.actors.has(id)) return;
     const isMe = id === this.myId;
-    const actor = new Actor(this.actorDeps(), outfitLook(p.outfit, p.addons, p.vocation, p.tone), p.name, isMe, p.x, p.y, p.dir, { hpName: true });
-    this.lookSig.set(id, `${p.outfit}|${p.addons}|${p.tone}`);
+    const actor = new Actor(this.actorDeps(), outfitLook(p.outfit, p.addons, p.vocation, p.tone, p.mount), p.name, isMe, p.x, p.y, p.dir, { hpName: true });
+    this.lookSig.set(id, `${p.outfit}|${p.addons}|${p.tone}|${p.mount}`);
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
     actor.setHp(p.hp, p.maxHp, true);
@@ -437,8 +437,8 @@ export class WorldScene extends Phaser.Scene {
     actor.setHp(p.hp, p.maxHp);
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
-    const sig = `${p.outfit}|${p.addons}|${p.tone}`;
-    if (this.lookSig.get(id) !== sig) { this.lookSig.set(id, sig); actor.setLook(outfitLook(p.outfit, p.addons, p.vocation, p.tone)); }
+    const sig = `${p.outfit}|${p.addons}|${p.tone}|${p.mount}`;
+    if (this.lookSig.get(id) !== sig) { this.lookSig.set(id, sig); actor.setLook(outfitLook(p.outfit, p.addons, p.vocation, p.tone, p.mount)); }
     const moved = p.x !== k.x || p.y !== k.y;
     const turned = p.dir !== k.dir;
     k.x = p.x; k.y = p.y; k.dir = p.dir; k.stepMs = p.stepMs;

@@ -7,7 +7,12 @@ import { createStore } from "../hud/store.ts";
 export const outfitOpen = createStore(false);
 /** Tons de tingimento liberados NA CONTA (S2C.OutfitTones, ao entrar e após comprar). */
 export const outfitTonesStore = createStore<string[]>([]);
-export function handleOutfitTones(m: OutfitTonesMsg): void { outfitTonesStore.set(m.unlocked ?? []); }
+/** Montaria liberada NA CONTA (idem, campo ownsMount). */
+export const mountOwnedStore = createStore(false);
+export function handleOutfitTones(m: OutfitTonesMsg): void {
+  outfitTonesStore.set(m.unlocked ?? []);
+  if (m.ownsMount !== undefined) mountOwnedStore.set(m.ownsMount);
+}
 
 export interface CtxMenuItem { label: string; run: () => void }
 /** Menu de contexto simples (posição em px da janela). */
@@ -23,9 +28,9 @@ export function openCtxMenu(x: number, y: number, items: CtxMenuItem[]): void {
 export const closeCtxMenu = (): void => ctxMenuStore.set(null);
 
 /** Envia a troca (o servidor valida; o estado sincronizado traz o resultado para todos). */
-export function sendOutfit(outfit: string, addons: number, tone?: string): void {
+export function sendOutfit(outfit: string, addons: number, tone?: string, mount?: boolean): void {
   if (!OUTFITS[outfit]) return;
-  send(C2S.SetOutfit, { outfit, addons: addons & ADDON_BITS, tone } satisfies SetOutfitMsg);
+  send(C2S.SetOutfit, { outfit, addons: addons & ADDON_BITS, tone, mount } satisfies SetOutfitMsg);
 }
 
 export function buyOutfitTone(toneId: string): void {
@@ -34,5 +39,6 @@ export function buyOutfitTone(toneId: string): void {
 
 session.onRoom((room) => {
   outfitTonesStore.set([]);
+  mountOwnedStore.set(false);
   room.onMessage(S2C.OutfitTones, (m: OutfitTonesMsg) => handleOutfitTones(m));
 });

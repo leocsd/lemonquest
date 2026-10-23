@@ -3,7 +3,7 @@
 // Cocheiro (`travel`): cobra o ouro e leva o jogador ao destino (grátis até TRAVEL_FREE_LEVEL).
 // Ambientação: a cada 20–40 s cada NPC com idleLines fala (S2C.NpcSay) se houver jogador a até 15 tiles.
 import {
-  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, NPC_BUY_RATIO, NPC_RANGE, S2C, blessingPrice, findObjects, imbuementDef, keptBySellAll, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
+  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MOUNT_PRICE, NPC_BUY_RATIO, NPC_RANGE, S2C, blessingPrice, findObjects, imbuementDef, keptBySellAll, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
   type NoticeMsg, type NpcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcSayMsg, type NpcTradeMsg, type TiledMap, type TravelMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -41,6 +41,10 @@ export interface NpcOptions {
   travel?: (p: PlayerState, x: number, y: number) => void;
   /** Impede a viagem (em combate etc.). Retorna o aviso, ou null se pode. */
   travelBlocked?: (p: PlayerState) => string | null;
+  /** A conta do jogador já tem a montaria liberada (NpcDef.mount)? */
+  mountOwned?: (p: PlayerState) => boolean;
+  /** Libera a montaria pra conta do jogador e avisa o cliente. */
+  unlockMount?: (p: PlayerState) => void;
 }
 
 export const CLOSED: NpcOpenMsg = { npcId: "", name: "", greeting: "" };
@@ -121,6 +125,7 @@ export class NpcSystem {
     if (d.blessing) msg.blessing = { price: blessingPrice(p?.level ?? 1), active: !!p?.blessed };
     if (d.casino) msg.casino = true;
     if (d.imbuement) msg.imbuement = { active: p?.imbuement ?? "" };
+    if (d.mount) msg.mount = { price: MOUNT_PRICE, owned: !!p && (this.o.mountOwned?.(p) ?? false) };
     return msg;
   }
 
@@ -147,6 +152,7 @@ export class NpcSystem {
     if (msg.action === "blessing") return this.buyBlessing(p, d);
     if (msg.action === "casino") return this.buyCasino(p, d);
     if (msg.action === "imbuement") return this.buyImbuement(p, d, msg.effect);
+    if (msg.action === "mount") return this.buyMount(p, d);
     if (!d.shop) return;
     if (msg.action === "sellAll") return this.sellAll(p, d.shop.buys ?? []);
     const count = msg.count;
@@ -224,6 +230,16 @@ export class NpcSystem {
       this.o.inventory.addGold(p, gold);
       this.notice(p, `Ficha: PRÊMIO GRANDE! +${gold} de ouro!`, "good");
     }
+  }
+
+  /** Desbloqueio único por conta (MOUNT_PRICE). Ligar/desligar depois é por SetOutfitMsg.mount. */
+  private buyMount(p: PlayerState, d: NpcDef): void {
+    if (!d.mount) return;
+    if (this.o.mountOwned?.(p)) return this.notice(p, "Você já tem uma montaria.", "warn");
+    if (!this.o.inventory.spendGold(p, MOUNT_PRICE)) return this.notice(p, "Ouro insuficiente.", "warn");
+    this.o.unlockMount?.(p);
+    this.notice(p, `Você comprou uma montaria por ${MOUNT_PRICE} de ouro. Ligue em "Trocar roupa".`, "good");
+    this.o.send(p.id, S2C.NpcOpen, this.openMsg(d, p));
   }
 
   /** Compra/troca o encantamento ativo: gasta ouro + material, substitui o anterior sem reembolso. */

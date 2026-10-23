@@ -8,7 +8,7 @@ import { OutfitCanvas } from "./OutfitCanvas.tsx";
 import { PixelIcon } from "../hud/icons.tsx";
 import { achievementsStore, outfitUnlockedFor } from "../achievements/achievements.ts";
 import "../achievements/achievements.css";
-import { buyOutfitTone, closeOutfit, outfitOpen, outfitTonesStore, sendOutfit } from "./outfit.ts";
+import { buyOutfitTone, closeOutfit, mountOwnedStore, outfitOpen, outfitTonesStore, sendOutfit } from "./outfit.ts";
 import { inventoryStore } from "../items/inventory.ts";
 import { bindOverlay } from "../overlays.ts";
 import "./outfit.css";
@@ -38,6 +38,8 @@ function OutfitDialog() {
   const [sel, setSel] = useState(current.id);
   const [addons, setAddons] = useState(me?.outfit === current.id ? me?.addons ?? 0 : 0);
   const [tone, setTone] = useState(me?.tone ?? "");
+  const [mount, setMount] = useState(!!me?.mount);
+  const mountOwned = useStore(mountOwnedStore);
   const [face, setFace] = useState(0);
   const [auto, setAuto] = useState(true);
   const [row, setRow] = useState(0);
@@ -66,7 +68,7 @@ function OutfitDialog() {
   }, [auto]);
 
   const rotate = (d: number) => { setAuto(false); setFace((f) => (f + d + 4) % 4); };
-  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, tone); closeOutfit(); };
+  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, tone, mount); closeOutfit(); };
 
   // Enter confirma; setas giram (sem roubar teclas do jogo quando fechada). O Esc fecha pela pilha (acima).
   useEffect(() => {
@@ -148,6 +150,13 @@ function OutfitDialog() {
                 );
               })}
             </div>
+            {mountOwned && (
+              <label class="outfit-addon">
+                <input type="checkbox" checked={mount} onChange={() => setMount((v) => !v)} />
+                <span class="outfit-check" aria-hidden="true" />
+                <span class="outfit-addon-name">Montaria</span>
+              </label>
+            )}
           </div>
           <ul class="outfit-grid" role="listbox" aria-label="Roupas disponíveis">
             {OUTFIT_LIST.map((o) => {
@@ -159,7 +168,7 @@ function OutfitDialog() {
                   role="option"
                   aria-selected={o.id === outfit.id}
                   onClick={() => { if (o.id !== sel) { setSel(o.id); setAddons(o.id === current.id ? me?.addons ?? 0 : addons); } }}
-                  onDblClick={() => { if (!locked) { sendOutfit(o.id, o.id === outfit.id ? effAddons : 0, tone); closeOutfit(); } }}
+                  onDblClick={() => { if (!locked) { sendOutfit(o.id, o.id === outfit.id ? effAddons : 0, tone, mount); closeOutfit(); } }}
                   data-tip={o.name}
                   data-tip-sub={locked ? unlockRequirement(o.id, 0) : o.id === current.id ? "Roupa atual" : "Clique para ver · duplo clique veste"}
                   data-locked={locked ? "true" : undefined}

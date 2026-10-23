@@ -82,3 +82,8 @@ export function buyImbuement(npcId: string, effect: string): void {
   const m: NpcTradeMsg = { npcId, action: "imbuement", effect };
   send(C2S.NpcTrade, m);
 }
+
+export function buyMount(npcId: string): void {
+  const m: NpcTradeMsg = { npcId, action: "mount" };
+  send(C2S.NpcTrade, m);
+}

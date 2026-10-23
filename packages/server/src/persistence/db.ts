@@ -370,6 +370,12 @@ export function addAccountTone(accountId: number, toneId: string): string[] {
   return list;
 }
 
+/** Montaria liberada pra CONTA (vale pra qualquer personagem dela). Guardado no `kv` existente. */
+export function hasMount(accountId: number): boolean { return getKv(`account.mount.${accountId}`) === "1"; }
+
+/** Libera a montaria pra conta (idempotente). */
+export function unlockMount(accountId: number): void { setKv(`account.mount.${accountId}`, "1"); }
+
 export interface SessionRow { token_hash: string; account_id: number; account: string; weak_password: number; created: number; expires: number }
 
 export function insertSessionRow(r: SessionRow): void {

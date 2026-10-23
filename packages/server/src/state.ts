@@ -41,6 +41,8 @@ export class PlayerState extends Schema implements PlayerView {
   @type("boolean") blessed = false;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; "" = cor natural). */
   @type("string") tone = "";
+  /** Montaria visível (precisa estar liberada na conta). */
+  @type("boolean") mount = false;
   /** Encantamento ativo (id em IMBUEMENTS; "" = nenhum). Só vale no PvE. */
   @type("string") imbuement = "";
 }

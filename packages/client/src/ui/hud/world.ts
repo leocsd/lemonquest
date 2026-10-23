@@ -17,6 +17,7 @@ const snap = (p: PlayerView): PlayerSnap => ({
   magicPct: p.magicPct ?? 0, meleePct: p.meleePct ?? 0, distancePct: p.distancePct ?? 0, shieldPct: p.shieldPct ?? 0, speedPct: p.speedPct ?? 100, stance: p.stance ?? "balanced", chase: !!p.chase,
   auto: !!p.auto, followId: p.followId ?? "", skull: p.skull ?? "", blessed: !!p.blessed,
   outfit: p.outfit ?? "", addons: p.addons ?? 0, title: p.title ?? "", partyId: p.partyId ?? "",
+  mount: !!p.mount,
 });
 
 let live = new Map<string, PlayerSnap>();

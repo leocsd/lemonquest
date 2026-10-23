@@ -80,7 +80,10 @@ describe("loot", () => {
   });
 });
 
-function npcWorld(rng: () => number = () => 0.5) {
+function npcWorld(
+  rng: () => number = () => 0.5,
+  mountOwned?: (p: PlayerState) => boolean, unlockMountFx?: (p: PlayerState) => void,
+) {
   // eslint-disable-next-line prefer-const
   let npcs: NpcSystem;
   const w = invWorld({ depotOpen: (id) => npcs.depotOpen(id) });
@@ -90,11 +93,11 @@ function npcWorld(rng: () => number = () => 0.5) {
   npcs = new NpcSystem({
     npcs: [
       { id: "shop", x: 10, y: 10 }, { id: "depot", x: 30, y: 10 }, { id: "priest", x: 50, y: 10 }, { id: "armory", x: 60, y: 10 },
-      { id: "casino", x: 70, y: 10 }, { id: "enchanter", x: 80, y: 10 },
+      { id: "casino", x: 70, y: 10 }, { id: "enchanter", x: 80, y: 10 }, { id: "coach", x: 90, y: 10 },
     ],
     inventory: w.inv, defs: npcsFx, players: () => players.values(), getPlayer: (id) => players.get(id),
     send: (to, type, msg) => out.push({ to, type, msg }), broadcast: (type, msg) => out.push({ to: "*", type, msg }),
-    now: () => clock, rng,
+    now: () => clock, rng, mountOwned, unlockMount: unlockMountFx,
   });
   const add = (id: string, x: number, y: number) => { const p = w.mk(id); p.x = x; p.y = y; players.set(id, p); return p; };
   return { w, npcs, out, add, players, tick: (ms: number) => { clock += ms; npcs.tick(clock); } };
@@ -174,7 +177,7 @@ describe("npcs", () => {
   });
 
   it("cassino: cobra a ficha e dá cada faixa de prêmio conforme o sorteio (nada/ouro/material/grande)", () => {
-    const seq = [0.1, 0.6, 0.9, 0.1, 0.99]; // nada, ouro de volta, material (+ índice do pool), prêmio grande
+    const seq = [0.1, 0.6, 0.85, 0.99]; // nada, ouro de volta, material (+ índice do pool), grande
     let i = 0;
     const t = npcWorld(() => seq[i++]!);
     const p = t.add("p1", 70, 10);
@@ -191,6 +194,23 @@ describe("npcs", () => {
     t.npcs.onTrade(p, { npcId: "casino", action: "casino" }); // prêmio grande
     expect(t.out.at(-1)!.msg.text).toBe("Ficha: PRÊMIO GRANDE! +3000 de ouro!");
     expect(t.w.inv.gold("p1")).toBe(8400 - 1000 - 1000 + 3000);
+  });
+
+  it("montaria: desbloqueio único por conta (MOUNT_PRICE), chama unlockMount, recusa comprar de novo", () => {
+    let owned = false;
+    const t = npcWorld(undefined, () => owned, () => { owned = true; });
+    const p = t.add("p1", 90, 10);
+    t.npcs.onInteract(p, { npcId: "coach" });
+    expect(t.out.find((o) => o.type === S2C.NpcOpen)!.msg.mount).toEqual({ price: 15_000, owned: false });
+    t.npcs.onTrade(p, { npcId: "coach", action: "mount" });
+    expect(t.out.at(-1)!.msg.text).toBe("Ouro insuficiente.");
+    t.w.inv.addGold(p, 20_000);
+    t.npcs.onTrade(p, { npcId: "coach", action: "mount" });
+    expect(owned).toBe(true);
+    expect(t.w.inv.gold("p1")).toBe(5_000);
+    t.npcs.onTrade(p, { npcId: "coach", action: "mount" });
+    expect(t.out.at(-1)!.msg.text).toBe("Você já tem uma montaria.");
+    expect(t.w.inv.gold("p1")).toBe(5_000); // não cobrou de novo
   });
 
   it("encantamento: precisa de ouro + material, troca sem reembolso, não deixa comprar o mesmo de novo", () => {

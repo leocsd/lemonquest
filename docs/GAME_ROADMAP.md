@@ -197,7 +197,7 @@ custo de poder).
 | Tarefas de caça | **Já existia** (Quadro de Recompensas, `bounties.ts`): 3/dia por faixa de level, até lv 88+. Moeda nova (Marca de Caça) descartada nesta rodada, ver nota | quase zero | ✅ |
 | Missões recorrentes | NPC pede N de um material específico, rotação semanal. Reaproveita o próprio Quadro de Recompensas (aba "Encomenda") | pequeno | ✅ |
 | Encantamento (imbuement) | 1 efeito ativo por personagem (dreno de vida, dreno de mana, espinhos, perfurante, veloz), ouro + material, Dona Marta | médio | ✅ |
-| Montaria | Cosmética, sprite reaproveitado e tingido (sem bônus de velocidade) | médio (arte) | 🧭 bloqueado |
+| Montaria | Cosmética, sprite reaproveitado e tingido (sem bônus de velocidade) | médio (arte) | ✅ (2026-10-23) |
 | Tingimento de outfit (por conta) | 8 tons pré-definidos na sprite da roupa (reusa `tint`, já usado em monstro, e `kv` existente pro unlock por conta); 8.000 de ouro cada, vale pra qualquer personagem da conta | médio | ✅ |
 | Cassino | Ficha de 1.000 de ouro (Hanna, a Mascate): 45% nada, 35% +400 de ouro, 15% material, 5% +3.000 de ouro | pequeno | ✅ |
 
@@ -259,12 +259,16 @@ com monstro invulnerável pra isolar sem revide onde fazia sentido), 1 caso em `
 ouro de volta, 15% material raro, 10% tom de tingimento, 5% cosmético único. O código (`npcs.ts`) usa a tabela da
 seção acima: 45% nada, 35% +400, 15% material, 5% +3.000 (retorno esperado ≈ 335, sink de verdade).
 
-**Montaria: bloqueada, não por decisão, por risco de asset.** Dos 8 itens desta rodada, é o único que não dá pra
-construir só com código testável: precisa de uma sprite de montaria no formato de addon (32×32, grade 4×7,
-`tools/addons/generate.mjs`), e sem conseguir ver o resultado renderizado (sem navegador nesta sessão), o risco de
-entregar algo visualmente quebrado é alto. Técnica já mapeada (reaproveitar o mesmo `backSheet` que já existe pra
-addons de capa/mochila, desenhado atrás do personagem, sincronizado com o próprio ciclo de caminhada), só falta a
-arte em si e alguém conferir o resultado numa tela de verdade antes de ir pra produção.
+**Montaria implementada (2026-10-23), desbloqueado o que estava registrado como bloqueio de arte.** A sprite não
+precisou ser desenhada à mão: `tools/addons/mount.mjs` desenha um cavalo simples por blocos (corpo, 4 pernas com
+passo alternado, cabeça+orelha do lado pra onde o personagem olha, cauda e crina), no mesmo motor de desenho
+procedural do `tools/addons/generate.mjs` (mesmas âncoras, mesmo sombreamento automático), um por roupa (20 sheets,
+`assets/addons/mount_<roupa>_back.png`). Entra sempre como o overlay mais ao fundo (atrás até de capa/mochila).
+Desbloqueio único por conta (`MOUNT_PRICE` = 15.000, `kv` existente, mesmo padrão dos tons), vendido pelo Cocheiro
+Bastião (`NpcDef.mount`); ligar/desligar é por personagem, reaproveitando `SetOutfitMsg` (campo `mount`) e a janela
+de roupas. Conferido rodando o jogo de verdade (Playwright): compra, liga na janela de roupas e anda nas 4 direções,
+screenshot a screenshot, ver `e2e/mount.spec.ts`. Testes: `outfit.test.ts` (validação e persistência), `m4.test.ts`
+(compra e recusa de comprar 2×).
 
 ## Não fazer agora ⛔
 

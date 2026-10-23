@@ -26,6 +26,8 @@ export interface NpcDef {
   casino?: boolean;
   /** Vende encantamento (shared/data/imbuement.ts): 1 efeito ativo por personagem. */
   imbuement?: boolean;
+  /** Vende a montaria (MOUNT_PRICE, shared/data/mount.ts): desbloqueio único por conta. */
+  mount?: boolean;
 }
 
 /** Preço fixo da ficha de cassino, igual pra qualquer level. */
@@ -269,9 +271,10 @@ export const NPCS: Record<string, NpcDef> = {
   },
   coach_village: {
     id: "coach_village", name: "Cocheiro Bastião", sprite: C + "Villager2/SpriteSheet.png",
-    greeting: "Carroça para o Posto da Fronteira, no leste. A estrada é longa, mas a minha mula conhece o caminho.",
+    greeting: "Carroça para o Posto da Fronteira, no leste. A estrada é longa, mas a minha mula conhece o caminho. E se quiser a sua própria montaria, eu vendo.",
     travel: [{ id: "frontier", label: "Posto da Fronteira", x: 214, y: 61, price: 150 }, PORT_ARRIVAL],
     idleLines: ["Carroça para a Fronteira! Saída imediata!", "Essa mula já viu mais dragão que muito aventureiro."],
+    mount: true,
   },
   coach_frontier: {
     id: "coach_frontier", name: "Cocheira Zuleica", sprite: C + "ManGreen/SpriteSheet.png",

@@ -55,7 +55,7 @@ import { PlayTelemetry, summarizePlay } from "../systems/telemetry.ts";
 import { crownWeek } from "../systems/weeklyChampion.ts";
 import { claimOnline, consumeToken, createResetCode, releaseOnline, type AuthData } from "../persistence/auth.ts";
 import {
-  addAccountTone, getAccountTones, getCharacterByName, getKv, listRankingRows, nameKey, loadGroundRows, replaceGroundRows, saveCharacter, setKv, transaction,
+  addAccountTone, getAccountTones, getCharacterByName, getKv, hasMount, listRankingRows, nameKey, loadGroundRows, replaceGroundRows, saveCharacter, setKv, transaction, unlockMount,
 } from "../persistence/db.ts";
 import { PerSecond } from "../persistence/ratelimit.ts";
 import type { CharacterRecord } from "../persistence/types.ts";
@@ -268,6 +268,16 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         const lock = this.pvp.pzLockRemaining(p.id, now);
         if (lock > 0) return `Você atacou um jogador há pouco e não pode viajar ainda (mais ${pzLockSeconds(lock)} s).`;
         return this.combat.inCombat(p.id, now) ? "Você está em combate. Espere um pouco para viajar." : null;
+      },
+      mountOwned: (p) => {
+        const rec = this.records.get(p.id);
+        return !!rec && hasMount(rec.accountId);
+      },
+      unlockMount: (p) => {
+        const rec = this.records.get(p.id);
+        if (!rec) return;
+        unlockMount(rec.accountId);
+        send(p.id, S2C.OutfitTones, { unlocked: getAccountTones(rec.accountId), ownsMount: true } satisfies OutfitTonesMsg);
       },
     });
     this.movement.setExtraBlocker((x, y) => this.monsters.isMonsterAt(x, y) || this.npcs.isNpcAt(x, y));
@@ -586,7 +596,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<MaterialRequestActionMsg>(C2S.MaterialRequest, (p, m) => this.materialRequest.onMessage(p, m));
     this.on<SetOutfitMsg>(C2S.SetOutfit, (p, m) => {
       const rec = this.records.get(p.id);
-      applySetOutfit(p, rec, m, rec ? getAccountTones(rec.accountId) : []);
+      applySetOutfit(p, rec, m, rec ? getAccountTones(rec.accountId) : [], !!rec && hasMount(rec.accountId));
     });
     this.on<BuyOutfitToneMsg>(C2S.BuyOutfitTone, (p, m, c) => {
       const rec = this.records.get(p.id);
@@ -597,7 +607,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       if (!this.inventory.spendGold(p, OUTFIT_TONE_PRICE)) return c.send(S2C.Notice, { text: "Ouro insuficiente.", kind: "warn" } satisfies NoticeMsg);
       // Tom (conta) e ouro (personagem) no mesmo commit: uma queda antes do autosave não deixa o tom de graça (#56).
       const list = transaction(() => { const l = addAccountTone(rec.accountId, tone.id); this.save(p.id); return l; });
-      c.send(S2C.OutfitTones, { unlocked: list } satisfies OutfitTonesMsg);
+      c.send(S2C.OutfitTones, { unlocked: list, ownsMount: hasMount(rec.accountId) } satisfies OutfitTonesMsg);
       c.send(S2C.Notice, { text: `Você comprou o tom ${tone.name} por ${OUTFIT_TONE_PRICE} de ouro.`, kind: "good" } satisfies NoticeMsg);
     });
     this.on<SetTitleMsg>(C2S.SetTitle, (p, m) => { this.ach.onSetTitle(p, m); });
@@ -769,6 +779,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     p.addons = look.addons;
     const unlockedTones = getAccountTones(rec.accountId);
     p.tone = rec.data.tone && unlockedTones.includes(rec.data.tone) ? rec.data.tone : "";
+    p.mount = !!rec.data.mount && hasMount(rec.accountId);
     this.skills.load(p, rec.data.skills);
     // Treino offline pendente: aplica o progresso, cura tudo e coloca o jogador ao lado da estátua.
     const trained = rec.data.offlineTraining ? this.returnFromTraining(p, rec) : null;
@@ -785,7 +796,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.conditions.refreshPlayer(p.id); // velocidade do equipamento
     this.ach.load(p, rec);
     { const st = this.ach.state(sid); if (st) client.send(S2C.Achievements, st); }
-    client.send(S2C.OutfitTones, { unlocked: unlockedTones } satisfies OutfitTonesMsg);
+    client.send(S2C.OutfitTones, { unlocked: unlockedTones, ownsMount: hasMount(rec.accountId) } satisfies OutfitTonesMsg);
     if (trained) this.ach.event(p.id, "offline", { minutes: trained.minutes });
     this.movement.addPlayer(p);
     client.send(S2C.Explored, this.exploration.addPlayer(sid, rec, p.x, p.y));
@@ -1199,6 +1210,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     rec.data.outfit = p.outfit;
     rec.data.addons = p.addons;
     rec.data.tone = p.tone;
+    rec.data.mount = p.mount;
     const quests = this.quests.serialize(sessionId);
     if (quests) rec.data.quests = quests;
     rec.data.play = this.telemetry.serialize(sessionId, p.level) ?? rec.data.play;

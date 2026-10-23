@@ -66,6 +66,12 @@ const ADDON_SHEETS: Record<string, { front: CharacterSheet; back?: CharacterShee
     back: a.backSheet ? gridSheet(`addon_${a.id}_back`, a.backSheet, ADDON_FRAME, ADDON_FRAME) : undefined,
   }]),
 );
+/** Overlay de montaria: sempre atrás, um desenho por roupa (não é addon escolhível, não usa addon1/addon2).
+ *  Gerado por tools/addons/mount.mjs. */
+const MOUNT_SHEETS: Record<string, CharacterSheet> = Object.fromEntries(
+  OUTFIT_LIST.map((o) => [o.id, gridSheet(`mount_${o.id}`, `addons/mount_${o.id}_back.png`, ADDON_FRAME, ADDON_FRAME)]),
+);
+export const MOUNT_SHEET_LIST: CharacterSheet[] = Object.values(MOUNT_SHEETS);
 
 /** Origem Y (0..1) dos overlays: o pé da base (linha 16 do frame base) dentro do frame 32x32. */
 export const ADDON_ORIGIN_Y = (ADDON_OFFSET_Y + 16) / ADDON_FRAME;
@@ -75,11 +81,13 @@ export const ALL_SHEETS: CharacterSheet[] = Object.values(OUTFIT_SHEETS);
 /** Overlays de addon (só carregados; o frame segue a base). */
 export const ADDON_SHEET_LIST: CharacterSheet[] = Object.values(ADDON_SHEETS).flatMap((s) => (s.back ? [s.front, s.back] : [s.front]));
 
-/** Visual de um jogador: roupa + addons ativos + tom de tingimento (roupa desconhecida/ausente → padrão da vocação). */
-export function outfitLook(outfit: string | undefined, addons: number, vocation: string, tone?: string): CharacterLook {
+/** Visual de um jogador: roupa + addons ativos + tom de tingimento + montaria (roupa desconhecida/ausente →
+ *  padrão da vocação). Montaria entra primeiro na pilha: fica atrás de capa/mochila também. */
+export function outfitLook(outfit: string | undefined, addons: number, vocation: string, tone?: string, mount?: boolean): CharacterLook {
   const o = resolveOutfit(outfit, vocation);
   const on = activeAddons(o, addons ?? 0);
   const layers: AddonLayer[] = [];
+  if (mount) layers.push({ sheet: MOUNT_SHEETS[o.id], back: true });
   for (const a of on) {
     const s = ADDON_SHEETS[a.id];
     if (s.back) layers.push({ sheet: s.back, back: true });
