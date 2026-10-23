@@ -113,7 +113,9 @@ describe("ciclo 8: dano por level, respawn, elites e bandos", () => {
     expect(canBeElite(MONSTERS.goblin_king!)).toBe(false);
     expect(canBeElite(MONSTERS.summoned_wolf!)).toBe(false);
     expect(canBeElite(MONSTERS.training_dummy!)).toBe(false);
-    expect(eliteName("Dragão")).toBe("Elite Dragão");
+    expect(eliteName({ name: "Dragão" })).toBe("Elite Dragão");
+    // "Nomeado": o Colosso tem nome próprio quando nasce elite, em vez do genérico.
+    expect(eliteName(MONSTERS.juggernaut!)).toBe("Grondar, o Colosso Partido");
   });
 
   it("bandos e fuga: famílias, grito do reforço e fujões a 20%", () => {

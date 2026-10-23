@@ -61,7 +61,8 @@ describe("atalhos de magia", () => {
       sizes[v] = d.length;
     }
     // A barra encolhe: menos teclas que magias em todas as vocações, e cabe no 1–0.
-    expect(sizes).toEqual({ knight: 8, paladin: 5, sorcerer: 7, druid: 9 });
+    // Ciclo 9: Cura Intensa + cura própria + magia de grupo entraram avulsas (nenhuma delas tem família).
+    expect(sizes).toEqual({ knight: 10, paladin: 8, sorcerer: 10, druid: 12 });
     expect(SUGGESTED_KEYS.slice(10, 12)).toEqual(["KeyC", "KeyF"]); // A, B, D, E são do jogo
   });
 

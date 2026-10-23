@@ -53,10 +53,12 @@ test("feiticeiro lv 90: as 4 magias novas conjuram pelas palavras", async ({ pag
   await castWorks(page, "exori gran flam", "eternal_flame", true);
   await castWorks(page, "exevo flam hur", "fire_wave", false);
   await castWorks(page, "exevo gran mas vis", "electric_storm", false);
-  // Barra recomendada: as 12 magias em 7 teclas (1–7), com as famílias ◆ (alvo, área, onda).
-  await expect(page.locator(".action-slot")).toHaveCount(7);
+  // Barra recomendada no lv 90 (ciclo 9: +2 avulsas liberadas até aqui — Restauração Arcana lv 45, Cura Intensa
+  // lv 60; o Escudo de Mana em Grupo é lv 110, ainda bloqueado): as magias liberadas em 9 teclas (1–9), com as
+  // famílias ◆ (alvo, área, onda).
+  await expect(page.locator(".action-slot")).toHaveCount(9);
   await expect(page.locator(".action-slot.family")).toHaveCount(3);
-  await expect(page.locator(".action-slot").nth(6).locator(".action-key")).toHaveText("7");
+  await expect(page.locator(".action-slot").nth(8).locator(".action-key")).toHaveText("9");
 });
 
 test("cavaleiro lv 50: Fúria (utito tempo) gasta mana e aparece nas condições", async ({ page }) => {

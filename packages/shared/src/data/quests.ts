@@ -569,8 +569,35 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 90000, gold: 18000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
   }),
+  // Ciclo 9 (faixa 90-120): o buraco entre Os Cães do Inferno (95) e O Fim de Ferumbras (120) não tinha missão
+  // nenhuma. As duas abaixo reaproveitam monstros/itens que já existiam no mapa (demon e juggernaut, já no
+  // tools/mapgen/expansion2.mjs), sem pedir mapa ou arte novos.
   q({
-    id: "ferumbras_end", name: "O Fim de Ferumbras", giver: "sage_ignis", minLevel: 120, requires: ["hellhounds"],
+    id: "demon_gate", name: "Os Portões Demoníacos", giver: "sage_ignis", minLevel: 100, requires: ["hellhounds"],
+    summary: "Demônios guardam os portões que levam à Cidadela, mais abaixo na cratera.",
+    steps: [{ kind: "kill", target: "demon", count: 20, label: "Demônios" }],
+    dialog: {
+      offer: "Passando os cães, vêm os demônios. Eles guardam os portões da Cidadela. Mate vinte e eles recuam.",
+      accept: "Chuva de fogo e paralisia. Não fique parado depois que eles abrirem a boca.",
+      progress: "Os portões ainda estão cheios de demônios. Vinte, lembra?",
+      complete: "Os portões ficaram livres. Falta só a ponte agora, antes da própria Cidadela.",
+    },
+    rewards: { xp: 120000, gold: 26000, items: [{ itemId: "health_potion_large", count: 22 }, { itemId: "mana_potion_large", count: 15 }] },
+  }),
+  q({
+    id: "colossus_bridge", name: "A Ponte dos Colossos", giver: "sage_ignis", minLevel: 108, requires: ["demon_gate"],
+    summary: "Uma ponte de pedra, guardada por colossos, é o último obstáculo antes da Cidadela.",
+    steps: [{ kind: "deliver", target: "juggernaut_plate", count: 8, label: "Placas de Colosso" }],
+    dialog: {
+      offer: "A ponte para a Cidadela é guardada por colossos. Me traga oito placas arrancadas deles e eu abro caminho.",
+      accept: "Cada placa é um colosso a menos de pé. Cuidado com o Terremoto: ele acerta uma área, não só você.",
+      progress: "Oito placas de colosso. Sei que você já derrubou alguns, mas preciso de mais.",
+      complete: "Oito placas. A ponte é sua agora. O que vem depois dela é entre você e Ferumbras.",
+    },
+    rewards: { xp: 160000, gold: 38000, items: [{ itemId: "health_potion_large", count: 26 }] },
+  }),
+  q({
+    id: "ferumbras_end", name: "O Fim de Ferumbras", giver: "sage_ignis", minLevel: 120, requires: ["colossus_bridge"],
     summary: "Na Cidadela, sob o vulcão, o feiticeiro Ferumbras prepara o seu retorno.",
     steps: [
       { kind: "kill", target: "juggernaut", count: 10, label: "Colossos" },

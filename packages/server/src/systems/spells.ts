@@ -5,7 +5,7 @@ import {
   DEFAULT_SPELL_RANGE,
   DIR_DELTA, Dir, GLOBAL_SPELL_COOLDOWN_MS, S2C, canStepTerrain, dirFromDelta, evalSpellFormula, mitigateSpell,
   spellByWords, spellDef, spellMana,
-  type CastFailReason, type CastMsg, type CastResultMsg, type CollisionGrid, type SpellCastMsg, type SpellDef,
+  type CastFailReason, type CastMsg, type CastResultMsg, type CollisionGrid, type ConditionId, type SpellCastMsg, type SpellDef,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CombatSystem } from "./combat.ts";
@@ -17,6 +17,8 @@ import type { SummonSystem } from "./summons.ts";
 
 /** Alcance padrão de magias de alvo sem `range`. */
 export { DEFAULT_SPELL_RANGE };
+/** Condições removidas pela Cura Sagrada (paladino, SpellDef.cleanse). */
+export const CLEANSED_CONDITIONS: readonly ConditionId[] = ["poison", "burn", "bleed", "energy", "freeze"];
 /** Raio padrão de provocação sem `radius`. */
 export const DEFAULT_TAUNT_RADIUS = 3;
 export const DEFAULT_TAUNT_MS = 5000;
@@ -325,6 +327,7 @@ export class SpellSystem {
       }
     }
     if (s.heal) for (const a of allies) this.o.combat.healPlayer(a, p.id, evalSpellFormula(s.heal, p.level, ml, this.rng));
+    if (s.cleanse) for (const a of allies) for (const id of CLEANSED_CONDITIONS) this.o.conditions.remove(a.id, id);
 
     const c = s.condition;
     if (c && c.id !== "taunted") {

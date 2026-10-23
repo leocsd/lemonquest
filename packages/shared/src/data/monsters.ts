@@ -72,6 +72,8 @@ export interface MonsterDef {
    * mesma `family` a até HELP_RADIUS tiles para atacar quem bateu.
    */
   pack?: { family: string; shout: string };
+  /** Nome próprio quando esta espécie nasce elite (em vez do genérico "Elite <nome>", ver eliteName()). */
+  eliteName?: string;
   sprite: CreatureSprite;
 }
 
@@ -902,6 +904,10 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
   juggernaut: {
     id: "juggernaut", name: "Colosso", level: 110, hp: 6500, xp: 14300, damage: [150, 290], damageKind: "physical", armor: 40,
+    // "Nomeado" da faixa 100-120 (ciclo 9): quando este colosso nasce elite, tem nome próprio em vez do genérico
+    // "Elite Colosso". Sem spawn novo: ele já nasce nas Terras do Vulcão (tools/mapgen/expansion2.mjs) e já tem
+    // ELITE_CHANCE (5%) de nascer elite como qualquer outro monstro comum do level dele.
+    eliteName: "Grondar, o Colosso Partido",
     abilities: [
       ability.stomp({ name: "Terremoto", radius: 2, min: 180, max: 300, windupMs: 900, cooldownMs: 12_000 }),
     ],
@@ -1069,7 +1075,7 @@ export function summonScaled(def: MonsterDef, casterLevel: number): MonsterDef {
   const mult = 1 + (SUMMON_DMG_BONUS * over) / SUMMON_DMG_LEVELS;
   return { ...def, hp: def.hp + SUMMON_HP_PER_LEVEL * over, damage: [Math.round(def.damage[0] * mult), Math.round(def.damage[1] * mult)] };
 }
-export const eliteName = (name: string): string => `Elite ${name}`;
+export const eliteName = (d: Pick<MonsterDef, "name" | "eliteName">): string => d.eliteName ?? `Elite ${d.name}`;
 
 /** Este tipo pode nascer elite? (o servidor ainda exclui invocações, ondas do Coliseu e salas de quest). */
 export function canBeElite(d: Pick<MonsterDef, "boss" | "level" | "xp" | "stationary" | "invulnerable">): boolean {

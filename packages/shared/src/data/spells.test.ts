@@ -40,29 +40,37 @@ const autoAvg = (voc: Vocation, level: number) => {
   return (best[0] + best[1]) / 2;
 };
 const healPct = (id: string, voc: Vocation, level: number) => value(SPELLS[id]!, level, voc) / baseStats(voc, level).maxHp;
-const HEALS = ["light_heal"];
+const HEALS = ["light_heal", "intense_heal", "vital_cure", "arcane_restoration", "holy_cure"];
 
 describe("SPELLS", () => {
-  it("cada vocação tem 10-12 magias (cabem nos atalhos), com UMA cura própria", () => {
+  it("cada vocação tem 10-15 magias (cabem nos atalhos, família absorve o excesso), com cura própria por vocação", () => {
+    // Ciclo 9: Cura Intensa (comum) + cura própria por vocação (druida/feiticeiro/paladino) reabriram o catálogo de
+    // curas, antes travado numa só por vocação (ver histórico abaixo).
+    const SELF_HEALS: Record<Vocation, string[]> = {
+      knight: ["light_heal", "intense_heal"],
+      paladin: ["light_heal", "holy_cure", "intense_heal"],
+      sorcerer: ["light_heal", "arcane_restoration", "intense_heal"],
+      druid: ["light_heal", "vital_cure", "intense_heal"],
+    };
     for (const v of VOCS) {
       const list = spellsFor(v);
       expect(list.length, v).toBeGreaterThanOrEqual(10);
-      expect(list.length, v).toBeLessThanOrEqual(HOTKEY_MAX);
+      expect(list.length, v).toBeLessThanOrEqual(15);
       expect(list.map((s) => s.level), v).toEqual([...list.map((s) => s.level)].sort((a, b) => a - b));
       expect(list.some((s) => s.id === "light_heal"), v).toBe(true);
-      // exatamente uma cura em si mesmo (alvo "self" com heal); a cura em grupo do druida é outra coisa
-      expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(["light_heal"]);
+      // Curas em si mesmo (alvo "self" com heal); a cura em grupo do druida e as de grupo do ciclo 9 são outra coisa.
+      expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(SELF_HEALS[v]);
       expect(list.every((s) => s.vocations.includes(v))).toBe(true);
     }
-    expect(Object.keys(SPELLS).length).toBe(39);
+    expect(Object.keys(SPELLS).length).toBe(47);
   });
 
-  it("cura única: exura (lv1) para todas as vocações; sem exura gran/vita; druida mantém exura mas sio", () => {
+  it("cura única: exura (lv1) para todas as vocações; Cura Intensa comum; cura própria por vocação; druida mantém exura mas sio", () => {
     expect(spellByWords("exura")).toMatchObject({ id: "light_heal", name: "Cura", level: 1, vocations: VOCS });
-    expect(spellByWords("exura gran")).toBeUndefined();
-    expect(spellByWords("exura vita")).toBeUndefined();
-    expect(SPELLS.great_heal).toBeUndefined();
-    expect(SPELLS.vital_heal).toBeUndefined();
+    expect(spellByWords("exura gran")).toMatchObject({ id: "intense_heal", vocations: VOCS, target: "self" });
+    expect(spellByWords("exura vita")).toMatchObject({ id: "vital_cure", vocations: ["druid"], target: "self" });
+    expect(spellByWords("exura ico")).toMatchObject({ id: "arcane_restoration", vocations: ["sorcerer"], target: "self" });
+    expect(spellByWords("exura san")).toMatchObject({ id: "holy_cure", vocations: ["paladin"], target: "self", cleanse: true });
     expect(spellByWords("exura mas sio")).toMatchObject({ id: "group_heal", vocations: ["druid"], target: "party" });
     expect(spellsFor("knight").map((s) => s.words)).not.toContain("exura mas sio");
   });
@@ -219,11 +227,27 @@ describe("SPELLS", () => {
       expect(burnPerSec).toBeLessThan(regenPerSec * 2.5);
     });
 
-    it("fim de jogo: 4 magias novas por vocação (lv 35, 50, 70, 90), sem cura nova", () => {
+    it("fim de jogo: 4 magias de dano/controle por vocação (lv 35, 50, 70, 90) + curas e grupo do ciclo 9", () => {
+      // Ciclo 9: Cura Intensa (60, comum) e a magia de grupo (110) entraram para todas; cura própria (45) só para
+      // paladino/feiticeiro/druida (o cavaleiro não ganhou uma — ver spells.ts).
+      const LATE_LEVELS: Record<Vocation, number[]> = {
+        knight: [35, 50, 60, 70, 90, 110],
+        paladin: [35, 45, 50, 60, 70, 90, 110],
+        sorcerer: [35, 45, 50, 60, 70, 90, 110],
+        druid: [35, 45, 50, 60, 70, 90, 110],
+      };
+      const HEAL_IDS: Record<Vocation, string[]> = {
+        knight: ["intense_heal"],
+        paladin: ["holy_cure", "intense_heal"],
+        sorcerer: ["arcane_restoration", "intense_heal"],
+        druid: ["vital_cure", "intense_heal"],
+      };
       for (const v of VOCS) {
         const late = spellsFor(v).filter((s) => s.level > 30);
-        expect(late.map((s) => s.level), v).toEqual([35, 50, 70, 90]);
-        expect(late.some((s) => s.heal), v).toBe(false);
+        expect(late.map((s) => s.level), v).toEqual(LATE_LEVELS[v]);
+        expect(late.filter((s) => s.heal).map((s) => s.id), v).toEqual(HEAL_IDS[v]);
+        // As de dano/controle de antes continuam exatamente nos levels 35/50/70/90, sem cura.
+        expect(late.filter((s) => [35, 50, 70, 90].includes(s.level)).some((s) => s.heal), v).toBe(false);
       }
     });
 
@@ -258,7 +282,8 @@ describe("SPELLS", () => {
     it("cooldowns por categoria: AoE 4-8 s, buffs/utilidade >= 15 s, invocação >= 60 s", () => {
       for (const s of Object.values(SPELLS)) {
         if (s.summon) expect(s.cooldownMs, s.id).toBeGreaterThanOrEqual(60_000);
-        else if (s.condition && !s.damage) expect(s.cooldownMs, s.id).toBeGreaterThanOrEqual(15_000);
+        // Cura com regeneração (Cura Vital): é cura, não buff puro (mesma exclusão de isAggressive em spells.ts).
+        else if (s.condition && !s.damage && !s.heal) expect(s.cooldownMs, s.id).toBeGreaterThanOrEqual(15_000);
         else if (s.target === "area_self" || s.target === "area_target" || s.target === "wave") {
           expect(s.cooldownMs, s.id).toBeGreaterThanOrEqual(4000);
           expect(s.cooldownMs, s.id).toBeLessThanOrEqual(8000);

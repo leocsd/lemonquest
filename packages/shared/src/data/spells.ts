@@ -61,6 +61,8 @@ export interface SpellDef {
   summon?: { monsterId: string; count: number; durationMs: number };
   /** Provocar: monstros na área passam a atacar o conjurador. */
   taunt?: boolean;
+  /** Cura sagrada: remove veneno/queimadura/sangramento/choque/congelamento de quem for curado. */
+  cleanse?: boolean;
   fx: SpellFx;
   description: string;     // PT-BR, curta, para tooltip
 }
@@ -89,6 +91,15 @@ export const SPELLS: Record<string, SpellDef> = {
     id: "light_heal", name: "Cura", words: "exura", vocations: ["knight", "paladin", "sorcerer", "druid"], level: 1, mana: 20, manaPerLevel: 1.5, manaMax: 70, cooldownMs: 1000,
     target: "self", heal: { base: 22, perLevel: 2.2, perMagic: 0.45, variance: 0.15 }, fx: "heal",
     description: "Cura uma parte da sua vida. Cresce com o level e, principalmente para magos, com o magic level. O custo de mana sobe com o level.",
+  },
+  // Reintroduzida (ciclo 9): a Cura nunca tinha um segundo degrau em todo o jogo (de druidas/feiticeiros com dezenas
+  // de levels de mana sobrando até cavaleiros/paladinos no fim de jogo). Comum às 4 vocações, diferente das curas
+  // próprias abaixo (que divergem por vocação); custa bem mais mana pra não substituir a Cura no dia a dia.
+  intense_heal: {
+    id: "intense_heal", name: "Cura Intensa", words: "exura gran", vocations: ["knight", "paladin", "sorcerer", "druid"], level: 60,
+    mana: 60, manaPerLevel: 2, manaMax: 170, cooldownMs: 3000,
+    target: "self", heal: { base: 70, perLevel: 2.6, perMagic: 1, variance: 0.15 }, fx: "heal",
+    description: "Uma cura bem mais forte que a Cura comum, por um custo de mana bem maior.",
   },
 
   // ------------------------------------------------------------------ CAVALEIRO (tank corpo a corpo)
@@ -257,6 +268,14 @@ export const SPELLS: Record<string, SpellDef> = {
     condition: { id: "slow", durationMs: 3000, value: 50 }, fx: "arrow",
     description: "Acerta o alvo na perna: dano e 50% de lentidão por 3 segundos.",
   },
+  // Cura própria do paladino (ciclo 9): mesma linha das curas de druida/feiticeiro abaixo, mas sagrada — cura menos
+  // que as duas (ML do paladino cresce mais devagar), e em troca purifica o próprio corpo.
+  holy_cure: {
+    id: "holy_cure", name: "Cura Sagrada", words: "exura san", vocations: ["paladin"], level: 45,
+    mana: 45, manaPerLevel: 1.5, manaMax: 120, cooldownMs: 5000,
+    target: "self", heal: { base: 30, perLevel: 1.5, perMagic: 0.5, variance: 0.15 }, cleanse: true, fx: "heal",
+    description: "Cura e purifica: remove veneno, queimadura, sangramento, choque e congelamento.",
+  },
   divine_judgment: {
     id: "divine_judgment", name: "Julgamento Divino", words: "exori gran san", vocations: ["paladin"], level: 70, mana: 120, cooldownMs: 8000,
     target: "area_target", range: 6, radius: 2, damage: { kind: "holy", base: 50, perLevel: 3.2, perMagic: 4, variance: 0.2 }, fx: "holy",
@@ -278,6 +297,14 @@ export const SPELLS: Record<string, SpellDef> = {
     id: "sudden_death", name: "Morte Súbita", words: "exori mort", vocations: ["sorcerer"], level: 50, mana: 100, cooldownMs: 6000,
     target: "target", range: 6, damage: { kind: "death", base: 50, perLevel: 3, perMagic: 3.4, variance: 0.2 }, fx: "death",
     description: "Energia da morte concentrada num único alvo.",
+  },
+  // Cura própria do feiticeiro (ciclo 9): tudo de uma vez (maior perMagic das três, sem sustentação), o oposto da
+  // Cura Vital do druida abaixo — reflete o feiticeiro "tudo ou nada".
+  arcane_restoration: {
+    id: "arcane_restoration", name: "Restauração Arcana", words: "exura ico", vocations: ["sorcerer"], level: 45,
+    mana: 60, manaPerLevel: 2.2, manaMax: 150, cooldownMs: 5000,
+    target: "self", heal: { base: 45, perLevel: 1.4, perMagic: 1.3, variance: 0.15 }, fx: "heal",
+    description: "Uma explosão de energia arcana que cura tudo de uma vez.",
   },
   electric_storm: {
     id: "electric_storm", name: "Tempestade Elétrica", words: "exevo gran mas vis", vocations: ["sorcerer"], level: 70, mana: 260, cooldownMs: 8000,
@@ -314,6 +341,39 @@ export const SPELLS: Record<string, SpellDef> = {
     target: "target", range: 6, damage: { kind: "ice", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "ice",
     description: "O gelo mais forte do druida: dano enorme no alvo e 50% de lentidão.",
+  },
+  // Cura própria do druida (ciclo 9): instantânea + regeneração, a única das três com efeito sustentado — reflete
+  // o papel de curador contínuo do druida, mesmo nível das curas de feiticeiro/paladino acima.
+  vital_cure: {
+    id: "vital_cure", name: "Cura Vital", words: "exura vita", vocations: ["druid"], level: 45,
+    mana: 55, manaPerLevel: 1.8, manaMax: 140, cooldownMs: 6000,
+    target: "self", heal: { base: 35, perLevel: 1.6, perMagic: 0.7, variance: 0.15 },
+    condition: { id: "regen", durationMs: 6000, value: 18 }, fx: "heal",
+    description: "Cura na hora e deixa você regenerando vida por mais 6 segundos.",
+  },
+
+  // ------------------------------------------------------------------ FAIXA 90-120: utilidade em grupo (lv 110)
+  // Cada vocação ganha 1 magia de suporte que alcança o grupo (raio 4, como a Cura em Grupo), reaproveitando
+  // condições que hoje só vão no próprio conjurador. Preenche o buraco de grupo no fim de jogo (GD-ciclo 9).
+  group_shield: {
+    id: "group_shield", name: "Escudo em Grupo", words: "utamo tempo mas", vocations: ["knight"], level: 110, mana: 120, cooldownMs: 25_000,
+    target: "party", radius: 4, condition: { id: "protect", durationMs: 8000, value: 20 }, fx: "buff",
+    description: "Reduz em 20% o dano recebido por você e aliados num raio de 4 tiles, por 8 segundos.",
+  },
+  group_haste: {
+    id: "group_haste", name: "Avanço em Grupo", words: "utani hur mas", vocations: ["paladin"], level: 110, mana: 140, cooldownMs: 30_000,
+    target: "party", radius: 4, condition: { id: "haste", durationMs: 20_000, value: 30 }, fx: "buff",
+    description: "Aumenta a velocidade de você e aliados num raio de 4 tiles em 30%, por 20 segundos.",
+  },
+  group_manashield: {
+    id: "group_manashield", name: "Escudo de Mana em Grupo", words: "utamo vita mas", vocations: ["sorcerer"], level: 110, mana: 150, cooldownMs: 30_000,
+    target: "party", radius: 4, condition: { id: "manashield", durationMs: 15_000 }, fx: "buff",
+    description: "Por 15 segundos, o dano recebido por você e aliados num raio de 4 tiles consome mana antes da vida.",
+  },
+  group_regen: {
+    id: "group_regen", name: "Regeneração em Grupo", words: "exura mas tera", vocations: ["druid"], level: 110, mana: 200, cooldownMs: 30_000,
+    target: "party", radius: 4, condition: { id: "regen", durationMs: 8000, value: 50 }, fx: "heal",
+    description: "Cura 50 de vida por segundo em você e aliados num raio de 4 tiles, por 8 segundos.",
   },
 };
 
@@ -381,4 +441,14 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Esmagar Terra        druid      50   100 (7%)    6    dmg 256 (alvo + poison)
  * Tempestade de Terra  druid      70   260 (12%)    8    dmg 508 (área r4 + poison)
  * Fúria da Natureza    druid      90   180 (7%)   10    dmg 693 (alvo + slow)
+ *
+ * CICLO 9 — curas novas (reabrindo o catálogo, antes 1 por vocação) e grupo lv 110 (faixa 90-120)
+ * Cura Intensa (exura gran)      todas     60    60-170    3    heal, mana bem maior que a Cura
+ * Cura Vital (exura vita)        druid     45    55-140    6    heal + regen 18/s por 6 s
+ * Restauração Arcana (exura ico) sorcerer  45    60-150    5    heal maior, sem efeito sustentado
+ * Cura Sagrada (exura san)       paladin   45    45-120    5    heal menor + remove veneno/queimadura/etc.
+ * Escudo em Grupo                knight   110   120        25   protect -20%, 8 s, raio 4
+ * Avanço em Grupo                paladin  110   140        30   haste +30%, 20 s, raio 4
+ * Escudo de Mana em Grupo        sorcerer 110   150        30   manashield, 15 s, raio 4
+ * Regeneração em Grupo           druid    110   200        30   regen 50/s, 8 s, raio 4
  */

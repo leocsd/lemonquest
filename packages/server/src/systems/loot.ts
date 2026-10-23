@@ -167,7 +167,7 @@ export class LootSystem {
     if (def.boss) this.feed(`☠️ ${p.name} derrotou ${def.name}!`, "boss");
     // Elite: chance de cada item ×2 e ouro ×2 (ELITE).
     const roll = rollLoot(def, this.rng, this.o.inventory.defs, (this.o.lootMult?.() ?? 1) * (m.elite ? ELITE.loot : 1), m.elite ? ELITE.gold : 1);
-    const monsterName = m.elite ? eliteName(def.name) : def.name;
+    const monsterName = m.elite ? eliteName(def) : def.name;
     const party = this.o.partyIdOf?.(p, m);
     if (party && this.o.ground?.placeNear) return this.dropForParty(p, m, roll.items, roll.gold, party);
     if (roll.gold > 0) this.o.inventory.addGold(p, roll.gold);
@@ -221,7 +221,7 @@ export class LootSystem {
       if (d && FEED_RARITIES.includes(it.rarity)) this.feed(`🔥 ${p.name} dropou ${d.name} (${RARITY_LABEL[it.rarity]})`, "drop", it.rarity);
     }
     if (onGround.length || groundGold > 0) {
-      this.o.send(p.id, S2C.Loot, { x, y, monsterName: m.elite ? eliteName(m.def.name) : m.def.name, items: onGround, gold: groundGold, onGround: true } satisfies LootMsg);
+      this.o.send(p.id, S2C.Loot, { x, y, monsterName: m.elite ? eliteName(m.def) : m.def.name, items: onGround, gold: groundGold, onGround: true } satisfies LootMsg);
     }
   }
 

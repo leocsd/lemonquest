@@ -1,5 +1,27 @@
 # Changelog
 
+## [Não lançado] — 2026-10-23 · conteúdo 90-120: magia de grupo, curas por vocação e duas missões novas
+
+Preenche o F2-8 do roadmap (faixa 90-120) e reabre o catálogo de curas, parado desde o ciclo 7 numa só por vocação.
+
+- **Magia de grupo (lv 110)**, uma por vocação, raio 4 (como a Cura em Grupo): Escudo em Grupo (cavaleiro, -20% dano,
+  8 s), Avanço em Grupo (paladino, +30% velocidade, 20 s), Escudo de Mana em Grupo (feiticeiro, 15 s) e Regeneração
+  em Grupo (druida, +50 vida/s, 8 s). Reaproveita condições que hoje só iam no próprio conjurador (`protect`,
+  `haste`, `manashield`, `regen`) no pipeline de magia de grupo que já existia.
+- **Cura própria por vocação (lv 45)**: Cura Vital (druida, instantânea + regeneração por 6 s), Restauração Arcana
+  (feiticeiro, maior cura instantânea, sem sustentação) e Cura Sagrada (paladino, cura menor, mas remove veneno,
+  queimadura, sangramento, choque e congelamento). **Cura Intensa (lv 60)**, comum às 4 vocações, é o 2º degrau que
+  a Cura nunca teve em todo o jogo. Campo novo `SpellDef.cleanse`.
+- **Elite "nomeado"**: o Colosso (`juggernaut`), ao nascer elite (5% de chance, mecânica já existente), ganha nome
+  próprio ("Grondar, o Colosso Partido") em vez do genérico "Elite Colosso". Campo novo `MonsterDef.eliteName`.
+- **Duas missões novas** na cadeia de Mestre Ignis, preenchendo o buraco entre Os Cães do Inferno (lv 95) e O Fim
+  de Ferumbras (lv 120): Os Portões Demoníacos (lv 100, matar 20 demônios) e A Ponte dos Colossos (lv 108, entregar
+  8 Placas de Colosso). Reaproveitam monstros e itens que já existiam no mapa, sem mapa nem arte novos.
+- Testes: `spells.test.ts` (shared e server, casos novos para cleanse, regeneração e magia de grupo), `monsters.test.ts`,
+  `quests.test.ts` (catálogo valida automaticamente ids, NPCs, pré-requisitos e XP), `hotkeys.test.ts`/`edit.test.ts`
+  recalibrados: o catálogo cresceu de 39 para 47 magias, druida e feiticeiro passam o `HOTKEY_MAX` de 12 e o resto
+  vai para teclas de letra.
+
 ## [Não lançado] — 2026-10-22 · ciclo 9: auditoria completa, CI verde de novo e telemetria de progressão
 
 Auditoria de 7 agentes com baseline executada: relatórios em `docs/audit/2026-10-22/` (repositório, gameplay, limpeza

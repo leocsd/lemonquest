@@ -34,10 +34,14 @@ const SP: Record<string, SpellDef> = {
 };
 
 // Curas reais do catálogo (ids não colidem com as fixtures).
-Object.assign(SP, { light_heal: SPELLS.light_heal });
+Object.assign(SP, {
+  light_heal: SPELLS.light_heal, intense_heal: SPELLS.intense_heal, holy_cure: SPELLS.holy_cure,
+  vital_cure: SPELLS.vital_cure, arcane_restoration: SPELLS.arcane_restoration, group_shield: SPELLS.group_shield,
+});
+const REAL_IDS = ["light_heal", "intense_heal", "holy_cure", "vital_cure", "arcane_restoration", "group_shield"];
 
 // Fixtures fora do cooldown global (exceto heal/bolt/big/free), para os testes de efeito.
-for (const s of Object.values(SP)) if (!["heal", "bolt", "big", "free", "light_heal"].includes(s.id)) s.global = false;
+for (const s of Object.values(SP)) if (!["heal", "bolt", "big", "free", ...REAL_IDS].includes(s.id)) s.global = false;
 
 interface SetupOpts { grid?: CollisionGrid; monsters?: { x: number; y: number; def?: Partial<MonsterDef> }[]; safeZones?: { x0: number; y0: number; x1: number; y1: number }[]; isAlly?: (a: PlayerState, b: PlayerState) => boolean }
 
@@ -508,7 +512,7 @@ describe("curas de todas as vocações (catálogo real)", () => {
     expect(p.mana).toBe(500 - 2 * cost);
   });
 
-  it("Cura: sem mana suficiente (custo do level) falha; exura gran/vita não existem mais", () => {
+  it("Cura: sem mana suficiente (custo do level) falha; great_heal/vital_heal nunca existiram", () => {
     const w = setup();
     const p = w.addP("p", 11, 10, { vocation: "sorcerer", level: 30, hp: 100, maxHp: 1000, mana: 64, maxMana: 500 });
     expect(spellMana(SPELLS.light_heal!, 30)).toBe(65);
@@ -518,10 +522,66 @@ describe("curas de todas as vocações (catálogo real)", () => {
     expect(p.mana).toBe(0);
     expect(w.spells.cast(p, "great_heal")).toMatchObject({ ok: false });
     expect(w.spells.cast(p, "vital_heal")).toMatchObject({ ok: false });
-    expect(w.spells.castWords(p, "exura gran")).toBe(false);
+    // Ciclo 9: "exura gran" agora é a Cura Intensa (intense_heal, lv 60) — reconhecida, mas o level 30 não alcança.
+    expect(w.spells.castWords(p, "exura gran")).toBe(true);
+    expect(w.results("p").at(-1)).toMatchObject({ ok: false, reason: "level" });
   });
 
-  it("os atalhos (HOTKEY_MAX) comportam todas as magias de cada vocação", () => {
-    for (const v of VOCS) expect(spellsFor(v).length, v).toBeLessThanOrEqual(HOTKEY_MAX);
+  // Ciclo 9: Cura Intensa (comum) + cura própria por vocação + magia de grupo (lv 110) deixaram druida/feiticeiro
+  // em 15 magias, acima do HOTKEY_MAX (12) — a família não ajuda aqui (nenhuma das novas entra em família), então
+  // o jogador aloca o resto em teclas de letra (SUGGESTED_KEYS vai bem além de 12).
+  it("catálogo cabe no limite ampliado (10-15); acima do HOTKEY_MAX sobra pra teclas de letra", () => {
+    for (const v of VOCS) {
+      expect(spellsFor(v).length, v).toBeGreaterThanOrEqual(10);
+      expect(spellsFor(v).length, v).toBeLessThanOrEqual(15);
+    }
+    expect(spellsFor("sorcerer").length).toBeGreaterThan(HOTKEY_MAX);
+  });
+
+  it("Cura Sagrada (paladino): cura e remove veneno/queimadura, mas não lentidão nem enraizamento", () => {
+    const w = setup();
+    const p = w.addP("p", 11, 10, { vocation: "paladin", level: 45, magicLevel: 11, mana: 500, maxMana: 500, hp: 50, maxHp: 1000 });
+    w.conditions.apply(p.id, "poison", 10_000, 5, "x", w.now());
+    w.conditions.apply(p.id, "burn", 10_000, 5, "x", w.now());
+    w.conditions.apply(p.id, "slow", 10_000, 40, "x", w.now());
+    w.conditions.apply(p.id, "rooted", 10_000, undefined, "x", w.now());
+    expect(w.spells.cast(p, "holy_cure")).toMatchObject({ ok: true });
+    expect(p.hp).toBeGreaterThan(50);
+    expect(w.conditions.has(p.id, "poison")).toBe(false);
+    expect(w.conditions.has(p.id, "burn")).toBe(false);
+    expect(w.conditions.has(p.id, "slow")).toBe(true);
+    expect(w.conditions.has(p.id, "rooted")).toBe(true);
+  });
+
+  it("Cura Vital (druida): cura na hora e deixa regenerando por 6 s", () => {
+    const w = setup();
+    const p = w.addP("p", 11, 10, { vocation: "druid", level: 45, magicLevel: 33, mana: 500, maxMana: 500, hp: 50, maxHp: 1000 });
+    expect(w.spells.cast(p, "vital_cure")).toMatchObject({ ok: true });
+    const healed = p.hp;
+    expect(healed).toBeGreaterThan(50);
+    expect(w.conditions.has(p.id, "regen")).toBe(true);
+    expect(w.conditions.value(p.id, "regen")).toBe(18);
+    w.run(1000);
+    expect(p.hp).toBe(healed + 18); // 1 tique de regen (REGEN_TICK_MS = 1 s)
+  });
+
+  it("Restauração Arcana (feiticeiro): cura tudo de uma vez, sem condição", () => {
+    const w = setup();
+    const p = w.addP("p", 11, 10, { vocation: "sorcerer", level: 45, magicLevel: 33, mana: 500, maxMana: 500, hp: 50, maxHp: 1000 });
+    expect(w.spells.cast(p, "arcane_restoration")).toMatchObject({ ok: true });
+    expect(p.hp).toBeGreaterThan(50);
+    expect(w.conditions.listFor(p, w.now())).toEqual([]);
+  });
+
+  it("Escudo em Grupo (cavaleiro): protect chega ao aliado perto, não a quem está longe", () => {
+    const w = setup();
+    const p = w.addP("knight1", 10, 10, { vocation: "knight", level: 110, mana: 500, maxMana: 500 });
+    const near = w.addP("near", 11, 10);
+    const far = w.addP("far", 20, 20);
+    expect(w.spells.cast(p, "group_shield")).toMatchObject({ ok: true });
+    expect(w.conditions.has(p.id, "protect")).toBe(true);
+    expect(w.conditions.has(near.id, "protect")).toBe(true);
+    expect(w.conditions.has(far.id, "protect")).toBe(false);
+    expect(w.conditions.damageTakenPct(near.id)).toBe(20);
   });
 });

@@ -24,6 +24,8 @@ export interface CreatureVisual {
   look: CharacterLook;
   scale: number;
   name: string;
+  /** Nome próprio quando esta espécie nasce elite (ver shared eliteName()). */
+  eliteName?: string;
   level: number;
   boss: boolean;
   known: boolean;
@@ -41,7 +43,7 @@ export function creatureVisual(defId: string): CreatureVisual {
     v = {
       look: { sheet: sheetFor(def.sprite), tint: def.sprite.tint ?? 0xffffff },
       scale: def.sprite.scale ?? 1,
-      name: def.name, level: def.level, boss: !!def.boss, known: true,
+      name: def.name, eliteName: def.eliteName, level: def.level, boss: !!def.boss, known: true,
     };
   } else {
     const first = Object.values(MONSTERS)[0];

@@ -490,7 +490,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.creatures.has(id)) return;
     const v = creatureVisual(m.defId);
     const elite = !!m.elite;
-    const name = elite ? eliteName(v.name) : v.name;
+    const name = elite ? eliteName(v) : v.name;
     // Elite: "★" antes do nome (a cor fica com a dificuldade — ver creatureColor).
     const actor = new Actor(
       this.actorDeps(), v.look, (v.boss ? "☠ " : "") + (elite ? `${ELITE_GLYPH} ` : "") + name, false, m.x, m.y, m.dir,
