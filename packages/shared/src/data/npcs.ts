@@ -416,15 +416,15 @@ export const NPCS: Record<string, NpcDef> = {
     },
     idleLines: [
       "Chegou! Não, era o vento.",
-      "Cabo roído não é defeito, é documentação.",
+      "Cordão roído não é defeito, é documentação.",
       "Soldar não; crimpar, sim.",
     ],
   },
   bianca: {
     id: "bianca", name: "Bianca da Logística", sprite: C + "Village6/SpriteSheet.png",
-    greeting: "A marmita de tampa vermelha faz aniversário amanhã e ninguém assume. Mas antes disso: as bombonas fugiram do pátio de novo.",
+    greeting: "A marmita de tampa vermelha faz aniversário amanhã e ninguém assume. Mas antes disso: as Gosmas Azuis fugiram do pátio de novo, com as etiquetas das bombonas.",
     idleLines: [
-      "Bombona fugitiva não corre: rola. E rola rápido.",
+      "Gosma azul não corre: quica. E quica rápido.",
       "Sem etiqueta, não embarca. Sem rótulo, não existe.",
       "O frete chega quando chega. A encomenda, só quando alguém grita 'Chegou!'.",
     ],
@@ -440,9 +440,9 @@ export const NPCS: Record<string, NpcDef> = {
   },
   iago: {
     id: "iago", name: "Iago do Cofre", sprite: C + "NinjaGray/SpriteSheet.png",
-    greeting: "Post-it não é cofre. Se achar algum colado por aí com senha, traga pra mim antes que alguém leia.",
+    greeting: "Papel não é cofre. Se achar algum bilhete amassado por aí com senha, traga pra mim antes que alguém leia.",
     idleLines: [
-      "Post-it não é cofre.",
+      "Papel não é cofre.",
       "Rotaciona a senha. De novo.",
       "Quem anotou a senha no monitor?",
     ],
@@ -485,7 +485,7 @@ export const NPCS: Record<string, NpcDef> = {
   // Placas e máquinas (NPCs sem papel, só ambientação). A Geladeira é a única loja de comida da Oficina.
   geladeira: {
     id: "geladeira", name: "Geladeira da Copa", sprite: C + "RobotGrey/SpriteSheet.png",
-    greeting: "Zumbido. A porta abre: marmita, café e vasilhas empilhadas. Marmita sem nome é marmita de todos.",
+    greeting: "Zumbido. A porta abre: ensopado do viajante, chá de ervas e tigelas vazias. Marmita sem nome é marmita de todos.",
     shop: {
       sells: sells("marmita_tampa_vermelha", "cafe_oficina", "vasilha_empilhada", "nuts"),
     },
@@ -540,17 +540,19 @@ export const NPCS: Record<string, NpcDef> = {
   },
   chefe_estacao_malha: {
     id: "chefe_estacao_malha", name: "Chefe da Estação Central", sprite: C + "Sultan2/SpriteSheet.png",
-    greeting: "Bem-vindo à Estação Central da Malha. Daqui saem o Pátio de Manobra, o Portal de Inspeção e a Oficina de Vagões. O trem de volta para a Vila sai quando você quiser.",
+    greeting: "Bem-vindo à Estação Central da Malha. Trem para a Vila de Pedra Clara aqui, quando você quiser. Daqui saem o Pátio de Manobra, o Portal de Inspeção e a Oficina de Vagões; o trem também para com o Maquinista, na entrada do Túnel, e com o Agente da Parada, perto do Portal e da Oficina.",
     travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 }],
     idleLines: [
+      "Trem para a Vila aqui! Embarque pela plataforma 1.",
       "Composição de 1.124 eixos! Recorde. Ninguém contou a mão.",
+      "Longe da plataforma? O Maquinista, no Túnel, e o Agente da Parada, perto do Portal e da Oficina, também vendem passagem.",
       "Cabeceira A, cabeceira B... e a cabeceira U, de 'ué'.",
       "Vagão é quatro eixos, locomotiva é seis. O resto é VAG-TEMP.",
     ],
   },
   ferramenteiro: {
     id: "ferramenteiro", name: "Ferramenteiro da Malha", sprite: C + "Caveman/SpriteSheet.png",
-    greeting: "Chave, graxa e poção. Compro tudo o que você arrancar da via: pino, sapata, rolamento, chaveta, até pedra de brita.",
+    greeting: "Chave, graxa e poção. Compro tudo o que você arrancar dos bichos da via: pino, placa, engrenagem, cunha, até cascalho.",
     shop: {
       sells: sells(
         "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
@@ -560,7 +562,7 @@ export const NPCS: Record<string, NpcDef> = {
     },
     idleLines: [
       "Chave 32? Emprestei. Para quem? Não lembro.",
-      "Chaveta torta não volta. Chaveta torta vira chaveiro.",
+      "Cunha torta não volta. Cunha torta vira chaveiro.",
       "Graxa não é sujeira. É documentação de manutenção.",
     ],
   },
@@ -585,7 +587,7 @@ export const NPCS: Record<string, NpcDef> = {
     id: "inspetora_portal", name: "Inspetora de Rodas", sprite: C + "Cavegirl/SpriteSheet.png",
     greeting: "Quatro câmeras, quatro iluminadores e uma decisão por roda: com defeito ou sem defeito. Roda sem imagem não deixa o vagão fechar, e o trem nunca encerra.",
     idleLines: [
-      "Trinca no Disco, Aro Fraturado, Calo, Escamação. Vermelho, laranja, âmbar, ciano.",
+      "Trinca no disco, aro fraturado, calo, escamação. Vermelho, laranja, âmbar, ciano. Na tela, só cores.",
       "Quem trocou o S pelo N na legenda? Reprovei e aprovou!",
       "Imagem chegando três horas antes do trem. Fuso, de novo.",
     ],
@@ -601,20 +603,33 @@ export const NPCS: Record<string, NpcDef> = {
   },
   mecanico_vagao: {
     id: "mecanico_vagao", name: "Engenheiro do Dark-field", sprite: C + "MaskRacoon/SpriteSheet.png",
-    greeting: "Luz rasante, quase de lado: é assim que a trinca no disco aparece. Aqui na Oficina de Vagões eu estudo cada defeito que o pórtico deixou passar, e alguns deles saíram andando.",
+    greeting: "Luz rasante, quase de lado: é assim que a trinca no disco aparece. Aqui na Oficina de Vagões eu estudo cada defeito que o pórtico deixou passar, e as rodas reprovadas atraíram bicho de todo tipo.",
     idleLines: [
-      "Trinca no disco não roda: rola ladeira abaixo.",
+      "Olho Sangrento no galpão? Sinal de roda reprovada por perto.",
       "Calo é roda que arrastou. Arrastou porque a sapata travou.",
       "Brita parada e fumaça enganam a câmera. A trinca, não.",
     ],
   },
   maquinista_aposentado: {
     id: "maquinista_aposentado", name: "Maquinista", sprite: C + "OldMan/SpriteSheet.png",
-    greeting: "Quarenta anos de cabine. Já vi trem sem tag, vagão sem eixo e locomotiva sem eixo lido deslocando a composição inteira. Essa última ainda passa no túnel, toda quarta, às cinco: o Trem Que Nunca Encerra.",
+    greeting: "Quarenta anos de cabine. Já vi trem sem tag, vagão sem eixo e locomotiva sem eixo lido deslocando a composição inteira. Essa última ainda passa no túnel, toda quarta, às cinco, e o Tirano da Serra desce junto. Se cansou da via, o trem para aqui: Vila ou Estação Central.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 }, MALHA_ARRIVAL],
     idleLines: [
       "No meu tempo, a inspeção era no olho. E no ouvido.",
-      "Ouviu o apito? Não? Então ainda não é quarta.",
+      "Ouviu o rugido? Não? Então ainda não é quarta.",
       "Lastro bom é lastro que não anda. Esse aí anda.",
+      "O trem para aqui. Vila ou Estação Central, é só pedir.",
+    ],
+  },
+  // Parada do lado leste (pedido do dono, 2026-10-24): sem ela, a única volta era a pé até a Estação Central.
+  agente_parada: {
+    id: "agente_parada", name: "Agente da Parada", sprite: C + "NinjaYellow/SpriteSheet.png",
+    greeting: "Parada do Portal e da Oficina! Daqui sai o trem de volta: Vila de Pedra Clara ou Estação Central. Até o level 8, por conta da casa.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 }, MALHA_ARRIVAL],
+    idleLines: [
+      "Trem de volta sai daqui! Vila ou Estação Central.",
+      "Parada não tem plataforma, mas tem horário. Mais ou menos.",
+      "Saiu da Oficina com a mochila cheia? Embarque aqui, não precisa andar até a Estação.",
     ],
   },
 };

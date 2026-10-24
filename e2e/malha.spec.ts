@@ -1,7 +1,7 @@
 // Malha da Ferrovia (ciclo 11): trem do Chefe da Estação da Vila leva à Estação Central da Malha (200 de ouro) e o
 // Chefe da Estação Central traz de volta; o portal oculto da Vila (99,104) liga à plataforma, o que deixa a Malha
 // alcançável do spawn e por isso quem desloga lá volta lá (e não no spawn); o Painel da Obra abre a aba "Na obra"
-// (sem token do ClickUp no E2E: estado sem notícias); a Escamação nasce no Pátio de Manobra.
+// (sem token do ClickUp no E2E: estado sem notícias); a Cobra Listrada nasce no Pátio de Manobra.
 import { expect, test, type Page } from "@playwright/test";
 import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear } from "./helpers.ts";
 
@@ -12,7 +12,7 @@ const VILLAGE_PORTAL = { x: 99, y: 104 };
 const MALHA_PORTAL_ARRIVAL = { x: 47, y: 373 };
 const MALHA_PORTAL = { x: 44, y: 371 };
 const VILLAGE_RETURN = { x: 98, y: 103 };
-const ESCAMACAO_SPAWN = { x: 110, y: 370 };
+const COBRA_SPAWN = { x: 110, y: 370 };
 /** Retângulo da zona "Estação Central da Malha" (BLOCK4 40,360 + local 3,3, 34×25). */
 const STATION = { x0: 43, y0: 363, x1: 76, y1: 387 };
 const ZONE = "Estação Central da Malha";
@@ -78,6 +78,20 @@ test("trem da Vila leva à Estação Central da Malha e volta", async ({ page })
   await expect.poll(() => zonesSeen(page)).toContain("Vila de Pedra Clara");
 });
 
+test("Agente da Parada, no lado leste, leva de volta à Vila", async ({ page }) => {
+  await enterGame(page, "paladin");
+  await setLevel(page, 30);
+  await say(page, `/gold ${PRICE}`);
+  await expect.poll(() => gold(page)).toBe(PRICE);
+  // O Agente fica colado na linha principal entre o Portal de Inspeção e a Oficina de Vagões (154,404): 100 tiles da
+  // estação; antes dele, só andando de volta até a plataforma.
+  const spot = (await walkableNear(page, 152, 404, 2))[0]!;
+  await teleport(page, spot.x, spot.y);
+  await travel(page, "agente_parada", "Agente da Parada", "Vila de Pedra Clara");
+  await expect.poll(() => distTo(page, VILLAGE_ARRIVAL), { timeout: 10_000 }).toBeLessThanOrEqual(2);
+  await expect.poll(() => gold(page)).toBe(0);
+});
+
 test("deslogar na Malha volta na Malha", async ({ page }) => {
   const p = await enterGame(page, "sorcerer");
   await setLevel(page, 30);
@@ -117,13 +131,13 @@ test("Painel da Obra mostra a aba Na obra", async ({ page }) => {
   await snap(page, "malha-painel");
 });
 
-test("Escamação aparece no Pátio de Manobra", async ({ page }) => {
+test("Cobra Listrada aparece no Pátio de Manobra", async ({ page }) => {
   await enterGame(page, "knight");
-  await setLevel(page, 60); // a Escamação é lv 28 e bate forte: aguenta enquanto espera o spawn
-  const spot = (await walkableNear(page, ESCAMACAO_SPAWN.x, ESCAMACAO_SPAWN.y, 3))[0]!;
+  await setLevel(page, 60); // a Cobra Listrada é lv 28 e bate forte: aguenta enquanto espera o spawn
+  const spot = (await walkableNear(page, COBRA_SPAWN.x, COBRA_SPAWN.y, 3))[0]!;
   await teleport(page, spot.x, spot.y);
   await expect.poll(async () => (await monsters(page)).map((m) => m.defId), { timeout: 30_000 }).toContain("engate_solto");
   const m = (await monsters(page)).find((x) => x.defId === "engate_solto")!;
-  expect(m.name).toBe("Escamação");
+  expect(m.name).toBe("Cobra Listrada");
   await expect.poll(() => zoneFooter(page)).toBe("Pátio de Manobra");
 });

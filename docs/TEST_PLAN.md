@@ -141,6 +141,13 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ajuste da Malha (2026-10-24, nomes comuns e saídas)
+
+typecheck 0 erros; `npx vitest run` 90 arquivos, 1055 passaram, 1 skip; `diff-world.mjs` contra o mapa do `main`:
+`tiles alterados: 0; objetos antigos idênticos: 698/698; objetos novos: 1`; `malha.spec.ts` (6 casos, com o Agente da
+Parada) + `oficina.spec.ts` 20/20 com `--repeat-each=2`. Grep dos nomes antigos: só títulos de missão e falas de NPC
+(mantidos por decisão do dono).
+
 ## Resultados — ciclo 11 (2026-10-24, Malha da Ferrovia e ClickUp)
 
 | Camada | Resultado |

@@ -182,9 +182,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("mestre_da_frota", "Mestre da Frota", "Pegue 250 itens do chão", "🚚", 20, "pickups", 250, { rewards: ["title:mestre_da_frota"] }),
   a("reuniao_geral", "Reunião Geral", "Derrote 50 monstros em grupo", "📺", 25, "party", 50),
   // Malha da Ferrovia (ciclo 11): chefes da via e métricas existentes com pares (métrica, alvo) que não se repetem.
-  a("vagao_inspecionado", "Vagão Inspecionado", "Derrote o Vagão Não Inspecionável", "🚃", 30, "boss:vagao_nao_inspecionavel", 1, { rewards: ["title:inspetor_de_via"], rare: true }),
-  a("ultimo_apito", "Último Apito", "Derrote O Trem Que Nunca Encerra", "🚂", 40, "boss:locomotiva_fantasma", 1, { rewards: ["title:ferroviario"], rare: true }),
-  a("horario_cumprido", "Horário Cumprido", "Derrote O Trem Que Nunca Encerra 5 vezes", "⏱️", 40, "boss:locomotiva_fantasma", 5, { rare: true }),
+  a("vagao_inspecionado", "Vagão Inspecionado", "Derrote o Ciclope de Pedra", "🚃", 30, "boss:vagao_nao_inspecionavel", 1, { rewards: ["title:inspetor_de_via"], rare: true }),
+  a("ultimo_apito", "Último Apito", "Derrote o Tirano da Serra", "🚂", 40, "boss:locomotiva_fantasma", 1, { rewards: ["title:ferroviario"], rare: true }),
+  a("horario_cumprido", "Horário Cumprido", "Derrote o Tirano da Serra 5 vezes", "⏱️", 40, "boss:locomotiva_fantasma", 5, { rare: true }),
   a("dormente", "Dormente", "Treine offline por 6 horas no total", "🛤️", 15, "offline", 360, { rewards: ["title:dormente"] }),
   a("bitola_larga", "Bitola Larga", "Ande 100.000 tiles", "📏", 35, "steps", 100_000),
   a("passagem_liberada", "Passagem Liberada", "Complete 15 missões", "🚦", 35, "quests", 15),

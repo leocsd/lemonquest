@@ -628,9 +628,10 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: strip(B + "DemonCyclop/Walk.png", 50, 6, { tint: 0xff6060, scale: 2 }),
   },
 
-  // ===== Oficina dos Engenhos (ciclo 10): reskins com piada de escritório, nascem em áreas existentes (lateSpawns).
+  // ===== Oficina dos Engenhos (ciclo 10): reskins que nascem em áreas existentes (lateSpawns). Nomes comuns de fantasia
+  // por pedido do dono (2026-10-24): o trabalho fica nos NPCs e missões; ids iguais (saves, bestiário, mapa).
   datacenter_rat: {
-    id: "datacenter_rat", name: "Rato do Datacenter", level: 3, hp: 40, xp: 12, damage: [2, 6], damageKind: "physical", armor: 0,
+    id: "datacenter_rat", name: "Rato Cinzento", level: 3, hp: 40, xp: 12, damage: [2, 6], damageKind: "physical", armor: 0,
     attackMs: 2000, attackRange: 1, stepMs: 300, aggroRange: 4, fleeAtHpPct: 0.15, respawnMs: 25_000,
     gold: [2, 6],
     loot: [
@@ -641,9 +642,9 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "Mouse/SpriteSheet.png", { tint: 0x7080b0 }),
   },
-  // Passiva (aggroRange 0) e foge cedo (60%): o jogador corre atrás dela, como de uma bombona sem rótulo no pátio.
+  // Passiva (aggroRange 0) e foge cedo (60%): o jogador corre atrás dela pelo pátio.
   runaway_drum: {
-    id: "runaway_drum", name: "Bombona Fugitiva", level: 10, hp: 120, xp: 52, damage: [4, 10], damageKind: "earth", armor: 1,
+    id: "runaway_drum", name: "Gosma Azul", level: 10, hp: 120, xp: 52, damage: [4, 10], damageKind: "earth", armor: 1,
     attackMs: 2000, attackRange: 1, stepMs: 240, aggroRange: 0, fleeAtHpPct: 0.6, respawnMs: 45_000,
     gold: [20, 45],
     loot: [
@@ -654,7 +655,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Slime/Slime.png", { tint: 0x3a78e0, scale: 1.15 }),
   },
   slag_slime: {
-    id: "slag_slime", name: "Gosma de Escória", level: 20, hp: 220, xp: 140, damage: [14, 30], damageKind: "fire", armor: 5,
+    id: "slag_slime", name: "Gosma Cinzenta", level: 20, hp: 220, xp: 140, damage: [14, 30], damageKind: "fire", armor: 5,
     attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 55_000,
     pack: { family: "slag", shout: "Blup-blup!" },
     gold: [10, 24],
@@ -1042,11 +1043,11 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
 
   // ===== Malha da Ferrovia (ciclo 11, lv 25–60): região isolada, só de trem (tools/mapgen/expansion4.mjs). Reskins com
-  // tint de sprites que já existem. Os quatro defeitos de roda têm o nome e a cor que o Portal de Inspeção usa (Trinca no
-  // Disco vermelho, Aro Fraturado laranja, Calo âmbar, Escamação ciano); os ids são os do contrato com o mapa.
+  // tint de sprites que já existem. Nomes comuns de fantasia casando com o sprite (pedido do dono, 2026-10-24); os ids
+  // seguem os do contrato com o mapa e os saves.
   // Números nas janelas dos vizinhos de level (xp/vida ±10%, ouro por faixa: monsters.test.ts e items.test.ts).
   engate_solto: {
-    id: "engate_solto", name: "Escamação", level: 28, hp: 330, xp: 285, damage: [22, 46], damageKind: "physical", armor: 7,
+    id: "engate_solto", name: "Cobra Listrada", level: 28, hp: 330, xp: 285, damage: [22, 46], damageKind: "physical", armor: 7,
     attackMs: 1900, attackRange: 1, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 60_000,
     gold: [60, 140],
     loot: [
@@ -1058,9 +1059,9 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "Snake4/Snake4.png", { tint: 0x40d0e0 }),
   },
-  // Calo: a sapata travou, a roda arrastou no trilho e ficou com um ponto chato. Lento e blindado.
+  // Lenta e blindada: cava devagar, mas a carapaça dourada aguenta pancada.
   sapata_gasta: {
-    id: "sapata_gasta", name: "Calo", level: 32, hp: 420, xp: 420, damage: [26, 52], damageKind: "physical", armor: 12,
+    id: "sapata_gasta", name: "Toupeira Dourada", level: 32, hp: 420, xp: 420, damage: [26, 52], damageKind: "physical", armor: 12,
     attackMs: 2000, attackRange: 1, stepMs: 480, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 60_000,
     gold: [70, 150],
     loot: [
@@ -1071,11 +1072,11 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "Mole2/Mole2.png", { tint: 0xffc040, scale: 1.1 }),
   },
-  // À distância, de fogo, com um flash de energia: o iluminador do pórtico que não quis ser o décimo.
+  // À distância, de fogo, com um clarão de energia.
   iluminador_rebelde: {
-    id: "iluminador_rebelde", name: "Iluminador Rebelde", level: 36, hp: 460, xp: 530, damage: [28, 56], damageKind: "fire", armor: 6,
+    id: "iluminador_rebelde", name: "Lanterna Assombrada", level: 36, hp: 460, xp: 530, damage: [28, 56], damageKind: "fire", armor: 6,
     abilities: [
-      ability.bolt({ name: "Flash de 50 ms", range: 4, min: 30, max: 60, kind: "energy", fx: "energy", cooldownMs: 9000, condition: { id: "energy", durationMs: 4000, value: 6 } }),
+      ability.bolt({ name: "Clarão Fantasma", range: 4, min: 30, max: 60, kind: "energy", fx: "energy", cooldownMs: 9000, condition: { id: "energy", durationMs: 4000, value: 6 } }),
     ],
     attackMs: 2000, attackRange: 4, stepMs: 360, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 60_000,
     gold: [80, 170],
@@ -1088,9 +1089,9 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "LanternGreen/SpriteSheet.png", { tint: 0xfff0a0 }),
   },
-  // Foge cedo (45%) e rápido: o quadro que o gravador descartou some antes de alguém conferir.
+  // Foge cedo (45%) e rápido: some antes de alguém conferir se era mesmo um espectro.
   frame_descartado: {
-    id: "frame_descartado", name: "Frame Descartado", level: 40, hp: 500, xp: 650, damage: [30, 60], damageKind: "energy", armor: 6,
+    id: "frame_descartado", name: "Espectro Errante", level: 40, hp: 500, xp: 650, damage: [30, 60], damageKind: "energy", armor: 6,
     attackMs: 1800, attackRange: 1, stepMs: 260, aggroRange: 4, fleeAtHpPct: 0.45, respawnMs: 60_000,
     gold: [90, 190],
     loot: [
@@ -1103,7 +1104,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Spirit2/SpriteSheet.png", { tint: 0xd0e8ff }),
   },
   rodeiro_trincado: {
-    id: "rodeiro_trincado", name: "Trinca no Disco", level: 45, hp: 820, xp: 1115, damage: [42, 84], damageKind: "physical", armor: 14,
+    id: "rodeiro_trincado", name: "Olho Sangrento", level: 45, hp: 820, xp: 1115, damage: [42, 84], damageKind: "physical", armor: 14,
     attackMs: 1900, attackRange: 1, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 75_000,
     gold: [120, 240],
     loot: [
@@ -1116,9 +1117,9 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Eye/Eye.png", { tint: 0xe04040, scale: 1.15 }),
   },
   truque_desalinhado: {
-    id: "truque_desalinhado", name: "Aro Fraturado", level: 48, hp: 1000, xp: 1420, damage: [48, 92], damageKind: "physical", armor: 16,
+    id: "truque_desalinhado", name: "Fera das Brasas", level: 48, hp: 1000, xp: 1420, damage: [48, 92], damageKind: "physical", armor: 16,
     abilities: [
-      ability.stomp({ name: "Descarrilou!", radius: 1, min: 50, max: 100, cooldownMs: 12_000 }),
+      ability.stomp({ name: "Patada Ardente", radius: 1, min: 50, max: 100, cooldownMs: 12_000 }),
     ],
     attackMs: 2000, attackRange: 1, stepMs: 400, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 80_000,
     gold: [130, 250],
@@ -1131,11 +1132,11 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "Beast/Beast.png", { tint: 0xff8a30, scale: 1.2 }),
   },
-  // Bando do Túnel: onde tem um rato de brita, tem dez debaixo do dormente.
+  // Bando do Túnel: onde tem uma ratazana, tem dez debaixo do dormente.
   rato_de_lastro: {
-    id: "rato_de_lastro", name: "Rato de Brita", level: 50, hp: 700, xp: 1015, damage: [40, 80], damageKind: "physical", armor: 10,
+    id: "rato_de_lastro", name: "Ratazana Negra", level: 50, hp: 700, xp: 1015, damage: [40, 80], damageKind: "physical", armor: 10,
     attackMs: 1700, attackRange: 1, stepMs: 260, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 70_000,
-    pack: { family: "lastro", shout: "Chiii! Pra brita!" },
+    pack: { family: "lastro", shout: "Chiii! Pega ele!" },
     gold: [100, 200],
     loot: [
       { itemId: "brita_de_lastro", chance: 0.5, min: 1, max: 3 },
@@ -1145,12 +1146,12 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "MouseBlack/SpriteSheet.png", { tint: 0xb0a080, scale: 1.1 }),
   },
-  // Mini-chefe da Oficina de Vagões ("não inspecionável" é status real da inspeção): chama calos que travam o grupo.
+  // Mini-chefe da Oficina de Vagões: chama toupeiras que travam o grupo.
   vagao_nao_inspecionavel: {
-    id: "vagao_nao_inspecionavel", name: "Vagão Não Inspecionável", level: 52, hp: 10000, xp: 10000, damage: [85, 160], damageKind: "physical", armor: 18,
+    id: "vagao_nao_inspecionavel", name: "Ciclope de Pedra", level: 52, hp: 10000, xp: 10000, damage: [85, 160], damageKind: "physical", armor: 18,
     abilities: [
-      ability.stomp({ name: "Freio de Emergência", radius: 1, min: 90, max: 160, cooldownMs: 11_000 }),
-      ability.summon({ name: "Calo na roda!", monsterId: "sapata_gasta", count: 1, max: 2, cooldownMs: 25_000 }),
+      ability.stomp({ name: "Pisão do Ciclope", radius: 1, min: 90, max: 160, cooldownMs: 11_000 }),
+      ability.summon({ name: "Toupeiras, a mim!", monsterId: "sapata_gasta", count: 1, max: 2, cooldownMs: 25_000 }),
     ],
     attackMs: 2000, attackRange: 1, stepMs: 460, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
     gold: [2400, 4000],
@@ -1166,13 +1167,12 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "Cyclope2/SpriteSheet.png", { tint: 0xa86a48, scale: 1.7 }),
   },
-  // Chefe da Malha (evento "Apito da Locomotiva", quarta 17h): a composição de 1.124 eixos que nunca fecha. Vapor em
-  // onda e ratos de brita de reforço.
+  // Chefe da Malha (evento "Apito da Locomotiva", quarta 17h): bafo de fogo em onda e ratazanas de reforço.
   locomotiva_fantasma: {
-    id: "locomotiva_fantasma", name: "O Trem Que Nunca Encerra", level: 58, hp: 14000, xp: 15000, damage: [100, 190], damageKind: "physical", armor: 20,
+    id: "locomotiva_fantasma", name: "Tirano da Serra", level: 58, hp: 14000, xp: 15000, damage: [100, 190], damageKind: "physical", armor: 20,
     abilities: [
-      ability.breath({ name: "Vapor Fantasma", length: 4, width: 3, min: 110, max: 200, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 10_000 }),
-      ability.summon({ name: "Mais 1.124 eixos!", monsterId: "rato_de_lastro", count: 2, max: 3, cooldownMs: 25_000 }),
+      ability.breath({ name: "Bafo do Tirano", length: 4, width: 3, min: 110, max: 200, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 10_000 }),
+      ability.summon({ name: "Rugido da Serra", monsterId: "rato_de_lastro", count: 2, max: 3, cooldownMs: 25_000 }),
     ],
     attackMs: 2000, attackRange: 1, stepMs: 320, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
     gold: [3000, 5000],
@@ -1360,14 +1360,14 @@ export function monsterAbilitySpell(spellId: string): SpellDef | undefined {
  * runaway_drum   10   120    52     7  (passiva, foge a 60%)
  * slag_slime     20   220   140    22  (fogo, bando)
  * --- Malha da Ferrovia (ciclo 11: região só de trem, lv 25–60)
- * engate_solto       28   330   285    34  ("Escamação")
- * sapata_gasta       32   420   420    39  ("Calo"; lento, armadura 12)
- * iluminador_reb.    36   460   530    42  (dist 4, fogo; flash de energia)
+ * engate_solto       28   330   285    34  ("Cobra Listrada")
+ * sapata_gasta       32   420   420    39  ("Toupeira Dourada"; lenta, armadura 12)
+ * iluminador_reb.    36   460   530    42  (dist 4, fogo; clarão de energia)
  * frame_descartado   40   500   650    45  (energia, foge a 45%)
- * rodeiro_trincado   45   820  1115    63  ("Trinca no Disco")
- * truque_desalinh.   48  1000  1420    70  ("Aro Fraturado"; pisão)
- * rato_de_lastro     50   700  1015    60  ("Rato de Brita"; bando "lastro")
- * vagao_nao_insp.*   52 10000 10000   122          grupo de 3+, respawn 2 h (invoca calos)
- * locomotiva_fant.*  58 14000 15000   145          "O Trem Que Nunca Encerra"; grupo de 3-4, respawn 2 h (quarta 17h)
+ * rodeiro_trincado   45   820  1115    63  ("Olho Sangrento")
+ * truque_desalinh.   48  1000  1420    70  ("Fera das Brasas"; pisão)
+ * rato_de_lastro     50   700  1015    60  ("Ratazana Negra"; bando "lastro")
+ * vagao_nao_insp.*   52 10000 10000   122          grupo de 3+, respawn 2 h (invoca toupeiras)
+ * locomotiva_fant.*  58 14000 15000   145          "Tirano da Serra"; grupo de 3-4, respawn 2 h (quarta 17h)
  * (*boss). Magos causam ~30% menos por acerto: 4+1.1*lvl.
  */

@@ -872,7 +872,34 @@ const lateSpawns10 = [
 // Segunda expansão para baixo: o mapa acima (400×336) fica intacto e a região ferroviária entra nas linhas 360..469,
 // ligada à Vila de trem (TravelDest dos chefes de estação) e por um par de portais ocultos entre as duas estações.
 // Roda por último: é a única etapa que aloca a arte da ferrovia no TilesetLemon (os tiles Lemon antigos mantêm o id).
-const { map: world4 } = expand4({ old: world3, ts, S, L: LEMON, spawnTile: SPAWN, village: { x0: 58, y0: 76, x1: 103, y1: 115 }, workshopPatio: { x0: 75, y0: 327, x1: 87, y1: 332 } });
+const { map: world4, reach: reach4, portalMap: portals4 } = expand4({ old: world3, ts, S, L: LEMON, spawnTile: SPAWN, village: { x0: 58, y0: 76, x1: 103, y1: 115 }, workshopPatio: { x0: 75, y0: 327, x1: 87, y1: 332 } });
+// Saídas da Malha (2026-10-24, pedido do dono): o trem de volta só existia na Estação Central, a oeste, e a Malha tem
+// 160 tiles de largura. O Agente da Parada fica no lado leste, colado na linha principal entre o Portal de Inspeção e o
+// desvio da Oficina de Vagões. Só objeto, o último do mapa (nenhum tile muda, ids antigos estáveis).
+const lateNpcs11 = [['agente_parada', 154, 404]];
+{
+  const W4 = world4.w, at = (x, y) => y * W4 + x;
+  const prop = (o, n) => o.properties?.find((p) => p.name === n)?.value;
+  const cheb = (ax, ay, bx, by) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+  const npcTiles = world4.objects.filter((o) => o.type === 'npc').map((o) => [o.x / 16, o.y / 16]);
+  const spawnObjs = world4.objects.filter((o) => o.type === 'monster_spawn').map((o) => [o.x / 16, o.y / 16, prop(o, 'radius') ?? 0]);
+  const malha = { x0: 40, y0: 360, x1: 199, y1: 469 }, arrival = [60, 374];
+  const reachedIn = () => { const r = bfs(world4, arrival[0], arrival[1], portals4); let n = 0; for (let y = malha.y0; y <= malha.y1; y++) for (let x = malha.x0; x <= malha.x1; x++) if (!world4.blocked(x, y) && r[at(x, y)]) n++; return n; };
+  for (const [id, x, y] of lateNpcs11) {
+    if (world4.blocked(x, y)) fail(`late npc ${id} em ${x},${y} bloqueado`);
+    if (reach4[at(x, y)] !== 1) fail(`late npc ${id} em ${x},${y} inalcançável`);
+    if (npcTiles.some(([a, b]) => cheb(a, b, x, y) < 2)) fail(`late npc ${id} a menos de 2 tiles de outro NPC`);
+    if (spawnObjs.some(([a, b, r]) => cheb(a, b, x, y) - r < 8)) fail(`late npc ${id} perto demais de um spawn`);
+    if (portals4.has(`${x},${y}`) || [...portals4.values()].some(([tx, ty]) => tx === x && ty === y)) fail(`late npc ${id} em portal ou destino de portal`);
+    // virar obstáculo não pode fechar bolsão: o resto da Malha continua alcançável a partir da chegada do trem
+    const before = reachedIn();
+    world4.block(x, y);
+    const after = reachedIn();
+    world4.block(x, y, false);
+    if (after !== before - 1) fail(`late npc ${id} em ${x},${y} fecha ${before - 1 - after} tile(s) da Malha`);
+    world4.tileObj('npc', x, y, { npcId: id }, id);
+  }
+}
 
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });

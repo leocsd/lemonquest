@@ -6,6 +6,13 @@ Reflete o estado real. Números `#` = itens de [GAME_AUDIT.md](GAME_AUDIT.md). S
 Ordem de leitura: **Ciclo 9** (o que está em andamento e as decisões tomadas) → pendências dos ciclos 7/7b/8 → ⛔.
 Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
+## Ajuste pós-ciclo 11 (2026-10-24) — nomes comuns e saídas da Malha
+
+| Item | Status | Validação |
+|---|---|---|
+| 🧭 Decisão do dono: bichos e itens com nome comum **por enquanto**; NPCs, missões e locais com nome real | ✅ 2026-10-24 | 12 bichos e 28 itens renomeados, ids iguais; grep sem nomes antigos fora de títulos de missão e falas de NPC |
+| Saídas da Malha: Maquinista e Agente da Parada também levam à Vila/Estação | ✅ 2026-10-24 | `malha.spec.ts` (caso novo), `diff-world.mjs` 0 tiles, 698/698 |
+
 ## Ciclo 11 (2026-10-24) — Malha da Ferrovia e ClickUp dinâmico
 
 Decisões do dono: ClickUp com as 4 integrações (Chegou!, sprints, conquistas pessoais, títulos de tarefa filtrados);

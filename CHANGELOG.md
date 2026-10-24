@@ -1,5 +1,17 @@
 # Changelog
 
+## [Não lançado] — 2026-10-24 · ajuste da Malha: nomes comuns e saídas
+
+- Pedido do dono: **por enquanto, bichos e itens com nomes comuns**; NPCs, missões e locais continuam com os nomes
+  reais do trabalho. 12 bichos (ciclos 10 e 11) e 28 itens renomeados (ex.: Escamação → Cobra Listrada, Trinca no Disco
+  → Olho Sangrento, O Trem Que Nunca Encerra → Tirano da Serra, TIFF Bruto → Pergaminho Borrado, Marmita de Tampa
+  Vermelha → Ensopado do Viajante), com descrições, gritos e habilidades de fantasia. **Nenhum id mudou**: saves,
+  depots, chão, bestiário, conquistas e missões em andamento seguem iguais. Os títulos de missão ficam.
+- **Saídas da Malha**: o trem de volta só existia na Estação Central, a oeste (a Malha tem 160 tiles). Agora o
+  Maquinista (entrada do Túnel) e o novo **Agente da Parada** (linha principal, entre o Portal de Inspeção e a Oficina
+  de Vagões) também levam à Vila ou à Estação. O Agente é o último objeto do mapa: `diff-world.mjs` deu 0 tiles
+  alterados e 698/698 objetos antigos idênticos.
+
 ## [Não lançado] — 2026-10-24 · ciclo 11: Malha da Ferrovia e ClickUp dinâmico
 
 Pedido do dono: mais contexto do trabalho, começando pelo ClickUp ao vivo e por uma região inteira do segmento

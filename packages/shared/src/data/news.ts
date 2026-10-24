@@ -12,13 +12,23 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-24c",
+    date: "24 de outubro (noite)",
+    title: "Ajustes na Malha",
+    items: [
+      "Bichos e itens da Oficina e da Malha com nomes de sempre: Cobra Listrada, Toupeira Dourada, Ratazana Negra, Ensopado do Viajante e companhia. O que você já tem continua igual.",
+      "Chefes da Malha: o Ciclope de Pedra, na Oficina de Vagões, e o Tirano da Serra, no Apito da Locomotiva (quarta, 17h).",
+      "Trem de volta sem andar até a Estação: o Maquinista, na entrada do Túnel, e o Agente da Parada, perto do Portal e da Oficina, levam à Vila ou à Estação Central.",
+    ],
+  },
+  {
     id: "2026-10-24b",
     date: "24 de outubro (tarde)",
     title: "Malha da Ferrovia e o ClickUp no jogo",
     items: [
       "Região nova para lv 25–60: pegue o trem com o Chefe da Estação, ao lado da carroça do Bastião, até a Estação Central da Malha.",
-      "Pátio de Manobra, Portal de Inspeção, Oficina de Vagões, Via Permanente e o Túnel da Serra. Cuidado com a Trinca no Disco, o Aro Fraturado, o Calo e a Escamação.",
-      "Dez missões novas, de \"Primeira Passagem\" a \"O Trem Que Nunca Encerra\", o chefe que aparece no Apito da Locomotiva (quarta, 17h).",
+      "Pátio de Manobra, Portal de Inspeção, Oficina de Vagões, Via Permanente e o Túnel da Serra. Cuidado com o Olho Sangrento, a Fera das Brasas, a Toupeira Dourada e a Cobra Listrada.",
+      "Dez missões novas, de \"Primeira Passagem\" a \"O Trem Que Nunca Encerra\", e o Tirano da Serra, o chefe que aparece no Apito da Locomotiva (quarta, 17h).",
       "O jogo agora lê o ClickUp: compra entregue vira \"Chegou!\" com caixa de encomenda na Estação, e o Painel da Obra mostra o ritmo das sprints.",
       "Quando o time passa da média da semana, começa a Sprint Fechada: XP ×1,25 por uma hora, somado ao evento que estiver valendo.",
       "Vincule seu ClickUp no Painel da Obra (aba Na obra, com seu token pessoal; o jogo não guarda o token): tarefas fechadas viram conquistas e títulos.",
@@ -41,7 +51,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Zona nova ao sul da Vila: entre pela porta escondida no canto nordeste da paliçada ou pegue a carroça do Bastião (destino \"Oficina dos Engenhos\").",
       "Cinco missões novas (lv 5 a 22) com a turma da bancada: Julião, Luan, Bianca, Iago e Pedrão. E o Capitão quer saber como está o clima.",
       "A Geladeira vende marmita e café; Guilherme, o Boss, guarda seus itens e vende seguro contra perda de XP; Gabriel tem fichas da Rifa do Sextou.",
-      "Monstros novos pelo mundo: Rato do Datacenter (noroeste da Floresta), Bombona Fugitiva (estrada dos lobos) e Gosma de Escória (Pântano e Cavernas).",
+      "Monstros novos pelo mundo: Rato Cinzento (noroeste da Floresta), Gosma Azul (estrada dos lobos) e Gosma Cinzenta (Pântano e Cavernas).",
       "Doze conquistas e seis títulos novos, de \"Compras Onfire\" a \"o Superposto\".",
       "Eventos: Sextou! (sexta 17h, XP ×1,5 e loot +25%) e Reunião Geral (segunda 9h, loot +50%).",
     ],

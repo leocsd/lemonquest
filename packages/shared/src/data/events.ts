@@ -39,7 +39,7 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   { id: "furia_de_demodras", name: "Fúria de Demodras", desc: "Demodras acordou no Vale dos Dragões! Loot +50%", xpMult: 1, lootMult: 1.5, day: 5, ...LUNCH, boss: "demodras" },
   // Malha da Ferrovia (ciclo 11): o apito das cinco de quarta, fim do expediente. Fora do almoço porque a quarta ao meio-dia
   // é da Maré de Tesouros e o almoço já tem um chefe por dia útil; antes das 18h para o Orshabaal seguir o único noturno.
-  { id: "apito_da_locomotiva", name: "Apito da Locomotiva", desc: "O Trem Que Nunca Encerra entrou no Túnel da Serra! Loot +50%", xpMult: 1, lootMult: 1.5, day: 3, hour: 17, durationMin: 60, boss: "locomotiva_fantasma" },
+  { id: "apito_da_locomotiva", name: "Apito da Locomotiva", desc: "O Tirano da Serra desceu ao Túnel da Serra! Loot +50%", xpMult: 1, lootMult: 1.5, day: 3, hour: 17, durationMin: 60, boss: "locomotiva_fantasma" },
   // Fim de semana: Ferumbras à tarde e o único chefe noturno (Orshabaal), para quem joga de casa.
   { id: "retorno_de_ferumbras", name: "Retorno de Ferumbras", desc: "Ferumbras voltou à Cidadela! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 0, hour: 15, durationMin: 90, boss: "ferumbras" },
   { id: "invasao_de_orshabaal", name: "Invasão de Orshabaal", desc: "Orshabaal subiu do Abismo! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 6, hour: 21, durationMin: 90, boss: "orshabaal" },

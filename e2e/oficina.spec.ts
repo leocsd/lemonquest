@@ -1,6 +1,6 @@
 // Oficina dos Engenhos (ciclo 10): portal escondido da Vila (99,79) leva ao corredor da Oficina e a porta de saída
-// (63,321) traz de volta; a Geladeira da Copa vende a Marmita de Tampa Vermelha; a carroça do Bastião tem o destino
-// "Oficina dos Engenhos" (100 de ouro); o Rato do Datacenter nasce na floresta antiga perto de (47,42).
+// (63,321) traz de volta; a Geladeira da Copa vende o Ensopado do Viajante; a carroça do Bastião tem o destino
+// "Oficina dos Engenhos" (100 de ouro); o Rato Cinzento nasce na floresta antiga perto de (47,42).
 import { expect, test, type Page } from "@playwright/test";
 import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitSettled, walkableNear } from "./helpers.ts";
 
@@ -66,13 +66,13 @@ test("portal da Vila leva à Oficina e a saída traz de volta", async ({ page })
   await expect.poll(() => zoneFooter(page)).not.toBe(ZONE);
 });
 
-test("Geladeira da Copa abre a loja com a Marmita de Tampa Vermelha", async ({ page }) => {
+test("Geladeira da Copa abre a loja com o Ensopado do Viajante", async ({ page }) => {
   await enterGame(page, "druid");
   const win = await openNpc(page, "geladeira", "Geladeira da Copa");
   // A fala sai letra a letra (Typewriter), mas o texto inteiro já está no DOM em dois spans.
   await expect(win).toContainText("Marmita sem nome é marmita de todos.");
   await win.getByRole("tab", { name: "Comprar" }).click();
-  const row = win.locator(".shop-row", { hasText: "Marmita de Tampa Vermelha" });
+  const row = win.locator(".shop-row", { hasText: "Ensopado do Viajante" });
   await expect(row).toBeVisible();
   await expect(row.getByRole("button", { name: "Comprar" })).toBeVisible();
   await snap(page, "oficina-geladeira");
@@ -99,11 +99,11 @@ test("carroça do Bastião leva à Oficina por 100 de ouro", async ({ page }) =>
   await snap(page, "oficina-coach");
 });
 
-test("Rato do Datacenter aparece na Floresta", async ({ page }) => {
+test("Rato Cinzento aparece na Floresta", async ({ page }) => {
   await enterGame(page, "knight");
   const spot = (await walkableNear(page, DATACENTER_RAT_SPAWN.x, DATACENTER_RAT_SPAWN.y, 3))[0]!;
   await teleport(page, spot.x, spot.y);
   await expect.poll(async () => (await monsters(page)).map((m) => m.defId), { timeout: 30_000 }).toContain("datacenter_rat");
   const rat = (await monsters(page)).find((m) => m.defId === "datacenter_rat")!;
-  expect(rat.name).toBe("Rato do Datacenter");
+  expect(rat.name).toBe("Rato Cinzento");
 });

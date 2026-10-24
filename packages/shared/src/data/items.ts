@@ -249,31 +249,33 @@ mat("juggernaut_plate", "Placa de Colosso", img("Resource/BarSilver.png", 0xc0a0
 food("banana", "Banana", img("Food/Nut2.png", 0xffe060), 18, undefined, 3, 1, 4, "Doce e nutritiva. Os macacos brigam por ela.");
 
 // ---------------------------------------------------------------------------
-// Oficina dos Engenhos (ciclo 10): materiais, comida e café da copa. Valores na escala dos vizinhos
-// (cheese 10 · wolf_pelt 40 · bat_wing 85 · goblin_tooth 110). Humor de escritório, nada real (sem rede, cliente ou senha).
+// Oficina dos Engenhos (ciclo 10): materiais, comida e bebida. Valores na escala dos vizinhos
+// (cheese 10 · wolf_pelt 40 · bat_wing 85 · goblin_tooth 110). Nomes comuns de fantasia (pedido do dono, 2026-10-24);
+// os ids continuam os do ciclo 10 (saves, depots, chão).
 // ---------------------------------------------------------------------------
-mat("cabo_roido", "Cabo Roído", img("Resource/Branch.png", 0x6878c0), 8, "Alguém mordeu o cabo de rede. Não foi o estagiário.");
-mat("iluminador_queimado", "Iluminador Queimado", matIcon("ember", 0x707078), 12, "Nove de cada dez chegam assim. O décimo acende por teimosia.");
-mat("rotulo_isca", "Rótulo de Isca", img("Other/Letter.png", 0xffb060), 35, "Etiqueta de bombona com o número apagado. Sem rótulo, sem rastreio.");
-mat("post_it_senha", "Post-it com Senha", img("Scroll/ScrollEmpty.png", 0xffe860), 30, "Amarelo, colado no monitor. A senha é 'trocar depois'.");
-mat("escoria_quente", "Escória Quente", img("Resource/Rock.png", 0xff8040), 95, "Ainda brilha por dentro. Cinquenta milissegundos de exposição bastam.");
-mat("lente_trincada", "Lente Trincada", img("Resource/GemGreen.png", 0xb8dcf0), 140, "Rachou no primeiro inverno de campo. A imagem agora vem com moldura.");
-mat("selo_chegou", "Selo 'Chegou!'", img("Other/Stamp.png", 0x70e080), 50, "Carimbo verde de encomenda recebida. Foto no grupo depois.", 20);
-mat("vasilha_empilhada", "Vasilha Empilhada", img("Potion/EmptyPot.png", 0xc8d8e0), 5, "Sem tampa, sem dono, sem prazo. A pia agradece.");
-food("marmita_tampa_vermelha", "Marmita de Tampa Vermelha", img("Object/CrateEmpty.png", 0xff8a7a), 55, undefined, 5, 2, 6, "Esquecida na geladeira. Faz aniversário amanhã; ainda está boa.");
-potion("cafe_oficina", "Café da Oficina", img("Potion/MilkPot.png", 0x8a5a30), 25, 1, { mana: 60 }, "Recupera 60 de mana. Passado às 7h, requentado às 16h.");
+mat("cabo_roido", "Cordão Roído", img("Resource/Branch.png", 0x6878c0), 8, "Mordiscado pelas duas pontas. O rato jura que não foi ele.");
+mat("iluminador_queimado", "Brasa Apagada", matIcon("ember", 0x707078), 12, "Já foi fogo um dia. Hoje só esquenta a lembrança.");
+mat("rotulo_isca", "Etiqueta Rasgada", img("Other/Letter.png", 0xffb060), 35, "Dizia o que havia dentro. Agora só diz '...ado'.");
+mat("post_it_senha", "Bilhete Amassado", img("Scroll/ScrollEmpty.png", 0xffe860), 30, "Um recado que alguém desistiu de mandar. A letra é péssima.");
+mat("escoria_quente", "Pedra Incandescente", img("Resource/Rock.png", 0xff8040), 95, "Ainda brilha por dentro. Segure pela ponta fria, se achar uma.");
+mat("lente_trincada", "Cristal Trincado", img("Resource/GemGreen.png", 0xb8dcf0), 140, "Rachou bem no meio. Os joalheiros ainda pagam, resmungando.");
+mat("selo_chegou", "Selo de Cera", img("Other/Stamp.png", 0x70e080), 50, "Cera verde com um brasão que ninguém reconhece. Dá sorte, dizem.", 20);
+mat("vasilha_empilhada", "Tigela Vazia", img("Potion/EmptyPot.png", 0xc8d8e0), 5, "Sem tampa e sem dono. Alguém comeu e não lavou.");
+food("marmita_tampa_vermelha", "Ensopado do Viajante", img("Object/CrateEmpty.png", 0xff8a7a), 55, undefined, 5, 2, 6, "Carne, batata e um tempero que ninguém sabe dizer qual. Melhor no segundo dia.");
+potion("cafe_oficina", "Chá de Ervas", img("Potion/MilkPot.png", 0x8a5a30), 25, 1, { mana: 60 }, "Recupera 60 de mana. Amargo o bastante para acordar até um esqueleto.");
 
 // ---------------------------------------------------------------------------
 // Malha da Ferrovia (ciclo 11, lv 25–60): materiais dos monstros da via. Valores na escala dos vizinhos de level
-// (ape_fur 320 · orc_leather 380 · tarantula_fang 420 · minotaur_horn 480 · winter_fur 520). Nenhum fabricante real.
+// (ape_fur 320 · orc_leather 380 · tarantula_fang 420 · minotaur_horn 480 · winter_fur 520). Nomes comuns de fantasia
+// (pedido do dono, 2026-10-24); os ids continuam os do ciclo 11.
 // ---------------------------------------------------------------------------
-mat("pino_de_engate", "Pino de Engate", img("Weapons/Stick/Sprite.png", 0x9098a8), 180, "A escamação lascou a pista da roda, o tranco soltou o engate e o pino veio junto.");
-mat("pastilha_de_sapata", "Pastilha de Sapata", img("Resource/Rock.png", 0x6a5a50), 220, "A sapata que travou a roda e deixou o calo. Ainda cheira a freada.");
-mat("brita_de_lastro", "Pedra de Brita", img("Resource/Rock.png", 0xa0a0a8), 260, "Pedra do lastro. Vista de cima, áspera; a câmera do posto alto acha o vão por ela.");
-mat("lente_industrial", "Lente do Olho Azul", img("Resource/GemPurple.png", 0xd8f0ff), 340, "Lente de uma das quatro câmeras do pórtico. Sem marca na etiqueta, só um olho azul pintado à mão.");
-mat("frame_corrompido", "TIFF Bruto", img("Scroll/ScrollEmpty.png", 0x90a0c0), 380, "Imagem crua que o gravador descartou: 'sensor 1 missed 2 trigger(s)'. Pesa mais que o vagão.");
-mat("rolamento_de_rodeiro", "Rolamento de Rodeiro", img("Treasure/SilverCoin.png", 0x8890a0), 460, "Do rodeiro que tinha trinca no disco. O rolamento estava bom; o disco, não.");
-mat("chaveta", "Chaveta", img("Resource/Branch.png", 0xb8b8c0), 520, "Saltou quando o aro fraturou. Pequena, torta e indispensável.");
+mat("pino_de_engate", "Pino de Ferro", img("Weapons/Stick/Sprite.png", 0x9098a8), 180, "Estava entre as escamas da cobra. Melhor não perguntar como foi parar ali.");
+mat("pastilha_de_sapata", "Placa de Pedra", img("Resource/Rock.png", 0x6a5a50), 220, "Lisa de um lado, áspera do outro. A toupeira usava de travesseiro.");
+mat("brita_de_lastro", "Cascalho", img("Resource/Rock.png", 0xa0a0a8), 260, "Um punhado de pedrinhas. As ratazanas guardam como se fosse ouro.");
+mat("lente_industrial", "Cristal Azul", img("Resource/GemPurple.png", 0xd8f0ff), 340, "Frio ao toque e azul como lago de montanha. A lanterna brilhava por causa dele.");
+mat("frame_corrompido", "Pergaminho Borrado", img("Scroll/ScrollEmpty.png", 0x90a0c0), 380, "Um feitiço escrito às pressas e molhado de chuva. Ninguém se arrisca a ler em voz alta.");
+mat("rolamento_de_rodeiro", "Engrenagem de Prata", img("Treasure/SilverCoin.png", 0x8890a0), 460, "Gira sozinha quando ninguém olha. Os ferreiros adoram.");
+mat("chaveta", "Cunha de Ferro", img("Resource/Branch.png", 0xb8b8c0), 520, "Pequena, torta e indispensável. Ainda quente da fera.");
 
 // Chaves e itens de missão
 add({ id: "crypt_key", name: "Chave da Cripta", kind: "key", value: 0, icon: img("Treasure/SilverKey.png"), description: "Abre o portão selado da Cripta. Cai do Lich do Pântano." });
@@ -291,11 +293,11 @@ add({ id: "kongra_crown", name: "Coroa do Rei Kongra", kind: "quest", value: 0, 
 add({ id: "yeti_fur", name: "Pelo do Yeti", kind: "quest", value: 0, icon: matIcon("wolf_pelt", 0xffffff), description: "Branco como a neve. Prova de que o Yeti caiu." });
 add({ id: "ferumbras_staff", name: "Cajado Partido de Ferumbras", kind: "quest", value: 0, icon: img("Weapons/Stick/Sprite.png", 0xd890ff), description: "Prova de que Ferumbras caiu... por enquanto." });
 add({ id: "annihilation_bear", name: "Urso da Aniquilação", kind: "quest", value: 0, icon: img("Object/Bag.png", 0xc08060), description: "Um ursinho de pelúcia chamuscado. Só quem sobreviveu à Aniquilação tem um." });
-// Onda 3 (Lei de Murphy): entregue à mão porque o broker ficou retido. Reservado; ainda sem fonte no jogo.
-add({ id: "mensagem_retida", name: "Mensagem Retida", kind: "quest", value: 0, icon: img("Other/Letter2.png", 0xd0d8e0), description: "Uma mensagem que nunca chegou ao destino. Alguém vai ter que levar a pé." });
+// Onda 3 (Lei de Murphy): reservado; ainda sem fonte no jogo.
+add({ id: "mensagem_retida", name: "Carta Lacrada", kind: "quest", value: 0, icon: img("Other/Letter2.png", 0xd0d8e0), description: "Uma carta que nunca chegou ao destino. Alguém vai ter que levar a pé." });
 // Malha da Ferrovia (ciclo 11): provas dos dois chefes da via.
-add({ id: "selo_nao_inspecionavel", name: "Selo 'Não Inspecionável'", kind: "quest", value: 0, icon: img("Other/Stamp.png", 0xe05040), description: "Carimbo vermelho arrancado do Vagão Não Inspecionável. Agora ele foi inspecionado." });
-add({ id: "apito_de_locomotiva", name: "Apito da Locomotiva", kind: "quest", value: 0, icon: img("Object/PanFlute.png", 0xd0c080), description: "Ainda apita sozinho às cinco da tarde. Prova de que O Trem Que Nunca Encerra, enfim, encerrou." });
+add({ id: "selo_nao_inspecionavel", name: "Olho do Ciclope", kind: "quest", value: 0, icon: img("Other/Stamp.png", 0xe05040), description: "Ainda pisca de vez em quando. Prova de que o Ciclope de Pedra caiu." });
+add({ id: "apito_de_locomotiva", name: "Dente do Tirano", kind: "quest", value: 0, icon: img("Object/PanFlute.png", 0xd0c080), description: "Do tamanho de um braço e ainda afiado. Prova de que o Tirano da Serra caiu." });
 
 // ---------------------------------------------------------------------------
 // Armas
@@ -476,21 +478,21 @@ add({ id: "boots_haste", name: "Botas da Pressa", kind: "boots", slot: "boots", 
 
 // Oficina dos Engenhos (ciclo 10): recompensas das missões Q3/Q5, todas as vocações, nunca em loja. Valor abaixo do
 // vizinho mais barato do slot de propósito: o simulador da arena (arena.test.ts) escolhe o melhor equipamento por valor.
-add({ id: "botas_biqueira", name: "Botas de Biqueira", kind: "boots", slot: "boots", icon: gear("boots", "iron"), level: 12, stats: { armor: 1, speed: 3 }, value: 90,
-  description: "Biqueira de aço. Obrigatória no chão de fábrica; recomendada na Oficina." });
-add({ id: "capacete_obra", name: "Capacete de Obra", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 20, stats: { armor: 2, hpMax: 20 }, value: 480,
-  description: "A NBR 5410 não exige; o bom senso, sim." });
-// Malha da Ferrovia (ciclo 11): EPI da via, todas as vocações, recompensas de missão e loot raro dos monstros da Malha.
+add({ id: "botas_biqueira", name: "Botas Reforçadas", kind: "boots", slot: "boots", icon: gear("boots", "iron"), level: 12, stats: { armor: 1, speed: 3 }, value: 90,
+  description: "Ponteira de ferro e sola dupla. Chutar baú trancado continua não sendo boa ideia." });
+add({ id: "capacete_obra", name: "Elmo de Ferro Pintado", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 20, stats: { armor: 2, hpMax: 20 }, value: 480,
+  description: "Pintado de amarelo para ninguém confundir a sua cabeça com uma pedra." });
+// Malha da Ferrovia (ciclo 11): equipamento da via, todas as vocações, recompensas de missão e loot raro dos monstros da Malha.
 // Mesma regra das peças da Oficina: valor abaixo do vizinho mais barato do slot no mesmo level (sniper_armor 4800,
 // archmage_helmet 5500, archmage/master_archer_legs 9500, botas de tier 5 5000), para o simulador da arena não as escolher.
-add({ id: "colete_refletivo", name: "Colete Refletivo", kind: "armor", slot: "armor", icon: gear("armor_vest", "gold"), level: 30, stats: { armor: 2, hpMax: 60, speed: 2 }, value: 3600,
-  description: "Faixa refletiva nas costas. Sem ele, nem o maquinista te vê." });
-add({ id: "capacete_lanterna", name: "Capacete com Lanterna", kind: "helmet", slot: "helmet", icon: gear("helmet_full", "gold"), level: 35, stats: { armor: 2, hpMax: 50 }, value: 4200,
-  description: "Lanterna de cabeça para o abrigo e o túnel. A pilha acaba sempre no meio da passagem." });
-add({ id: "calca_brim_refletiva", name: "Calça de Brim Refletiva", kind: "legs", slot: "legs", icon: gear("legs_pants", "steel"), level: 40, stats: { armor: 2, hpMax: 50, speed: 2 }, value: 7000,
-  description: "Brim grosso com faixa refletiva. Aguenta brita, graxa e reunião de obra." });
-add({ id: "botina_seguranca", name: "Botina de Segurança", kind: "boots", slot: "boots", icon: gear("boots", "bronze"), level: 45, stats: { armor: 1, hpMax: 40, speed: 6 }, value: 3800,
-  description: "Bico de composite, solado antiderrapante. Pisa em dormente molhado sem medo." });
+add({ id: "colete_refletivo", name: "Gibão Reforçado", kind: "armor", slot: "armor", icon: gear("armor_vest", "gold"), level: 30, stats: { armor: 2, hpMax: 60, speed: 2 }, value: 3600,
+  description: "Couro grosso com rebites nas costas. Leve o bastante para correr de uma ratazana." });
+add({ id: "capacete_lanterna", name: "Elmo com Lampião", kind: "helmet", slot: "helmet", icon: gear("helmet_full", "gold"), level: 35, stats: { armor: 2, hpMax: 50 }, value: 4200,
+  description: "Um lampião preso no topo do elmo. O óleo acaba sempre no meio do túnel." });
+add({ id: "calca_brim_refletiva", name: "Calças de Couro Batido", kind: "legs", slot: "legs", icon: gear("legs_pants", "steel"), level: 40, stats: { armor: 2, hpMax: 50, speed: 2 }, value: 7000,
+  description: "Couro batido até ficar duro. Aguenta cascalho, espinho e mordida de ratazana." });
+add({ id: "botina_seguranca", name: "Botas do Andarilho", kind: "boots", slot: "boots", icon: gear("boots", "bronze"), level: 45, stats: { armor: 1, hpMax: 40, speed: 6 }, value: 3800,
+  description: "Já cruzaram a serra três vezes. Pisam em pedra molhada sem medo." });
 
 // ---------------------------------------------------------------------------
 // Anéis e amuletos (level 10+)
@@ -515,10 +517,10 @@ trinket("amulet_orshabaal", "Amuleto de Orshabaal", "amulet", "arcane", 90, { ar
 trinket("amulet_banuta", "Ídolo de Banuta", "amulet", "gold", 40, { hpMax: 150, manaMax: 80, speed: 3 }, 32000, "O ídolo dourado do templo da selva. Só sai de um baú.");
 trinket("frost_ring", "Anel do Gelo Eterno", "ring", "steel", 60, { crit: 4, hpRegen: 3, manaRegen: 3, armor: 1 }, 60000, "Frio como o coração do Yeti.");
 // Oficina dos Engenhos (ciclo 10): recompensa da Q4, todas as vocações; valor abaixo do Anel da Mente (ver botas_biqueira).
-trinket("anel_trilho_din", "Anel de Trilho DIN", "ring", "iron", 16, { hpRegen: 1, manaRegen: 1 }, 600, "Um pedaço de trilho entortado em anel. Encaixa em tudo, menos onde precisa.");
+trinket("anel_trilho_din", "Anel de Ferro Batido", "ring", "iron", 16, { hpRegen: 1, manaRegen: 1 }, 600, "Um pedaço de ferro entortado em anel. Serve em qualquer dedo, menos no certo.");
 // Malha da Ferrovia (ciclo 11): recompensa da missão "O Trem Que Nunca Encerra" e loot dos dois chefes da via, todas as vocações; valor
 // abaixo do Anel da Força (lv 50, 40000), pelo mesmo motivo das peças da Oficina.
-trinket("anel_do_rodeiro", "Anel do Rodeiro", "ring", "steel", 50, { hpRegen: 3, manaRegen: 3, speed: 2 }, 26000, "Uma pista de rolamento polida. Gira no dedo como roda no trilho.");
+trinket("anel_do_rodeiro", "Anel das Engrenagens", "ring", "steel", 50, { hpRegen: 3, manaRegen: 3, speed: 2 }, 26000, "Engrenagens minúsculas que giram no dedo sem nunca parar. Ninguém sabe dar corda.");
 
 /** Catálogo (derivado das listas acima). */
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(ITEM_LIST.map((d) => [d.id, d]));

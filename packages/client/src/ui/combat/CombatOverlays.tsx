@@ -15,7 +15,7 @@ const DEATH_TIPS = [
   "Dica: um \"!\" ao lado do nome na lista de batalha marca monstro perigoso para o seu level.",
   "Dica: caiu a energia? Home office. Caiu a vida? Vila: lá ela volta rápido.",
   "Dica: a bênção é o seguro do Financeiro: paga antes, não perde XP depois.",
-  "Dica: rato de datacenter roendo cabo não dói. Em grupo, dói.",
+  "Dica: rato cinzento roendo cordão não dói. Em grupo, dói.",
 ];
 let tipIndex = 0;
 const DEATH_KEY_DELAY_MS = 1500;
