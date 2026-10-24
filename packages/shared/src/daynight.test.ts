@@ -92,6 +92,15 @@ describe("regras por zona", () => {
     expect(office).toBeLessThan(darknessOf(ambientForZone(night, "Vila de Pedra Clara")));
   });
 
+  it("Malha da Ferrovia: Estação iluminada, Túnel escuro como as cavernas, o resto ao ar livre", () => {
+    const night = 32 * MIN;
+    expect(zoneLightMode("Estação Central da Malha")).toBe("lit");
+    expect(zoneLightMode("Túnel da Serra")).toBe("dark");
+    for (const z of ["Pátio de Manobra", "Portal de Inspeção", "Oficina de Vagões", "Via Permanente"]) expect(zoneLightMode(z), z).toBe("outdoor");
+    expect(ambientForZone(0, "Túnel da Serra")).toEqual(ambientForZone(0, "Cavernas")); // escuro a qualquer hora
+    expect(darknessOf(ambientForZone(night, "Estação Central da Malha"))).toBeCloseTo(darknessOf(ambientForZone(night, "Coliseu")), 6);
+  });
+
   it("zoneAt escolhe a menor zona que contém o tile", () => {
     const zones = [
       { name: "Grande", x: 0, y: 0, w: 100, h: 100 },

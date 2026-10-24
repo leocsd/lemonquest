@@ -9,6 +9,7 @@ import { polish } from './polish.mjs';
 import { expand } from './expansion.mjs';
 import { expand2 } from './expansion2.mjs';
 import { expand3 } from './expansion3.mjs';
+import { expand4 } from './expansion4.mjs';
 import { PNG } from 'pngjs';
 
 const SEED = 20260611;
@@ -867,14 +868,20 @@ const lateSpawns10 = [
   }
 }
 
+// ===================================================================== MALHA DA FERROVIA (ciclo 11: tools/mapgen/expansion4.mjs)
+// Segunda expansão para baixo: o mapa acima (400×336) fica intacto e a região ferroviária entra nas linhas 360..469,
+// ligada à Vila de trem (TravelDest dos chefes de estação) e por um par de portais ocultos entre as duas estações.
+// Roda por último: é a única etapa que aloca a arte da ferrovia no TilesetLemon (os tiles Lemon antigos mantêm o id).
+const { map: world4 } = expand4({ old: world3, ts, S, L: LEMON, spawnTile: SPAWN, village: { x0: 58, y0: 76, x1: 103, y1: 115 }, workshopPatio: { x0: 75, y0: 327, x1: 87, y1: 332 } });
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
-fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world3.toTiled()));
+fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world4.toTiled()));
 { const cp = LEMON.set.croppedPng(); const out = new PNG({ width: cp.width, height: cp.height }); out.data = Buffer.from(cp.data); const dir = path.join(MAPS_DIR, '../tiles'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'lemon-terrain.png'), PNG.sync.write(out)); }
 // Os previews ficam só no disco (assets/maps/preview*.png está no .gitignore): são regenerados aqui a cada rodada.
-const a = renderPreview(world3, path.join(MAPS_DIR, 'preview.png'));
-const b = renderPreview(world3, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
+const a = renderPreview(world4, path.join(MAPS_DIR, 'preview.png'));
+const b = renderPreview(world4, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
 if (process.argv.includes('--debug')) {
-  renderPreview(world3, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
+  renderPreview(world4, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
 }
-console.log(`world.json ${world3.w}x${world3.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world3.objects.length}`);
+console.log(`world.json ${world4.w}x${world4.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world4.objects.length}`);

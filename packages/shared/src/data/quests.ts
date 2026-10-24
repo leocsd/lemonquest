@@ -679,6 +679,172 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 200000, gold: 50000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:algoz_ferumbras" },
   }),
+  // --- Malha da Ferrovia (25–55, ciclo 11) ------------------------------------------------------------------------
+  // Região só de trem. NPCs por papel; da equipe, só apelidos já existentes (Pedrão, Julião, Iago), que continuam na
+  // Oficina dos Engenhos: as missões que falam com eles mandam o jogador de volta pelo trem e pela carroça. Anedotas
+  // reais da inspeção (legenda S/N trocada, nove de dez iluminadores, VAG-TEMP, Enter duplo), cliente disfarçado.
+  q({
+    id: "engate_rapido", name: "Primeira Passagem", giver: "chefe_estacao_malha", minLevel: 25,
+    summary: "A primeira passagem do mês não pode atrasar, mas a Escamação tomou conta do Pátio de Manobra e soltou os engates. O Chefe da Estação quer o pátio livre e os pinos de volta.",
+    steps: [
+      { kind: "explore", target: "Pátio de Manobra", count: 1, label: "Ir ao Pátio de Manobra" },
+      { kind: "kill", target: "engate_solto", count: 12, label: "Escamações" },
+      { kind: "deliver", target: "pino_de_engate", count: 5, label: "Pinos de Engate" },
+    ],
+    dialog: {
+      offer: "Recém-chegado? Ótimo, porque a primeira passagem do mês sai hoje e o Pátio de Manobra virou bagunça: a Escamação lascou as rodas, o tranco soltou os engates e os pinos sumiram. Derrube doze escamações e me traga cinco pinos de engate, que eu remonto a composição.",
+      accept: "O pátio fica logo depois da plataforma. Olhe para os dois lados antes de cruzar a linha. Sempre.",
+      progress: "Doze escamações e cinco pinos. Sem pino, o vagão vai para um lado e a locomotiva para o outro.",
+      complete: "Pátio livre, composição engatada, primeira passagem no horário! Tome, para a próxima manobra. E bem-vindo à Malha.",
+    },
+    rewards: { xp: 6000, gold: 1500, items: [{ itemId: "health_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "go_nogo", name: "A Legenda Trocada", giver: "inspetora_portal", minLevel: 28, requires: ["engate_rapido"],
+    summary: "Alguém trocou o S pelo N na legenda do Portal: quem apertava S para reprovar aprovava e avançava. Antes de liberar o pórtico, a Inspetora de Rodas quer o CLP conferido e o parecer do Pedrão.",
+    steps: [
+      { kind: "explore", target: "Portal de Inspeção", count: 1, label: "Conhecer o Portal de Inspeção" },
+      { kind: "talk", target: "operador_abrigo", count: 1, label: "Conferir o CLP no abrigo" },
+      { kind: "talk", target: "pedrao", count: 1, label: "Pedir o parecer do Pedrão" },
+    ],
+    dialog: {
+      offer: "Go ou NoGo? Hoje, nem um nem outro: alguém trocou o S pelo N na legenda, e quem apertava S para reprovar aprovava a roda e avançava. Vá ao pórtico, peça ao Técnico do CLP para conferir o abrigo e leve a pergunta ao Pedrão, lá na Oficina dos Engenhos. Ele desenhou as câmeras; ele diz se a luz está certa.",
+      accept: "Quatro câmeras, quatro iluminadores. Se algum piscar, anote. Se todos piscarem, corra.",
+      progress: "Ainda sem o CLP conferido e sem o parecer do Pedrão. O pórtico continua em NoGo.",
+      complete: "CLP conferido, legenda desvirada e o Pedrão disse 'Go'. Agora S é sim e N é não. Tome, pelo trabalho de campo.",
+    },
+    rewards: { xp: 4000, gold: 1200, items: [{ itemId: "mana_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "sapata_gasta", name: "Calo na Roda", giver: "mecanico_vagao", minLevel: 30, requires: ["engate_rapido"],
+    summary: "A sapata travou, a roda arrastou no trilho e o Calo criou vida na Oficina de Vagões. O Engenheiro do Dark-field quer os calos parados e as pastilhas para a análise de desgaste.",
+    steps: [
+      { kind: "explore", target: "Oficina de Vagões", count: 1, label: "Ir à Oficina de Vagões" },
+      { kind: "kill", target: "sapata_gasta", count: 15, label: "Calos" },
+      { kind: "deliver", target: "pastilha_de_sapata", count: 6, label: "Pastilhas de Sapata" },
+    ],
+    dialog: {
+      offer: "Calo é roda que arrastou: a sapata travou, a roda não girou e o trilho comeu um pedaço dela. O problema é que estes calos aprenderam a andar. Pare quinze na Oficina de Vagões e me traga seis pastilhas de sapata: quero medir o desgaste antes de pedir peça nova.",
+      accept: "São lentos, mas duros. Não fique na frente quando um travar.",
+      progress: "Quinze calos e seis pastilhas. Enquanto isso, o vagão da linha 3 desce a rampa sozinho.",
+      complete: "Desgaste medido: tudo fora de tolerância, como eu disse. Vista este colete. Na via, quem não reflete não volta.",
+    },
+    rewards: { xp: 9000, gold: 2500, items: [{ itemId: "colete_refletivo", count: 1 }] },
+  }),
+  q({
+    id: "nove_de_dez", name: "Nove de Dez", giver: "operador_abrigo", minLevel: 34, requires: ["go_nogo"],
+    summary: "Numa visita de campo, nove de dez iluminadores do pórtico chegaram queimados, e os que sobraram se rebelaram. O Técnico do CLP quer os rebeldes apagados, os queimados contados e lentes novas na mão da Inspetora de Rodas.",
+    steps: [
+      { kind: "kill", target: "iluminador_rebelde", count: 12, label: "Iluminadores Rebeldes" },
+      { kind: "deliver", target: "iluminador_queimado", count: 9, label: "Iluminadores Queimados" },
+      { kind: "deliver", target: "lente_industrial", count: 4, npc: "inspetora_portal", label: "Lentes para a Inspetora" },
+    ],
+    dialog: {
+      offer: "Nove de dez. Nove! Chegaram queimados, e o décimo acendeu tanto que saiu andando com os amigos. Apague doze iluminadores rebeldes, me traga nove queimados para a garantia e leve quatro Lentes do Olho Azul inteiras para a Inspetora de Rodas, uma por câmera.",
+      accept: "Cuidado com o flash: cinquenta milissegundos e você vê estrela até a próxima passagem.",
+      progress: "Doze rebeldes, nove queimados e quatro lentes para a Inspetora. A garantia não espera.",
+      complete: "Garantia aberta, pórtico aceso, lentes trocadas. Tome este capacete com lanterna: para o abrigo, onde a luz é sempre a última a chegar.",
+    },
+    rewards: { xp: 12000, gold: 3000, items: [{ itemId: "capacete_lanterna", count: 1 }] },
+  }),
+  q({
+    id: "dark_field", name: "Dark-field", giver: "mecanico_vagao", minLevel: 38, requires: ["nove_de_dez"],
+    summary: "Com luz rasante, a trinca no disco aparece; sem ela, o frame é descartado. O Engenheiro do Dark-field quer os frames fugitivos de volta, os TIFFs brutos na mesa e o laudo levado à Inspetora de Rodas.",
+    steps: [
+      { kind: "kill", target: "frame_descartado", count: 12, label: "Frames Descartados" },
+      { kind: "deliver", target: "frame_corrompido", count: 4, label: "TIFFs Brutos" },
+      { kind: "talk", target: "inspetora_portal", count: 1, label: "Levar o laudo à Inspetora" },
+    ],
+    dialog: {
+      offer: "Dark-field: luz rasante, quase de lado, e a trinca no disco salta na imagem. O problema é que o gravador estoura o backlog no começo da passagem e descarta os frames antes de eu ver. Pegue doze frames descartados antes que sumam, me traga quatro TIFFs brutos e leve o laudo à Inspetora de Rodas.",
+      accept: "Eles fogem quando enfraquecem. Feche o caminho; frame que escapa vira 'sensor 1 missed 2 trigger(s)'.",
+      progress: "Doze frames, quatro TIFFs e a Inspetora avisada. Sem isso, a roda passa como 'sem defeito'.",
+      complete: "Trinca no disco, confirmada em dark-field e no laudo da Inspetora. Roda reprovada com o botão certo, desta vez. Tome a calça de brim: aguenta brita e reunião de obra.",
+    },
+    rewards: { xp: 15000, gold: 4000, items: [{ itemId: "calca_brim_refletiva", count: 1 }] },
+  }),
+  q({
+    id: "passagem_duplicada", name: "Tag Perdida", giver: "operador_abrigo", minLevel: 40, requires: ["nove_de_dez"],
+    summary: "O leitor de tags não leu um vagão, o sistema o chamou de VAG-TEMP-3 e associou a tag à passagem seguinte: agora o mesmo trem aparece duas vezes. O Técnico do CLP quer a contagem conferida, os registros na mão e o VAG-TEMP-3 achado na via.",
+    steps: [
+      { kind: "talk", target: "chefe_estacao_malha", count: 1, label: "Conferir a contagem na Estação" },
+      { kind: "talk", target: "juliao", count: 1, label: "Perguntar ao Julião sobre o leitor" },
+      { kind: "talk", target: "iago", count: 1, label: "Pedir os registros ao Iago" },
+      { kind: "explore", target: "Via Permanente", count: 1, label: "Achar o VAG-TEMP-3 na Via Permanente" },
+    ],
+    dialog: {
+      offer: "Um vagão passou sem tag lida, virou VAG-TEMP-3, e a tag que faltava foi parar na passagem seguinte. Resultado: um trem, duas passagens. Confira a contagem com o Chefe da Estação, pergunte ao Julião dos Embarcados se o leitor de tags andou aceitando leitura inválida, peça os registros ao Iago do Cofre e ache o VAG-TEMP-3 na Via Permanente.",
+      accept: "Julião e Iago ficam na Oficina dos Engenhos. Trem até a Vila, carroça até a Oficina. Bom passeio.",
+      progress: "Faltam respostas. Estação, Julião, Iago e o VAG-TEMP-3. Até lá, a passagem fica duplicada.",
+      complete: "Leitura inválida aceita e grudada na passagem errada, está nos registros do Iago. VAG-TEMP-3 achado, tag devolvida, passagem duplicada apagada. Tome, e confira a tag antes do Enter.",
+    },
+    rewards: { xp: 12000, gold: 3000, items: [{ itemId: "mana_potion_large", count: 10 }, { itemId: "health_potion_large", count: 5 }] },
+  }),
+  q({
+    id: "rodeiro_trincado", name: "Trinca no Disco", giver: "mecanico_vagao", minLevel: 45, requires: ["sapata_gasta", "dark_field"],
+    summary: "Na Oficina de Vagões, as Trincas no Disco e os Aros Fraturados rolaram para fora das rodas. O Engenheiro do Dark-field quer a oficina de volta e os rolamentos salvos.",
+    steps: [
+      { kind: "kill", target: "rodeiro_trincado", count: 15, label: "Trincas no Disco" },
+      { kind: "kill", target: "truque_desalinhado", count: 10, label: "Aros Fraturados" },
+      { kind: "deliver", target: "rolamento_de_rodeiro", count: 5, label: "Rolamentos de Rodeiro" },
+    ],
+    dialog: {
+      offer: "Vermelho é trinca no disco; laranja, aro fraturado. Na tela são só cores. Aqui na Oficina de Vagões, saíram das rodas e estão rolando pelo galpão. Derrube quinze trincas e dez aros e me traga cinco rolamentos: o rolamento estava bom, o disco é que não.",
+      accept: "Dois truques por vagão, dois eixos por truque. Conte antes de entrar, e conte de novo na saída.",
+      progress: "Trincas, aros e rolamentos. A oficina continua parada.",
+      complete: "Rodas recolhidas, rolamentos salvos. Calce esta botina: na Oficina, quem pisa em rolamento solto aprende rápido.",
+    },
+    rewards: { xp: 22000, gold: 6000, items: [{ itemId: "botina_seguranca", count: 1 }] },
+  }),
+  q({
+    id: "revisao_na_via", name: "Revisão na Via", giver: "inspetora_portal", minLevel: 46, requires: ["rodeiro_trincado"],
+    summary: "Revisão na via: confirmar de perto um exemplar de cada defeito do quarteto e, enfim, inspecionar o vagão que trava a fila da Oficina de Vagões.",
+    steps: [
+      { kind: "kill", target: "rodeiro_trincado", count: 1, label: "Trinca no Disco (vermelho)" },
+      { kind: "kill", target: "truque_desalinhado", count: 1, label: "Aro Fraturado (laranja)" },
+      { kind: "kill", target: "sapata_gasta", count: 1, label: "Calo (âmbar)" },
+      { kind: "kill", target: "engate_solto", count: 1, label: "Escamação (ciano)" },
+      { kind: "boss", target: "vagao_nao_inspecionavel", count: 1, label: "Vagão Não Inspecionável" },
+    ],
+    dialog: {
+      offer: "A tela diz 'com defeito'; a revisão na via diz se é verdade. Confirme de perto um de cada: Trinca no Disco, Aro Fraturado, Calo e Escamação. E pare o Vagão Não Inspecionável no fundo da Oficina de Vagões: sem foto de roda, ele não fecha, e sem ele o trem nunca encerra. Leve gente: ele chama os calos.",
+      accept: "Vermelho, laranja, âmbar, ciano. Se aparecer roxo, me chame, porque isso não existe.",
+      progress: "Um de cada defeito e o vagão inspecionado. A revisão não fecha pela metade.",
+      complete: "Quarteto confirmado e o vagão, finalmente, inspecionado. Tudo com defeito, mas inspecionado! Agora só falta o trem encerrar.",
+    },
+    rewards: { xp: 20000, gold: 5000, items: [{ itemId: "health_potion_large", count: 10 }, { itemId: "mana_potion_large", count: 10 }] },
+  }),
+  q({
+    id: "o_tunel", name: "O Túnel", giver: "maquinista_aposentado", minLevel: 48, requires: ["passagem_duplicada"],
+    summary: "O Maquinista jura que o lastro do Túnel da Serra está andando. Ele quer alguém lá dentro, os ratos de brita contados e pedras de prova.",
+    steps: [
+      { kind: "explore", target: "Túnel da Serra", count: 1, label: "Entrar no Túnel da Serra" },
+      { kind: "kill", target: "rato_de_lastro", count: 20, label: "Ratos de Brita" },
+      { kind: "deliver", target: "brita_de_lastro", count: 10, label: "Pedras de Brita" },
+    ],
+    dialog: {
+      offer: "Lastro bom é lastro que não anda. O do Túnel da Serra anda, e de bando. Entre lá, derrube vinte ratos de brita e me traga dez pedras, que eu quero ver de perto o que está comendo o meu lastro.",
+      accept: "Lá dentro é escuro, e um rato chama os outros. Leve luz e alguém para segurar a lanterna.",
+      progress: "Vinte ratos e dez pedras. E se ouvir um apito, saia do trilho.",
+      complete: "Roída por dentro! Não é rato comum, é coisa do Trem Que Nunca Encerra. Tome as poções: você vai precisar delas na quarta.",
+    },
+    rewards: { xp: 24000, gold: 6000, items: [{ itemId: "health_potion_large", count: 15 }] },
+  }),
+  q({
+    id: "locomotiva_fantasma", name: "O Trem Que Nunca Encerra", giver: "maquinista_aposentado", minLevel: 52, requires: ["o_tunel", "revisao_na_via"],
+    summary: "Toda quarta, às cinco da tarde, uma composição de 1.124 eixos atravessa o Túnel da Serra com uma locomotiva sem eixo lido, desloca todos os vagões e a passagem nunca encerra. O Maquinista quer que ela pare de vez.",
+    steps: [
+      { kind: "boss", target: "locomotiva_fantasma", count: 1, label: "O Trem Que Nunca Encerra" },
+      { kind: "talk", target: "chefe_estacao_malha", count: 1, label: "Avisar a Estação" },
+    ],
+    dialog: {
+      offer: "Quarenta anos de cabine e eu nunca vi aquele trem encerrar. A locomotiva não tem eixo lido, então todo vagão atrás dela cai na posição errada, a roda sem imagem não fecha, e a passagem fica aberta para sempre. Toda quarta, às cinco, ela passa no túnel. Junte um grupo, pare O Trem Que Nunca Encerra e avise o Chefe da Estação para fechar a passagem.",
+      accept: "Quando ouvir o apito, é ele. Fique fora da frente do vapor e não deixe os ratos te cercarem.",
+      progress: "O trem ainda apita, e a passagem continua aberta. A Estação ainda não sabe.",
+      complete: "Encerrou! Passagem fechada, eixos contados, quarenta anos esperando por isso. Fique com este anel e com o título: daqui para a frente, você é o Maquinista.",
+    },
+    rewards: { xp: 40000, gold: 12000, items: [{ itemId: "anel_do_rodeiro", count: 1 }], unlock: "title:maquinista" },
+  }),
 ];
 
 export const QUESTS: Record<string, QuestDef> = Object.fromEntries(QUEST_LIST.map((d) => [d.id, d]));

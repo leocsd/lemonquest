@@ -1,5 +1,41 @@
 # Changelog
 
+## [Não lançado] — 2026-10-24 · ciclo 11: Malha da Ferrovia e ClickUp dinâmico
+
+Pedido do dono: mais contexto do trabalho, começando pelo ClickUp ao vivo e por uma região inteira do segmento
+ferroviário, chegando de trem. Lore tirado dos repositórios do Gitea (Portal de Inspeção, Anomalia de Carga,
+SmartTrain, sensor de trilho) com o disfarce de sempre: "a Ferrovia", sem lugares reais nem fabricantes.
+
+**ClickUp no jogo** (`systems/clickup.ts`, `shared/workFilter.ts`; desligado sem `LEMONQUEST_CLICKUP_TOKEN`)
+- Leitura a cada 5 min fora do tick (timer + fila consumida no `runSafe`), backoff até 30 min, estado em `kv`.
+- **Chegou!**: compra que vira "pedidos entregues" é anunciada e solta uma Caixa de Encomenda na Estação ou no Pátio
+  de Encomendas da Oficina (até 3 por hora). Na primeira leitura, o passado só é marcado como visto.
+- **Sprints**: barra coletiva por projeto no Painel da Obra e no Quadro de Gestão à Vista; passar da média das 4
+  semanas anteriores dispara a **Sprint Fechada** (XP ×1,25 por 1 h). O `EventSystem` ganhou uma camada de bônus que
+  **soma** ao evento agendado em vez de substituí-lo (antes, o chefe do agendado não seria convocado).
+- **Conquistas pessoais**: métrica `work_tasks` (1/10/50/200). Pedido do dono: o **próprio jogador** vincula, na aba
+  "Na obra", colando o token pessoal do ClickUp; o servidor confere uma vez (`GET /user` e `/team`: membro do workspace
+  e e-mail da Embeddo), grava só o id do usuário e **descarta o token** (nunca em banco, kv, log ou mensagem; teste).
+  5 tentativas por 10 min. O `/vincular <personagem> <apelido|id>` do admin continua como alternativa.
+- **Na obra**: até 10 tarefas abertas dos projetos ferroviários e da Oficina, com apelido do responsável.
+- **Filtro de disfarce** endurecido pela revisão cruzada: normalização Unicode, separadores e letras soltas, cliente
+  confidencial descartado em qualquer grafia (inclusive o título inteiro da compra), fabricantes viram "Fabricante",
+  infraestrutura/RH/financeiro descartados, pessoas viram apelido ou "alguém". O token nunca aparece em log (teste).
+- `docker-compose.yml` repassa o token do `.env`; `.env` entrou no `.gitignore` e no `.dockerignore`.
+
+**Malha da Ferrovia** (`tools/mapgen/expansion4.mjs`, mapa 400×336 → 400×472)
+- 160×110 tiles: Estação Central (PZ), Pátio de Manobra (feixe de 7 linhas, AMVs, 19 vagões), Portal de Inspeção
+  (pórtico com 4 câmeras e 4 iluminadores, sensores de roda, abrigo do CLP), Oficina de Vagões, Via Permanente (ponte,
+  passagem de nível) e Túnel da Serra. Trem nos Chefes da Estação (200 de ouro) e portal oculto Vila ↔ Estação, para
+  quem desloga na Malha voltar lá. **0 tiles alterados, 623/623 objetos antigos idênticos**; arte de trilho desenhada
+  no `lemon.mjs` com alocação adiada (o atlas só cresceu).
+- Monstros com os defeitos reais do Portal (Trinca no Disco, Aro Fraturado, Calo, Escamação, nas cores do código),
+  Frame Descartado, Iluminador Rebelde, Rato de Brita; mini-chefe Vagão Não Inspecionável; chefe **O Trem Que Nunca
+  Encerra** com o evento Apito da Locomotiva (quarta 17h). 10 missões (lv 25–52), 14 itens, 9 NPCs, 10 conquistas.
+
+**Correção de conteúdo do ciclo 10**: o NPC "EM-1000" da Oficina virou "Robô de Bancada" e perdeu a fala com a meta
+de horas: o código e a métrica eram de um projeto do cliente confidencial.
+
 ## [Não lançado] — 2026-10-24 · loja: compra em lote
 
 - Pedido do dono: comprar poções e outras coisas em quantidade. O servidor já aceitava até 100 por mensagem; faltava a
@@ -26,7 +62,7 @@ referência, códigos internos de produto liberados, nada do chat privado. Plano
   servidor só aceita login em tile alcançável a pé a partir do spawn.
 - 14 NPCs: Pedrão (visão), Julião (embarcados, loja), Bianca (logística), Luan (cubo mágico), Iago (cofre de senhas),
   Gabriel (Rifa do Sextou, cassino), Guilherme o Boss (depósito + bênção), Alexandre do Quântico, Cocheiro Dito e as
-  "placas" Geladeira (marmita, café), Quadro de Gestão à Vista, Banheiro Quântico, EM-1000 e Troféu do Demoday.
+  "placas" Geladeira (marmita, café), Quadro de Gestão à Vista, Banheiro Quântico, Robô de Bancada e Troféu do Demoday.
 
 **Conteúdo**
 - 6 missões: Pesquisa de Clima (Capitão, lv 3) e a cadeia da Oficina (lv 5–22: Chegou!, git caiu?, Bombonas

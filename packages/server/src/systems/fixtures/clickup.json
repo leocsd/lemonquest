@@ -1,0 +1,40 @@
+{
+  "_comment": "Respostas do ClickUp v2 gravadas e ANONIMIZADAS (títulos inventados no formato dos reais). _h = horas relativas ao 'agora' do teste (vira date_done/date_updated).",
+  "purchases": [
+    { "id": "c1", "name": "[Câmera IP 4MP] - P08/ 10/10", "status": { "status": "pedidos entregues" }, "_h": -1 },
+    { "id": "c2", "name": "[Fonte 24V] - P11/ 12/10", "status": { "status": "pedidos entregues" }, "_h": -2 },
+    { "id": "c3", "name": "[Token USB de assinatura] - Adm/ 12/10", "status": { "status": "pedidos entregues" }, "_h": -2 },
+    { "id": "c4", "name": "Cabo de rede MRS - P06/ 14/10", "status": { "status": "pedidos entregues" }, "_h": -3 }
+  ],
+  "history": [
+    { "id": "h1", "name": "x", "space": { "id": "90139446338" }, "_h": -100 },
+    { "id": "h2", "name": "x", "space": { "id": "90139446338" }, "_h": -200 },
+    { "id": "h3", "name": "x", "space": { "id": "90139446338" }, "_h": -300 },
+    { "id": "h4", "name": "x", "space": { "id": "90139446338" }, "_h": -400 },
+    { "id": "h5", "name": "x", "space": { "id": "90139446338" }, "_h": -500 },
+    { "id": "h6", "name": "x", "space": { "id": "90139446338" }, "_h": -600 },
+    { "id": "h7", "name": "x", "space": { "id": "90139446338" }, "_h": -110 },
+    { "id": "h8", "name": "x", "space": { "id": "90139446338" }, "_h": -210 },
+    { "id": "h9", "name": "x", "space": { "id": "90131736054" }, "_h": -120 },
+    { "id": "h10", "name": "x", "space": { "id": "90131736054" }, "_h": -220 },
+    { "id": "h11", "name": "x", "space": { "id": "90131736054" }, "_h": -320 },
+    { "id": "h12", "name": "x", "space": { "id": "90131736054" }, "_h": -420 },
+    { "id": "h13", "name": "x", "space": { "id": "90130534616" }, "_h": -130 },
+    { "id": "h14", "name": "x", "space": { "id": "90131073435" }, "_h": -140 }
+  ],
+  "week": [
+    { "id": "w1", "name": "Calibrar câmera 3", "space": { "id": "90139446338" }, "assignees": [{ "id": 43024221, "email": "a@embeddo.io" }], "_h": -5 },
+    { "id": "w2", "name": "Ajustar iluminador", "space": { "id": "90139446338" }, "assignees": [{ "id": 43024221, "email": "a@embeddo.io" }, { "id": 42990224, "email": "b@embeddo.io" }], "_h": -4 },
+    { "id": "w3", "name": "Revisar firmware", "space": { "id": "90131736054" }, "assignees": [{ "id": 43024221, "email": "a@embeddo.io" }], "_h": -30 },
+    { "id": "w4", "name": "Pipeline de deploy", "space": { "id": "90130534616" }, "assignees": [{ "id": 43024221, "email": "a@embeddo.io" }], "_h": -3 }
+  ],
+  "open": [
+    { "id": "o1", "name": "Go/NoGo das câmeras em Lafaiete com Pedro Carvalho", "status": { "status": "em andamento", "type": "custom" }, "space": { "id": "90139446338" }, "assignees": [{ "id": 43024213, "email": "j@embeddo.io" }], "_h": -1 },
+    { "id": "o2", "name": "Renovar contrato do link", "status": { "status": "a fazer", "type": "open" }, "space": { "id": "90139446338" }, "assignees": [], "_h": -2 },
+    { "id": "o3", "name": "Validar dark-field com a MRS", "status": { "status": "a fazer", "type": "open" }, "space": { "id": "90131736054" }, "assignees": [{ "id": 999, "email": "fulano@mrs.com.br" }], "_h": -3 },
+    { "id": "o4", "name": "Painel do AGV", "status": { "status": "a fazer", "type": "open" }, "space": { "id": "901313071656" }, "assignees": [], "_h": -4 },
+    { "id": "o5", "name": "Teste de bancada", "status": { "status": "a fazer", "type": "open" }, "space": { "id": "90131073435" }, "assignees": [], "_h": -5 },
+    { "id": "o6", "name": "Revisão de layout", "status": { "status": "a fazer", "type": "open" }, "space": { "id": "90130534616" }, "assignees": [{ "id": 5, "email": "x@jaguarlandrover.com" }], "_h": -6 },
+    { "id": "o7", "name": "Subir container do RDT", "status": { "status": "a fazer", "type": "open" }, "space": { "id": "90130534616" }, "assignees": [], "_h": -0.5 }
+  ]
+}

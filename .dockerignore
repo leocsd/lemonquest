@@ -31,3 +31,7 @@ assets/addons/preview*.png
 assets/icons/*-preview.png
 assets/CATALOG.md
 packages/server/dist
+
+# Segredos não entram na imagem
+.env
+.env.*

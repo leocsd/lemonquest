@@ -1,4 +1,4 @@
-// Janela de NPC: fala com digitação, abas Missões / Viagem / Comprar / Vender / Depot.
+// Janela de NPC: fala com digitação, abas Na obra / Missões / Viagem / Comprar / Vender / Depot.
 import { CASINO_TICKET_PRICE, DEPOT_SIZE, IMBUEMENT_EFFECTS, IMBUEMENTS, backpackRoom, itemDef, keptBySellAll, shopBuyMax, type NpcOpenMsg } from "@lemonquest/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { sectionsStore } from "../hud/Section.tsx";
@@ -16,9 +16,10 @@ import { ItemSlot } from "../items/ItemSlot.tsx";
 import { itemTipStore, shopInstance } from "../items/tipStore.ts";
 import { buyBlessing, buyCasinoTicket, buyImbuement, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
 import { BountyBoard, MaterialRequestBoard, NpcQuestList } from "../quests/NpcQuests.tsx";
+import { WorkTab } from "../work/WorkTab.tsx";
 import "./npc.css";
 
-const TAB_LABEL: Record<NpcTab, string> = { quests: "Missões", bounties: "Recompensas", request: "Encomenda", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
+const TAB_LABEL: Record<NpcTab, string> = { work: "Na obra", quests: "Missões", bounties: "Recompensas", request: "Encomenda", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
 const TYPE_MS = 25;
 
 export function NpcWindow() {
@@ -51,6 +52,7 @@ export function NpcWindow() {
             ))}
           </div>
         )}
+        {st.tab === "work" && <WorkTab npcId={m.npcId} />}
         {st.tab === "quests" && <NpcQuestList npcId={m.npcId} />}
         {st.tab === "bounties" && <BountyBoard />}
         {st.tab === "request" && <MaterialRequestBoard />}

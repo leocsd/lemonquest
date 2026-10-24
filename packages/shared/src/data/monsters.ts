@@ -1040,6 +1040,154 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(C + "Vampire/SpriteSheet.png", { tint: 0xd890ff, scale: 1.9 }),
   },
+
+  // ===== Malha da Ferrovia (ciclo 11, lv 25–60): região isolada, só de trem (tools/mapgen/expansion4.mjs). Reskins com
+  // tint de sprites que já existem. Os quatro defeitos de roda têm o nome e a cor que o Portal de Inspeção usa (Trinca no
+  // Disco vermelho, Aro Fraturado laranja, Calo âmbar, Escamação ciano); os ids são os do contrato com o mapa.
+  // Números nas janelas dos vizinhos de level (xp/vida ±10%, ouro por faixa: monsters.test.ts e items.test.ts).
+  engate_solto: {
+    id: "engate_solto", name: "Escamação", level: 28, hp: 330, xp: 285, damage: [22, 46], damageKind: "physical", armor: 7,
+    attackMs: 1900, attackRange: 1, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [60, 140],
+    loot: [
+      { itemId: "pino_de_engate", chance: 0.45 },
+      { itemId: "iron_bar", chance: 0.05 },
+      { itemId: "health_potion_medium", chance: 0.07 },
+      { itemId: "colete_refletivo", chance: 0.006 },
+      { itemId: "steel_legs", chance: 0.005 },
+    ],
+    sprite: grid4(M + "Snake4/Snake4.png", { tint: 0x40d0e0 }),
+  },
+  // Calo: a sapata travou, a roda arrastou no trilho e ficou com um ponto chato. Lento e blindado.
+  sapata_gasta: {
+    id: "sapata_gasta", name: "Calo", level: 32, hp: 420, xp: 420, damage: [26, 52], damageKind: "physical", armor: 12,
+    attackMs: 2000, attackRange: 1, stepMs: 480, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [70, 150],
+    loot: [
+      { itemId: "pastilha_de_sapata", chance: 0.45, min: 1, max: 2 },
+      { itemId: "iron_bar", chance: 0.06 },
+      { itemId: "health_potion_medium", chance: 0.08 },
+      { itemId: "steel_boots", chance: 0.006 },
+    ],
+    sprite: grid4(M + "Mole2/Mole2.png", { tint: 0xffc040, scale: 1.1 }),
+  },
+  // À distância, de fogo, com um flash de energia: o iluminador do pórtico que não quis ser o décimo.
+  iluminador_rebelde: {
+    id: "iluminador_rebelde", name: "Iluminador Rebelde", level: 36, hp: 460, xp: 530, damage: [28, 56], damageKind: "fire", armor: 6,
+    abilities: [
+      ability.bolt({ name: "Flash de 50 ms", range: 4, min: 30, max: 60, kind: "energy", fx: "energy", cooldownMs: 9000, condition: { id: "energy", durationMs: 4000, value: 6 } }),
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 360, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [80, 170],
+    loot: [
+      { itemId: "iluminador_queimado", chance: 0.5, min: 1, max: 2 },
+      { itemId: "lente_industrial", chance: 0.3 },
+      { itemId: "mana_potion_medium", chance: 0.08 },
+      { itemId: "capacete_lanterna", chance: 0.006 },
+      { itemId: "ember_wand", chance: 0.004 },
+    ],
+    sprite: grid4(M + "LanternGreen/SpriteSheet.png", { tint: 0xfff0a0 }),
+  },
+  // Foge cedo (45%) e rápido: o quadro que o gravador descartou some antes de alguém conferir.
+  frame_descartado: {
+    id: "frame_descartado", name: "Frame Descartado", level: 40, hp: 500, xp: 650, damage: [30, 60], damageKind: "energy", armor: 6,
+    attackMs: 1800, attackRange: 1, stepMs: 260, aggroRange: 4, fleeAtHpPct: 0.45, respawnMs: 60_000,
+    gold: [90, 190],
+    loot: [
+      { itemId: "frame_corrompido", chance: 0.4 },
+      { itemId: "lente_trincada", chance: 0.15 },
+      { itemId: "mana_potion_medium", chance: 0.1 },
+      { itemId: "calca_brim_refletiva", chance: 0.006 },
+      { itemId: "gem_green", chance: 0.02 },
+    ],
+    sprite: grid4(M + "Spirit2/SpriteSheet.png", { tint: 0xd0e8ff }),
+  },
+  rodeiro_trincado: {
+    id: "rodeiro_trincado", name: "Trinca no Disco", level: 45, hp: 820, xp: 1115, damage: [42, 84], damageKind: "physical", armor: 14,
+    attackMs: 1900, attackRange: 1, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 75_000,
+    gold: [120, 240],
+    loot: [
+      { itemId: "rolamento_de_rodeiro", chance: 0.4 },
+      { itemId: "iron_bar", chance: 0.1 },
+      { itemId: "health_potion_large", chance: 0.06 },
+      { itemId: "botina_seguranca", chance: 0.006 },
+      { itemId: "mithril_boots", chance: 0.004 },
+    ],
+    sprite: grid4(M + "Eye/Eye.png", { tint: 0xe04040, scale: 1.15 }),
+  },
+  truque_desalinhado: {
+    id: "truque_desalinhado", name: "Aro Fraturado", level: 48, hp: 1000, xp: 1420, damage: [48, 92], damageKind: "physical", armor: 16,
+    abilities: [
+      ability.stomp({ name: "Descarrilou!", radius: 1, min: 50, max: 100, cooldownMs: 12_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 400, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 80_000,
+    gold: [130, 250],
+    loot: [
+      { itemId: "chaveta", chance: 0.4, min: 1, max: 2 },
+      { itemId: "iron_bar", chance: 0.12 },
+      { itemId: "health_potion_large", chance: 0.07 },
+      { itemId: "mithril_legs", chance: 0.005 },
+      { itemId: "gem_yellow", chance: 0.02 },
+    ],
+    sprite: grid4(M + "Beast/Beast.png", { tint: 0xff8a30, scale: 1.2 }),
+  },
+  // Bando do Túnel: onde tem um rato de brita, tem dez debaixo do dormente.
+  rato_de_lastro: {
+    id: "rato_de_lastro", name: "Rato de Brita", level: 50, hp: 700, xp: 1015, damage: [40, 80], damageKind: "physical", armor: 10,
+    attackMs: 1700, attackRange: 1, stepMs: 260, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 70_000,
+    pack: { family: "lastro", shout: "Chiii! Pra brita!" },
+    gold: [100, 200],
+    loot: [
+      { itemId: "brita_de_lastro", chance: 0.5, min: 1, max: 3 },
+      { itemId: "cheese", chance: 0.2, min: 1, max: 3 },
+      { itemId: "health_potion_large", chance: 0.06 },
+      { itemId: "ring_furia", chance: 0.004 },
+    ],
+    sprite: grid4(M + "MouseBlack/SpriteSheet.png", { tint: 0xb0a080, scale: 1.1 }),
+  },
+  // Mini-chefe da Oficina de Vagões ("não inspecionável" é status real da inspeção): chama calos que travam o grupo.
+  vagao_nao_inspecionavel: {
+    id: "vagao_nao_inspecionavel", name: "Vagão Não Inspecionável", level: 52, hp: 10000, xp: 10000, damage: [85, 160], damageKind: "physical", armor: 18,
+    abilities: [
+      ability.stomp({ name: "Freio de Emergência", radius: 1, min: 90, max: 160, cooldownMs: 11_000 }),
+      ability.summon({ name: "Calo na roda!", monsterId: "sapata_gasta", count: 1, max: 2, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 460, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [2400, 4000],
+    loot: [
+      { itemId: "selo_nao_inspecionavel", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 2, max: 4 },
+      { itemId: "rolamento_de_rodeiro", chance: 1, min: 2, max: 4 },
+      { itemId: "anel_do_rodeiro", chance: 0.2 },
+      { itemId: "botina_seguranca", chance: 0.25 },
+      { itemId: "mithril_armor", chance: 0.15 },
+      { itemId: "master_archer_armor", chance: 0.15 },
+      { itemId: "archmage_armor", chance: 0.15 },
+    ],
+    sprite: grid4(M + "Cyclope2/SpriteSheet.png", { tint: 0xa86a48, scale: 1.7 }),
+  },
+  // Chefe da Malha (evento "Apito da Locomotiva", quarta 17h): a composição de 1.124 eixos que nunca fecha. Vapor em
+  // onda e ratos de brita de reforço.
+  locomotiva_fantasma: {
+    id: "locomotiva_fantasma", name: "O Trem Que Nunca Encerra", level: 58, hp: 14000, xp: 15000, damage: [100, 190], damageKind: "physical", armor: 20,
+    abilities: [
+      ability.breath({ name: "Vapor Fantasma", length: 4, width: 3, min: 110, max: 200, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 10_000 }),
+      ability.summon({ name: "Mais 1.124 eixos!", monsterId: "rato_de_lastro", count: 2, max: 3, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 320, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [3000, 5000],
+    loot: [
+      { itemId: "apito_de_locomotiva", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
+      { itemId: "brita_de_lastro", chance: 1, min: 4, max: 8 },
+      { itemId: "anel_do_rodeiro", chance: 0.3 },
+      { itemId: "crown_armor", chance: 0.1 },
+      { itemId: "royal_armor", chance: 0.1 },
+      { itemId: "mystic_armor", chance: 0.1 },
+      { itemId: "boots_haste", chance: 0.08 },
+    ],
+    sprite: grid4(M + "TRex/SpriteSheet.png", { tint: 0x8898b8, scale: 2 }),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -1211,5 +1359,15 @@ export function monsterAbilitySpell(spellId: string): SpellDef | undefined {
  * datacenter_rat  3    40    12     4
  * runaway_drum   10   120    52     7  (passiva, foge a 60%)
  * slag_slime     20   220   140    22  (fogo, bando)
+ * --- Malha da Ferrovia (ciclo 11: região só de trem, lv 25–60)
+ * engate_solto       28   330   285    34  ("Escamação")
+ * sapata_gasta       32   420   420    39  ("Calo"; lento, armadura 12)
+ * iluminador_reb.    36   460   530    42  (dist 4, fogo; flash de energia)
+ * frame_descartado   40   500   650    45  (energia, foge a 45%)
+ * rodeiro_trincado   45   820  1115    63  ("Trinca no Disco")
+ * truque_desalinh.   48  1000  1420    70  ("Aro Fraturado"; pisão)
+ * rato_de_lastro     50   700  1015    60  ("Rato de Brita"; bando "lastro")
+ * vagao_nao_insp.*   52 10000 10000   122          grupo de 3+, respawn 2 h (invoca calos)
+ * locomotiva_fant.*  58 14000 15000   145          "O Trem Que Nunca Encerra"; grupo de 3-4, respawn 2 h (quarta 17h)
  * (*boss). Magos causam ~30% menos por acerto: 4+1.1*lvl.
  */

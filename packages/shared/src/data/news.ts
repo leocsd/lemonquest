@@ -12,6 +12,19 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-24b",
+    date: "24 de outubro (tarde)",
+    title: "Malha da Ferrovia e o ClickUp no jogo",
+    items: [
+      "Região nova para lv 25–60: pegue o trem com o Chefe da Estação, ao lado da carroça do Bastião, até a Estação Central da Malha.",
+      "Pátio de Manobra, Portal de Inspeção, Oficina de Vagões, Via Permanente e o Túnel da Serra. Cuidado com a Trinca no Disco, o Aro Fraturado, o Calo e a Escamação.",
+      "Dez missões novas, de \"Primeira Passagem\" a \"O Trem Que Nunca Encerra\", o chefe que aparece no Apito da Locomotiva (quarta, 17h).",
+      "O jogo agora lê o ClickUp: compra entregue vira \"Chegou!\" com caixa de encomenda na Estação, e o Painel da Obra mostra o ritmo das sprints.",
+      "Quando o time passa da média da semana, começa a Sprint Fechada: XP ×1,25 por uma hora, somado ao evento que estiver valendo.",
+      "Vincule seu ClickUp no Painel da Obra (aba Na obra, com seu token pessoal; o jogo não guarda o token): tarefas fechadas viram conquistas e títulos.",
+    ],
+  },
+  {
     id: "2026-10-24a",
     date: "24 de outubro",
     title: "Compras em lote",

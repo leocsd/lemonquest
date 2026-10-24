@@ -10,7 +10,9 @@ export type AchMetric =
   | "kills" | "bosses" | "bestiary" | "boss:goblin_king" | "boss:swamp_lich"
   | "level" | "melee" | "distance" | "magic" | "shield"
   | "arena" | "gold" | "deaths" | "steps" | "foods" | "drops" | "pickups" | "offline" | "explore" | "equipped"
-  | "quests" | "party" | "fish";
+  | "quests" | "party" | "fish"
+  // Ciclo 11: chefes da Malha da Ferrovia e tarefas fechadas no ClickUp pelo usuário vinculado (server/systems/clickup.ts).
+  | "boss:vagao_nao_inspecionavel" | "boss:locomotiva_fantasma" | "work_tasks";
 
 export interface AchievementDef {
   id: string;
@@ -66,6 +68,15 @@ export const TITLES: Record<string, string> = {
   movido_a_cafe: "Movido a Café",
   documentador: "o Documentador",
   mestre_da_frota: "Mestre da Frota",
+  // Malha da Ferrovia e trabalho real (ciclo 11): ver o bloco correspondente em ACHIEVEMENTS; "maquinista" vem da missão.
+  maquinista: "o Maquinista",
+  inspetor_de_via: "Inspetor de Via",
+  ferroviario: "o Ferroviário",
+  dormente: "o Dormente",
+  entregador: "o Entregador",
+  fechador_sprint: "Fechador de Sprint",
+  mestre_kanban: "Mestre do Kanban",
+  lenda_backlog: "Lenda do Backlog",
 };
 export const MAX_TITLE_LEN = 24;
 
@@ -170,6 +181,18 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("cubo_magico", "Cubo Mágico", "Chegue ao Magic Level 20", "🧊", 25, "magic", 20),
   a("mestre_da_frota", "Mestre da Frota", "Pegue 250 itens do chão", "🚚", 20, "pickups", 250, { rewards: ["title:mestre_da_frota"] }),
   a("reuniao_geral", "Reunião Geral", "Derrote 50 monstros em grupo", "📺", 25, "party", 50),
+  // Malha da Ferrovia (ciclo 11): chefes da via e métricas existentes com pares (métrica, alvo) que não se repetem.
+  a("vagao_inspecionado", "Vagão Inspecionado", "Derrote o Vagão Não Inspecionável", "🚃", 30, "boss:vagao_nao_inspecionavel", 1, { rewards: ["title:inspetor_de_via"], rare: true }),
+  a("ultimo_apito", "Último Apito", "Derrote O Trem Que Nunca Encerra", "🚂", 40, "boss:locomotiva_fantasma", 1, { rewards: ["title:ferroviario"], rare: true }),
+  a("horario_cumprido", "Horário Cumprido", "Derrote O Trem Que Nunca Encerra 5 vezes", "⏱️", 40, "boss:locomotiva_fantasma", 5, { rare: true }),
+  a("dormente", "Dormente", "Treine offline por 6 horas no total", "🛤️", 15, "offline", 360, { rewards: ["title:dormente"] }),
+  a("bitola_larga", "Bitola Larga", "Ande 100.000 tiles", "📏", 35, "steps", 100_000),
+  a("passagem_liberada", "Passagem Liberada", "Complete 15 missões", "🚦", 35, "quests", 15),
+  // Trabalho real (ciclo 11): tarefas fechadas no ClickUp pela conta vinculada por admin (/vincular). Só contagem.
+  a("work_1", "Primeira Entrega", "Feche 1 tarefa no ClickUp vinculado", "✅", 5, "work_tasks", 1, { rewards: ["title:entregador"] }),
+  a("work_10", "Sprint Entregue", "Feche 10 tarefas no ClickUp vinculado", "🏁", 15, "work_tasks", 10, { rewards: ["title:fechador_sprint"] }),
+  a("work_50", "Quadro Limpo", "Feche 50 tarefas no ClickUp vinculado", "📌", 30, "work_tasks", 50, { rewards: ["title:mestre_kanban"] }),
+  a("work_200", "Backlog Zerado", "Feche 200 tarefas no ClickUp vinculado", "🏆", 50, "work_tasks", 200, { rewards: ["title:lenda_backlog"], rare: true }),
 ];
 
 export const ACHIEVEMENTS_BY_ID: Record<string, AchievementDef> = Object.fromEntries(ACHIEVEMENTS.map((x) => [x.id, x]));

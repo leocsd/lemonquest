@@ -32,3 +32,5 @@ export * from "./data/events.ts";
 export * from "./data/news.ts";
 export * from "./data/weekly.ts";
 export * from "./data/challenges.ts";
+export * from "./data/workProjects.ts";
+export * from "./workFilter.ts";

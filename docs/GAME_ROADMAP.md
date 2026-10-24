@@ -6,6 +6,25 @@ Reflete o estado real. Números `#` = itens de [GAME_AUDIT.md](GAME_AUDIT.md). S
 Ordem de leitura: **Ciclo 9** (o que está em andamento e as decisões tomadas) → pendências dos ciclos 7/7b/8 → ⛔.
 Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
+## Ciclo 11 (2026-10-24) — Malha da Ferrovia e ClickUp dinâmico
+
+Decisões do dono: ClickUp com as 4 integrações (Chegou!, sprints, conquistas pessoais, títulos de tarefa filtrados);
+região isolada no mesmo mundo, só de trem; disfarce mantido na ferrovia; token pessoal em `.env` da produção. Lore dos
+repositórios do Gitea. 3 frentes de agentes (ClickUp, mapa, conteúdo) com revisão cruzada (2 bloqueios de privacidade
+achados e corrigidos).
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C11-1 | ClickUp: sistema de leitura, Chegou!, sprints + Sprint Fechada (bônus que soma ao evento), vínculo pelo próprio jogador (token conferido e descartado) e `/vincular` de admin, `work_tasks`, aba "Na obra" | ✅ 2026-10-24 | `clickup.test.ts`, `events.test.ts`, `admin.test.ts`, `achievements.test.ts` (sem rede: respostas gravadas) |
+| C11-2 | Filtro de disfarce (`workFilter.ts`) endurecido: grafias do cliente confidencial, fabricantes, infra, RH, pessoas | ✅ 2026-10-24 | `workFilter.test.ts` com os casos dos scripts de ataque da revisão |
+| C11-3 | Malha da Ferrovia (`expansion4.mjs`), trem + portal oculto | ✅ 2026-10-24 | `diff-world.mjs`: 0 tiles alterados, 623/623; `malha.spec.ts` 15/15 (`--repeat-each=3`) |
+| C11-4 | 9 monstros, 10 missões, 14 itens, 9 NPCs, 10 conquistas, evento Apito da Locomotiva | ✅ 2026-10-24 | `monsters`, `items`, `quests`, `questWorld`, `npcs`, `events`, `arena` |
+| C11-5 | NPC "EM-1000" (ciclo 10) neutralizado: código e métrica eram do cliente confidencial | ✅ 2026-10-24 | — |
+| C11-6 | Deploy: token pessoal do ClickUp no `.env` da produção e saída de rede para `api.clickup.com` (não testado daqui) | 🧭 | dono |
+| C11-7 | O portal oculto Vila ↔ Estação leva à Malha de graça e sem filtro de level (o trem cobra 200); aceito: é o caminho de conectividade | 🧭 | revisitar se virar atalho |
+| C11-8 | Arte (ideias da frente de mapa): estrada da passagem de nível até o Pátio, emboque do túnel mais escuro, mirante na Serra, valetas e ponte rolante na Oficina, sinais de 3 luzes, locomotiva no Pátio; ocupar os gramados vazios | ⏳ | opcional |
+| C11-9 | Gitea dinâmico (commits/PRs viram eventos) e E2E do Chegou! com API falsa | ⏳ | próximo ciclo |
+
 ## Ciclo 10 (2026-10-23) — contexto do trabalho no jogo
 
 Pedido do dono: trazer o escritório para dentro do jogo. Fontes: sumários dos projetos da Embeddo e ClickUp (equipes,

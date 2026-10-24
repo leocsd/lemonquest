@@ -99,6 +99,10 @@ const ZONE_MODES: Record<string, ZoneLightMode> = {
   "Coliseu": "lit",
   // Interior de escritório com luz elétrica (ciclo 10): mesmo modo do Coliseu, quase não escurece à noite.
   "Oficina dos Engenhos": "lit",
+  // Malha da Ferrovia (ciclo 11): a Estação é interior iluminado e o Túnel da Serra, escuro como as cavernas; pátio,
+  // portal, oficina de vagões e via ficam ao ar livre (modo padrão).
+  "Estação Central da Malha": "lit",
+  "Túnel da Serra": "dark",
   "Centro de Treinamento": "town",
   "Vila de Pedra Clara": "town",
 };

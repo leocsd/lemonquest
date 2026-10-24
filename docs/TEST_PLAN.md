@@ -141,6 +141,25 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 11 (2026-10-24, Malha da Ferrovia e ClickUp)
+
+| Camada | Resultado |
+|---|---|
+| `npm run typecheck` | 0 erros |
+| `npx vitest run` | **90 arquivos, 1055 passaram, 1 skip** (o de `bounties.test.ts`, ciclo 9) |
+| `diff-world.mjs` contra o mapa do `main` | `tiles alterados: 0; objetos antigos idênticos: 623/623; objetos novos: 75; tilesets estáveis: true; 400x336 -> 400x472`; TilesetLemon 208 → 560 tiles (só cresceu, pixels antigos idênticos). Gerador sem mudanças reproduziu o mapa byte a byte antes da expansão |
+| `e2e/malha.spec.ts` (novo, 5 casos) | 15/15 com `--repeat-each=3`, `[tick]` máx 6,9 ms |
+| `npm run test:e2e` completo | **passed, 0 falhas** (antes do vínculo pelo jogador); depois do vínculo: malha + oficina + shop + quests + travel = 14/14 |
+| `npm run build` | ok; `world.json` 2,41 MB, **gzip 87 KB** (antes 74 KB) |
+| `npm run smoke` (servidor isolado) | ok; `[tick]` média 0,80 ms / máx 34 ms com 687 monstros; ClickUp sem token = 0 linhas de log |
+| `npm run newbie` | 4/4 vocações, 0 mortes, 46–70 s |
+
+ClickUp: tudo testado sem rede, com respostas gravadas e anonimizadas (`clickup.test.ts`, `workFilter.test.ts`,
+`events.test.ts`, `admin.test.ts`). A revisão cruzada atacou o filtro com dois scripts e achou 2 bloqueios (compra do
+cliente confidencial anunciada pelo nome do item; grafias como `JLR_UK`, `J.L.R`, largura cheia): corrigidos e todos
+os casos viraram teste. Token nunca em log/kv/S2C (teste com erro de rede, 401 e 429; e no vínculo pelo jogador).
+**Não testado de ponta a ponta com o ClickUp real**: falta o token e a confirmação de saída de rede da produção.
+
 ## Resultados — ciclo 10 (2026-10-23, Oficina dos Engenhos)
 
 | Camada | Resultado |

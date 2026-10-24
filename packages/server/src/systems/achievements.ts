@@ -12,7 +12,9 @@ import type { PlayerState } from "../state.ts";
 import type { CharacterData, CharacterRecord } from "../persistence/types.ts";
 
 export type AchievementEventType =
-  | "kill" | "death" | "steps" | "gold" | "eat" | "drop" | "pickup" | "offline" | "quest" | "party_kill" | "arena" | "check" | "fish";
+  | "kill" | "death" | "steps" | "gold" | "eat" | "drop" | "pickup" | "offline" | "quest" | "party_kill" | "arena" | "check" | "fish"
+  /** Tarefas fechadas no ClickUp pelo usuário vinculado (systems/clickup.ts; métrica `work_tasks`). */
+  | "work";
 
 export interface AchievementEventData {
   /** kill: tipo do monstro e se é chefe. */
@@ -30,8 +32,14 @@ type Ach = NonNullable<CharacterData["ach"]>;
 
 /** Contadores simples (stats) que cada evento soma. */
 const COUNTER: Partial<Record<AchievementEventType, string>> = {
-  death: "deaths", steps: "steps", gold: "gold", eat: "foods", drop: "drops", pickup: "pickups", quest: "quests", party_kill: "party", fish: "fish",
+  death: "deaths", steps: "steps", gold: "gold", eat: "foods", drop: "drops", pickup: "pickups", quest: "quests", party_kill: "party", fish: "fish", work: "work_tasks",
 };
+
+/** Soma tarefas do ClickUp no registro de quem está offline (avaliado no próximo login). */
+export function addWorkTasks(rec: CharacterRecord, n: number): void {
+  const a = ensureAch(rec);
+  a.stats.work_tasks = (a.stats.work_tasks ?? 0) + Math.max(0, Math.floor(n));
+}
 
 export interface AchievementOptions {
   record: (sessionId: string) => CharacterRecord | undefined;

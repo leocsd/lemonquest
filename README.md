@@ -80,8 +80,10 @@ As respostas aparecem só para o admin (aviso + linha no chat). Toda ação fica
 | `/status` | Fotografia do servidor: online, monstros, tick, memória, autosave e a progressão medida (horas por level, mortes e ouro por faixa). |
 | `/evento <nome> [minutos]` · `/evento parar` | Liga um evento semanal fora do horário (sem argumentos lista os eventos e o estado). |
 | `/desbloquear <nome> <roupa\|addon\|título>` | Libera uma roupa, addon ou título para um personagem (ex.: `pirata`, `pirata_chapeu`, `title:persistente`). |
+| `/vincular <personagem> <apelido\|id do ClickUp>` · `/vincular <personagem> nenhum` | Liga o personagem a um usuário do ClickUp (apelido da equipe, ex.: `pedrao`, `Lucas P.`, ou o id numérico): tarefas que ele fechar **a partir de agora** contam nas conquistas de tarefas. Sem argumentos lista os vínculos. Funciona com o personagem offline. |
 
-Nomes com espaço funcionam (`/kick Ana Maria spam`). Sem nenhum admin online, o dono do servidor gera o código pelo terminal:
+Nomes com espaço funcionam (`/kick Ana Maria spam`). O `/status` mostra também a última leitura do ClickUp.
+Sem nenhum admin online, o dono do servidor gera o código pelo terminal:
 
 ```bash
 npm run admin -- reset-password <conta>          # na pasta do projeto (usa LEMONQUEST_DB ou data/lemonquest.db)
@@ -89,6 +91,34 @@ npm run admin -- deleted                         # lista personagens excluídos 
 ```
 
 Docker: veja [deploy/docker/README.md](deploy/docker/README.md#9-administração).
+
+### ClickUp no jogo (opcional)
+
+Com `LEMONQUEST_CLICKUP_TOKEN` (token pessoal do ClickUp, só leitura) o servidor lê o ClickUp a cada
+`LEMONQUEST_CLICKUP_POLL_MIN` minutos (padrão 5), **fora do tick**, e mostra no jogo, sempre passando pelo filtro de
+disfarce (`shared/workFilter.ts`: cliente real vira apelido, tarefa com termo sensível some inteira):
+**"📦 Chegou!"** quando uma compra entra em "pedidos entregues" (com Caixa de Encomenda no chão, até 3 por hora),
+**barras da sprint** e a aba **"Na obra"** no Painel da Obra e no Quadro de Gestão à Vista, o evento **Sprint Fechada**
+(XP ×1,25 por 1 h, multiplicado com o evento que estiver valendo: Noite de Caçada ×2 vira ×2,5) quando a semana alcança a média das 4 anteriores, e as **conquistas de tarefas** de quem
+vinculou o próprio ClickUp (abaixo) ou foi vinculado por um admin com `/vincular`. Sem token, nada disso liga e o jogo fica igual. Erro de rede: tenta de novo com espera
+crescente (até 30 min). `LEMONQUEST_CLICKUP_TEAM` e `LEMONQUEST_CLICKUP_PURCHASES_LIST` trocam o workspace e a lista
+de compras (padrões em `shared/data/workProjects.ts`).
+
+**Vincular o seu ClickUp (cada jogador, sem admin):** tarefas que você fechar no ClickUp a partir do vínculo contam nas
+conquistas de tarefas (1/10/50/200, com títulos).
+
+1. No ClickUp: avatar → **Configurações** → **Apps** → **API Token** → gere (ou copie) o token pessoal (`pk_…`).
+2. No jogo: fale com o **Quadro de Gestão à Vista** (Oficina) ou o **Painel da Obra** (Estação Central da Malha), aba
+   **"Na obra"** → **Vincular meu ClickUp**, cole o token e clique em **Vincular**.
+3. O servidor confere quem é você (`GET /user`), se a conta é do workspace da Embeddo e se o e-mail é `@embeddo.io`,
+   grava só o **id** do seu usuário no ClickUp e **descarta o token na hora**: ele não vai para banco, log nem tela.
+   Um usuário do ClickUp conta para um personagem só (vincular em outro tira do anterior). **Desvincular** fica no mesmo
+   lugar. Até 5 tentativas a cada 10 min por personagem.
+
+> O jogo roda em HTTP (sem criptografia) na rede do escritório, então o token passa **uma vez** pela LAN ao vincular.
+> O jogo não guarda o seu token; por isso, se quiser, **gere outro no ClickUp depois de vincular** (o antigo deixa de
+> valer e o vínculo continua). O vínculo funciona mesmo sem `LEMONQUEST_CLICKUP_TOKEN`, mas as tarefas só contam
+> quando o ClickUp do servidor estiver ligado.
 
 ## Desenvolvimento
 

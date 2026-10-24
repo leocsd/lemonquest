@@ -30,3 +30,8 @@ tools/mapgen/_v/
 # Previews do mapa: regenerados pelo tools/mapgen (preview.png tem ~8 MB e já custou 42 MB de histórico)
 assets/maps/preview*.png
 assets/maps/review/
+
+# Segredos locais (ex.: LEMONQUEST_CLICKUP_TOKEN para o docker compose): nunca versionar
+.env
+.env.*
+!.env.example

@@ -7,7 +7,7 @@ import {
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, backpackCapacity, type Hotkey, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
-  OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, imbuementDef,
+  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, imbuementDef,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -22,6 +22,7 @@ import { SocialSystem } from "../systems/social.ts";
 import { statusLines } from "../systems/status.ts";
 import { TradeSystem } from "../systems/trade.ts";
 import { EventSystem } from "../systems/events.ts";
+import { ClickUpSystem } from "../systems/clickup.ts";
 import { rollWeek } from "../systems/weekly.ts";
 import { grantLoginBonus } from "../systems/loginBonus.ts";
 import { ChallengeSystem } from "../systems/challenges.ts";
@@ -46,7 +47,7 @@ import { killCredit, type Monster } from "../systems/monsters.ts";
 import { FightModeSystem, stanceDealt, stanceTaken } from "../systems/fightmode.ts";
 import { handleDevCommand, isDevAdmin } from "../systems/devcommands.ts";
 import { HELP_COMMANDS, handleAdminCommand, helpLines, muteRemaining } from "../systems/admin.ts";
-import { grantUnlock } from "../systems/achievements.ts";
+import { addWorkTasks, grantUnlock } from "../systems/achievements.ts";
 import { applySetOutfit, loadOutfit } from "../systems/outfit.ts";
 import { AchievementSystem, setActiveAchievements } from "../systems/achievements.ts";
 import { PartySystem } from "../systems/party.ts";
@@ -85,6 +86,8 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
   // valia o teto global (60/s). MoveGroundItem já era limitado por dentro (GroundSystem, 10/s); aqui fica explícito (#48).
   [C2S.NpcTrade]: 10, [C2S.UseItem]: 10, [C2S.QuickPotion]: 5, [C2S.DropItem]: 5, [C2S.PickupItem]: 5, [C2S.DiscardItem]: 5,
   [C2S.MoveGroundItem]: 10, [C2S.FightMode]: 5,
+  // Vínculo do ClickUp: cada pedido é uma ida ao ClickUp (e há limite próprio de tentativas no ClickUpSystem).
+  [C2S.WorkLink]: 1, [C2S.WorkUnlink]: 1,
 };
 /** Intervalo mínimo entre gravações "jogador + chão" depois de largar/pegar item (ver saveTransfers). */
 export const TRANSFER_SAVE_MS = 1000;
@@ -133,6 +136,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private social!: SocialSystem;
   private trade!: TradeSystem;
   private events!: EventSystem;
+  private clickup!: ClickUpSystem;
   private fishing!: FishingSystem;
   private weeklyAt = 0;
   private challenges!: ChallengeSystem;
@@ -496,7 +500,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.materialRequest = new MaterialRequestSystem({
       record: (id) => this.records.get(id), send, inventory: this.inventory, save: (id) => this.save(id),
     });
-    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) } });
+    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) }, bonusStore: { get: () => getKv("event.bonus"), set: (v) => setKv("event.bonus", v) } });
+    this.clickup = this.createClickUp();
     this.trade = new TradeSystem({
       getPlayer: (id) => this.state.players.get(id), send, inventory: this.inventory,
       // Troca concluída: os dois são gravados JUNTOS (uma transação no saveTransfers do tick), nunca um sem o outro.
@@ -525,7 +530,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       teleportNear: (admin, target) => this.teleportNear(admin, target),
       resetCode: (account, by) => createResetCode(account, by),
       devTp: (pl) => isDevAdmin(pl.name),
-      status: () => this.statusLines(),
+      status: () => [...this.statusLines(), this.clickup.statusLine()],
+      work: { link: (name, uid) => this.clickup.link(name, uid), list: () => this.clickup.linkList() },
       events: {
         ids: () => WEEKLY_EVENTS.map((e) => e.id),
         start: (id, min) => { const a = this.events.start(id, min); return a ? `${a.name} iniciado por ${min} min (XP ×${a.xpMult}, loot ×${a.lootMult}).` : null; },
@@ -570,6 +576,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       this.npcs.onInteract(p, m);
       if (m?.npcId && this.npcs.openFor(p.id) === m.npcId) this.quests.onTalk(p, m.npcId);
       if (m?.npcId === "arena_master" && this.npcs.openFor(p.id) === "arena_master") this.arena.openLobbies(p);
+      // Quadro da obra (ClickUp): barras de sprint e aba "Na obra" nos NPCs com workBoard.
+      if (m?.npcId && this.npcs.openFor(p.id) === m.npcId && npcDef(m.npcId)?.workBoard) send(p.id, S2C.Work, this.clickup.workMsg(m.npcId, p.name));
     });
     this.on<ArenaActionMsg>(C2S.Arena, (p, m) => this.arena.onAction(p, m));
     this.on<NpcTradeMsg>(C2S.NpcTrade, (p, m) => this.npcs.onTrade(p, m));
@@ -601,6 +609,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       c.send(S2C.Notice, { text: `Você comprou o tom ${tone.name} por ${OUTFIT_TONE_PRICE} de ouro.`, kind: "good" } satisfies NoticeMsg);
     });
     this.on<SetTitleMsg>(C2S.SetTitle, (p, m) => { this.ach.onSetTitle(p, m); });
+    // ClickUp: o próprio jogador vincula com o token pessoal (conferido fora do tick e descartado na hora).
+    this.on<WorkLinkMsg>(C2S.WorkLink, (p, m) => this.clickup.requestLink(p.id, p.name, m && typeof m === "object" ? m.token : undefined));
+    this.on<unknown>(C2S.WorkUnlink, (p) => this.clickup.unlink(p.id, p.name));
     this.on<unknown>(C2S.AchievementsRequest, (p) => { this.ach.sendState(p.id); });
 
     const players = () => this.state.players.values();
@@ -625,6 +636,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["trade", () => this.trade.tick()],
       ["fishing", () => this.fishing.tick()],
       ["events", () => this.events.tick(this.tickNow)],
+      ["clickup", () => this.clickup.tick(this.tickNow)],
       // Virada da semana com o jogador online: renova a linha de base (no máximo 1×/min).
       ["weekly", () => {
         if (this.tickNow - this.weeklyAt < 60_000) return;
@@ -642,6 +654,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
 
     this.setSimulationInterval(() => this.tick(), TICK_MS);
     this.clock.setInterval(() => this.saveAll(), AUTOSAVE_MS);
+    // ClickUp: a leitura (rede) sai daqui, fora do tick; o resultado é aplicado no passo "clickup" do tick.
+    if (this.clickup.enabled) this.clock.setInterval(() => runSafe("clickup.poll", () => this.clickup.maybePoll(), this.errors), 30_000);
     // Ciclo dia/noite: todos veem a mesma hora (o cliente extrapola entre as atualizações).
     this.cycleOriginMs = Date.now() - CYCLE_START_MS;
     this.updateWorldTime();
@@ -676,6 +690,60 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     }
     this.perf = { n: 0, sum: 0, max: 0, since: now };
     this.savePerf = { n: 0, sum: 0, max: 0 };
+  }
+
+  /** ClickUp dinâmico (systems/clickup.ts): sem LEMONQUEST_CLICKUP_TOKEN fica desligado. */
+  private createClickUp(): ClickUpSystem {
+    // Pontos de entrega do "Chegou!" (objetos do mapa chegou_drop*); sem eles, ao lado do Julião na Oficina.
+    const layer = this.map.tiled.layers.find((l) => l.type === "objectgroup" && l.name === "objects");
+    const LABEL: Record<string, string> = { chegou_drop: "na Estação Central da Malha", chegou_drop_oficina: "no Pátio de Encomendas" };
+    const drops = (layer?.objects ?? []).filter((o) => o.name?.startsWith("chegou_drop")).map((o) => ({
+      ...objectTile(o, this.map.tiled.tilewidth),
+      label: String(o.properties?.find((pr) => pr.name === "label")?.value ?? LABEL[o.name!] ?? "no Pátio de Encomendas"),
+    }));
+    if (!drops.length) {
+      const j = parseNpcs(this.map.tiled).find((n) => n.id === "juliao");
+      if (j) drops.push({ x: j.x, y: j.y + 1, label: "na Oficina, perto do Julião" });
+    }
+    let turn = 0;
+    // Registro em memória primeiro (online, caindo/reconectando ou no meio do login): gravar o do banco nesse caso seria
+    // sobrescrito pelo autosave e o crédito se perderia.
+    const inMemory = (name: string) => {
+      for (const [sid, rec] of this.records) if (nameKey(rec.name) === nameKey(name)) return { sid, rec };
+      return null;
+    };
+    return ClickUpSystem.fromEnv({
+      getKv, setKv,
+      feed: (text) => this.loot.feed(text, "info"),
+      dropBox: (items) => {
+        if (!drops.length) return null;
+        const d = drops[turn++ % drops.length]!;
+        let placed = 0;
+        for (const it of items) if (this.ground.placeNear(makeItem(it.defId, it.count), d.x, d.y)) placed++;
+        return placed ? d.label : null;
+      },
+      startEvent: (ev) => !!this.events.startBonus(ev),
+      credit: (name, n) => {
+        const mem = inMemory(name);
+        if (mem) {
+          if (this.state.players.has(mem.sid)) this.ach.event(mem.sid, "work", { n });
+          else addWorkTasks(mem.rec, n); // ainda entrando: o load das conquistas avalia
+          return true;
+        }
+        const rec = getCharacterByName(name);
+        if (!rec) return false;
+        addWorkTasks(rec, n);
+        saveCharacter(rec);
+        return true;
+      },
+      linkResult: (sid, ok, text) => {
+        const c = this.clients.getById(sid);
+        if (!c) return;
+        c.send(S2C.Notice, { text, kind: ok ? "good" : "warn", log: true } satisfies NoticeMsg);
+        const pl = this.state.players.get(sid), npc = this.npcs.openFor(sid);
+        if (pl && npc && npcDef(npc)?.workBoard) c.send(S2C.Work, this.clickup.workMsg(npc, pl.name));
+      },
+    });
   }
 
   /** Campeão da semana: título rotativo para os líderes das categorias semanais (systems/weeklyChampion.ts). */

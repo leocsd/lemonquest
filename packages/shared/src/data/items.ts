@@ -263,6 +263,18 @@ mat("vasilha_empilhada", "Vasilha Empilhada", img("Potion/EmptyPot.png", 0xc8d8e
 food("marmita_tampa_vermelha", "Marmita de Tampa Vermelha", img("Object/CrateEmpty.png", 0xff8a7a), 55, undefined, 5, 2, 6, "Esquecida na geladeira. Faz aniversário amanhã; ainda está boa.");
 potion("cafe_oficina", "Café da Oficina", img("Potion/MilkPot.png", 0x8a5a30), 25, 1, { mana: 60 }, "Recupera 60 de mana. Passado às 7h, requentado às 16h.");
 
+// ---------------------------------------------------------------------------
+// Malha da Ferrovia (ciclo 11, lv 25–60): materiais dos monstros da via. Valores na escala dos vizinhos de level
+// (ape_fur 320 · orc_leather 380 · tarantula_fang 420 · minotaur_horn 480 · winter_fur 520). Nenhum fabricante real.
+// ---------------------------------------------------------------------------
+mat("pino_de_engate", "Pino de Engate", img("Weapons/Stick/Sprite.png", 0x9098a8), 180, "A escamação lascou a pista da roda, o tranco soltou o engate e o pino veio junto.");
+mat("pastilha_de_sapata", "Pastilha de Sapata", img("Resource/Rock.png", 0x6a5a50), 220, "A sapata que travou a roda e deixou o calo. Ainda cheira a freada.");
+mat("brita_de_lastro", "Pedra de Brita", img("Resource/Rock.png", 0xa0a0a8), 260, "Pedra do lastro. Vista de cima, áspera; a câmera do posto alto acha o vão por ela.");
+mat("lente_industrial", "Lente do Olho Azul", img("Resource/GemPurple.png", 0xd8f0ff), 340, "Lente de uma das quatro câmeras do pórtico. Sem marca na etiqueta, só um olho azul pintado à mão.");
+mat("frame_corrompido", "TIFF Bruto", img("Scroll/ScrollEmpty.png", 0x90a0c0), 380, "Imagem crua que o gravador descartou: 'sensor 1 missed 2 trigger(s)'. Pesa mais que o vagão.");
+mat("rolamento_de_rodeiro", "Rolamento de Rodeiro", img("Treasure/SilverCoin.png", 0x8890a0), 460, "Do rodeiro que tinha trinca no disco. O rolamento estava bom; o disco, não.");
+mat("chaveta", "Chaveta", img("Resource/Branch.png", 0xb8b8c0), 520, "Saltou quando o aro fraturou. Pequena, torta e indispensável.");
+
 // Chaves e itens de missão
 add({ id: "crypt_key", name: "Chave da Cripta", kind: "key", value: 0, icon: img("Treasure/SilverKey.png"), description: "Abre o portão selado da Cripta. Cai do Lich do Pântano." });
 add({
@@ -281,6 +293,9 @@ add({ id: "ferumbras_staff", name: "Cajado Partido de Ferumbras", kind: "quest",
 add({ id: "annihilation_bear", name: "Urso da Aniquilação", kind: "quest", value: 0, icon: img("Object/Bag.png", 0xc08060), description: "Um ursinho de pelúcia chamuscado. Só quem sobreviveu à Aniquilação tem um." });
 // Onda 3 (Lei de Murphy): entregue à mão porque o broker ficou retido. Reservado; ainda sem fonte no jogo.
 add({ id: "mensagem_retida", name: "Mensagem Retida", kind: "quest", value: 0, icon: img("Other/Letter2.png", 0xd0d8e0), description: "Uma mensagem que nunca chegou ao destino. Alguém vai ter que levar a pé." });
+// Malha da Ferrovia (ciclo 11): provas dos dois chefes da via.
+add({ id: "selo_nao_inspecionavel", name: "Selo 'Não Inspecionável'", kind: "quest", value: 0, icon: img("Other/Stamp.png", 0xe05040), description: "Carimbo vermelho arrancado do Vagão Não Inspecionável. Agora ele foi inspecionado." });
+add({ id: "apito_de_locomotiva", name: "Apito da Locomotiva", kind: "quest", value: 0, icon: img("Object/PanFlute.png", 0xd0c080), description: "Ainda apita sozinho às cinco da tarde. Prova de que O Trem Que Nunca Encerra, enfim, encerrou." });
 
 // ---------------------------------------------------------------------------
 // Armas
@@ -465,6 +480,17 @@ add({ id: "botas_biqueira", name: "Botas de Biqueira", kind: "boots", slot: "boo
   description: "Biqueira de aço. Obrigatória no chão de fábrica; recomendada na Oficina." });
 add({ id: "capacete_obra", name: "Capacete de Obra", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 20, stats: { armor: 2, hpMax: 20 }, value: 480,
   description: "A NBR 5410 não exige; o bom senso, sim." });
+// Malha da Ferrovia (ciclo 11): EPI da via, todas as vocações, recompensas de missão e loot raro dos monstros da Malha.
+// Mesma regra das peças da Oficina: valor abaixo do vizinho mais barato do slot no mesmo level (sniper_armor 4800,
+// archmage_helmet 5500, archmage/master_archer_legs 9500, botas de tier 5 5000), para o simulador da arena não as escolher.
+add({ id: "colete_refletivo", name: "Colete Refletivo", kind: "armor", slot: "armor", icon: gear("armor_vest", "gold"), level: 30, stats: { armor: 2, hpMax: 60, speed: 2 }, value: 3600,
+  description: "Faixa refletiva nas costas. Sem ele, nem o maquinista te vê." });
+add({ id: "capacete_lanterna", name: "Capacete com Lanterna", kind: "helmet", slot: "helmet", icon: gear("helmet_full", "gold"), level: 35, stats: { armor: 2, hpMax: 50 }, value: 4200,
+  description: "Lanterna de cabeça para o abrigo e o túnel. A pilha acaba sempre no meio da passagem." });
+add({ id: "calca_brim_refletiva", name: "Calça de Brim Refletiva", kind: "legs", slot: "legs", icon: gear("legs_pants", "steel"), level: 40, stats: { armor: 2, hpMax: 50, speed: 2 }, value: 7000,
+  description: "Brim grosso com faixa refletiva. Aguenta brita, graxa e reunião de obra." });
+add({ id: "botina_seguranca", name: "Botina de Segurança", kind: "boots", slot: "boots", icon: gear("boots", "bronze"), level: 45, stats: { armor: 1, hpMax: 40, speed: 6 }, value: 3800,
+  description: "Bico de composite, solado antiderrapante. Pisa em dormente molhado sem medo." });
 
 // ---------------------------------------------------------------------------
 // Anéis e amuletos (level 10+)
@@ -490,6 +516,9 @@ trinket("amulet_banuta", "Ídolo de Banuta", "amulet", "gold", 40, { hpMax: 150,
 trinket("frost_ring", "Anel do Gelo Eterno", "ring", "steel", 60, { crit: 4, hpRegen: 3, manaRegen: 3, armor: 1 }, 60000, "Frio como o coração do Yeti.");
 // Oficina dos Engenhos (ciclo 10): recompensa da Q4, todas as vocações; valor abaixo do Anel da Mente (ver botas_biqueira).
 trinket("anel_trilho_din", "Anel de Trilho DIN", "ring", "iron", 16, { hpRegen: 1, manaRegen: 1 }, 600, "Um pedaço de trilho entortado em anel. Encaixa em tudo, menos onde precisa.");
+// Malha da Ferrovia (ciclo 11): recompensa da missão "O Trem Que Nunca Encerra" e loot dos dois chefes da via, todas as vocações; valor
+// abaixo do Anel da Força (lv 50, 40000), pelo mesmo motivo das peças da Oficina.
+trinket("anel_do_rodeiro", "Anel do Rodeiro", "ring", "steel", 50, { hpRegen: 3, manaRegen: 3, speed: 2 }, 26000, "Uma pista de rolamento polida. Gira no dedo como roda no trilho.");
 
 /** Catálogo (derivado das listas acima). */
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(ITEM_LIST.map((d) => [d.id, d]));

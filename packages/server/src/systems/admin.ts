@@ -3,8 +3,9 @@
 // Resposta só para quem digitou (Notice com log=true: aparece também no chat). Nada é difundido, exceto /anuncio.
 //   /kick <nome> [motivo] · /mute <nome> <minutos> · /unmute <nome> · /anuncio <texto>
 //   /online · /resetsenha <conta> · /tp <nome> · /desbloquear <nome> <roupa|addon|título>
+//   /vincular <personagem> <apelido|id do ClickUp|nenhum> (conquistas de tarefas do ClickUp; sem argumentos lista)
 // Toda ação é logada no console com o prefixo [admin].
-import { S2C, resolveUnlockArg, unlockText, type AnnounceMsg, type FeedMsg, type NoticeMsg } from "@lemonquest/shared";
+import { S2C, WORK_NICKS, resolveUnlockArg, unlockText, workUserByNick, type AnnounceMsg, type FeedMsg, type NoticeMsg } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CharacterRecord } from "../persistence/types.ts";
 import { nameKey } from "../persistence/db.ts";
@@ -20,7 +21,7 @@ export const MAX_KICK_REASON_BYTES = 100;
 /** Este personagem é admin? (vale em produção; não depende de LEMONQUEST_DEV_COMMANDS). */
 export const isAdmin = (name: string, env: Env = process.env): boolean => devAdmins(env).has(nameKey(name));
 
-export const ADMIN_COMMANDS = ["/kick", "/mute", "/unmute", "/anuncio", "/online", "/resetsenha", "/tp", "/desbloquear", "/status", "/evento"] as const;
+export const ADMIN_COMMANDS = ["/kick", "/mute", "/unmute", "/anuncio", "/online", "/resetsenha", "/tp", "/desbloquear", "/status", "/evento", "/vincular"] as const;
 
 export interface AdminContext {
   send: (sessionId: string, type: string, msg: unknown) => void;
@@ -44,6 +45,8 @@ export interface AdminContext {
   grantUnlock?: (rec: CharacterRecord, unlockId: string, online?: PlayerState) => boolean;
   /** /evento: dispara/encerra eventos com bônus (systems/events.ts). */
   events?: { ids: () => string[]; start: (id: string, minutes: number) => string | null; stop: () => boolean; status: () => string[] };
+  /** /vincular: personagem ↔ usuário do ClickUp (systems/clickup.ts). userId null = desvincula. */
+  work?: { link: (charName: string, userId: string | null) => void; list: () => [string, { name: string; since: number }][] };
   /** Linhas do /status (números do servidor). */
   status?: () => string[];
   env?: Env;
@@ -176,6 +179,36 @@ export function handleAdminCommand(p: PlayerState, text: string, ctx: AdminConte
       if (!text) { reply(`Evento desconhecido: ${sub}. Disponíveis: ${ev.ids().join(", ")}`, "warn"); break; }
       audit(`/evento ${sub} ${min} min`);
       reply(text, "good");
+      break;
+    }
+    case "/vincular": {
+      const work = ctx.work;
+      if (!work) { reply("ClickUp indisponível.", "warn"); break; }
+      if (!words.length) {
+        const list = work.list().map(([uid, l]) => `${l.name} ↔ ${WORK_NICKS[uid] ?? uid}`);
+        reply(list.length ? `Vínculos (${list.length}): ${list.join(", ")}` : "Nenhum vínculo.");
+        reply("Uso: /vincular <personagem> <apelido|id do ClickUp> · /vincular <personagem> nenhum");
+        break;
+      }
+      // Nome e apelido podem ter espaço ("Anna Clara", "Lucas P."): tenta cada divisão, do nome mais longo ao mais curto.
+      let done = false;
+      for (let n = words.length - 1; n >= 1 && !done; n--) {
+        const name = words.slice(0, n).join(" "), arg = words.slice(n).join(" ");
+        const remove = /^(nenhum|-)$/i.test(arg);
+        const uid = remove ? null : workUserByNick(arg);
+        if (uid === undefined) continue;
+        const target = byName(name);
+        const rec = target ? ctx.record(target.id) : ctx.findOffline?.(name);
+        if (!rec) continue;
+        // O mesmo usuário do ClickUp só conta para um personagem: avisa quando tira de outro.
+        const before = uid ? work.list().find(([u, l]) => u === uid && nameKey(l.name) !== nameKey(rec.name))?.[1].name : undefined;
+        work.link(rec.name, uid);
+        audit(`/vincular ${rec.name} ${uid ?? "nenhum"}${before ? ` (era de ${before})` : ""}`);
+        if (before) reply(`${WORK_NICKS[uid!] ?? `O usuário ${uid}`} estava vinculado a ${before}; agora conta só para ${rec.name}.`, "warn");
+        reply(uid ? `${rec.name} vinculado a ${WORK_NICKS[uid] ?? `usuário ${uid}`}: tarefas fechadas a partir de agora contam nas conquistas.` : `${rec.name} desvinculado.`, "good");
+        done = true;
+      }
+      if (!done) reply("Personagem ou apelido não encontrado. Uso: /vincular <personagem> <apelido|id do ClickUp|nenhum>", "warn");
       break;
     }
     case "/status": {

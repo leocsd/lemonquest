@@ -75,7 +75,14 @@ export const C2S = {
   Fish: "fish",
   /** Abrir um baú de quest ou puxar uma alavanca adjacente (UseQuestObjectMsg). */
   UseQuestObject: "useQuestObject",
+  /** Vincular o próprio ClickUp com o token pessoal (WorkLinkMsg): o servidor confere e descarta o token. */
+  WorkLink: "workLink",
+  /** Desvincular o próprio ClickUp. */
+  WorkUnlink: "workUnlink",
 } as const;
+
+/** C2S.WorkLink: token pessoal do ClickUp (pk_…). Nunca é guardado nem devolvido. */
+export interface WorkLinkMsg { token: string }
 
 export interface UseQuestObjectMsg { kind: "chest" | "lever"; id: string }
 
@@ -238,7 +245,34 @@ export const S2C = {
   Event: "event",
   /** Convite para um grupo (toast com Aceitar/Recusar). */
   PartyInvite: "partyInvite",
+  /** Quadro da obra (ClickUp, ciclo 11): barras de sprint e tarefas "Na obra"; enviado ao abrir um NPC com workBoard. */
+  Work: "work",
 } as const;
+
+/** Barra coletiva de um projeto na semana ISO: tarefas fechadas e meta (média das 4 semanas anteriores). */
+export interface WorkSprintBar { id: string; name: string; done: number; goal: number }
+/** Tarefa aberta da aba "Na obra" (título já disfarçado por shared/workFilter.ts). */
+export interface WorkTaskRow { title: string; who: string; project: string }
+export interface WorkMsg {
+  /** NPC aberto (o cliente só mostra a aba nesse NPC). */
+  npcId: string;
+  /** false = ClickUp desligado (sem token) ou ainda sem leitura. */
+  online: boolean;
+  /** Semana ISO das barras ("2026-W43"). */
+  week: string;
+  sprints: WorkSprintBar[];
+  /** Soma da semana e meta somada: passou da meta = "Sprint Fechada" (XP ×1,25 por 1 h). */
+  total: { done: number; goal: number; fired: boolean };
+  tasks: WorkTaskRow[];
+  /** Última leitura bem-sucedida (ms epoch; 0 = nunca). */
+  updatedAt: number;
+  /** O servidor lê o ClickUp (tem token próprio): sem isso, o vínculo vale mas as tarefas ainda não contam. */
+  polling?: boolean;
+  /** O vínculo self-service está disponível. */
+  canLink?: boolean;
+  /** Vínculo de quem vê (apelido da equipe ou "usuário <id>"); null = não vinculado. */
+  link?: { nick: string } | null;
+}
 
 export interface QuestCompleteMsg {
   /** Nome da missão (ou "Recompensa: Mate 20 Lobos"). */

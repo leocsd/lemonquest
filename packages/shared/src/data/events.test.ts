@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WEEKLY_EVENTS, eventBonusText, nextScheduled, scheduledEvent, type GameEventDef } from "./events.ts";
+import { WEEKLY_EVENTS, eventBonusText, eventDef, nextScheduled, scheduledEvent, type GameEventDef } from "./events.ts";
 import { MONSTERS } from "./monsters.ts";
 
 // 2026-10-14 é uma quarta-feira (dia 3); 2026-10-16, sexta (5); 2026-10-17, sábado (6); 2026-10-19, segunda (1).
@@ -25,6 +25,8 @@ describe("eventos semanais", () => {
     expect(scheduledEvent(at(2026, 10, 14, 12, 30))?.id).toBe("mare_de_tesouros"); // quarta
     expect(scheduledEvent(at(2026, 10, 15, 12, 30))?.id).toBe("rugido_do_yeti"); // quinta: chefe do almoço
     expect(scheduledEvent(at(2026, 10, 15, 14, 0))).toBeNull(); // quinta à tarde: nenhum
+    expect(scheduledEvent(at(2026, 10, 14, 17, 30))).toMatchObject({ id: "apito_da_locomotiva", boss: "locomotiva_fantasma" }); // quarta 17h–18h
+    expect(scheduledEvent(at(2026, 10, 14, 18, 0))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 16, 17, 30))?.id).toBe("sextou"); // sexta 17h–18h
     expect(scheduledEvent(at(2026, 10, 19, 9, 20))?.id).toBe("reuniao_geral"); // segunda 9h–9h45
   });
@@ -37,7 +39,11 @@ describe("eventos semanais", () => {
   });
 
   it("próximo evento: o mais cedo depois de agora", () => {
-    const n = nextScheduled(at(2026, 10, 14, 13, 0))!; // quarta depois da Maré (12h): o próximo é o Yeti, quinta 12h15
+    // Ciclo 11: depois da Maré de quarta vem o Apito da Locomotiva (17h) e só então o Yeti (quinta 12h15).
+    const apito = nextScheduled(at(2026, 10, 14, 13, 0))!; // quarta depois da Maré (12h)
+    expect(apito.def.id).toBe("apito_da_locomotiva");
+    expect(apito.at).toBe(at(2026, 10, 14, 17, 0).getTime());
+    const n = nextScheduled(at(2026, 10, 14, 18, 0))!; // quarta depois do Apito: o próximo é o Yeti, quinta 12h15
     expect(n.def.id).toBe("rugido_do_yeti");
     expect(n.at).toBe(at(2026, 10, 15, 12, 15).getTime());
     expect(nextScheduled(at(2026, 10, 15, 13, 0))!.def.id).toBe("furia_de_demodras"); // quinta depois do Yeti: sexta 12h15
@@ -54,7 +60,7 @@ describe("eventos semanais", () => {
 
   it("eventos de chefe: o chefe existe no catálogo e as janelas não se sobrepõem", () => {
     const withBoss = WEEKLY_EVENTS.filter((e) => e.boss);
-    expect(withBoss.map((e) => e.boss).sort()).toEqual(["demodras", "ferumbras", "goblin_king", "orshabaal", "swamp_lich", "yeti"]);
+    expect(withBoss.map((e) => e.boss).sort()).toEqual(["demodras", "ferumbras", "goblin_king", "locomotiva_fantasma", "orshabaal", "swamp_lich", "yeti"]);
     for (const e of withBoss) expect(MONSTERS[e.boss!]?.boss, e.boss).toBe(true);
     // Nenhuma janela começa dentro de outra no mesmo dia (scheduledEvent devolve só uma).
     for (const a of WEEKLY_EVENTS) for (const b of WEEKLY_EVENTS) {
@@ -70,7 +76,11 @@ describe("eventos semanais", () => {
 
   it("chefes no horário do almoço: dias úteis entre 12h e 13h, e só um chefe à noite", () => {
     const withBoss = WEEKLY_EVENTS.filter((e) => e.boss);
-    const lunch = withBoss.filter((e) => e.day >= 1 && e.day <= 5);
+    // Ciclo 11: o Apito da Locomotiva (quarta 17h–18h, fim do expediente) é o único chefe de dia útil fora do almoço.
+    const weekday = withBoss.filter((e) => e.day >= 1 && e.day <= 5);
+    expect(weekday.filter((e) => e.hour >= 13).map((e) => e.id)).toEqual(["apito_da_locomotiva"]);
+    expect(eventDef("apito_da_locomotiva")).toMatchObject({ day: 3, hour: 17, durationMin: 60, boss: "locomotiva_fantasma" });
+    const lunch = weekday.filter((e) => e.hour < 13);
     expect(lunch.length).toBe(4);
     for (const e of lunch) {
       const start = e.hour * 60 + (e.minute ?? 0);

@@ -147,3 +147,65 @@ describe("loot com bônus de evento", () => {
     expect(rollLoot({ id: "x", loot: [{ itemId: "bone", chance: 0.9 }] } as any, () => 0.999, itemsFx, 10).items).toHaveLength(1); // chance limitada a 1
   });
 });
+
+describe("EventSystem: bônus de código (Sprint Fechada do ClickUp)", () => {
+  const SPRINT = (t: number, min = 60) => ({ id: "sprint_fechada", name: "Sprint Fechada", desc: "XP ×1,25", xpMult: 1.25, lootMult: 1, until: t + min * 60_000 });
+
+  it("sozinho: vale XP ×1,25, sobrevive a reinício e tem multiplicador limitado", () => {
+    let stored: string | undefined;
+    let t = at(10, 0);
+    const mk = () => new EventSystem({ broadcast: () => {}, send: () => {}, now: () => t, bonusStore: { get: () => stored, set: (v) => { stored = v; } } });
+    const ev = mk();
+    expect(ev.startBonus(SPRINT(t))?.id).toBe("sprint_fechada");
+    expect(ev.xpMult()).toBe(1.25);
+    const again = mk();
+    again.tick(t);
+    expect(again.active?.name).toBe("Sprint Fechada");
+    expect(again.xpMult()).toBe(1.25);
+    t += 61 * 60_000;
+    again.tick(t);
+    expect(again.active).toBeNull();
+    stored = JSON.stringify({ id: "x", name: "x", desc: "x", xpMult: 99, lootMult: -5, until: t + 1000 });
+    const capped = mk();
+    capped.tick(t);
+    expect(capped.xpMult()).toBe(3);
+    expect(capped.lootMult()).toBe(1);
+    expect(mk().startBonus({ ...SPRINT(t), until: t - 1 })).toBeNull();
+  });
+
+  it("agendado + sprint ao mesmo tempo: multiplicadores se multiplicam, o agendado não some e o chefe é convocado", () => {
+    const w = setup();
+    const bosses: string[] = [];
+    w.set(at(18, 30));
+    w.ev.startBonus(SPRINT(at(18, 30), 60)); // até 19h30
+    expect(w.ev.xpMult()).toBe(1.25);
+    w.set(at(19, 0)); // começa a Noite de Caçada (XP ×2)
+    expect(w.ev.xpMult()).toBe(2.5);
+    expect(w.ev.active?.name).toBe("Noite de Caçada + Sprint Fechada");
+    expect(w.of(S2C.Announce).some((a) => a.msg.text.includes("Noite de Caçada"))).toBe(true);
+    expect(w.of(S2C.Event).at(-1)!.msg.active.xpMult).toBe(2.5);
+    w.set(at(19, 31)); // a sprint acaba, a noite continua
+    expect(w.ev.xpMult()).toBe(2);
+    expect(w.ev.active?.id).toBe("noite_de_cacada");
+    expect(w.of(S2C.Event).at(-1)!.msg.active.xpMult).toBe(2);
+    // Chefe agendado começa com a sprint ligada: onStart roda igual.
+    let t = at(12, 0);
+    const ev = new EventSystem({ broadcast: () => {}, send: () => {}, now: () => t, onStart: (e) => { if (e.boss) bosses.push(e.boss); } });
+    ev.startBonus(SPRINT(t, 120));
+    t = at(12, 15);
+    ev.tick(t);
+    expect(bosses).toEqual(["demodras"]); // sexta 12h15: Fúria de Demodras
+    expect(ev.lootMult()).toBe(1.5);
+    expect(ev.xpMult()).toBe(1.25);
+  });
+
+  it("/evento parar encerra também o bônus", () => {
+    const w = setup();
+    w.ev.startBonus(SPRINT(at(18, 0)));
+    expect(w.ev.stop()).toBe(true);
+    expect(w.ev.active).toBeNull();
+    expect(w.ev.xpMult()).toBe(1);
+    expect(w.of(S2C.Feed).at(-1)!.msg.text).toBe("Bônus encerrado: Sprint Fechada.");
+    expect(w.of(S2C.Event).at(-1)!.msg.active).toBeNull();
+  });
+});

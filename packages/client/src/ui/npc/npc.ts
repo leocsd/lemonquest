@@ -1,10 +1,10 @@
 // Estado da janela de NPC (diálogo/loja/depot). O mundo (Phaser) chama openNpc(npcId) ao clicar num NPC.
-import { BOUNTY_NPC, C2S, QUEST_LIST, REQUEST_NPC, type NpcInteractMsg, type NpcOpenMsg, type NpcTradeMsg, type TravelMsg } from "@lemonquest/shared";
+import { BOUNTY_NPC, C2S, QUEST_LIST, REQUEST_NPC, npcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcTradeMsg, type TravelMsg } from "@lemonquest/shared";
 import { createStore } from "../hud/store.ts";
 import { send } from "../items/net.ts";
 import { closeArenaWindow, openArenaWindow } from "../arena/arena.ts";
 
-export type NpcTab = "quests" | "bounties" | "request" | "travel" | "buy" | "sell" | "depot";
+export type NpcTab = "work" | "quests" | "bounties" | "request" | "travel" | "buy" | "sell" | "depot";
 export interface NpcState { msg: NpcOpenMsg; tab: NpcTab; /** muda a cada nova abertura (reinicia a digitação). */ nonce: number }
 
 export const npcStore = createStore<NpcState | null>(null);
@@ -20,6 +20,7 @@ export function closeNpc(): void { npcStore.set(null); }
 
 export const npcTabs = (m: NpcOpenMsg): NpcTab[] => {
   const t: NpcTab[] = [];
+  if (npcDef(m.npcId)?.workBoard) t.push("work"); // quadro da obra (ClickUp): ui/work
   if (m.npcId === BOUNTY_NPC) t.push("bounties");
   if (m.npcId === REQUEST_NPC) t.push("request");
   if (QUEST_LIST.some((q) => q.giver === m.npcId)) t.push("quests");
