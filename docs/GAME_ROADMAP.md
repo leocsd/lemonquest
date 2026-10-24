@@ -6,6 +6,28 @@ Reflete o estado real. Números `#` = itens de [GAME_AUDIT.md](GAME_AUDIT.md). S
 Ordem de leitura: **Ciclo 9** (o que está em andamento e as decisões tomadas) → pendências dos ciclos 7/7b/8 → ⛔.
 Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
+## Ciclo 10 (2026-10-23) — contexto do trabalho no jogo
+
+Pedido do dono: trazer o escritório para dentro do jogo. Fontes: sumários dos projetos da Embeddo e ClickUp (equipes,
+papéis, cultura do canal do time). Implementação em 4 frentes de agentes (textos, itens/monstros, missões, mapa) com
+revisão cruzada independente.
+
+| Decisão do dono | Escolha |
+|---|---|
+| Intensidade | easter eggs + uma zona nova pequena, 0 tiles alterados |
+| Pessoas | apelido + papel, nunca nome completo; nada do chat privado |
+| Clientes | disfarçados; o cliente confidencial não aparece nem disfarçado; códigos internos (EM-xxx, Isca, Portal…) liberados |
+| ClickUp vivo | não nesta fase (só dados estáticos) |
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C10-1 | Zona Oficina dos Engenhos (`expansion3.mjs`, mapa 400×336), portal na Vila e carroça | ✅ 2026-10-23 | `diff-world.mjs`: 0 tiles alterados, 592/592 objetos antigos; validação interna 282/282 tiles alcançáveis; `oficina.spec.ts` 12/12 (`--repeat-each=3`) |
+| C10-2 | 14 NPCs, 6 missões, 3 monstros, 14 itens | ✅ 2026-10-23 | `npcs`, `quests`, `questWorld` (explore ↔ zona), `monsters`, `items`, `arena` (simulador inalterado) |
+| C10-3 | 12 conquistas, 6 títulos, eventos Sextou!/Reunião Geral, dicas, Novidades | ✅ 2026-10-23 | `events.test.ts` (shared e server), `achievements.test.ts`, `news.test.ts` |
+| C10-4 | Onda 3: chefe "Murphy, o Corretor" + missão + conquista `boss:murphy`; anexo não-PZ "Sala dos Servidores"; NPCs do dono e dos manuais (item `mensagem_retida` já existe, sem fonte) | 🧭 | decidir se entra |
+| C10-5 | ClickUp vivo (ex.: "Chegou!" automático quando uma compra é entregue, placar de sprint) | 🧭 | exige token no servidor e decisão do dono |
+| C10-6 | Arte para a porta da Vila (hoje só uma luz marca o portal) e tipo de objeto `sign` (placa legível sem NPC) | ⏳ | opcional |
+
 ## Ciclo 9 (2026-10-22) — auditoria completa do repositório e plano de evolução
 
 Auditoria de 7 agentes (arquitetura, gameplay, bugs, performance, UX, testes, docs/Claude) com baseline executada:

@@ -46,6 +46,8 @@ export const NPC_RANGE = 3;
 const C = "ninja/Actor/Character/";
 /** Chegada em Porto Esperança (Costa Esmeralda), de carroça. Tile andável conferido em npcs.test.ts. */
 const PORT_ARRIVAL: TravelDest = { id: "port", label: "Porto Esperança", x: 372, y: 64, price: 250 };
+/** Chegada na Vila de Pedra Clara (mesmo tile usado pela Cocheira Zuleica e pela Capitã Marina). */
+const VILLAGE_ARRIVAL = { x: 97, y: 98 } as const;
 const sells = (...ids: string[]): NpcShopEntry[] => ids.map((itemId) => ({ itemId }));
 /** Tier 6-7: preço = valor de loot × 1,5 (sink pra ouro acumulado), 1 por semana por personagem. */
 const limited = (...entries: [string, number][]): NpcShopEntry[] =>
@@ -90,6 +92,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Promoção! Poções de vida pela metade do preço... de ontem.",
       "Esse couro de lobo vale ouro, sabia?",
       "Já viu o preço dessas botas? Roubo é o que não é!",
+      "Chegou! Mercadoria nova… quer dizer, encomenda nova.",
     ],
   },
   priest: {
@@ -101,6 +104,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Quem cai, levanta. Quem desiste, não.",
       "Rezo por todos que partem para a floresta.",
       "A cripta guarda mais do que ossos...",
+      "Quem cai, levanta. Quem desiste, abre chamado.",
     ],
   },
   depot: {
@@ -109,6 +113,7 @@ export const NPCS: Record<string, NpcDef> = {
     idleLines: [
       "Tudo etiquetado, tudo no lugar.",
       "Mochila cheia? Deixe o peso comigo.",
+      "Etiqueta vermelha na tampa? Faz aniversário aqui dentro.",
     ],
   },
   guard_captain: {
@@ -141,6 +146,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Paciência, garoto. A caça vem a quem espera.",
       "Já abati um urso com um graveto. Bem... quase.",
       "O vento mudou. Chuva à noite.",
+      "Antes de culpar a rede, confira o cabo.",
     ],
   },
   herbalist: {
@@ -170,6 +176,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Erva-doce para a tosse, erva-azeda para o mau humor.",
       "Gosma de slime? Ótima para unguentos!",
       "Cuidado com as abelhas: o mel compensa, o ferrão não.",
+      "Essa poção ficou 20 minutos sem leitura. Considero desconectada.",
     ],
   },
   bounty_board: {
@@ -179,6 +186,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Procura-se: aventureiros corajosos.",
       "Recompensas novas todo dia às 6h!",
       "Paga-se bem por cabeças de monstros.",
+      "Sprint da semana: três cabeças, um baú.",
     ],
   },
   arena_master: {
@@ -188,6 +196,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Sangue, areia e glória! Quem entra no Coliseu?",
       "Grupos formados rendem mais glória. Chame seus amigos!",
       "Cada onda é mais feroz que a anterior.",
+      "Sextou? Então troca de roupa antes da onda.",
     ],
   },
   arena_shop_1: {
@@ -248,6 +257,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Escama de dragão? Pago bem! Chifre de demônio? Pago melhor!",
       "Poção grande é a melhor amiga de quem caça ciclope.",
       "Trouxe presunto de dragão? Isso aqui é uma iguaria!",
+      "Compras onfire: ficha em promoção. Mentira, preço fixo.",
     ],
   },
   frontier_depot: {
@@ -270,8 +280,18 @@ export const NPCS: Record<string, NpcDef> = {
   coach_village: {
     id: "coach_village", name: "Cocheiro Bastião", sprite: C + "Villager2/SpriteSheet.png",
     greeting: "Carroça para o Posto da Fronteira, no leste. A estrada é longa, mas a minha mula conhece o caminho.",
-    travel: [{ id: "frontier", label: "Posto da Fronteira", x: 214, y: 61, price: 150 }, PORT_ARRIVAL],
-    idleLines: ["Carroça para a Fronteira! Saída imediata!", "Essa mula já viu mais dragão que muito aventureiro."],
+    travel: [
+      { id: "frontier", label: "Posto da Fronteira", x: 214, y: 61, price: 150 },
+      PORT_ARRIVAL,
+      // Chegada no Pátio de Encomendas da Oficina dos Engenhos (bloco gerado por tools/mapgen/expansion3.mjs, ao sul
+      // da Vila). Perto, barato: é a zona de novato lv 5–22. Tile andável conferido em npcs.test.ts.
+      { id: "oficina", label: "Oficina dos Engenhos", x: 83, y: 330, price: 100 },
+    ],
+    idleLines: [
+      "Carroça para a Fronteira! Saída imediata!",
+      "Essa mula já viu mais dragão que muito aventureiro.",
+      "Mula nova. Chegou! Foto depois.",
+    ],
   },
   coach_frontier: {
     id: "coach_frontier", name: "Cocheira Zuleica", sprite: C + "ManGreen/SpriteSheet.png",
@@ -366,6 +386,134 @@ export const NPCS: Record<string, NpcDef> = {
       "Pele de inverno vale ouro aqui no norte.",
       "Não pise no gelo fino perto da caverna.",
     ],
+  },
+
+  // ===== Oficina dos Engenhos (ciclo 10): o escritório entra no mundo por metáfora e piada interna. Apelido + papel,
+  // nunca nome completo; clientes só disfarçados; nada do chat privado. Mapa em tools/mapgen/expansion3.mjs.
+  pedrao: {
+    id: "pedrao", name: "Pedrão, o Visionário", sprite: C + "SamuraiBlue/SpriteSheet.png",
+    greeting: "Go ou NoGo? Depende da luz. Nove iluminadores de dez chegam queimados, e o décimo acende por teimosia. Se achar algum, me traga.",
+    idleLines: [
+      "Nove iluminadores de dez chegam queimados.",
+      "Frame inspecionável! Anota aí: um em vinte e seis.",
+      "Quem mexeu na exposição?",
+    ],
+  },
+  juliao: {
+    id: "juliao", name: "Julião dos Embarcados", sprite: C + "Villager/SpriteSheet.png",
+    greeting: "Chegou! …Não, era o vento. Enquanto a encomenda não chega, vendo poção básica e compro o que você arrancar das máquinas.",
+    shop: {
+      sells: sells("health_potion", "mana_potion", "nuts"),
+      buys: ["material"],
+    },
+    idleLines: [
+      "Chegou! Não, era o vento.",
+      "Cabo roído não é defeito, é documentação.",
+      "Soldar não; crimpar, sim.",
+    ],
+  },
+  bianca: {
+    id: "bianca", name: "Bianca da Logística", sprite: C + "Village6/SpriteSheet.png",
+    greeting: "A marmita de tampa vermelha faz aniversário amanhã e ninguém assume. Mas antes disso: as bombonas fugiram do pátio de novo.",
+    idleLines: [
+      "Bombona fugitiva não corre: rola. E rola rápido.",
+      "Sem etiqueta, não embarca. Sem rótulo, não existe.",
+      "O frete chega quando chega. A encomenda, só quando alguém grita 'Chegou!'.",
+    ],
+  },
+  luan: {
+    id: "luan", name: "Luan do Cubo", sprite: C + "NinjaBlue/SpriteSheet.png",
+    greeting: "git caiu? Não? Então é problema seu. Brincadeira: senta aí que eu te mostro como resolver o cubo em 40 segundos.",
+    idleLines: [
+      "git caiu?",
+      "Resolvo o cubo em 40 s. O merge, nunca.",
+      "Funciona na minha máquina.",
+    ],
+  },
+  iago: {
+    id: "iago", name: "Iago do Cofre", sprite: C + "NinjaGray/SpriteSheet.png",
+    greeting: "Post-it não é cofre. Se achar algum colado por aí com senha, traga pra mim antes que alguém leia.",
+    idleLines: [
+      "Post-it não é cofre.",
+      "Rotaciona a senha. De novo.",
+      "Quem anotou a senha no monitor?",
+    ],
+  },
+  gabriel: {
+    id: "gabriel", name: "Gabriel do Sextou", sprite: C + "Boy/SpriteSheet.png",
+    greeting: "Compras onfire! Rifa do Sextou: mil de ouro a ficha, prêmio surpresa. Tema do dia: sobreviver.",
+    casino: true,
+    idleLines: [
+      "Compras onfire!",
+      "Sextou! Tema do dia: sobreviver.",
+      "Ficha é mil. Prêmio é surpresa.",
+    ],
+  },
+  guilherme_boss: {
+    id: "guilherme_boss", name: "Guilherme, o Boss", sprite: C + "Sultan/SpriteSheet.png",
+    greeting: "Baú e seguro contra perda de XP, com nota fiscal. Sem nota fiscal não tem reembolso.",
+    depot: true, blessing: true,
+    idleLines: [
+      "Sem nota fiscal não tem reembolso.",
+      "Fechou o mês? Fechou o caixa.",
+      "Bênção é despesa dedutível.",
+    ],
+  },
+  alexandre_quantico: {
+    id: "alexandre_quantico", name: "Alexandre do Quântico", sprite: C + "SorcererBlack/SpriteSheet.png",
+    greeting: "Eu guardo a porta do Banheiro Quântico. Livre e ocupado ao mesmo tempo, até alguém bater. Meu modelo previu isso.",
+    idleLines: [
+      "Livre e ocupado até alguém bater.",
+      "Meu modelo previu isso. Depois.",
+      "Dados não mentem. Interpretações, sim.",
+    ],
+  },
+  coach_oficina: {
+    id: "coach_oficina", name: "Cocheiro Dito", sprite: C + "Villager2/SpriteSheet.png",
+    greeting: "Carroça de volta pra Vila de Pedra Clara, ou até o Porto pra quem tem pressa e ouro.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 100 }, PORT_ARRIVAL],
+    idleLines: ["Volta pra Vila! A mula já está encilhada.", "Encomenda eu não levo. Gente, sim."],
+  },
+  // Placas e máquinas (NPCs sem papel, só ambientação). A Geladeira é a única loja de comida da Oficina.
+  geladeira: {
+    id: "geladeira", name: "Geladeira da Copa", sprite: C + "RobotGrey/SpriteSheet.png",
+    greeting: "Zumbido. A porta abre: marmita, café e vasilhas empilhadas. Marmita sem nome é marmita de todos.",
+    shop: {
+      sells: sells("marmita_tampa_vermelha", "cafe_oficina", "vasilha_empilhada", "nuts"),
+    },
+    idleLines: [
+      "Marmita sem nome é marmita de todos.",
+      "A tampa vermelha faz aniversário amanhã.",
+      "Zzzzum.",
+    ],
+  },
+  quadro_gestao: {
+    id: "quadro_gestao", name: "Quadro de Gestão à Vista", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "Post-its coloridos, uma coluna 'Feito' vazia e uma 'Fazendo' que não cabe no quadro.",
+    idleLines: [
+      "Sprints_P08 | Abr - 14",
+      "Backlog - Matriz de Requisitos: 212 itens",
+      "Impedimento: nenhum. Suspeito.",
+    ],
+  },
+  banheiro_quantico: {
+    id: "banheiro_quantico", name: "Banheiro Quântico", sprite: C + "Statue/SpriteSheet.png",
+    greeting: "A porta diz: Livre. E Ocupado.",
+    idleLines: ["Livre.", "Ocupado.", "Livre e ocupado."],
+  },
+  em1000: {
+    id: "em1000", name: "EM-1000", sprite: C + "RobotGreen/SpriteSheet.png",
+    greeting: "Bip. Watchdog ativo. Última falha: nenhuma registrada, porque reiniciei antes de registrar.",
+    idleLines: [
+      "699 h → 360 h",
+      "Self-healing: reiniciei sozinho. De novo.",
+      "Watchdog: latindo.",
+    ],
+  },
+  trofeu_demoday: {
+    id: "trofeu_demoday", name: "Troféu do Demoday", sprite: C + "GoldStatue/SpriteSheet.png",
+    greeting: "Um troféu dourado com a placa: 'Funcionou na demo'.",
+    idleLines: ["Demoday: demonstrou, dia.", "Funcionou na demo. Sério."],
   },
 };
 

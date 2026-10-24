@@ -97,6 +97,8 @@ const ZONE_MODES: Record<string, ZoneLightMode> = {
   "Cavernas": "dark",
   "Cripta": "dark",
   "Coliseu": "lit",
+  // Interior de escritório com luz elétrica (ciclo 10): mesmo modo do Coliseu, quase não escurece à noite.
+  "Oficina dos Engenhos": "lit",
   "Centro de Treinamento": "town",
   "Vila de Pedra Clara": "town",
 };

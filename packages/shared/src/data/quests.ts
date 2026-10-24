@@ -86,6 +86,23 @@ export const QUEST_LIST: QuestDef[] = [
     rewards: { xp: 180, gold: 50, items: [{ itemId: "health_potion", count: 3 }, { itemId: "mana_potion", count: 3 }] },
   }),
   q({
+    id: "pesquisa_de_clima", name: "Pesquisa de Clima", giver: "guard_captain", minLevel: 3,
+    summary: "Ninguém respondeu o formulário de clima do Capitão Rodrigo. Alguém vai ter que perguntar pessoalmente.",
+    steps: [
+      { kind: "talk", target: "shop", count: 1, label: "Perguntar ao Bento" },
+      { kind: "talk", target: "herbalist", count: 1, label: "Perguntar à Dona Marta" },
+      { kind: "talk", target: "old_hunter", count: 1, label: "Perguntar ao Tomé" },
+      { kind: "talk", target: "priest", count: 1, label: "Perguntar à Liora" },
+    ],
+    dialog: {
+      offer: "Recruta, ninguém respondeu o formulário de clima. Ninguém. Vá perguntar pessoalmente ao Bento, à Dona Marta, ao Tomé e à Sacerdotisa Liora como está o clima por aqui.",
+      accept: "Anote tudo. E não aceite 'tá ótimo' como resposta... bom, aceite, mas anote.",
+      progress: "Faltam respostas. Bento, Dona Marta, Tomé e Liora. É uma pesquisa, não uma sugestão.",
+      complete: "Todo mundo disse 'tá ótimo'. Ótimo. Arquivado. Tome umas nozes pelo trabalho de campo.",
+    },
+    rewards: { xp: 250, gold: 80, items: [{ itemId: "nuts", count: 5 }] },
+  }),
+  q({
     id: "bee_hunt", name: "Caça às Abelhas", giver: "old_hunter", minLevel: 4,
     summary: "O Velho Caçador Tomé quer ensinar a caçar abelhas sem levar ferroada (muitas).",
     steps: [
@@ -114,6 +131,84 @@ export const QUEST_LIST: QuestDef[] = [
       complete: "As estradas estão seguras de novo. A vila te deve uma. Tome, e não gaste tudo em mel.",
     },
     rewards: { xp: 900, gold: 250, items: [{ itemId: "health_potion", count: 10 }] },
+  }),
+  // --- Oficina dos Engenhos (5–22) --------------------------------------------------------------------
+  q({
+    id: "chegou", name: "Chegou!", giver: "juliao", minLevel: 5,
+    summary: "Julião dos Embarcados espera uma encomenda de iluminadores que nunca chega inteira. Os ratos da Floresta Sussurrante levaram a caixa: recupere o lote e mostre ao Pedrão.",
+    steps: [
+      { kind: "explore", target: "Floresta Sussurrante", count: 1, label: "Ir à Floresta atrás dos ratos" },
+      { kind: "deliver", target: "iluminador_queimado", count: 9, label: "Iluminadores Queimados" },
+      { kind: "talk", target: "pedrao", count: 1, label: "Mostrar ao Pedrão" },
+    ],
+    dialog: {
+      offer: "Chegou! ...Não, era o vento. Olha, nove de cada dez iluminadores chegam queimados, e os ratos levam o resto para a Floresta Sussurrante, logo ao norte da Vila. Traga nove iluminadores queimados, para eu contar o prejuízo, e depois mostre um ao Pedrão: ele diz se dá para aproveitar.",
+      accept: "Chegou! ...Não, ainda não. Quando chegar, eu aviso. Com foto.",
+      progress: "Nove iluminadores e uma palavra do Pedrão. Enquanto isso, a caixa continua vazia.",
+      complete: "Nove queimados, um aproveitável. É a média. Tome este selo: 'Chegou!'. Carimba na testa de quem duvidar.",
+    },
+    rewards: { xp: 500, gold: 150, items: [{ itemId: "health_potion", count: 5 }, { itemId: "selo_chegou", count: 1 }] },
+  }),
+  q({
+    id: "git_caiu", name: "git caiu?", giver: "luan", minLevel: 8, requires: ["chegou"],
+    summary: "O Luan do Cubo jura que o repositório caiu. Antes de culpar o servidor, alguém precisa perguntar na bancada se foi só o cabo.",
+    steps: [
+      { kind: "talk", target: "iago", count: 1, label: "Perguntar ao Iago" },
+      { kind: "talk", target: "juliao", count: 1, label: "Perguntar ao Julião" },
+      { kind: "talk", target: "pedrao", count: 1, label: "Perguntar ao Pedrão" },
+    ],
+    dialog: {
+      offer: "git caiu? Caiu, né? Ninguém consegue puxar nada. Vá perguntar ao Iago, ao Julião e ao Pedrão se para eles também caiu. Se caiu para todo mundo, é o servidor. Se caiu só para mim... é o cabo.",
+      accept: "Volte com as três respostas. Enquanto isso vou girar o cubo. Ajuda a pensar.",
+      progress: "E aí, caiu para eles também? Preciso das três respostas antes de abrir chamado.",
+      complete: "Ninguém mais caiu? Então era o meu cabo. De novo. Tome, pela consultoria. E não conte para o Tomé.",
+    },
+    rewards: { xp: 900, gold: 200, items: [{ itemId: "mana_potion", count: 5 }] },
+  }),
+  q({
+    id: "bombonas_fugitivas", name: "Bombonas Fugitivas", giver: "bianca", minLevel: 12, requires: ["chegou"],
+    summary: "Oito bombonas saíram rolando do Pátio de Encomendas. Bianca da Logística quer as bombonas paradas e os rótulos de volta para o inventário.",
+    steps: [
+      { kind: "kill", target: "runaway_drum", count: 8, label: "Bombonas Fugitivas" },
+      { kind: "deliver", target: "rotulo_isca", count: 5, label: "Rótulos de Isca" },
+    ],
+    dialog: {
+      offer: "Oito bombonas saíram rolando do pátio e foram parar na estrada dos lobos. Rolando. Sozinhas. Pare oito delas e me traga cinco rótulos de Isca legíveis, porque sem rótulo o inventário não fecha.",
+      accept: "Elas fogem quando veem gente. Encurrale. E cuidado com os pés: bombona cheia pesa.",
+      progress: "Oito bombonas e cinco rótulos. O inventário é sexta, e eu não vou explicar bombona a menos.",
+      complete: "Inventário fechado! Tome estas botas de biqueira: a próxima bombona que rolar no seu pé vai se arrepender.",
+    },
+    rewards: { xp: 1800, gold: 400, items: [{ itemId: "botas_biqueira", count: 1 }] },
+  }),
+  q({
+    id: "rotaciona_a_senha", name: "Rotaciona a Senha", giver: "iago", minLevel: 16, requires: ["git_caiu"],
+    summary: "Iago do Cofre descobriu post-its com senha espalhados pelo mundo. Recolha seis e confira se o boato das Cavernas é verdade.",
+    steps: [
+      { kind: "deliver", target: "post_it_senha", count: 6, label: "Post-its com Senha" },
+      { kind: "explore", target: "Cavernas", count: 1, label: "Conferir as Cavernas" },
+    ],
+    dialog: {
+      offer: "Post-it não é cofre. Mas alguém achou que era, e agora tem post-it com senha rodando por aí, grudado em bicho. Recolha seis para eu rotacionar tudo, e vá até as Cavernas: dizem que colaram um até lá.",
+      accept: "Não leia a senha. Quer dizer, pode ler, vou trocar mesmo. Mas não leia.",
+      progress: "Seis post-its e uma ida às Cavernas. Cada um que falta é uma senha que ainda vale.",
+      complete: "Seis senhas rotacionadas, e as Cavernas são só morcego mesmo. Tome este anel: foi feito de trilho DIN, aguenta mais que a senha antiga.",
+    },
+    rewards: { xp: 3000, gold: 800, items: [{ itemId: "anel_trilho_din", count: 1 }] },
+  }),
+  q({
+    id: "frames_descartados", name: "Frames Descartados", giver: "pedrao", minLevel: 22, requires: ["bombonas_fugitivas"],
+    summary: "Pedrão, o Visionário, perde frame atrás de frame para a escória da Siderúrgica. Ele quer as gosmas de escória contidas e lentes trincadas para estudar o estrago.",
+    steps: [
+      { kind: "kill", target: "slag_slime", count: 15, label: "Gosmas de Escória" },
+      { kind: "deliver", target: "lente_trincada", count: 3, label: "Lentes Trincadas" },
+    ],
+    dialog: {
+      offer: "Go ou NoGo? NoGo. A escória da Siderúrgica cobre a lente em cinquenta milissegundos e eu descarto frame atrás de frame. Derrube quinze gosmas de escória nas Cavernas e no Pântano e me traga três lentes trincadas: quero ver onde o vidro cede.",
+      accept: "A escória queima. Não encare de perto, e não limpe a lente com a manga.",
+      progress: "Quinze gosmas e três lentes. Enquanto isso, a câmera só vê laranja.",
+      complete: "Go! Frame inspecionável! Em 26 decisões de arquitetura, uma deu certo. Tome o capacete: aqui, bom senso é equipamento de proteção.",
+    },
+    rewards: { xp: 6000, gold: 2000, items: [{ itemId: "capacete_obra", count: 1 }] },
   }),
   // --- Pântano e Cavernas (10–25) ---------------------------------------------------------------------
   q({

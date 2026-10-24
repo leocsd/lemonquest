@@ -25,6 +25,8 @@ describe("eventos semanais", () => {
     expect(scheduledEvent(at(2026, 10, 14, 12, 30))?.id).toBe("mare_de_tesouros"); // quarta
     expect(scheduledEvent(at(2026, 10, 15, 12, 30))?.id).toBe("rugido_do_yeti"); // quinta: chefe do almoço
     expect(scheduledEvent(at(2026, 10, 15, 14, 0))).toBeNull(); // quinta à tarde: nenhum
+    expect(scheduledEvent(at(2026, 10, 16, 17, 30))?.id).toBe("sextou"); // sexta 17h–18h
+    expect(scheduledEvent(at(2026, 10, 19, 9, 20))?.id).toBe("reuniao_geral"); // segunda 9h–9h45
   });
 
   it("o fim vem em ms epoch e a janela que atravessa a meia-noite continua no dia seguinte", () => {
@@ -39,11 +41,13 @@ describe("eventos semanais", () => {
     expect(n.def.id).toBe("rugido_do_yeti");
     expect(n.at).toBe(at(2026, 10, 15, 12, 15).getTime());
     expect(nextScheduled(at(2026, 10, 15, 13, 0))!.def.id).toBe("furia_de_demodras"); // quinta depois do Yeti: sexta 12h15
-    expect(nextScheduled(at(2026, 10, 16, 13, 0))!.def.id).toBe("noite_de_cacada"); // sexta depois de Demodras: 19h
+    expect(nextScheduled(at(2026, 10, 16, 13, 0))!.def.id).toBe("sextou"); // sexta depois de Demodras: Sextou 17h
+    expect(nextScheduled(at(2026, 10, 16, 18, 0))!.def.id).toBe("noite_de_cacada"); // sexta depois do Sextou: 19h
     expect(nextScheduled(at(2026, 10, 16, 20, 0))!.def.id).toBe("tarde_de_sabado"); // sexta à noite: sábado 14h
     expect(nextScheduled(at(2026, 10, 17, 17, 0))!.def.id).toBe("invasao_de_orshabaal"); // sábado depois das 16h: 21h
     expect(nextScheduled(at(2026, 10, 17, 23, 0))!.def.id).toBe("retorno_de_ferumbras"); // sábado à noite: domingo 15h
-    expect(nextScheduled(at(2026, 10, 18, 17, 0))!.def.id).toBe("despertar_do_lich"); // domingo depois de Ferumbras: segunda 12h15
+    expect(nextScheduled(at(2026, 10, 18, 17, 0))!.def.id).toBe("reuniao_geral"); // domingo depois de Ferumbras: segunda 9h
+    expect(nextScheduled(at(2026, 10, 19, 10, 0))!.def.id).toBe("despertar_do_lich"); // segunda depois da Reunião: 12h15
     expect(nextScheduled(at(2026, 10, 19, 13, 0))!.def.id).toBe("cacada_ao_rei"); // segunda depois do Lich: terça 12h15
     expect(nextScheduled(at(2026, 10, 20, 13, 0))!.def.id).toBe("mare_de_tesouros"); // terça depois do Rei: quarta 12h
   });

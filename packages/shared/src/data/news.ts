@@ -12,6 +12,19 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-23b",
+    date: "23 de outubro (noite)",
+    title: "A Oficina dos Engenhos abriu",
+    items: [
+      "Zona nova ao sul da Vila: entre pela porta escondida no canto nordeste da paliçada ou pegue a carroça do Bastião (destino \"Oficina dos Engenhos\").",
+      "Cinco missões novas (lv 5 a 22) com a turma da bancada: Julião, Luan, Bianca, Iago e Pedrão. E o Capitão quer saber como está o clima.",
+      "A Geladeira vende marmita e café; Guilherme, o Boss, guarda seus itens e vende seguro contra perda de XP; Gabriel tem fichas da Rifa do Sextou.",
+      "Monstros novos pelo mundo: Rato do Datacenter (noroeste da Floresta), Bombona Fugitiva (estrada dos lobos) e Gosma de Escória (Pântano e Cavernas).",
+      "Doze conquistas e seis títulos novos, de \"Compras Onfire\" a \"o Superposto\".",
+      "Eventos: Sextou! (sexta 17h, XP ×1,5 e loot +25%) e Reunião Geral (segunda 9h, loot +50%).",
+    ],
+  },
+  {
     id: "2026-10-23a",
     date: "23 de outubro",
     title: "Grupo compensa, magos com mana e teclas novas",

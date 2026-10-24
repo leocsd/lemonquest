@@ -248,6 +248,21 @@ mat("hellhound_fang", "Presa Infernal", matIcon("wolf_fang", 0xff5030), 3000, "Q
 mat("juggernaut_plate", "Placa de Colosso", img("Resource/BarSilver.png", 0xc0a090), 4500, "Um pedaço de couraça mais duro que mithril.");
 food("banana", "Banana", img("Food/Nut2.png", 0xffe060), 18, undefined, 3, 1, 4, "Doce e nutritiva. Os macacos brigam por ela.");
 
+// ---------------------------------------------------------------------------
+// Oficina dos Engenhos (ciclo 10): materiais, comida e café da copa. Valores na escala dos vizinhos
+// (cheese 10 · wolf_pelt 40 · bat_wing 85 · goblin_tooth 110). Humor de escritório, nada real (sem rede, cliente ou senha).
+// ---------------------------------------------------------------------------
+mat("cabo_roido", "Cabo Roído", img("Resource/Branch.png", 0x6878c0), 8, "Alguém mordeu o cabo de rede. Não foi o estagiário.");
+mat("iluminador_queimado", "Iluminador Queimado", matIcon("ember", 0x707078), 12, "Nove de cada dez chegam assim. O décimo acende por teimosia.");
+mat("rotulo_isca", "Rótulo de Isca", img("Other/Letter.png", 0xffb060), 35, "Etiqueta de bombona com o número apagado. Sem rótulo, sem rastreio.");
+mat("post_it_senha", "Post-it com Senha", img("Scroll/ScrollEmpty.png", 0xffe860), 30, "Amarelo, colado no monitor. A senha é 'trocar depois'.");
+mat("escoria_quente", "Escória Quente", img("Resource/Rock.png", 0xff8040), 95, "Ainda brilha por dentro. Cinquenta milissegundos de exposição bastam.");
+mat("lente_trincada", "Lente Trincada", img("Resource/GemGreen.png", 0xb8dcf0), 140, "Rachou no primeiro inverno de campo. A imagem agora vem com moldura.");
+mat("selo_chegou", "Selo 'Chegou!'", img("Other/Stamp.png", 0x70e080), 50, "Carimbo verde de encomenda recebida. Foto no grupo depois.", 20);
+mat("vasilha_empilhada", "Vasilha Empilhada", img("Potion/EmptyPot.png", 0xc8d8e0), 5, "Sem tampa, sem dono, sem prazo. A pia agradece.");
+food("marmita_tampa_vermelha", "Marmita de Tampa Vermelha", img("Object/CrateEmpty.png", 0xff8a7a), 55, undefined, 5, 2, 6, "Esquecida na geladeira. Faz aniversário amanhã; ainda está boa.");
+potion("cafe_oficina", "Café da Oficina", img("Potion/MilkPot.png", 0x8a5a30), 25, 1, { mana: 60 }, "Recupera 60 de mana. Passado às 7h, requentado às 16h.");
+
 // Chaves e itens de missão
 add({ id: "crypt_key", name: "Chave da Cripta", kind: "key", value: 0, icon: img("Treasure/SilverKey.png"), description: "Abre o portão selado da Cripta. Cai do Lich do Pântano." });
 add({
@@ -264,6 +279,8 @@ add({ id: "kongra_crown", name: "Coroa do Rei Kongra", kind: "quest", value: 0, 
 add({ id: "yeti_fur", name: "Pelo do Yeti", kind: "quest", value: 0, icon: matIcon("wolf_pelt", 0xffffff), description: "Branco como a neve. Prova de que o Yeti caiu." });
 add({ id: "ferumbras_staff", name: "Cajado Partido de Ferumbras", kind: "quest", value: 0, icon: img("Weapons/Stick/Sprite.png", 0xd890ff), description: "Prova de que Ferumbras caiu... por enquanto." });
 add({ id: "annihilation_bear", name: "Urso da Aniquilação", kind: "quest", value: 0, icon: img("Object/Bag.png", 0xc08060), description: "Um ursinho de pelúcia chamuscado. Só quem sobreviveu à Aniquilação tem um." });
+// Onda 3 (Lei de Murphy): entregue à mão porque o broker ficou retido. Reservado; ainda sem fonte no jogo.
+add({ id: "mensagem_retida", name: "Mensagem Retida", kind: "quest", value: 0, icon: img("Other/Letter2.png", 0xd0d8e0), description: "Uma mensagem que nunca chegou ao destino. Alguém vai ter que levar a pé." });
 
 // ---------------------------------------------------------------------------
 // Armas
@@ -442,6 +459,13 @@ mageSet3("ferumbras", 7, "arcane", ["Chapéu de Ferumbras", "Manto Celestial", "
 add({ id: "boots_haste", name: "Botas da Pressa", kind: "boots", slot: "boots", icon: gear("boots", "gold"), level: 50, stats: { armor: 1, speed: 12 }, value: 60000,
   description: "Quem calça não anda: voa. Caem de behemoths e demônios." });
 
+// Oficina dos Engenhos (ciclo 10): recompensas das missões Q3/Q5, todas as vocações, nunca em loja. Valor abaixo do
+// vizinho mais barato do slot de propósito: o simulador da arena (arena.test.ts) escolhe o melhor equipamento por valor.
+add({ id: "botas_biqueira", name: "Botas de Biqueira", kind: "boots", slot: "boots", icon: gear("boots", "iron"), level: 12, stats: { armor: 1, speed: 3 }, value: 90,
+  description: "Biqueira de aço. Obrigatória no chão de fábrica; recomendada na Oficina." });
+add({ id: "capacete_obra", name: "Capacete de Obra", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 20, stats: { armor: 2, hpMax: 20 }, value: 480,
+  description: "A NBR 5410 não exige; o bom senso, sim." });
+
 // ---------------------------------------------------------------------------
 // Anéis e amuletos (level 10+)
 // ---------------------------------------------------------------------------
@@ -464,6 +488,8 @@ trinket("ring_demodras", "Anel de Demodras", "ring", "dragon", 70, { crit: 6, hp
 trinket("amulet_orshabaal", "Amuleto de Orshabaal", "amulet", "arcane", 90, { armor: 6, hpMax: 400, manaMax: 200, magic: 2, melee: 2, distance: 2 }, 300000, "O olhar do demônio ainda vive na pedra.");
 trinket("amulet_banuta", "Ídolo de Banuta", "amulet", "gold", 40, { hpMax: 150, manaMax: 80, speed: 3 }, 32000, "O ídolo dourado do templo da selva. Só sai de um baú.");
 trinket("frost_ring", "Anel do Gelo Eterno", "ring", "steel", 60, { crit: 4, hpRegen: 3, manaRegen: 3, armor: 1 }, 60000, "Frio como o coração do Yeti.");
+// Oficina dos Engenhos (ciclo 10): recompensa da Q4, todas as vocações; valor abaixo do Anel da Mente (ver botas_biqueira).
+trinket("anel_trilho_din", "Anel de Trilho DIN", "ring", "iron", 16, { hpRegen: 1, manaRegen: 1 }, 600, "Um pedaço de trilho entortado em anel. Encaixa em tudo, menos onde precisa.");
 
 /** Catálogo (derivado das listas acima). */
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(ITEM_LIST.map((d) => [d.id, d]));

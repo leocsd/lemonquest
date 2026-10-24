@@ -412,7 +412,8 @@ describe("marcadores de NPC (! / ?)", () => {
     expect(npcMarker("herbalist", st, 2, (id) => (id === "slime_goo" ? 5 : 0))).toBe("ready");
     // Falar com o Tomé.
     const s2 = empty();
-    s2.done.push("rats_barn");
+    // "pesquisa_de_clima" (lv 3) também é do Capitão: concluída aqui, para a lista dele ter só a missão em andamento.
+    s2.done.push("rats_barn", "pesquisa_de_clima");
     s2.active.push({ id: "forest_wolves", progress: [0, 0] });
     expect(npcMarker("old_hunter", s2, 3, none)).toBe("ready");
     expect(questsForNpc("guard_captain", s2, 6, none).map((e) => e.def.id)).toEqual(["forest_wolves"]);

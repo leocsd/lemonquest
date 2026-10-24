@@ -141,6 +141,30 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 10 (2026-10-23, Oficina dos Engenhos)
+
+| Camada | Resultado |
+|---|---|
+| `npm run typecheck` | 0 erros (shared, server, client) |
+| `npx vitest run` | **87 arquivos, 858 passaram, 1 skip** (o skip de `bounties.test.ts` do ciclo 9: faixa fora do intervalo em `generateBounties`, inalcançável) |
+| `node tools/mapgen/diff-world.mjs <world do HEAD>` | `tiles alterados: 0; objetos antigos idênticos: 592/592; objetos novos: 31; tilesets estáveis: true; 400x288 -> 400x336`; `lemon-terrain.png` byte-idêntico. Antes de mudar o gerador, a mesma comparação com o gerador do HEAD deu 0 objetos novos (prova de determinismo) |
+| `e2e/oficina.spec.ts` (novo, 4 casos) | 12/12 com `--repeat-each=3`, `[tick]` máx 18 ms |
+| `npm run test:e2e` completo | **56/56** (13,2 min) |
+| `quests.spec` + `look.spec` `--repeat-each=2` | 10/10 depois do ajuste do `quests.spec` (ver abaixo) |
+| `npm run build` | ok; `world.json` 1,57 → 1,79 MB, **gzip 74 KB** (antes 72 KB) |
+| `npm run smoke` (servidor E2E isolado :2870) | ok, `[tick]` média 0,84 ms / máx 21 ms com 602 monstros |
+| `npm run newbie` | 4/4 vocações, 0 mortes, 43–78 s |
+
+Achados do próprio ciclo:
+- `quests.spec` "missão de matar" falhava de forma determinística: o Capitão agora oferece também a Pesquisa de Clima,
+  então o marcador fica "!" (disponível) com Ratos no Celeiro em andamento, o que é correto. O teste conclui a Pesquisa
+  com `/quest complete` antes e procura a missão de ratos pelo nome no diário. Não é instabilidade.
+- `look.spec` "dois botões numa criatura" falhou 1× na primeira rodada e passou nas 3 seguintes (instabilidade antiga,
+  ciclo 7/9).
+- O **robô novato** pegou um problema de balanço: o bando de 6 Ratos do Datacenter (lv 3, agressivos) nascia a 9
+  tiles dos ratos da primeira missão, e o druida lv 1 morreu 2× (128 s). Spawn movido para (47,42), a 30 tiles: druida
+  em 49 s sem morte.
+
 ## Instabilidade conhecida do E2E (investigada)
 
 `arena.spec.ts` falhava de vez em quando com a máquina carregada: o toast "Onda N vencida" dura 3 s e a faixa

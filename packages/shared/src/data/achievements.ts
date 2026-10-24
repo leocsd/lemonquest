@@ -59,6 +59,13 @@ export const TITLES: Record<string, string> = {
   exorcista: "o Exorcista",
   algoz_ferumbras: "Algoz de Ferumbras",
   aniquilador: "o Aniquilador",
+  // Escritório (ciclo 10): piadas internas, ver bloco correspondente em ACHIEVEMENTS.
+  compras_onfire: "Compras Onfire",
+  superposto: "o Superposto",
+  alinhado: "o Alinhado",
+  movido_a_cafe: "Movido a Café",
+  documentador: "o Documentador",
+  mestre_da_frota: "Mestre da Frota",
 };
 export const MAX_TITLE_LEN = 24;
 
@@ -149,6 +156,20 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("quest_1", "Faz-tudo", "Complete uma missão", "📜", 5, "quests", 1),
   a("quest_10", "Herói do Povo", "Complete 10 missões", "📯", 30, "quests", 10, { rewards: ["addon:monge:2", "title:heroi_povo"] }),
   a("party_10", "Trabalho em Equipe", "Derrote 10 monstros em grupo", "🤝", 15, "party", 10, { rewards: ["addon:domador:2"] }),
+  // Escritório (ciclo 10): piadas internas com métricas já existentes. Os pares (métrica, alvo) não repetem nenhum dos
+  // acima; só títulos de recompensa (nenhuma roupa/addon novo).
+  a("chegou", "Chegou!", "Pegue 30 itens do chão", "📦", 5, "pickups", 30, { rewards: ["title:compras_onfire"] }),
+  a("caiu_a_energia", "Caiu a Energia", "Morra pela primeira vez", "🔌", 5, "deaths", 1, { hidden: true }),
+  a("git_caiu", "git caiu?", "Treine offline por 1 hora no total", "🌿", 5, "offline", 60),
+  a("banheiro_quantico", "Banheiro Quântico", "Ande 25.000 tiles", "🚪", 20, "steps", 25_000, { rewards: ["title:superposto"] }),
+  a("alinhamento_de_sexta", "Alinhamento de Sexta", "Complete 5 missões", "📅", 15, "quests", 5, { rewards: ["title:alinhado"] }),
+  a("gestao_a_vista", "Gestão à Vista", "Explore 45% do mundo", "📋", 20, "explore", 45),
+  a("movido_a_cafe", "Movido a Café", "Coma 100 comidas", "☕", 15, "foods", 100, { rewards: ["title:movido_a_cafe"] }),
+  a("sprint_fechada", "Sprint Fechada", "Derrote 250 monstros", "🏁", 15, "kills", 250),
+  a("matriz_de_requisitos", "Matriz de Requisitos", "Derrote 25 tipos de monstro diferentes", "🗂️", 25, "bestiary", 25, { rewards: ["title:documentador"] }),
+  a("cubo_magico", "Cubo Mágico", "Chegue ao Magic Level 20", "🧊", 25, "magic", 20),
+  a("mestre_da_frota", "Mestre da Frota", "Pegue 250 itens do chão", "🚚", 20, "pickups", 250, { rewards: ["title:mestre_da_frota"] }),
+  a("reuniao_geral", "Reunião Geral", "Derrote 50 monstros em grupo", "📺", 25, "party", 50),
 ];
 
 export const ACHIEVEMENTS_BY_ID: Record<string, AchievementDef> = Object.fromEntries(ACHIEVEMENTS.map((x) => [x.id, x]));

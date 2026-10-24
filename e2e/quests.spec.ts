@@ -1,7 +1,7 @@
 // Missões: aceitar "Ratos no Celeiro" com o Capitão, matar os ratos (level 30 + seguir), entregar e ver a recompensa.
 // Quadro de Recompensas: as 3 recompensas do dia aparecem e dá para aceitar uma.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, setChase, setLevel, snap, targetNearest, teleport, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, inventory, me, monsters, say, setChase, setLevel, snap, targetNearest, teleport, walkableNear } from "./helpers.ts";
 
 const RAT_SPAWNS = [{ x: 70, y: 62 }, { x: 26, y: 72 }];
 
@@ -26,6 +26,9 @@ test("missão de matar: aceitar no NPC, matar, entregar e receber a recompensa",
   test.setTimeout(300_000);
   await enterGame(page, "knight");
   await setLevel(page, 30);
+  // O Capitão também oferece a Pesquisa de Clima (lv 3, ciclo 10); concluída antes, ele fica só com os ratos e o
+  // marcador pode passar de "!" (disponível) para "?" (em andamento) depois de aceitar.
+  await say(page, "/quest complete pesquisa_de_clima");
   await expect.poll(() => marker(page, "guard_captain")).toBe("available");
 
   let win = await talkTo(page, "guard_captain", "Capitão Rodrigo");
@@ -90,7 +93,7 @@ test("missão de matar: aceitar no NPC, matar, entregar e receber a recompensa",
   await page.keyboard.press("l");
   const log = page.getByRole("dialog", { name: "Diário de missões" });
   await expect(log).toBeVisible();
-  await expect(log.locator(".ql-item.done")).toContainText("Ratos no Celeiro");
+  await expect(log.locator(".ql-item.done", { hasText: "Ratos no Celeiro" })).toBeVisible();
   // O listener de Esc do diário é registrado num efeito (próximo frame): um Esc que chega antes se perde. Repete.
   await expect.poll(async () => { await page.keyboard.press("Escape"); return log.isVisible(); }, { timeout: 10_000, intervals: [200] }).toBe(false);
 });

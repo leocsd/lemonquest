@@ -628,6 +628,45 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: strip(B + "DemonCyclop/Walk.png", 50, 6, { tint: 0xff6060, scale: 2 }),
   },
 
+  // ===== Oficina dos Engenhos (ciclo 10): reskins com piada de escritório, nascem em áreas existentes (lateSpawns).
+  datacenter_rat: {
+    id: "datacenter_rat", name: "Rato do Datacenter", level: 3, hp: 40, xp: 12, damage: [2, 6], damageKind: "physical", armor: 0,
+    attackMs: 2000, attackRange: 1, stepMs: 300, aggroRange: 4, fleeAtHpPct: 0.15, respawnMs: 25_000,
+    gold: [2, 6],
+    loot: [
+      { itemId: "cabo_roido", chance: 0.45, min: 1, max: 2 },
+      { itemId: "iluminador_queimado", chance: 0.35 },
+      { itemId: "cheese", chance: 0.15 },
+      { itemId: "health_potion", chance: 0.05 },
+    ],
+    sprite: grid4(M + "Mouse/SpriteSheet.png", { tint: 0x7080b0 }),
+  },
+  // Passiva (aggroRange 0) e foge cedo (60%): o jogador corre atrás dela, como de uma bombona sem rótulo no pátio.
+  runaway_drum: {
+    id: "runaway_drum", name: "Bombona Fugitiva", level: 10, hp: 120, xp: 52, damage: [4, 10], damageKind: "earth", armor: 1,
+    attackMs: 2000, attackRange: 1, stepMs: 240, aggroRange: 0, fleeAtHpPct: 0.6, respawnMs: 45_000,
+    gold: [20, 45],
+    loot: [
+      { itemId: "rotulo_isca", chance: 0.4 },
+      { itemId: "post_it_senha", chance: 0.25 },
+      { itemId: "health_potion", chance: 0.08 },
+    ],
+    sprite: grid4(M + "Slime/Slime.png", { tint: 0x3a78e0, scale: 1.15 }),
+  },
+  slag_slime: {
+    id: "slag_slime", name: "Gosma de Escória", level: 20, hp: 220, xp: 140, damage: [14, 30], damageKind: "fire", armor: 5,
+    attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 55_000,
+    pack: { family: "slag", shout: "Blup-blup!" },
+    gold: [10, 24],
+    loot: [
+      { itemId: "escoria_quente", chance: 0.5, min: 1, max: 2 },
+      { itemId: "lente_trincada", chance: 0.12 },
+      { itemId: "iron_bar", chance: 0.04 },
+      { itemId: "health_potion_medium", chance: 0.03 },
+    ],
+    sprite: grid4(M + "Slime2/Slime2.png", { tint: 0x60606a }),
+  },
+
   // ===== Costa Esmeralda (expansão a leste das Terras Selvagens: tools/mapgen/expansion2.mjs)
   // Selva de Banuta (lv 25-45): macacos, tarântulas, crocodilos e plantas carnívoras.
   // Ciclo 7: ouro ×1,6 na Selva e nos Piratas (com os materiais em dobro, ~0,6 de ouro por vida, como goblin e homem-lagarto).
@@ -1168,5 +1207,9 @@ export function monsterAbilitySpell(spellId: string): SpellDef | undefined {
  * kongra_king*   45  9000  9000   115          grupo de 3+, respawn 2 h
  * yeti*          70 18000 20000   185          grupo de 4+, respawn 3 h (raid quinta 12h15)
  * ferumbras*    140 90000 120000  350 (dist 5) grupo de 6+, respawn 6 h (raid domingo 15h)
+ * --- Oficina dos Engenhos (ciclo 10: reskins em áreas existentes)
+ * datacenter_rat  3    40    12     4
+ * runaway_drum   10   120    52     7  (passiva, foge a 60%)
+ * slag_slime     20   220   140    22  (fogo, bando)
  * (*boss). Magos causam ~30% menos por acerto: 4+1.1*lvl.
  */

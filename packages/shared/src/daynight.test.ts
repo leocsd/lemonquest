@@ -84,6 +84,14 @@ describe("regras por zona", () => {
     expect(zoneLightMode(null)).toBe("outdoor");
   });
 
+  it("a Oficina dos Engenhos é interior iluminado: igual ao Coliseu, mais clara que a vila à noite", () => {
+    const night = 32 * MIN;
+    expect(zoneLightMode("Oficina dos Engenhos")).toBe("lit");
+    const office = darknessOf(ambientForZone(night, "Oficina dos Engenhos"));
+    expect(office).toBeCloseTo(darknessOf(ambientForZone(night, "Coliseu")), 6);
+    expect(office).toBeLessThan(darknessOf(ambientForZone(night, "Vila de Pedra Clara")));
+  });
+
   it("zoneAt escolhe a menor zona que contém o tile", () => {
     const zones = [
       { name: "Grande", x: 0, y: 0, w: 100, h: 100 },

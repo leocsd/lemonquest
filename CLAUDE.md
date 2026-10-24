@@ -14,6 +14,7 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
   `ui/hud/store.ts`). O cliente nunca decide regra de jogo, só mostra. Assets curados vão para `.public/` no build.
 - Mapa: `tools/mapgen/generate.mjs` (+ `expansion*.mjs`) gera `assets/maps/world.json`, lido pelo servidor e pelo
   cliente. Expansão nunca altera tiles antigos (meta "0 tiles alterados"); spawn/NPC novo entra como objeto no fim.
+  Área nova cresce para baixo (`expansion3.mjs`) e nunca acrescenta tileset; provar com `node tools/mapgen/diff-world.mjs <world-antigo.json>`.
 - Testes unitários ao lado do código (`x.ts` + `x.test.ts`, vitest; kits em `systems/testkit.ts` e `m4kit.ts`);
   E2E em `e2e/*.spec.ts` (Playwright, helpers em `e2e/helpers.ts`, sonda `window.__lq` com `?e2e`).
 

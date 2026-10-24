@@ -87,14 +87,14 @@ describe("EventSystem", () => {
 describe("EventSystem: chefe do evento", () => {
   it("onStart roda uma vez no início (agendado ou manual) com o chefe do evento", () => {
     const started: string[] = [];
-    const ev = new EventSystem({ broadcast: () => {}, send: () => {}, now: () => at(17, 0), onStart: (e) => started.push(`${e.id}:${e.boss ?? "-"}`) });
-    ev.tick(at(17, 0)); // sexta 17h: nenhum evento agendado
+    const ev = new EventSystem({ broadcast: () => {}, send: () => {}, now: () => at(14, 0), onStart: (e) => started.push(`${e.id}:${e.boss ?? "-"}`) });
+    ev.tick(at(14, 0)); // sexta 14h: nenhum evento agendado (Demodras acabou às 13h; o Sextou só começa às 17h)
     expect(started).toEqual([]);
-    ev.start("despertar_do_lich", 30, at(17, 5)); // manual, mesmo fora da janela do Lich
+    ev.start("despertar_do_lich", 30, at(14, 5)); // manual, mesmo fora da janela do Lich
     expect(started).toEqual(["despertar_do_lich:swamp_lich"]);
-    ev.tick(at(17, 10));
+    ev.tick(at(14, 10));
     expect(started).toHaveLength(1); // não repete
-    ev.stop(at(17, 20));
+    ev.stop(at(14, 20));
     ev.tick(at(19, 0)); // entra a Noite de Caçada agendada (sem chefe)
     expect(started.at(-1)).toBe("noite_de_cacada:-");
   });
@@ -108,15 +108,15 @@ describe("EventSystem: persistência do evento manual", () => {
 
   it("o evento disparado por admin volta depois de um reinício e some quando vence", () => {
     const kv: { v?: string } = {};
-    const a = mk(kv, at(16, 0));
-    a.start("mare_de_tesouros", 60, at(16, 0)); // 16h–17h (sexta: a agenda só tem evento às 19h)
+    const a = mk(kv, at(14, 0));
+    a.start("mare_de_tesouros", 60, at(14, 0)); // 14h–15h (sexta à tarde: a agenda só volta com o Sextou, às 17h)
     expect(JSON.parse(kv.v!).id).toBe("mare_de_tesouros");
-    const b = mk(kv, at(16, 20)); // "reinício" no meio do evento
-    b.tick(at(16, 20));
+    const b = mk(kv, at(14, 20)); // "reinício" no meio do evento
+    b.tick(at(14, 20));
     expect(b.active?.id).toBe("mare_de_tesouros");
     expect(b.lootMult()).toBe(1.5);
-    const c = mk(kv, at(17, 30)); // reiniciou depois do fim
-    c.tick(at(17, 30));
+    const c = mk(kv, at(15, 30)); // reiniciou depois do fim
+    c.tick(at(15, 30));
     expect(c.active).toBeNull();
   });
 

@@ -1,5 +1,37 @@
 # Changelog
 
+## [Não lançado] — 2026-10-23 · ciclo 10: o escritório entra no jogo (Oficina dos Engenhos)
+
+O jogo foi feito para os colegas da Embeddo, mas não tinha nada do trabalho. Este ciclo traz o contexto por piada
+interna e metáfora, sem trocar a identidade medieval. Regras do dono: pessoas só por apelido + papel (nunca nome
+completo), clientes disfarçados (Ferrovia, Siderúrgica, Cervejaria…), um cliente confidencial fora de qualquer
+referência, códigos internos de produto liberados, nada do chat privado. Plano e decisões no ROADMAP (Ciclo 10).
+
+**Oficina dos Engenhos (zona nova, protegida)**
+- Bairro de 30×22 tiles ao sul da Vila com War Room, Copa, Bancada e Pátio de Encomendas; entra-se pela porta no canto
+  nordeste da paliçada da Vila ou pela carroça do Bastião (100 de ouro, grátis até o lv 8). Interior sempre iluminado.
+- O mapa cresceu **para baixo** (400×288 → 400×336) em `tools/mapgen/expansion3.mjs`: o array antigo vira prefixo do
+  novo, então **0 tiles alterados** e os 592 objetos antigos idênticos (prova: `tools/mapgen/diff-world.mjs`, novo). A
+  arte usa só tilesets já carregados (um tileset novo deslocaria os gids do TilesetLemon). Acesso por portal porque o
+  servidor só aceita login em tile alcançável a pé a partir do spawn.
+- 14 NPCs: Pedrão (visão), Julião (embarcados, loja), Bianca (logística), Luan (cubo mágico), Iago (cofre de senhas),
+  Gabriel (Rifa do Sextou, cassino), Guilherme o Boss (depósito + bênção), Alexandre do Quântico, Cocheiro Dito e as
+  "placas" Geladeira (marmita, café), Quadro de Gestão à Vista, Banheiro Quântico, EM-1000 e Troféu do Demoday.
+
+**Conteúdo**
+- 6 missões: Pesquisa de Clima (Capitão, lv 3) e a cadeia da Oficina (lv 5–22: Chegou!, git caiu?, Bombonas
+  Fugitivas, Rotaciona a Senha, Frames Descartados) com 3 equipamentos de recompensa.
+- 3 monstros reskin em áreas existentes: Rato do Datacenter (Floresta), Bombona Fugitiva (passiva, foge a 60%) e Gosma
+  de Escória (bando, Pântano e Cavernas). Valores dos equipamentos novos abaixo do vizinho do slot para não mexer no
+  simulador do Coliseu (`arena.test.ts` escolhe por valor).
+- 12 conquistas e 6 títulos com métricas existentes; eventos **Sextou!** (sex 17h, XP ×1,5 e loot +25%) e **Reunião
+  Geral** (seg 9h, loot +50%); falas novas em 9 NPCs antigos; 5 dicas de carregamento e 3 de morte; Novidades.
+
+**Testes**
+- `questWorld.test.ts`: todo passo `explore` precisa casar com uma zona do mapa real (antes não era validado).
+- E2E novo `e2e/oficina.spec.ts` (portal ida/volta, Geladeira, carroça, rato na Floresta). `quests.spec.ts` conclui a
+  Pesquisa de Clima antes de testar o marcador do Capitão (com duas missões ele mostra "!", corretamente).
+
 ## [Não lançado] — 2026-10-22 · ciclo 9: auditoria completa, CI verde de novo e telemetria de progressão
 
 Auditoria de 7 agentes com baseline executada: relatórios em `docs/audit/2026-10-22/` (repositório, gameplay, limpeza

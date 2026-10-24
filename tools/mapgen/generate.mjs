@@ -8,6 +8,7 @@ import { createLemon } from './lemon.mjs';
 import { polish } from './polish.mjs';
 import { expand } from './expansion.mjs';
 import { expand2 } from './expansion2.mjs';
+import { expand3 } from './expansion3.mjs';
 import { PNG } from 'pngjs';
 
 const SEED = 20260611;
@@ -843,14 +844,37 @@ for (const [m, count, radius, level, x, y] of caveSpawns) {
   world.tileObj('monster_spawn', x, y, { monster: m, count, radius, level }, m);
 }
 
+// ===================================================================== OFICINA DOS ENGENHOS (ciclo 10: tools/mapgen/expansion3.mjs)
+// Primeira expansão para BAIXO: o mapa de cima (400×288) fica intacto e o bloco novo entra nas linhas 312..333, ligado à
+// Vila por um portal em (99,79) ↔ porta de saída em (63,321). Os objetos novos entram depois de todos os antigos.
+const { map: world3, reach: reach3 } = expand3({ old: world, ts, S, L: LEMON, spawnTile: SPAWN, village: { x0: 58, y0: 76, x1: 103, y1: 115 } });
+// Monstros do ciclo 10 (lore da Oficina): spawns só-objeto como os caveSpawns — nenhum tile muda. Pontos andáveis,
+// alcançáveis e fora de toda zona protegida, conferidos aqui; distâncias a spawns/NPCs/portais escolhidas à mão.
+// [monstro, count, radius, level, x, y]
+const lateSpawns10 = [
+  ['datacenter_rat', 6, 5, 3, 47, 42], // Floresta Sussurrante (noroeste): 30 tiles dos ratos da 1ª missão (70,62) — o bando de lv 3 não pode cair na caçada do lv 1 —, 18+ de outros spawns
+  ['runaway_drum', 5, 6, 10, 78, 25], // Floresta, estrada dos lobos (lobos lv 10 em 76,18 a 7 tiles), 51 da Vila
+  ['slag_slime', 6, 5, 20, 137, 76], // Pântano Turvo: 16 tiles da boca da caverna, fora da ilha do lich, 44+ de NPC
+  ['slag_slime', 3, 4, 20, 19, 170], // Cavernas, corredor A→B: 8+ das escadas e 9+ de outros spawns
+];
+{
+  const pzZones = world3.objects.filter((o) => o.type === 'zone' && o.properties?.some((p) => p.name === 'pz' && p.value === true));
+  for (const [m, count, radius, level, x, y] of lateSpawns10) {
+    if (world3.blocked(x, y)) fail(`late spawn ${m} at ${x},${y} is on a blocked tile`);
+    if (!reach3[y * world3.w + x]) fail(`late spawn ${m} at ${x},${y} unreachable`);
+    if (pzZones.some((z) => x * 16 >= z.x && x * 16 < z.x + z.width && y * 16 >= z.y && y * 16 < z.y + z.height)) fail(`late spawn ${m} at ${x},${y} inside a protection zone`);
+    world3.tileObj('monster_spawn', x, y, { monster: m, count, radius, level }, m);
+  }
+}
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
-fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world.toTiled()));
+fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world3.toTiled()));
 { const cp = LEMON.set.croppedPng(); const out = new PNG({ width: cp.width, height: cp.height }); out.data = Buffer.from(cp.data); const dir = path.join(MAPS_DIR, '../tiles'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'lemon-terrain.png'), PNG.sync.write(out)); }
 // Os previews ficam só no disco (assets/maps/preview*.png está no .gitignore): são regenerados aqui a cada rodada.
-const a = renderPreview(world, path.join(MAPS_DIR, 'preview.png'));
-const b = renderPreview(world, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
+const a = renderPreview(world3, path.join(MAPS_DIR, 'preview.png'));
+const b = renderPreview(world3, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
 if (process.argv.includes('--debug')) {
-  renderPreview(world, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
+  renderPreview(world3, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
 }
-console.log(`world.json ${world.w}x${world.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world.objects.length}`);
+console.log(`world.json ${world3.w}x${world3.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world3.objects.length}`);

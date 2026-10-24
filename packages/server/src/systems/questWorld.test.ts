@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  ITEMS, MONSTERS, QUEST_CHESTS, QUEST_OBJECT_RANGE, QUEST_CHEST_GROUPS, QUEST_LEVERS, S2C, TITLES, doorBlockReason, findQuestLevers, findQuestObjects,
-  isValidUnlockId, leverMonsters, monsterDef, type QuestLeverSpot, type QuestObjectSpot, type TiledMap,
+  ITEMS, MONSTERS, QUEST_CHESTS, QUEST_OBJECT_RANGE, QUEST_CHEST_GROUPS, QUEST_LEVERS, QUEST_LIST, S2C, TITLES, doorBlockReason,
+  findObjects, findQuestLevers, findQuestObjects, isValidUnlockId, leverMonsters, monsterDef, type QuestLeverSpot, type QuestObjectSpot, type TiledMap,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { InventorySystem } from "./inventory.ts";
@@ -216,6 +216,16 @@ describe("quests de mundo: dados e mapa", () => {
       // Quem puxa precisa estar numa placa: ao menos uma ao alcance da alavanca.
       expect(l.plates.some((p) => Math.max(Math.abs(p.x - l.x), Math.abs(p.y - l.y)) <= QUEST_OBJECT_RANGE), l.id).toBe(true);
       for (const p of l.plates) expect(inside(p)).toBe(false);
+    }
+  });
+
+  it("missões: todo passo 'explore' sem área aponta para uma zona nomeada do mapa", () => {
+    // O servidor casa `target` com `name` do objeto "zone" (parseZones); um nome errado deixaria a missão impossível.
+    const zones = new Set(findObjects(map, "zone").map((o) => o.name));
+    for (const d of QUEST_LIST) {
+      for (const s of d.steps) {
+        if (s.kind === "explore" && !s.area) expect(zones.has(s.target), `${d.id}/${s.target}`).toBe(true);
+      }
     }
   });
 

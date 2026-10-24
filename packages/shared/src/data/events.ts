@@ -27,6 +27,10 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   // agendador devolve um evento só, então as janelas não podem se sobrepor.
   { id: "cacada_de_terca", name: "Caçada de Terça", desc: "XP em dobro", xpMult: 2, lootMult: 1, day: 2, hour: 13, durationMin: 60 },
   { id: "tarde_de_sabado", name: "Tarde de Sábado", desc: "XP ×1,5 e loot +25%", xpMult: 1.5, lootMult: 1.25, day: 6, hour: 14, durationMin: 120 },
+  // Tradições do escritório (ciclo 10): o "Sextou" das 17h de sexta (entre Demodras, 12h15–13h, e a Noite de Caçada,
+  // 19h) e a Reunião Geral de segunda às 9h, quando a TV da War Room fala sozinha (antes do Lich, 12h15).
+  { id: "sextou", name: "Sextou!", desc: "XP ×1,5 e loot +25% até o fim do expediente", xpMult: 1.5, lootMult: 1.25, day: 5, hour: 17, durationMin: 60 },
+  { id: "reuniao_geral", name: "Reunião Geral", desc: "Enquanto a TV da War Room fala, os monstros largam mais loot: +50%", xpMult: 1, lootMult: 1.5, day: 1, hour: 9, durationMin: 45 },
   // Chefes no almoço (seg, ter, qui, sex; a quarta é da Maré de Tesouros), do mais fácil ao mais difícil na semana.
   { id: "despertar_do_lich", name: "Despertar do Lich", desc: "O Lich do Pântano acordou! Loot +50%", xpMult: 1, lootMult: 1.5, day: 1, ...LUNCH, boss: "swamp_lich" },
   { id: "cacada_ao_rei", name: "Caçada ao Rei Goblin", desc: "O Rei Goblin voltou às Ruínas! Loot +50%", xpMult: 1, lootMult: 1.5, day: 2, ...LUNCH, boss: "goblin_king" },
