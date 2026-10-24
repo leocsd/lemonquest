@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-24a",
+    date: "24 de outubro",
+    title: "Compras em lote",
+    items: [
+      "Na loja, digite a quantidade ou use −/+ (Shift: de 10 em 10), o atalho 10 e o Máx: o maior lote que cabe no seu ouro e na mochila (até 100).",
+      "Enter no campo de quantidade já compra. Vale para poções, comida e também para equipamentos.",
+    ],
+  },
+  {
     id: "2026-10-23b",
     date: "23 de outubro (noite)",
     title: "A Oficina dos Engenhos abriu",

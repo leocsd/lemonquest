@@ -4,7 +4,7 @@
 // calcula os atributos do equipamento e envia S2C.Inventory/S2C.Depot (uma vez por tick, em flush()).
 import { randomBytes } from "node:crypto";
 import {
-  BACKPACK_MAX, BACKPACK_SIZE, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, RARITIES, S2C, baseStats, itemDef,
+  BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
   type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
   type StatId, type Stats, type UseItemMsg, type Vocation,
@@ -13,7 +13,6 @@ import type { PlayerState } from "../state.ts";
 import type { CharacterData } from "../persistence/types.ts";
 
 export const GOLD_ID = "gold_coin";
-export const DEFAULT_MAX_STACK = 100;
 export const STAT_IDS: StatId[] = ["attack", "armor", "hpMax", "manaMax", "magic", "melee", "distance", "shield", "speed", "crit", "hpRegen", "manaRegen"];
 
 export type ItemDefs = (id: string) => ItemDef | undefined;
@@ -45,7 +44,8 @@ export function newUid(): string {
   return randomBytes(6).toString("base64url");
 }
 
-export const maxStackOf = (d: ItemDef | undefined): number => (d?.stackable ? Math.max(1, d.maxStack ?? DEFAULT_MAX_STACK) : 1);
+// A conta de pilha e de espaço vive no shared (o cliente usa a mesma para o "Máx" da loja).
+export { DEFAULT_MAX_STACK, maxStackOf };
 
 export function makeItem(defId: string, count = 1, rarity: Rarity = "common", bonuses: ItemInstance["bonuses"] = []): ItemInstance {
   return { uid: newUid(), defId, count: Math.max(1, Math.floor(count)), rarity, bonuses: bonuses.map((b) => ({ ...b })) };
@@ -249,13 +249,7 @@ export class InventorySystem {
     const inv = this.inv.get(id);
     const d = this.defs(defId);
     if (!inv || !d) return 0;
-    const max = maxStackOf(d);
-    let room = 0;
-    for (const it of inv[arr]) {
-      if (!it) room += max;
-      else if (d.stackable && it.defId === defId) room += Math.max(0, max - it.count);
-    }
-    return room;
+    return backpackRoom(inv[arr], d);
   }
 
   /** Coloca o item na mochila (empilha primeiro). Ouro vira contador. Retorna quantas unidades NÃO couberam. */

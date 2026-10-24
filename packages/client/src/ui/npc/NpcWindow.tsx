@@ -1,5 +1,5 @@
 // Janela de NPC: fala com digitação, abas Missões / Viagem / Comprar / Vender / Depot.
-import { CASINO_TICKET_PRICE, DEPOT_SIZE, IMBUEMENT_EFFECTS, IMBUEMENTS, itemDef, keptBySellAll, type NpcOpenMsg } from "@lemonquest/shared";
+import { CASINO_TICKET_PRICE, DEPOT_SIZE, IMBUEMENT_EFFECTS, IMBUEMENTS, backpackRoom, itemDef, keptBySellAll, shopBuyMax, type NpcOpenMsg } from "@lemonquest/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { sectionsStore } from "../hud/Section.tsx";
 import { persistedBool, useStore } from "../hud/store.ts";
@@ -55,7 +55,7 @@ export function NpcWindow() {
         {st.tab === "bounties" && <BountyBoard />}
         {st.tab === "request" && <MaterialRequestBoard />}
         {st.tab === "travel" && m.travel && <TravelList m={m} gold={inv?.gold ?? 0} />}
-        {st.tab === "buy" && m.shop && <BuyList m={m} gold={inv?.gold ?? 0} />}
+        {st.tab === "buy" && m.shop && <BuyList m={m} gold={inv?.gold ?? 0} backpack={inv?.backpack ?? []} />}
         {st.tab === "sell" && m.shop && <SellList m={m} />}
         {st.tab === "depot" && m.depot && <DepotGrid />}
       </div>
@@ -86,7 +86,7 @@ function Typewriter({ text, nonce }: { text: string; nonce: number }) {
 /** Loja: esconder o que a sua vocação não usa (o Bento vende de tudo para todas). */
 const mineOnlyStore = persistedBool("shopMineOnly", true);
 
-function BuyList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
+function BuyList({ m, gold, backpack }: { m: NpcOpenMsg; gold: number; backpack: Parameters<typeof backpackRoom>[0] }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const me = useStore(meStore);
   const mineOnly = useStore(mineOnlyStore);
@@ -104,12 +104,13 @@ function BuyList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
     <ul class="shop-list">
       {rows.map((r) => {
         const def = itemDef(r.itemId);
-        const stack = !!def?.stackable;
-        const max = stack ? Math.min(def?.maxStack ?? 100, 99) : 1;
-        const q = Math.min(max, Math.max(1, qty[r.itemId] ?? 1));
+        // Lote: o maior que cabe no ouro e na mochila (mesma conta do servidor, shared/shop.ts). Encomenda especial: 1.
+        const max = shopBuyMax({ price: r.price, gold, room: backpackRoom(backpack, def), limited: r.limited });
+        const q = Math.min(Math.max(1, max), Math.max(1, qty[r.itemId] ?? 1));
         const total = r.price * q;
-        const afford = gold >= total;
-        const set = (v: number) => setQty((s) => ({ ...s, [r.itemId]: Math.max(1, Math.min(max, v)) }));
+        const afford = max >= q && gold >= total;
+        const why = gold < r.price ? "Ouro insuficiente" : max < 1 ? "Mochila cheia" : undefined;
+        const set = (v: number) => setQty((s) => ({ ...s, [r.itemId]: Math.max(1, Math.min(Math.max(1, max), Math.floor(v) || 1)) }));
         const needLv = def?.level && me && def.level > me.level ? def.level : 0;
         return (
           <li key={r.itemId} class="shop-row">
@@ -127,15 +128,22 @@ function BuyList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
               <div class="shop-name">{def?.name ?? r.itemId}{needLv > 0 && <span class="shop-lv" data-tip={`Precisa do level ${needLv}`}> Lv {needLv}</span>}{r.limited && <span class="shop-lv" data-tip="Encomenda especial: só 1 por semana"> 1/semana</span>}</div>
               <div class="shop-price"><Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(r.price)}</span>{q > 1 && <small> · total {fmtNum(total)}</small>}</div>
             </div>
-            {stack && (
+            {!r.limited && max > 1 && (
               <div class="qty">
-                <button onClick={(e) => set(q - (e.shiftKey ? 10 : 1))} aria-label="Menos">−</button>
-                <span>{q}</span>
-                <button onClick={(e) => set(q + (e.shiftKey ? 10 : 1))} aria-label="Mais">+</button>
+                <button onClick={(e) => set(q - (e.shiftKey ? 10 : 1))} aria-label="Menos" data-tip="Shift: −10">−</button>
+                <input
+                  type="number" min={1} max={max} value={q} aria-label={`Quantidade de ${def?.name ?? r.itemId}`}
+                  onInput={(e) => set(Number((e.currentTarget as HTMLInputElement).value))}
+                  onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
+                  onKeyDown={(e) => { if (e.key === "Enter" && afford) buyItem(m.npcId, r.itemId, q); }}
+                />
+                <button onClick={(e) => set(q + (e.shiftKey ? 10 : 1))} aria-label="Mais" data-tip="Shift: +10">+</button>
+                {max >= 10 && <button class="qty-preset" onClick={() => set(10)} aria-label="Quantidade 10">10</button>}
+                <button class="qty-preset" onClick={() => set(max)} aria-label={`Quantidade máxima: ${max}`} data-tip={`O máximo que cabe no ouro e na mochila: ${max}`}>Máx</button>
               </div>
             )}
-            <button class="shop-btn" disabled={!afford} onClick={() => buyItem(m.npcId, r.itemId, q)} data-tip={afford ? undefined : "Ouro insuficiente"}>
-              Comprar
+            <button class="shop-btn" disabled={!afford} onClick={() => buyItem(m.npcId, r.itemId, q)} data-tip={why}>
+              {q > 1 ? `Comprar ${q}` : "Comprar"}
             </button>
           </li>
         );

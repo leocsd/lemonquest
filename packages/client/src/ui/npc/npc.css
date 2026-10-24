@@ -12,7 +12,7 @@
 .npc-tab.active { background: rgba(217, 164, 65, 0.12); border-color: rgba(217, 164, 65, 0.5); color: var(--hud-gold) !important; }
 
 .shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
-.shop-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 4px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
+.shop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 6px 4px 4px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
 .shop-row:hover { border-color: var(--hud-line-hi); }
 .blessing-row { margin: 8px 0; }
 .shop-icon { flex: none; }
@@ -23,9 +23,12 @@
 .shop-filter small { color: var(--hud-faint); }
 .shop-price { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--hud-gold); font-variant-numeric: tabular-nums; }
 .shop-price small { color: var(--hud-muted); font-size: 11px; }
-.qty { display: flex; align-items: center; gap: 2px; }
+/* Quantidade numa segunda linha, alinhada ao texto (40 px = ícone + espaço): a primeira fica com nome, preço e botão. */
+.qty { order: 3; flex-basis: 100%; display: flex; align-items: center; gap: 2px; margin: -2px 0 2px 40px; }
 .qty button { width: 20px; height: 22px; padding: 0; }
-.qty span { min-width: 22px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+.qty input { width: 40px; height: 22px; padding: 0 2px; text-align: center; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; color: #fff; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 4px; -moz-appearance: textfield; } /* como o ouro da troca */
+.qty input::-webkit-inner-spin-button, .qty input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.qty .qty-preset { width: auto; padding: 0 5px; font-size: 11px; }
 .shop-btn { padding: 4px 10px; height: 26px; }
 .shop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .shop-btn.danger { border-color: rgba(230, 90, 80, 0.7); color: #ff9a8f !important; }

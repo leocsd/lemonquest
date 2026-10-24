@@ -1,5 +1,15 @@
 # Changelog
 
+## [Não lançado] — 2026-10-24 · loja: compra em lote
+
+- Pedido do dono: comprar poções e outras coisas em quantidade. O servidor já aceitava até 100 por mensagem; faltava a
+  interface. A linha da loja ganhou uma segunda linha com campo de quantidade digitável (Enter compra), −/+ (Shift ±10),
+  atalho 10 e **Máx**, e o botão mostra "Comprar N". Vale também para itens não empilháveis; a encomenda semanal
+  (tier 6–7) segue 1 por vez.
+- A conta de espaço e de pilha foi para `shared/src/shop.ts` (`backpackRoom`, `shopBuyMax`, `maxStackOf`,
+  `MAX_TRADE_COUNT`): o "Máx" do cliente e a validação do servidor usam a mesma regra. Testes: `shop.test.ts` e o E2E
+  `e2e/shop.spec.ts` (compra 25 poções de uma vez, confere ouro e o Máx).
+
 ## [Não lançado] — 2026-10-23 · ciclo 10: o escritório entra no jogo (Oficina dos Engenhos)
 
 O jogo foi feito para os colegas da Embeddo, mas não tinha nada do trabalho. Este ciclo traz o contexto por piada

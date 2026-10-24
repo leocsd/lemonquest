@@ -27,6 +27,7 @@ export * from "./party.ts";
 export * from "./pvp.ts";
 export * from "./emotes.ts";
 export * from "./trade.ts";
+export * from "./shop.ts";
 export * from "./data/events.ts";
 export * from "./data/news.ts";
 export * from "./data/weekly.ts";
