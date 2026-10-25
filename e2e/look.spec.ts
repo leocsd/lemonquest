@@ -23,7 +23,10 @@ test("olhar: dois botões numa criatura (sem mirar nela) e Shift+clique em você
   await teleport(page, spot.x, spot.y);
   await waitSettled(page);
   const card = page.locator(".look-card");
-  // Criatura: tenta a mais perto até o cartão abrir (ela anda).
+  // Criatura: tenta a mais perto até o cartão abrir (ela anda: o clique vai no tile do servidor e, no meio de um passo,
+  // ela ainda está desenhada no anterior). Logo depois do /tp os ratos vêm na direção do personagem, então o 1º clique
+  // erra com frequência; a leitura do cartão não pode bloquear (sem timeout, `textContent` esperava o cartão até o fim
+  // do poll e um erro só derrubava o teste).
   await expect.poll(async () => {
     const m = (await me(page))!;
     const mob = (await monsters(page)).sort((a, b) => Math.max(Math.abs(a.x - m.x), Math.abs(a.y - m.y)) - Math.max(Math.abs(b.x - m.x), Math.abs(b.y - m.y)))[0];
@@ -31,7 +34,7 @@ test("olhar: dois botões numa criatura (sem mirar nela) e Shift+clique em você
     const c = await tileToClient(page, mob.x, mob.y, 0.6);
     await chordAt(page, c.x, c.y);
     await page.waitForTimeout(250);
-    return (await card.textContent().catch(() => "")) ?? "";
+    return (await card.textContent({ timeout: 500 }).catch(() => "")) ?? "";
   }, { timeout: 20_000, intervals: [400] }).toMatch(/Level \d+ · .*Vida/);
   await snap(page, "look-creature");
   expect(await page.evaluate(() => (window as any).__lq.target())).toBeFalsy(); // o primeiro botão não deixou o alvo
@@ -48,7 +51,7 @@ test("olhar: dois botões numa criatura (sem mirar nela) e Shift+clique em você
     await page.mouse.click(mc.x, mc.y);
     await page.keyboard.up("Shift");
     await page.waitForTimeout(250);
-    const text = (await card.textContent().catch(() => "")) ?? "";
+    const text = (await card.textContent({ timeout: 500 }).catch(() => "")) ?? "";
     if (!text.includes("(você)")) await page.keyboard.press("Escape");
     return text;
   }, { timeout: 15_000, intervals: [400] }).toContain("(você)");
@@ -78,7 +81,7 @@ test("olhar: item do chão abre o balão de detalhes do item", async ({ page }) 
     const c = await tileToClient(page, target.x, target.y, 0.6);
     await chordAt(page, c.x, c.y);
     await page.waitForTimeout(300);
-    return (await tip.textContent().catch(() => "")) ?? "";
+    return (await tip.textContent({ timeout: 500 }).catch(() => "")) ?? "";
   }, { timeout: 15_000, intervals: [500] }).toContain("Poção de Mana");
   await snap(page, "look-item");
 });
