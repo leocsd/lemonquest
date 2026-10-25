@@ -16,7 +16,8 @@ export const NEWS: readonly NewsEntry[] = [
     date: "25 de outubro (tarde)",
     title: "Elementos, Dragão de Gelo e andar mais liso",
     items: [
-      "Monstros resistem ao próprio elemento: dragões e demônios tomam metade do dano de fogo, o Dragão de Gelo e o Yeti de gelo, os mortos-vivos de morte. Escolha a magia certa (os Grupos de magia ajudam). O Bestiário mostra a resistência.",
+      "Monstros resistem ao próprio elemento: dragões e demônios tomam metade do dano de fogo; Dragão de Gelo e Yeti, de gelo; mortos-vivos, de morte.",
+      "Escolha a magia certa (os Grupos de magia ajudam): o Bestiário mostra a que cada monstro resiste.",
       "O Dragão de Gelo ganhou visual próprio, azul-gelo.",
       "Andar ficou mais liso, principalmente correndo: o boneco não volta mais para trás ao soltar a tecla, ao esbarrar num monstro ou depois de atravessar um portal.",
     ],
