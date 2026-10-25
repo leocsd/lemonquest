@@ -36,7 +36,9 @@ export async function createPlayer(request: APIRequestContext, vocation: Vocatio
   const password = "senha-e2e-123";
   const login = await (await request.post("/api/login", { data: { account, password, create: true } })).json();
   expect(login.ok, JSON.stringify(login)).toBe(true);
-  for (let i = 0; i < 40; i++) {
+  // A lista inteira: depois de uma falha o Playwright troca de worker e o novo começa em outro trecho, que pode já estar
+  // gasto (com 40 tentativas a falha de um teste derrubava o seguinte com "nenhum nome livre").
+  for (let i = 0; i < E2E_NAMES.length; i++) {
     const name = nextName();
     const r = await (await request.post("/api/characters", { data: { session: login.session, name, vocation } })).json();
     if (r.ok) return { account, password, name, vocation, session: login.session };
@@ -188,10 +190,13 @@ export async function setChase(page: Page, on: boolean): Promise<void> {
   }, { timeout: 10_000 }).toBe(on);
 }
 
-/** Clica no monstro mais perto até virar o alvo. */
-/** `timeoutMs`: quanto esperar até haver alvo (curto em laços que também vigiam outra coisa, como a pausa do Coliseu). */
+/**
+ * Clica no monstro mais perto até virar o alvo. `timeoutMs`: quanto esperar até haver alvo (curto em laços que também
+ * vigiam outra coisa, como a pausa do Coliseu). Tentativa sim, tentativa não, clica na linha dele na Batalha: o clique
+ * vai no tile do servidor e, com a máquina lenta (CI), o desenho do monstro andando ainda está no tile anterior.
+ */
 export async function targetNearest(page: Page, filter?: (defId: string) => boolean, timeoutMs = 30_000): Promise<string> {
-  let id = "";
+  let id = "", tries = 0;
   await expect.poll(async () => {
     const m = (await me(page))!;
     const list = (await monsters(page)).filter((x) => !filter || filter(x.defId ?? ""))
@@ -200,9 +205,12 @@ export async function targetNearest(page: Page, filter?: (defId: string) => bool
     if (!t) return "";
     const cur = await page.evaluate(() => (window as any).__lq.target());
     if (cur && list.some((x) => x.id === cur)) { id = cur; return cur; }
-    await clickTile(page, t.x, t.y, { fy: 0.6 });
+    const row = t.name ? page.locator(`.battle-row.monster[data-tip="${t.name}"]`).first() : null;
+    if (tries++ % 2 === 1 && row && (await row.count())) await row.click();
+    else await clickTile(page, t.x, t.y, { fy: 0.6 });
     await page.waitForTimeout(150);
     id = await page.evaluate(() => (window as any).__lq.target());
+    if (id && !list.some((x) => x.id === id)) return ""; // a linha da Batalha pegou outro (filtrado): tenta de novo
     return id;
   }, { timeout: timeoutMs, intervals: [300] }).not.toBe("");
   return id;
