@@ -6,7 +6,7 @@ import {
   type MoveItemMsg, type MoveMsg, type NoticeMsg, type PartyActionMsg, type NpcInteractMsg, type NpcTradeMsg, type PickupItemMsg, type QuickPotionMsg, type SetOutfitMsg, type SetTitleMsg, type TurnMsg,
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
-  PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, backpackCapacity, type Hotkey, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
+  PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
   npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, imbuementDef,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
@@ -861,7 +861,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (inv) client.send(S2C.Inventory, inv);
     if (trained) client.send(S2C.TrainingResult, trained);
     const barRebuilt = this.upgradeHotkeys(rec, p.vocation);
-    client.send(S2C.Hotkeys, { list: this.hotkeysOf(rec, p.vocation) } satisfies HotkeysMsg);
+    client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
     if (auth.weakPassword) {
       client.send(S2C.Notice, {
         text: "Sua senha é curta (menos de 6 caracteres). Considere uma senha mais forte.", kind: "warn",
@@ -1011,14 +1011,18 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     return stanceDealt(p) * (1 + this.conditions.value(p.id, "berserk") / 100);
   }
 
-  /** C2S.SetHotkeys: guarda os atalhos válidos no personagem (salvos no próximo save). */
+  /**
+   * C2S.SetHotkeys: guarda os atalhos (e os grupos de magia, se vieram) válidos no personagem (salvos no próximo save).
+   * Os grupos vêm antes: atalho de grupo que não existe mais sai.
+   */
   private setHotkeys(p: PlayerState, m: SetHotkeysMsg) {
     const rec = this.records.get(p.id);
     if (!rec || !m || typeof m !== "object") return;
-    rec.data.hotkeys = sanitizeHotkeys(m.list, p.vocation);
+    if (m.groups !== undefined) rec.data.spellGroups = sanitizeSpellGroups(m.groups, p.vocation);
+    rec.data.hotkeys = sanitizeHotkeys(m.list, p.vocation, rec.data.spellGroups ?? []);
     rec.data.hotkeysVersion = HOTKEYS_VERSION;
-    // Confirma a lista salva: o cliente descobre se alguma edição se perdeu.
-    this.clients.getById(p.id)?.send(S2C.Hotkeys, { list: rec.data.hotkeys } satisfies HotkeysMsg);
+    // Confirma o que foi salvo: o cliente descobre se alguma edição se perdeu.
+    this.clients.getById(p.id)?.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
   }
 
   /**
@@ -1033,9 +1037,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     return used;
   }
 
-  /** Atalhos salvos, limpos de novo (magia renomeada/removida numa atualização); null = nunca configurou. */
-  private hotkeysOf(rec: CharacterRecord, vocation: Vocation): Hotkey[] | null {
-    return rec.data.hotkeys ? sanitizeHotkeys(rec.data.hotkeys, vocation) : null;
+  /**
+   * Atalhos e grupos salvos, limpos de novo (magia renomeada/removida numa atualização); list null = nunca configurou.
+   */
+  private hotkeysMsg(rec: CharacterRecord, vocation: Vocation): HotkeysMsg {
+    const groups = sanitizeSpellGroups(rec.data.spellGroups, vocation);
+    return { list: rec.data.hotkeys ? sanitizeHotkeys(rec.data.hotkeys, vocation, groups) : null, groups };
   }
 
   /** /tp <nome>: leva o admin para um tile livre ao redor do alvo (raio 1, depois 2). */
@@ -1082,7 +1089,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.conditions.refreshPlayer(sid);
     this.arena.resend(sid);
     this.quests.resend(sid);
-    { const rec = this.records.get(sid), p = this.state.players.get(sid); if (rec && p) client.send(S2C.Hotkeys, { list: this.hotkeysOf(rec, p.vocation) } satisfies HotkeysMsg); }
+    { const rec = this.records.get(sid), p = this.state.players.get(sid); if (rec && p) client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation)); }
     this.ach.sendState(sid);
     this.party.resend(sid);
     this.trade.resend(sid);

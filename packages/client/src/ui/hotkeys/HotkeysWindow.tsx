@@ -1,6 +1,6 @@
 // Painel de atalhos de magia (tecla H ou ⚙ na barra): cada linha = [tecla] [magia] [remover]. Clicar na tecla espera a
 // próxima tecla apertada (Esc cancela); as teclas do próprio jogo são recusadas com o motivo. Salva no personagem.
-import { HOTKEY_MAX, defaultHotkeys, familiesFor, familyLevel, spellsFor, type Hotkey, type Vocation } from "@lemonquest/shared";
+import { HOTKEY_MAX, defaultHotkeys, familiesFor, familyLevel, groupFamily, spellsFor, type Hotkey, type Vocation } from "@lemonquest/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
@@ -8,7 +8,8 @@ import { clampWindowPos, useWindowDrag } from "../hud/useWindowDrag.ts";
 import { meStore } from "../hud/world.ts";
 import { bindOverlay, pushOverlay } from "../overlays.ts";
 import { addRow, assignKey, isModifierCode, removeRow, setRowSpell } from "./edit.ts";
-import { effectiveHotkeys, hotkeyLabel, hotkeysOpen, hotkeysStore, keyFromEvent, layoutStore, setHotkeys } from "./hotkeys.ts";
+import { effectiveHotkeys, groupsStore, hotkeyLabel, hotkeysOpen, hotkeysStore, keyFromEvent, layoutStore, setHotkeys } from "./hotkeys.ts";
+import { groupsOpen } from "./SpellGroupsWindow.tsx";
 import "./hotkeys.css";
 
 const W = 360;
@@ -23,6 +24,7 @@ export function HotkeysWindow() {
   const me = useStore(meStore);
   useStore(hotkeysStore);
   useStore(layoutStore);
+  const groups = useStore(groupsStore);
   const drag = useWindowDrag("hotkeys", defaultPos);
   useDialogFocus(drag.ref, open);
   const [capturing, setCapturing] = useState<number | null>(null);
@@ -88,7 +90,8 @@ export function HotkeysWindow() {
       </div>
       <div class="win-body">
         <p class="hk-hint">Clique na tecla e aperte a nova (pode usar Shift). Arrastar na barra também troca as magias de lugar.
-          ◆ Família: uma tecla para várias magias do mesmo tipo; sai a mais forte que estiver pronta e no alcance.</p>
+          ◆ Família: uma tecla para várias magias; sai a primeira da lista que estiver pronta e no alcance.
+          Em <b>Grupos de magia</b> você monta as suas, com as magias e a ordem que quiser.</p>
         <ul class="hk-list">
           {list.map((h, i) => (
             <li key={`${i}-${h.key}`} class="hk-row">
@@ -107,6 +110,18 @@ export function HotkeysWindow() {
                 value={h.spellId}
                 onChange={(e) => apply(setRowSpell(list, i, (e.currentTarget as HTMLSelectElement).value))}
               >
+                {groups.length > 0 && (
+                  <optgroup label="Meus grupos">
+                    {groups.map((g) => {
+                      const lv = familyLevel(groupFamily(g, voc));
+                      return (
+                        <option key={g.id} value={g.id}>
+                          ◆ {g.name}{!g.spells.length ? " (vazio)" : me.level < lv ? ` (lv ${lv})` : ""}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                )}
                 {families.length > 0 && (
                   <optgroup label="Famílias (tecla inteligente)">
                     {families.map((f) => (
@@ -139,6 +154,7 @@ export function HotkeysWindow() {
             + Novo atalho
           </button>
           <span class="hk-count">{list.length}/{HOTKEY_MAX}</span>
+          <button class="hk-btn" onClick={() => groupsOpen.set((v) => !v)} data-tip="Grupos de magia" data-tip-sub="Monte a sua tecla inteligente: magias e ordem escolhidas por você">◆ Grupos</button>
           <button class="hk-btn subtle" onClick={() => { apply(defaultHotkeys(voc)); say("Barra recomendada: famílias ◆ e magias avulsas nas teclas 1–0."); }} data-tip="Barra recomendada" data-tip-sub="Famílias ◆ no lugar das magias parecidas, nas teclas 1–0">Recomendado</button>
         </div>
       </div>

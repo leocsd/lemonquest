@@ -28,6 +28,7 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Magias da barra | `1`–`0` por padrão (ou digite as palavras mágicas no chat, ex.: `exura`). Só aparece o que o seu level já libera |
 | Família de magias (◆) | uma tecla para várias magias do mesmo tipo (ataque no alvo, área, onda): sai a mais forte que estiver pronta, com mana e no alcance. Na barra, magia de alvo fica avermelhada com o alvo longe e apagada sem alvo |
 | Escolher a tecla de cada magia | `H` (ou ⚙ no fim da barra): até 12 atalhos, qualquer tecla livre, também com `Shift`; salvo no personagem. "Recomendado" monta a barra com as famílias; magia nova entra sozinha numa tecla livre |
+| Montar os seus grupos de magia | `H` → **◆ Grupos**: até 8 grupos com as magias e a ordem que você quiser (arrastar, ↑↓, copiar uma família pronta como modelo); a tecla solta a primeira da lista que estiver pronta. "Pôr na barra" põe o grupo numa tecla livre |
 | Poção de vida / mana | `Q` / `E` |
 | Seguir o alvo (gruda no monstro, qualquer vocação) | `F8` |
 | Ataque automático (escolhe sozinho o monstro mais próximo) | `F9` |

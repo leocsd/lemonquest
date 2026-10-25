@@ -171,11 +171,15 @@ export const NPCS: Record<string, NpcDef> = {
           "ember_wand", "moss_rod", "arcane_helmet", "arcane_armor", "arcane_legs", "arcane_boots",
           // tier 5 (lv 35): fim de jogo, preço de tabela.
           "inferno_wand", "glacier_rod", "archmage_helmet", "archmage_armor", "archmage_legs", "archmage_boots",
+          // Livros de magia (escudo dos magos), tiers 2-5.
+          "spellbook_apprentice", "spellbook_adept", "spellbook_arcane", "spellbook_archmage",
         ),
         // tier 6-7: encomenda especial (ver Bento), 1 peça por personagem por semana.
         ...limited(
           ["starstorm_wand", 90000], ["northwind_rod", 90000], ["mystic_helmet", 20000], ["mystic_armor", 50000], ["mystic_legs", 28000],
+          ["spellbook_mystic", 32000],
           ["destruction_wand", 190000], ["ancient_root_rod", 190000], ["ferumbras_helmet", 50000], ["ferumbras_armor", 120000], ["ferumbras_legs", 70000],
+          ["spellbook_ferumbras", 80000],
         ),
       ],
       buys: ["material", "potion", "food"],

@@ -471,6 +471,18 @@ const mageSet3 = (prefix: string, tier: number, palette: GearTier, names: string
     extra: { helmet: { manaMax: mana[0]!, magic: magic[0]! }, armor: { manaMax: mana[1]!, magic: magic[1]! }, legs: { manaMax: mana[2]!, magic: magic[2]! } }, blurb });
 mageSet3("mystic", 6, "mithril", ["Turbante Místico", "Manto Azul", "Calças Relampejantes"], [2, 4, 2], [20000, 50000, 28000], [70, 140, 85], [2, 3, 1], "Seda azul tecida com fios de relâmpago.");
 mageSet3("ferumbras", 7, "arcane", ["Chapéu de Ferumbras", "Manto Celestial", "Calças Celestiais"], [3, 5, 3], [50000, 120000, 70000], [100, 200, 120], [3, 4, 2], "Dizem que pertenceu ao maior feiticeiro que já existiu.");
+// Livros de magia (pedido do dono): o escudo dos magos. A varinha/bastão usa uma mão só e o slot ficava com o Escudo de
+// Madeira. Menos armadura que o escudo do cavaleiro do mesmo tier, em troca de mana e, do tier 5 em diante, magia.
+// Valor igual ao do escudo do cavaleiro do tier (o simulador da arena escolhe por valor).
+const spellbook = (id: string, name: string, tier: number, tint: number, armor: number, manaMax: number, magic: number, value: number, description: string): void =>
+  add({ id, name, kind: "shield", slot: "shield", icon: img(W + "Book/Sprite.png", tint), vocations: MAGE, level: TIER_LEVEL[tier - 1],
+    stats: { armor, manaMax, ...(magic ? { magic } : {}) }, value, description });
+spellbook("spellbook_apprentice", "Livro do Aprendiz", 2, 0xd0a060, 1, 15, 0, 200, "Anotações de aula com orelhas nas páginas.");
+spellbook("spellbook_adept", "Livro do Adepto", 3, 0x80b8ff, 1, 30, 0, 900, "Capa de couro e feitiços sublinhados a tinta azul.");
+spellbook("spellbook_arcane", "Tomo Arcano", 4, 0xb070ff, 2, 50, 0, 3200, "As letras mudam de lugar quando ninguém está olhando.");
+spellbook("spellbook_archmage", "Grimório do Arquimago", 5, 0xffd060, 2, 80, 1, 10000, "Cantos de ouro e um fecho que só abre para quem sabe a palavra.");
+spellbook("spellbook_mystic", "Tomo das Tempestades", 6, 0x40c8ff, 3, 120, 1, 32000, "As páginas estalam como raio quando o vento muda.");
+spellbook("spellbook_ferumbras", "Grimório de Ferumbras", 7, 0xd890ff, 3, 180, 2, 80000, "Escrito à mão pelo próprio Ferumbras. Algumas páginas ainda estão quentes.");
 
 // Botas da Pressa: o item mais cobiçado do fim de jogo (todas as vocações).
 add({ id: "boots_haste", name: "Botas da Pressa", kind: "boots", slot: "boots", icon: gear("boots", "gold"), level: 50, stats: { armor: 1, speed: 12 }, value: 60000,

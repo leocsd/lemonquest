@@ -1,14 +1,14 @@
 // Atalhos de magia (painel "Atalhos", tecla H): cada linha liga uma tecla a uma magia. Salvos no personagem (servidor).
 // A tecla é o KeyboardEvent.code (independe do layout do teclado), com "Shift+" opcional. Ctrl/Alt ficam de fora: o
 // navegador usa Ctrl+1–8 para trocar de aba e Alt abre menus.
-import { castableBy, familiesFor, familyLevel, familyOf } from "./data/spellFamilies.ts";
+import { castableBy, familiesFor, familyLevel, familyOf, type SpellGroup } from "./data/spellFamilies.ts";
 import { spellDef, spellsFor } from "./data/spells.ts";
 import type { Vocation } from "./types.ts";
 
 export interface Hotkey {
   /** KeyboardEvent.code, com prefixo "Shift+" opcional (ex.: "Digit1", "Shift+KeyF", "F2"). */
   key: string;
-  /** Id da magia ou de uma família de magias ("fam:…", ver data/spellFamilies.ts). */
+  /** Id da magia, de uma família de magias ("fam:…") ou de um grupo do jogador ("fam:my:…"), ver data/spellFamilies.ts. */
   spellId: string;
 }
 
@@ -88,9 +88,10 @@ export function keyLabel(key: string, layout?: ReadonlyMap<string, string>): str
 
 /**
  * Lista recebida do cliente → lista válida: até HOTKEY_MAX linhas, tecla válida e sem repetir, magia (ou família) que a
- * vocação pode usar e sem repetir (pode ser de level ainda não alcançado). Linhas inválidas saem.
+ * vocação pode usar e sem repetir (pode ser de level ainda não alcançado). Grupo do jogador só se existe em `groups`
+ * (já limpos). Linhas inválidas saem.
  */
-export function sanitizeHotkeys(raw: unknown, vocation: Vocation): Hotkey[] {
+export function sanitizeHotkeys(raw: unknown, vocation: Vocation, groups: readonly SpellGroup[] = []): Hotkey[] {
   if (!Array.isArray(raw)) return [];
   const out: Hotkey[] = [];
   const keys = new Set<string>(), spells = new Set<string>();
@@ -99,7 +100,7 @@ export function sanitizeHotkeys(raw: unknown, vocation: Vocation): Hotkey[] {
     if (!r || typeof r !== "object") continue;
     const { key, spellId } = r as Record<string, unknown>;
     if (!isHotkeyKey(key) || keys.has(key) || typeof spellId !== "string" || spells.has(spellId)) continue;
-    if (!castableBy(spellId, vocation)) continue;
+    if (!castableBy(spellId, vocation, groups)) continue;
     keys.add(key);
     spells.add(spellId);
     out.push({ key, spellId });

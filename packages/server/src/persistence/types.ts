@@ -1,4 +1,4 @@
-import type { Vocation } from "@lemonquest/shared";
+import type { SpellGroup, Vocation } from "@lemonquest/shared";
 
 /** Dados flexíveis do personagem, guardados como JSON na coluna `data`. Cada marco acrescenta campos opcionais. */
 export interface CharacterData {
@@ -30,6 +30,8 @@ export interface CharacterData {
    * magia) uma vez e avisa. Editar os atalhos marca a versão atual.
    */
   hotkeysVersion?: number;
+  /** Grupos de magia montados pelo jogador (painel "Grupos de magia"); o atalho aponta para eles por id. */
+  spellGroups?: SpellGroup[];
   /** Inventário (M4). */
   equipment?: Partial<Record<string, unknown>>;
   backpack?: unknown[];

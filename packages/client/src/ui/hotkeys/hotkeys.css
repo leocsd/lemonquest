@@ -25,7 +25,7 @@
 .hk-capture span { color: var(--hud-muted); }
 .hk-msg { font-size: 12px; color: #7fd88f; }
 .hk-msg.error { color: #ff9a8f; }
-.hk-actions { display: flex; align-items: center; gap: 8px; }
+.hk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .hk-btn {
   height: 26px; padding: 0 10px; white-space: nowrap; font: inherit; font-size: 12px; color: var(--hud-text); cursor: pointer;
   background: var(--hud-well); border: 1px solid var(--hud-line-hi); border-radius: 4px;

@@ -214,6 +214,22 @@ describe("cobertura de armaduras", () => {
   });
 });
 
+describe("livros de magia (escudo dos magos)", () => {
+  it("um por tier 2-7, só magos; menos armadura que o escudo do cavaleiro, mais mana a cada tier, mesmo valor", () => {
+    const books = all.filter((d) => d.slot === "shield" && d.vocations?.includes("sorcerer")).sort((a, b) => a.level! - b.level!);
+    const knight = all.filter((d) => d.slot === "shield" && d.vocations?.includes("knight"));
+    expect(books.map((b) => b.level)).toEqual([8, 15, 25, 35, 50, 70]);
+    for (const [i, b] of books.entries()) {
+      expect(b.vocations).toEqual(["sorcerer", "druid"]);
+      const k = knight.find((s) => s.level === b.level)!;
+      expect(b.stats!.armor!, b.id).toBeLessThanOrEqual(k.stats!.armor!);
+      expect(b.value, b.id).toBe(k.value);
+      if (i > 0) expect(b.stats!.manaMax!, b.id).toBeGreaterThan(books[i - 1]!.stats!.manaMax!);
+    }
+    expect(ITEMS.spellbook_ferumbras!.stats).toEqual({ armor: 3, manaMax: 180, magic: 2 });
+  });
+});
+
 describe("ciclo 8: recarga das poções", () => {
   it("vida 2 s, mana 1 s (o temporizador é um só para qualquer poção)", () => {
     for (const it of Object.values(ITEMS)) {

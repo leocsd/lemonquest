@@ -1,5 +1,34 @@
 # Changelog
 
+## [Não lançado] — 2026-10-25 · livros de magia e grupos de magia
+
+**Grupos de magia** (pedido do dono: escolher as magias e a ordem da tecla inteligente)
+- O jogador monta até 8 grupos (`fam:my:<n>`), cada um com até 8 magias da vocação na ordem dele; a tecla solta a
+  primeira da lista que estiver pronta, com a mesma regra das famílias prontas (`pickFromFamily`). As famílias prontas
+  continuam e viram **modelos**: copiar cria um grupo igual, editável.
+- Painel novo **Grupos de magia** (botão ◆ Grupos nos Atalhos, `H`): lista de prioridade com arrastar e soltar, ↑↓ e
+  ✕; paleta de magias com filtros (no alvo, área, onda, cura, outras), clique ou arraste para a posição; prévia ao vivo
+  de qual magia sairia agora (recarga, mana e level); "Pôr na barra" e excluir com confirmação.
+- Salvos no personagem (`spellGroups`) e enviados **na mesma mensagem dos atalhos** (`SetHotkeys`/`Hotkeys` ganharam
+  `groups` opcional): grupos e barra chegam juntos e consistentes; atalho de grupo excluído sai da barra; mensagem sem
+  `groups` (cliente antigo) não mexe nos grupos. Validação em `sanitizeSpellGroups` (shared), sem mensagem nova.
+- Grupo vazio fica como slot vazio na barra; magia nova liberada que já está num grupo da barra só ganha o aviso.
+- Testes: `spellFamilies.test.ts` (limpeza, ordem do jogador, atalho de grupo), `groupsEdit.test.ts` (edição),
+  `WorldRoom.test.ts` (salvar, voltar no login, cliente antigo, excluir) e E2E `hotkeys.spec.ts` (montar, arrastar,
+  pôr na barra, conjurar pela tecla e manter depois de recarregar).
+
+**Livros de magia** (escudo dos magos)
+
+- Pedido do dono: o feiticeiro e o druida não tinham escudo próprio (só o Escudo de Madeira, armadura 1), embora a
+  varinha e o bastão usem uma mão só. Seis **livros de magia**, um por tier do 2 ao 7 (lv 8/15/25/35/50/70), só para
+  magos: armadura 1/1/2/2/3/3 (abaixo do escudo do cavaleiro do mesmo tier), mana +15/30/50/80/120/180 e magia +1
+  nos tiers 5-6 e +2 no 7. Valor igual ao do escudo do cavaleiro do tier.
+- Onde conseguir: Dona Marta vende os tiers 2-5 e faz encomenda especial (1 por semana) do Tomo das Tempestades
+  (32k) e do Grimório de Ferumbras (80k); o Yeti solta o Tomo (15%) e Ferumbras o Grimório (20%). Ícone: sprite
+  `Weapons/Book` do pack, tingido por tier.
+- Teste novo em `items.test.ts`; o simulador do Coliseu (`arena.test.ts`) já escolhe os livros para os magos e as
+  metas de ondas continuam passando.
+
 ## [Não lançado] — 2026-10-24 · ajuste da Malha: nomes comuns e saídas
 
 - Pedido do dono: **por enquanto, bichos e itens com nomes comuns**; NPCs, missões e locais continuam com os nomes

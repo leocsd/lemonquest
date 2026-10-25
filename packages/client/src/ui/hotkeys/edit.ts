@@ -1,7 +1,7 @@
 // Edição dos atalhos no painel (puro, sem DOM: testável). As regras de validade são as do servidor (shared/hotkeys.ts).
 import {
   HOTKEY_MAX, SHIFT_PREFIX, familyOf, isHotkeyKey, nextFreeKey, reservedFor, spellsFor,
-  type Hotkey, type Vocation,
+  type Hotkey, type SpellGroup, type Vocation,
 } from "@lemonquest/shared";
 
 export { nextFreeKey };
@@ -87,10 +87,11 @@ export function swapHotkeySpells(list: readonly Hotkey[], a: number, b: number):
 /**
  * Magias liberadas ao subir do level `from` para `to`: a que já tem atalho (ou cuja família tem) só ganha o aviso; a que
  * não tem entra na próxima tecla livre — a família dela, se nenhuma magia da família está na barra (quem montou a
- * barra magia por magia continua assim). `notes` = avisos para o jogador.
+ * barra magia por magia continua assim). Grupo do jogador na barra com a magia conta como a família. `notes` = avisos.
  */
 export function placeUnlocked(
   list: readonly Hotkey[], vocation: Vocation, from: number, to: number, label: (k: string) => string,
+  groups: readonly SpellGroup[] = [],
 ): { list: Hotkey[]; notes: string[] } {
   const out = list.map((h) => ({ ...h }));
   const notes: string[] = [];
@@ -101,6 +102,8 @@ export function placeUnlocked(
     if (own) { notes.push(`Nova magia: ${s.name} na tecla ${label(own.key)}.`); continue; }
     const viaFam = fam && out.find((h) => h.spellId === fam.id);
     if (viaFam) { notes.push(`Nova magia: ${s.name}, já na tecla ${label(viaFam.key)} (${fam.name}).`); continue; }
+    const grp = groups.find((g) => g.spells.includes(s.id) && out.some((h) => h.spellId === g.id));
+    if (grp) { notes.push(`Nova magia: ${s.name}, já na tecla ${label(out.find((h) => h.spellId === grp.id)!.key)} (${grp.name}).`); continue; }
     const key = out.length < HOTKEY_MAX ? nextFreeKey(out.map((h) => h.key)) : null;
     if (!key) { notes.push(`Nova magia: ${s.name}. A barra está cheia: abra os atalhos (H) para pôr numa tecla.`); continue; }
     const useFam = fam && !fam.spells.some((id) => out.some((h) => h.spellId === id));

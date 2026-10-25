@@ -12,6 +12,18 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-25a",
+    date: "25 de outubro",
+    title: "Grupos de magia e livros de magia",
+    items: [
+      "Monte a sua tecla inteligente: nos Atalhos (H), abra ◆ Grupos, escolha as magias e arraste para pôr na ordem que quiser. A tecla solta a primeira da lista que estiver pronta.",
+      "As famílias prontas viraram modelos: copie uma e ajuste do seu jeito. Até 8 grupos por personagem.",
+      "Feiticeiros e druidas ganharam escudo próprio: livros de magia do lv 8 ao 70, com mana e, nos maiores, magia.",
+      "Dona Marta vende do Livro do Aprendiz ao Grimório do Arquimago e encomenda o Tomo das Tempestades e o Grimório de Ferumbras (um por semana).",
+      "O Yeti pode soltar o Tomo das Tempestades, e Ferumbras, o próprio Grimório.",
+    ],
+  },
+  {
     id: "2026-10-24c",
     date: "24 de outubro (noite)",
     title: "Ajustes na Malha",

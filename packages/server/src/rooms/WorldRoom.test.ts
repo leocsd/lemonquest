@@ -396,20 +396,44 @@ describe("WorldRoom: atalhos de magia", () => {
     const c = fakeClient(r, "h1");
     r.onJoin(c, {}, auth("Hugo"));
     const first = c.send.mock.calls.find(([t]: any[]) => t === "hotkeys");
-    expect(first?.[1]).toEqual({ list: defaultHotkeys("sorcerer") });
+    expect(first?.[1]).toEqual({ list: defaultHotkeys("sorcerer"), groups: [] });
     const p = r.state.players.get("h1");
     r.setHotkeys(p, { list: [{ key: "KeyF", spellId: "fireball" }, { key: "KeyQ", spellId: "inferno" }, { key: "Digit2", spellId: "ice_shard" }] });
     // Confirma ao cliente a lista que ficou salva (limpa).
-    expect(c.send.mock.calls.filter(([t]: any[]) => t === "hotkeys").at(-1)?.[1]).toEqual({ list: [{ key: "KeyF", spellId: "fireball" }] });
+    expect(c.send.mock.calls.filter(([t]: any[]) => t === "hotkeys").at(-1)?.[1]).toEqual({ list: [{ key: "KeyF", spellId: "fireball" }], groups: [] });
     r.onLeave(c, 4000);
     expect(getCharacterByName("Hugo")!.data.hotkeys).toEqual([{ key: "KeyF", spellId: "fireball" }]);
     const c2 = fakeClient(r, "h2");
     r.onJoin(c2, {}, auth("Hugo"));
-    expect(c2.send.mock.calls.find(([t]: any[]) => t === "hotkeys")?.[1]).toEqual({ list: [{ key: "KeyF", spellId: "fireball" }] });
+    expect(c2.send.mock.calls.find(([t]: any[]) => t === "hotkeys")?.[1]).toEqual({ list: [{ key: "KeyF", spellId: "fireball" }], groups: [] });
     r.setHotkeys(r.state.players.get("h2"), "lixo"); // mensagem que nem é objeto: ignorada
     expect(r.records.get("h2").data.hotkeys).toEqual([{ key: "KeyF", spellId: "fireball" }]);
     r.setHotkeys(r.state.players.get("h2"), { list: "lixo" }); // lista inválida: sem atalhos
     expect(r.records.get("h2").data.hotkeys).toEqual([]);
+  });
+
+  it("grupos de magia: salvos limpos junto com os atalhos, voltam no login; sem groups na mensagem ficam; excluir tira da barra", () => {
+    const r = makeRoom();
+    createAccount("Lia", "l", "s", "sorcerer");
+    const c = fakeClient(r, "l1");
+    r.onJoin(c, {}, auth("Lia"));
+    const p = r.state.players.get("l1");
+    const groups = [
+      { id: "fam:my:1", name: "  Meu   combo ", spells: ["sudden_death", "ice_shard", "fireball", "sudden_death"] }, // druida e repetida saem
+      { id: "fam:my:99", name: "x", spells: [] }, // id fora da faixa
+    ];
+    r.setHotkeys(p, { list: [{ key: "Digit1", spellId: "fam:my:1" }, { key: "Digit2", spellId: "fam:my:2" }], groups });
+    const saved = { list: [{ key: "Digit1", spellId: "fam:my:1" }], groups: [{ id: "fam:my:1", name: "Meu combo", spells: ["sudden_death", "fireball"] }] };
+    expect(c.send.mock.calls.filter(([t]: any[]) => t === "hotkeys").at(-1)?.[1]).toEqual(saved);
+    // Cliente antigo (sem groups): os grupos ficam.
+    r.setHotkeys(p, { list: saved.list });
+    expect(r.records.get("l1").data.spellGroups).toEqual(saved.groups);
+    r.onLeave(c, 4000);
+    const c2 = fakeClient(r, "l2");
+    r.onJoin(c2, {}, auth("Lia"));
+    expect(c2.send.mock.calls.find(([t]: any[]) => t === "hotkeys")?.[1]).toEqual(saved);
+    r.setHotkeys(r.state.players.get("l2"), { list: saved.list, groups: [] });
+    expect(r.records.get("l2").data.hotkeys).toEqual([]);
   });
 
   it("barra salva de antes das famílias vira a recomendada uma vez (com aviso); a editada depois não é trocada de novo", () => {
@@ -420,7 +444,7 @@ describe("WorldRoom: atalhos de magia", () => {
     saveCharacter(rec);
     const c = fakeClient(r, "i1");
     r.onJoin(c, {}, auth("Iris"));
-    expect(c.send.mock.calls.find(([t]: any[]) => t === "hotkeys")?.[1]).toEqual({ list: defaultHotkeys("sorcerer") });
+    expect(c.send.mock.calls.find(([t]: any[]) => t === "hotkeys")?.[1]).toEqual({ list: defaultHotkeys("sorcerer"), groups: [] });
     expect(r.records.get("i1").data.hotkeysVersion).toBe(HOTKEYS_VERSION);
     r.clock.currentTime -= 3100; // avisos de entrada saem 3 s depois
     r.clock.tick();
@@ -430,7 +454,7 @@ describe("WorldRoom: atalhos de magia", () => {
     r.onLeave(c, 4000);
     const c2 = fakeClient(r, "i2");
     r.onJoin(c2, {}, auth("Iris"));
-    expect(c2.send.mock.calls.find(([t]: any[]) => t === "hotkeys")?.[1]).toEqual({ list: [{ key: "KeyF", spellId: "fireball" }] });
+    expect(c2.send.mock.calls.find(([t]: any[]) => t === "hotkeys")?.[1]).toEqual({ list: [{ key: "KeyF", spellId: "fireball" }], groups: [] });
   });
 
   it("personagem novo (sem barra e sem XP) não recebe o aviso de barra reorganizada", () => {

@@ -2,6 +2,7 @@ import type { ChatChannel, ChatMessage, CombatEvent, Dir, FightStance, Vocation 
 import type { ConditionId, SpellFx } from "./data/spells.ts";
 import type { SkillId } from "./skills.ts";
 import type { Hotkey } from "./hotkeys.ts";
+import type { SpellGroup } from "./data/spellFamilies.ts";
 import type { PartyShareReason } from "./party.ts";
 export type { SkillId };
 import type { EquipSlot, ItemInstance, Rarity, Stats } from "./data/items.ts";
@@ -330,8 +331,9 @@ export interface SpellCastMsg {
   /** Tiles afetados (pares x,y achatados) para áreas/ondas. */
   tiles?: number[];
 }
-export interface SetHotkeysMsg { list: Hotkey[] }
-export interface HotkeysMsg { list: Hotkey[] | null }
+/** `groups` ausente = não mexe nos grupos salvos (cliente antigo); presente = substitui. */
+export interface SetHotkeysMsg { list: Hotkey[]; groups?: SpellGroup[] }
+export interface HotkeysMsg { list: Hotkey[] | null; groups?: SpellGroup[] }
 export interface MonsterTelegraphMsg {
   casterId: string;
   /** Tiles que vão ser atingidos (pares x,y achatados). */
