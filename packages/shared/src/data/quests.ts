@@ -456,6 +456,23 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 90000, gold: 20000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
   }),
+  // Ciclo 12 (GD-08): o 100–109 não tinha missão. Esta prepara o trono de Orshabaal (110) com o loot dos demônios.
+  q({
+    id: "selo_do_abismo", name: "O Selo do Abismo", giver: "frontier_priest", minLevel: 100, requires: ["abyss_gates"],
+    summary: "Os portões do Abismo voltaram a rachar. O Irmão Tadeu quer forjar um selo com o que os próprios demônios carregam.",
+    steps: [
+      { kind: "kill", target: "demon", count: 20, label: "Demônios" },
+      { kind: "deliver", target: "demon_horn", count: 10, label: "Chifres de Demônio" },
+      { kind: "deliver", target: "demonic_essence", count: 5, label: "Essências Demoníacas" },
+    ],
+    dialog: {
+      offer: "Os portões que você fechou estão rachando de novo. Um selo de verdade se faz com o que os demônios carregam: dez chifres e cinco essências. E vinte deles a menos no caminho, para eu ter paz enquanto trabalho.",
+      accept: "Desça com o grupo. Os chifres caem fácil; as essências, só dos mais teimosos.",
+      progress: "Vinte demônios, dez chifres e cinco essências. O selo não se forja sozinho.",
+      complete: "O selo está pronto e brilha como brasa. Com ele, o trono de Orshabaal fica ao alcance de quem tiver coragem.",
+    },
+    rewards: { xp: 120000, gold: 25000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }] },
+  }),
   q({
     id: "orshabaal_hunt", name: "O Senhor do Abismo", giver: "frontier_priest", minLevel: 110, requires: ["abyss_gates"],
     summary: "No trono do Abismo, Orshabaal espera os tolos e os heróis.",
@@ -663,6 +680,22 @@ export const QUEST_LIST: QuestDef[] = [
       complete: "Os cães se calaram. Agora sim, a cratera está ao seu alcance.",
     },
     rewards: { xp: 90000, gold: 18000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
+  }),
+  // Ciclo 12 (GD-08): ponte entre os cães (95) e Ferumbras (120), na faixa 100–109 que não tinha missão.
+  q({
+    id: "marcha_dos_colossos", name: "A Marcha dos Colossos", giver: "sage_ignis", minLevel: 105, requires: ["hellhounds"],
+    summary: "Colossos marcham pela Cidadela sob o vulcão. Mestre Ignis quer saber de que são feitos.",
+    steps: [
+      { kind: "kill", target: "juggernaut", count: 15, label: "Colossos" },
+      { kind: "deliver", target: "juggernaut_plate", count: 5, label: "Placas de Colosso" },
+    ],
+    dialog: {
+      offer: "Com os cães calados, a Cidadela ficou à vista, e lá dentro marcham os colossos. Derrube quinze e me traga cinco placas da couraça deles. Se eu entender o metal, entendo quem os forjou.",
+      accept: "Eles são lentos, mas um golpe deles derruba muralha. Não fique na frente sem um escudo.",
+      progress: "Quinze colossos e cinco placas. A Cidadela não vai se abrir sozinha.",
+      complete: "Este metal... foi forjado com magia, não com fogo. Ferumbras está por trás disso, tenho certeza.",
+    },
+    rewards: { xp: 150000, gold: 30000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }] },
   }),
   q({
     id: "ferumbras_end", name: "O Fim de Ferumbras", giver: "sage_ignis", minLevel: 120, requires: ["hellhounds"],

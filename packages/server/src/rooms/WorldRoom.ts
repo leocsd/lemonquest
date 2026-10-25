@@ -389,6 +389,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       armor: (p) => playerArmor(p) + this.inventory.stat(p.id, "armor"),
       attack: (p) => attackProfile(p, this.inventory.weaponDef(p.id), (s) => this.inventory.stat(p.id, s)),
       dealtMult: (p) => this.dealtMult(p),
+      // Ruptura Elemental: a condição vive no ConditionSystem (criado depois; só é lido durante o tick).
+      exposedPct: (id) => this.conditions?.value(id, "exposed") ?? 0,
       imbuement: (p) => imbuementDef(p.imbuement),
       takenMult: stanceTaken,
       onLevelUp: (p) => {
@@ -411,7 +413,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       },
       onKillCredit: (pid, m) => {
         this.ach?.event(pid, "kill", { defId: m.def.id, boss: !!m.def.boss });
+        this.telemetry.onKill(pid);
       },
+      onXp: (p, n) => this.telemetry.onXp(p.id, n),
+      onDealt: (pid, dealt, resisted) => this.telemetry.onDamage(pid, dealt, resisted),
       interceptDeath: (p) => this.arena.interceptDeath(p),
       canAttackPlayer: (a, b) => this.pvp.canAttack(a, b),
       onPlayerHit: (a, b, now) => this.pvp.onHit(a, b, now),

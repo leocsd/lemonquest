@@ -4,7 +4,7 @@ import { createStore, type Unsubscribe } from "./store.ts";
 export type ConditionId =
   | "combat" | "poison" | "burn" | "energy" | "bleed" | "freeze"
   | "protect" | "haste" | "slow" | "drunk" | "regen" | "pz"
-  | "manashield" | "rooted" | "taunted" | "fed" | "berserk";
+  | "manashield" | "rooted" | "taunted" | "fed" | "berserk" | "exposed";
 
 export type ConditionGlyph = "swords" | "drop" | "flame" | "bolt" | "flake" | "shield" | "wing" | "snail" | "swirl" | "plus" | "home" | "bubble" | "vine" | "target" | "drumstick";
 
@@ -29,6 +29,8 @@ export const CONDITION_DEFS: Record<ConditionId, ConditionDef> = {
   taunted: { label: "Provocado", color: "#ff5a4a", glyph: "target" },
   fed: { label: "Alimentado", color: "#d9a05a", glyph: "drumstick" },
   berserk: { label: "Fúria (+25% de dano)", color: "#ff6a3a", glyph: "swords" },
+  // Só em monstros (Ruptura Elemental); fica no catálogo para o tipo bater com o do shared.
+  exposed: { label: "Exposto (sem resistência)", color: "#b48cf2", glyph: "bolt" },
 };
 
 export interface Condition {

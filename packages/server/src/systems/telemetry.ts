@@ -3,11 +3,19 @@
 // balanço do ciclo 8 (pendência "medir playedMs/mortes por level" dos ciclos 7 e 8). Puro: o WorldRoom liga os ganchos
 // (entrada, level up, morte, ouro) e chama `serialize` ao gravar o personagem.
 
-export interface LevelStats { ms: number; deaths: number; goldIn: number; goldOut: number }
+/**
+ * Por level. Ciclo 12 (medir antes de mexer): abates, XP, dano causado a monstros e dano perdido para a resistência
+ * elemental — o que falta para comparar as vocações e ver o efeito da resistência. Saves antigos: campos ausentes = 0.
+ */
+export interface LevelStats {
+  ms: number; deaths: number; goldIn: number; goldOut: number;
+  kills?: number; xp?: number; dmg?: number; resisted?: number;
+}
 export interface PlayData { ms: number; byLevel: Record<string, LevelStats> }
 
 interface Live { level: number; since: number; data: PlayData }
 
+// Os campos do ciclo 12 (kills, xp, dmg, resisted) só aparecem quando há dado: o save de cada level não cresce à toa.
 const emptyStats = (): LevelStats => ({ ms: 0, deaths: 0, goldIn: 0, goldOut: 0 });
 
 function cloneData(d: PlayData): PlayData {
@@ -54,6 +62,16 @@ export class PlayTelemetry {
   onDeath(id: string): void { const l = this.live.get(id); if (l) this.bucket(l).deaths++; }
   onGold(id: string, n: number): void { const l = this.live.get(id); if (l && n > 0) this.bucket(l).goldIn += Math.floor(n); }
   onSpend(id: string, n: number): void { const l = this.live.get(id); if (l && n > 0) this.bucket(l).goldOut += Math.floor(n); }
+  onKill(id: string): void { const l = this.live.get(id); if (l) { const b = this.bucket(l); b.kills = (b.kills ?? 0) + 1; } }
+  onXp(id: string, n: number): void { const l = this.live.get(id); if (l && n > 0) { const b = this.bucket(l); b.xp = (b.xp ?? 0) + Math.floor(n); } }
+  /** Dano causado a monstro (`dealt`) e o que a resistência elemental tirou dele (`resisted`). */
+  onDamage(id: string, dealt: number, resisted: number): void {
+    const l = this.live.get(id);
+    if (!l) return;
+    const b = this.bucket(l);
+    if (dealt > 0) b.dmg = (b.dmg ?? 0) + Math.round(dealt);
+    if (resisted > 0) b.resisted = (b.resisted ?? 0) + Math.round(resisted);
+  }
 
   /** Estado para gravar em `CharacterData.play` (cópia, com o tempo até agora já contado no level `level`). */
   serialize(id: string, level: number): PlayData | undefined {
@@ -98,4 +116,45 @@ function fmtGold(n: number): string {
   const sign = n < 0 ? "−" : "+";
   const v = Math.abs(n);
   return `${sign}${v >= 1000 ? `${(v / 1000).toFixed(1)} mil` : Math.round(v)}`;
+}
+
+/** Faixas do relatório por vocação (mais largas que as do /status: são poucos personagens por vocação). */
+export const VOCATION_BANDS: readonly (readonly [number, number])[] = [[1, 19], [20, 39], [40, 59], [60, 79], [80, 99], [100, 999]];
+
+/**
+ * Relatório por vocação × faixa (CLI `npm run admin -- telemetria`): horas, XP/h, abates/h, dano/h, % do dano perdido
+ * para a resistência e mortes/h. Faixa com menos de SUMMARY_MIN_MS fica de fora (amostra pequena demais).
+ */
+export function vocationReport(rows: Iterable<{ vocation: string; play: PlayData | undefined }>): string[] {
+  const acc = new Map<string, { ms: number; chars: number; xp: number; kills: number; dmg: number; resisted: number; deaths: number }>();
+  for (const r of rows) {
+    const seen = new Set<string>();
+    for (const [k, v] of Object.entries(r.play?.byLevel ?? {})) {
+      const lv = Number(k);
+      const i = VOCATION_BANDS.findIndex(([a, b]) => lv >= a && lv <= b);
+      if (i < 0 || !(v.ms > 0)) continue;
+      const key = `${r.vocation}|${i}`;
+      const a = acc.get(key) ?? { ms: 0, chars: 0, xp: 0, kills: 0, dmg: 0, resisted: 0, deaths: 0 };
+      a.ms += v.ms; a.xp += v.xp ?? 0; a.kills += v.kills ?? 0; a.dmg += v.dmg ?? 0; a.resisted += v.resisted ?? 0; a.deaths += v.deaths ?? 0;
+      if (!seen.has(key)) { seen.add(key); a.chars++; }
+      acc.set(key, a);
+    }
+  }
+  const out: string[] = [];
+  for (const voc of ["knight", "paladin", "sorcerer", "druid"]) {
+    VOCATION_BANDS.forEach(([lo, hi], i) => {
+      const a = acc.get(`${voc}|${i}`);
+      if (!a || a.ms < SUMMARY_MIN_MS) return;
+      const h = a.ms / 3_600_000;
+      const lost = a.dmg + a.resisted > 0 ? Math.round((100 * a.resisted) / (a.dmg + a.resisted)) : 0;
+      out.push(`${voc.padEnd(8)} ${(hi >= 999 ? `${lo}+` : `${lo}–${hi}`).padEnd(7)} ${h.toFixed(1).padStart(5)} h (${a.chars} pers.) · `
+        + `${fmtNum(a.xp / h)} XP/h · ${Math.round(a.kills / h)} abates/h · ${fmtNum(a.dmg / h)} dano/h · ${lost}% resistido · `
+        + `${(a.deaths / h).toFixed(1)} mortes/h`);
+    });
+  }
+  return out.length ? out : ["Ainda sem 10 min jogados com a telemetria nova em nenhuma vocação/faixa."];
+}
+
+function fmtNum(n: number): string {
+  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} mi` : n >= 1000 ? `${(n / 1000).toFixed(1)} mil` : String(Math.round(n));
 }

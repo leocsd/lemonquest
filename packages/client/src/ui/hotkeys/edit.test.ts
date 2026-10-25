@@ -53,9 +53,10 @@ describe("edição dos atalhos", () => {
   it("sem magia repetida: escolher a magia de outra linha troca as duas; com todas já em atalhos, não adiciona", () => {
     expect(setRowSpell(L, 1, "fireball")).toEqual([{ key: "Digit1", spellId: "energy_wave" }, { key: "Digit2", spellId: "fireball" }]);
     let list: Hotkey[] = [];
-    for (let i = 0; i < 11; i++) list = addRow(list, "knight").list; // cavaleiro tem 11 magias
+    // Paladino: 11 magias, uma tecla sobrando (o cavaleiro chegou a 12 com a Muralha de Escudos e bateria no limite antes).
+    for (let i = 0; i < 11; i++) list = addRow(list, "paladin").list;
     expect(new Set(list.map((h) => h.spellId)).size).toBe(11);
-    expect(addRow(list, "knight")).toMatchObject({ error: true, message: "Todas as suas magias já têm atalho." });
+    expect(addRow(list, "paladin")).toMatchObject({ error: true, message: "Todas as suas magias já têm atalho." });
   });
 
   describe("magia nova ao subir de level", () => {

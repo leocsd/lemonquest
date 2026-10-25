@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-25c",
+    date: "25 de outubro (noite)",
+    title: "Fim de jogo: magias do lv 100, missões e chefes no expediente",
+    items: [
+      "Lv 100: Muralha de Escudos (cavaleiro), Luz Restauradora (paladino), Ruptura Elemental (feiticeiro) e Raízes da Terra (druida).",
+      "Já passou do 100? Abra os Atalhos (H) e ponha a magia nova numa tecla.",
+      "Missões novas: O Selo do Abismo (Irmão Tadeu, lv 100) e A Marcha dos Colossos (Mestre Ignis, lv 105).",
+      "Ferumbras agora aparece também na terça às 17h, e Orshabaal na quinta às 17h. Junte o grupo!",
+    ],
+  },
+  {
     id: "2026-10-25b",
     date: "25 de outubro (tarde)",
     title: "Elementos, Dragão de Gelo e andar mais liso",

@@ -10,7 +10,7 @@ const VOCS: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
 const LEVELS = [1, 5, 10, 15, 20, 30];
 const CONDITIONS: ConditionId[] = [
   "combat", "poison", "burn", "energy", "bleed", "freeze", "protect", "haste", "slow", "drunk", "regen", "pz",
-  "manashield", "rooted", "taunted", "berserk",
+  "manashield", "rooted", "taunted", "berserk", "exposed",
 ];
 
 /** Estimativa de magic level por vocação/level (magos ~22 no lvl 30, cavaleiros ~4). */
@@ -43,18 +43,20 @@ const healPct = (id: string, voc: Vocation, level: number) => value(SPELLS[id]!,
 const HEALS = ["light_heal"];
 
 describe("SPELLS", () => {
-  it("cada vocação tem 10-12 magias (cabem nos atalhos), com UMA cura própria", () => {
+  it("cada vocação tem 11-13 magias, com UMA cura própria (cabem nos atalhos pelas famílias: hotkeys.test.ts)", () => {
     for (const v of VOCS) {
       const list = spellsFor(v);
-      expect(list.length, v).toBeGreaterThanOrEqual(10);
-      expect(list.length, v).toBeLessThanOrEqual(HOTKEY_MAX);
+      expect(list.length, v).toBeGreaterThanOrEqual(11);
+      // Desde as famílias (ciclo 11) uma tecla junta várias magias: o que precisa caber em HOTKEY_MAX é a barra
+      // recomendada, não a lista (o feiticeiro e o druida passaram de 12 com as magias do lv 100).
+      expect(list.length, v).toBeLessThanOrEqual(HOTKEY_MAX + 1);
       expect(list.map((s) => s.level), v).toEqual([...list.map((s) => s.level)].sort((a, b) => a - b));
       expect(list.some((s) => s.id === "light_heal"), v).toBe(true);
       // exatamente uma cura em si mesmo (alvo "self" com heal); a cura em grupo do druida é outra coisa
       expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(["light_heal"]);
       expect(list.every((s) => s.vocations.includes(v))).toBe(true);
     }
-    expect(Object.keys(SPELLS).length).toBe(39);
+    expect(Object.keys(SPELLS).length).toBe(43);
   });
 
   it("cura única: exura (lv1) para todas as vocações; sem exura gran/vita; druida mantém exura mas sio", () => {
@@ -219,12 +221,31 @@ describe("SPELLS", () => {
       expect(burnPerSec).toBeLessThan(regenPerSec * 2.5);
     });
 
-    it("fim de jogo: 4 magias novas por vocação (lv 35, 50, 70, 90), sem cura nova", () => {
+    it("fim de jogo: magias novas por vocação nos lv 35, 50, 70, 90 e 100, sem cura nova", () => {
       for (const v of VOCS) {
         const late = spellsFor(v).filter((s) => s.level > 30);
-        expect(late.map((s) => s.level), v).toEqual([35, 50, 70, 90]);
+        expect(late.map((s) => s.level), v).toEqual([35, 50, 70, 90, 100]);
         expect(late.some((s) => s.heal), v).toBe(false);
       }
+    });
+
+    it("lv 100 (ciclo 12): uma magia de utilidade por vocação, sem dano, para o grupo ou contra o alvo", () => {
+      const u = Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).find((s) => s.level === 100)!]));
+      for (const v of VOCS) {
+        expect(u[v]!.damage, v).toBeUndefined();
+        expect(u[v]!.heal, v).toBeUndefined();
+        expect(u[v]!.condition, v).toBeDefined();
+        expect(u[v]!.cooldownMs, v).toBeGreaterThanOrEqual(20_000);
+      }
+      // Cavaleiro: protege o grupo, mas menos que a Pele de Ferro só nele (30%).
+      expect(u.knight).toMatchObject({ target: "party", condition: { id: "protect", value: 20 } });
+      expect(u.knight!.condition!.value!).toBeLessThan(SPELLS.iron_skin!.condition!.value!);
+      // Paladino: regen do grupo = 450 de vida em 10 s, abaixo de uma Poção de Vida Grande por aliado.
+      expect(u.paladin).toMatchObject({ target: "party", condition: { id: "regen" } });
+      expect(u.paladin!.condition!.value! * (u.paladin!.condition!.durationMs / 1000)).toBeLessThanOrEqual(450);
+      // Feiticeiro: Ruptura no alvo; Druida: raiz em área.
+      expect(u.sorcerer).toMatchObject({ target: "target", condition: { id: "exposed" } });
+      expect(u.druid).toMatchObject({ target: "area_self", condition: { id: "rooted" } });
     });
 
     it("magia nova de dano rende 1-1,7x a melhor magia antiga da mesma categoria no level em que libera", () => {

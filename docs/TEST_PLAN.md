@@ -141,6 +141,16 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — 2026-10-25 (livros e grupos de magia, elementos e lag, ciclo 12)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1087 passados, 1 pulado (`npm test`); typecheck limpo |
+| Lag ao andar | `movement.lag.test.ts` (simulação predição × servidor com atraso/variação/engasgo) falha sem as correções; no navegador, rede igual à do dono (proxy 73 ms ±15 por sentido, engasgo 3% de 250 ms): 7 puxões → 0 desistências; LAN: 2 → 0 |
+| E2E completo (elementos/lag) | 62/64: `ground.spec` e `look.spec` falharam por itens de outros specs no chão; passam isolados; `ground.spec` "arrastar" agora filtra pelo próprio canto (3/3 em `--repeat-each=3`) |
+| E2E ciclo 12 | `hotkeys.spec` 4/4, `quests.spec` 2/2, `spells.spec` 2/2 em `--repeat-each=2` + caso novo do lv 100 (2/2). No lv 90 a barra mostra 7 teclas: a 8ª (Ruptura, lv 100) fica oculta até liberar |
+| Produção | Telemetria nova só a partir do deploy do ciclo 12: rodar `admin.mjs telemetria` em ~1 semana |
+
 ## Resultados — ajuste da Malha (2026-10-24, nomes comuns e saídas)
 
 typecheck 0 erros; `npx vitest run` 90 arquivos, 1055 passaram, 1 skip; `diff-world.mjs` contra o mapa do `main`:

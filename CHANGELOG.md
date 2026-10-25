@@ -1,5 +1,33 @@
 # Changelog
 
+## [Não lançado] — 2026-10-25 · ciclo 12: fim de jogo 90–120 e medição
+
+Pedido do dono depois da análise com os dados de produção (11 contas, 15 personagens): dois personagens perto do lv 100,
+dois na onda 59 do Coliseu, ninguém tinha matado Orshabaal nem Ferumbras, e o 100–109 não tinha missão (GD-08).
+Escolhidos: **(1) conteúdo de fim de jogo** e **(4) medir antes de mexer** (vocações com a resistência nova, parede
+do lv 60–80 com amostra pequena, fim de jogo solo F2-3).
+
+**Uma magia de utilidade por vocação no lv 100** (sem dano: muda o que o grupo consegue fazer)
+- Cavaleiro **Muralha de Escudos** (`utamo mas res`): grupo a 3 tiles recebe 20% menos dano por 8 s.
+- Paladino **Luz Restauradora** (`exura mas san`): grupo a 4 tiles regenera 45/s por 10 s.
+- Feiticeiro **Ruptura Elemental** (`exori mas vis`): o alvo perde a resistência elemental e toma +15% de dano
+  elemental por 12 s (condição nova `exposed`, `damageTakenMult(def, kind, exposedPct)`).
+- Druida **Raízes da Terra** (`exevo mas tera`): prende os monstros num raio de 3 por 3 s.
+- Condição mais forte ativa não é mais rebaixada por uma mais fraca (a Muralha de 20% do grupo não apaga a Pele de
+  Ferro de 30% do cavaleiro). Regra "≤ 12 magias por vocação" trocada por "a barra recomendada cabe em 12 teclas"
+  (feiticeiro e druida chegaram a 13; as famílias juntam).
+
+**Missões 100–109**: **O Selo do Abismo** (Irmão Tadeu, lv 100: 20 demônios, 10 chifres, 5 essências) e **A Marcha
+dos Colossos** (Mestre Ignis, lv 105: 15 colossos, 5 placas). Usam loot que já existia.
+
+**Chefes no expediente**: Ferumbras ganha a edição de **terça 17h** e Orshabaal a de **quinta 17h** (as de fim de
+semana continuam, para quem joga de casa).
+
+**Medição**: a telemetria por level passa a gravar **abates, XP, dano causado a monstros e dano perdido para a
+resistência** (campos só aparecem quando há dado). `npm run admin -- telemetria` (e `admin.mjs telemetria` no
+Docker) mostra o resumo por faixa e o relatório **por vocação** (XP/h, abates/h, dano/h, % resistido, mortes/h).
+Revisar em ~1 semana antes de decidir F2-3 (fim de jogo solo) e qualquer ajuste de vocação.
+
 ## [Não lançado] — 2026-10-25 · resistência elemental, Dragão de Gelo e o lag ao andar
 
 **Resistência elemental** (pedido do dono: "dragão de fogo toma menos dano com magia de fogo")

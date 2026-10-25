@@ -380,3 +380,22 @@ describe("resistência elemental", () => {
     expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(125);
   });
 });
+
+describe("telemetria de dano (ciclo 12)", () => {
+  it("onDealt recebe o dano tirado do monstro e o que a resistência cortou; dano em boneco não conta", () => {
+    const w = setup({ hp: 10_000, armor: 0, damageKind: "fire" });
+    w.add(player("p", 11, 10));
+    const got: [string, number, number][] = [];
+    w.combat.hooks = { ...w.combat.hooks, onDealt: (id, d, r) => got.push([id, d, r]) };
+    w.combat.damageMonster(w.m, "p", 100, "fire", w.now());
+    w.combat.damageMonster(w.m, "p", 100, "ice", w.now());
+    w.combat.damageMonster(w.m, "ninguem", 100, "ice", w.now()); // fonte que não é jogador
+    expect(got).toEqual([["p", 50, 50], ["p", 100, 0]]);
+    const d = setup({ hp: 10_000, armor: 0, invulnerable: true });
+    d.add(player("q", 11, 10));
+    const got2: unknown[] = [];
+    d.combat.hooks = { ...d.combat.hooks, onDealt: (...a) => got2.push(a) };
+    d.combat.damageMonster(d.m, "q", 100, "physical", d.now());
+    expect(got2).toEqual([]);
+  });
+});

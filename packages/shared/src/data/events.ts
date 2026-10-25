@@ -43,6 +43,10 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   // Fim de semana: Ferumbras à tarde e o único chefe noturno (Orshabaal), para quem joga de casa.
   { id: "retorno_de_ferumbras", name: "Retorno de Ferumbras", desc: "Ferumbras voltou à Cidadela! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 0, hour: 15, durationMin: 90, boss: "ferumbras" },
   { id: "invasao_de_orshabaal", name: "Invasão de Orshabaal", desc: "Orshabaal subiu do Abismo! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 6, hour: 21, durationMin: 90, boss: "orshabaal" },
+  // Ciclo 12: em produção ninguém tinha matado Ferumbras nem Orshabaal (só apareciam no fim de semana, sem ninguém
+  // online). Ganham também uma edição no fim do expediente, nos dias livres às 17h (como o Apito da Locomotiva).
+  { id: "ferumbras_no_expediente", name: "Ferumbras na Cidadela", desc: "Ferumbras voltou à Cidadela! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 2, hour: 17, durationMin: 60, boss: "ferumbras" },
+  { id: "orshabaal_no_expediente", name: "Cerco de Orshabaal", desc: "Orshabaal subiu do Abismo! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 4, hour: 17, durationMin: 60, boss: "orshabaal" },
 ];
 
 /** Evento em andamento (agendado ou disparado por admin). */

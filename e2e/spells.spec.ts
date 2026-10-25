@@ -53,7 +53,8 @@ test("feiticeiro lv 90: as 4 magias novas conjuram pelas palavras", async ({ pag
   await castWorks(page, "exori gran flam", "eternal_flame", true);
   await castWorks(page, "exevo flam hur", "fire_wave", false);
   await castWorks(page, "exevo gran mas vis", "electric_storm", false);
-  // Barra recomendada: as 12 magias em 7 teclas (1–7), com as famílias ◆ (alvo, área, onda).
+  // Barra recomendada: 13 magias em 8 teclas, com as famílias ◆ (alvo, área, onda). No lv 90 aparecem 7: a tecla 8 é a
+  // Ruptura Elemental (lv 100), e a barra só mostra o que já está liberado.
   await expect(page.locator(".action-slot")).toHaveCount(7);
   await expect(page.locator(".action-slot.family")).toHaveCount(3);
   await expect(page.locator(".action-slot").nth(6).locator(".action-key")).toHaveText("7");
@@ -67,4 +68,15 @@ test("cavaleiro lv 50: Fúria (utito tempo) gasta mana e aparece nas condições
   await castWorks(page, "utito tempo", "berserk", false);
   await expect(page.locator(".conditions [data-tip^='Fúria']")).toHaveCount(1);
   await castWorks(page, "exori min", "front_sweep", false);
+});
+
+test("cavaleiro lv 100: Muralha de Escudos (utamo mas res) protege e aparece nas condições; a tecla 9 aparece na barra", async ({ page }) => {
+  await enterGame(page, "knight");
+  await setLevel(page, 100);
+  const spot = (await walkableNear(page, FOREST.x, FOREST.y, 4))[0]!;
+  await teleport(page, spot.x, spot.y);
+  await castWorks(page, "utamo mas res", "shield_wall", false);
+  await expect(page.locator(".conditions [data-tip^='Protegido']")).toHaveCount(1);
+  // Barra recomendada do cavaleiro: 9 teclas; no lv 100 todas liberadas, a última é a Muralha.
+  await expect(page.locator(".action-slot")).toHaveCount(9);
 });

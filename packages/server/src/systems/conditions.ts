@@ -63,6 +63,9 @@ export class ConditionSystem {
     if (!map) { map = new Map(); this.byId.set(targetId, map); }
     const interval = id === "regen" ? REGEN_TICK_MS : DOT_KIND[id] ? DOT_INTERVAL_MS : 0;
     const prev = map.get(id);
+    // Não rebaixa: uma condição mais forte ainda ativa fica (a Muralha de Escudos de 20% do grupo não apaga a Pele de
+    // Ferro de 30% do cavaleiro; uma Luz Restauradora fraca não troca uma regen mais forte).
+    if (prev && prev.until > now && prev.value > Math.max(0, value ?? 0)) return;
     map.set(id, {
       id, until: now + durationMs, value: Math.max(0, value ?? 0), sourceId,
       // Renovar não reinicia o relógio dos tiques (evita tique duplo ou perdido).

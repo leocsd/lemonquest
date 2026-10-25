@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  HOTKEY_MAX,
+  HOTKEY_MAX, defaultHotkeys,
   BASE_STEP_MS, Dir, evalSpellFormula, mitigateSpell, playerDamageRange, GLOBAL_SPELL_COOLDOWN_MS, S2C, SKILL_START, TICK_MS, skillTriesFor, stepDuration,
   MONSTERS, SPELLS, spellMana, spellsFor, type MonsterDef, type SpellDef, type Vocation,
 } from "@lemonquest/shared";
@@ -35,6 +35,11 @@ const SP: Record<string, SpellDef> = {
 
 // Curas reais do catálogo (ids não colidem com as fixtures).
 Object.assign(SP, { light_heal: SPELLS.light_heal });
+// Magias de utilidade do lv 100 (ciclo 12), reais do catálogo.
+Object.assign(SP, {
+  shield_wall: SPELLS.shield_wall, iron_skin: SPELLS.iron_skin, restoring_light: SPELLS.restoring_light,
+  elemental_rupture: SPELLS.elemental_rupture, earth_roots: SPELLS.earth_roots,
+});
 
 // Fixtures fora do cooldown global (exceto heal/bolt/big/free), para os testes de efeito.
 for (const s of Object.values(SP)) if (!["heal", "bolt", "big", "free", "light_heal"].includes(s.id)) s.global = false;
@@ -521,7 +526,52 @@ describe("curas de todas as vocações (catálogo real)", () => {
     expect(w.spells.castWords(p, "exura gran")).toBe(false);
   });
 
-  it("os atalhos (HOTKEY_MAX) comportam todas as magias de cada vocação", () => {
-    for (const v of VOCS) expect(spellsFor(v).length, v).toBeLessThanOrEqual(HOTKEY_MAX);
+  it("os atalhos (HOTKEY_MAX) comportam todas as magias de cada vocação (a barra recomendada, com as famílias)", () => {
+    for (const v of VOCS) expect(defaultHotkeys(v).length, v).toBeLessThanOrEqual(HOTKEY_MAX);
+  });
+});
+
+describe("magias de utilidade do lv 100 (ciclo 12)", () => {
+  it("Ruptura Elemental: o alvo perde a resistência ao próprio elemento e toma +15% de dano elemental; físico igual", () => {
+    const w = setup({ monsters: [{ x: 10, y: 10, def: { damageKind: "fire", hp: 100_000 } }] });
+    w.combat.hooks.exposedPct = (id) => w.conditions.value(id, "exposed");
+    const p = w.addP("p", 12, 10, { vocation: "sorcerer", level: 100, mana: 5000, maxMana: 5000 });
+    const m = w.ms[0]!;
+    expect(w.combat.damageMonster(m, "p", 100, "fire", w.now())).toBe(50); // resistente ao próprio fogo
+    p.targetId = m.s.id;
+    expect(w.spells.cast(p, "elemental_rupture")).toMatchObject({ ok: true });
+    expect(w.combat.damageMonster(m, "p", 100, "fire", w.now())).toBe(115);
+    expect(w.combat.damageMonster(m, "p", 100, "ice", w.now())).toBe(115);
+    expect(w.combat.damageMonster(m, "p", 100, "physical", w.now())).toBe(100);
+    w.run(12_500); // passou o efeito
+    expect(w.combat.damageMonster(m, "p", 100, "fire", w.now())).toBe(50);
+  });
+
+  it("Muralha de Escudos: protege o grupo (20%) sem rebaixar a Pele de Ferro (30%) de quem já tem", () => {
+    const w = setup({ monsters: [{ x: 30, y: 30 }], isAlly: () => true });
+    const k = w.addP("k", 10, 10, { vocation: "knight", level: 100, mana: 5000, maxMana: 5000 });
+    const ally = w.addP("a", 12, 10);
+    const far = w.addP("f", 20, 10);
+    expect(w.spells.cast(k, "iron_skin")).toMatchObject({ ok: true });
+    expect(w.spells.cast(k, "shield_wall")).toMatchObject({ ok: true });
+    expect(w.conditions.value(k.id, "protect")).toBe(30);
+    expect(w.conditions.value(ally.id, "protect")).toBe(20);
+    expect(w.conditions.value(far.id, "protect")).toBe(0);
+  });
+
+  it("Luz Restauradora: regen de 45/s no grupo a até 4 tiles", () => {
+    const w = setup({ monsters: [{ x: 30, y: 30 }], isAlly: () => true });
+    const pal = w.addP("pal", 10, 10, { vocation: "paladin", level: 100, mana: 5000, maxMana: 5000 });
+    const ally = w.addP("a", 13, 10, { hp: 100, maxHp: 2000 });
+    expect(w.spells.cast(pal, "restoring_light")).toMatchObject({ ok: true });
+    w.run(3100);
+    expect(ally.hp).toBeGreaterThanOrEqual(100 + 3 * 45);
+  });
+
+  it("Raízes da Terra: prende os monstros num raio de 3; o de fora continua livre", () => {
+    const w = setup({ monsters: [{ x: 12, y: 10 }, { x: 10, y: 13 }, { x: 18, y: 10 }] });
+    const d = w.addP("d", 10, 10, { vocation: "druid", level: 100, mana: 5000, maxMana: 5000 });
+    expect(w.spells.cast(d, "earth_roots")).toMatchObject({ ok: true });
+    expect(w.ms.map((m) => w.conditions.has(m.s.id, "rooted"))).toEqual([true, true, false]);
   });
 });

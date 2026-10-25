@@ -6,6 +6,25 @@ Reflete o estado real. Números `#` = itens de [GAME_AUDIT.md](GAME_AUDIT.md). S
 Ordem de leitura: **Ciclo 9** (o que está em andamento e as decisões tomadas) → pendências dos ciclos 7/7b/8 → ⛔.
 Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
+## Ciclo 12 (2026-10-25) — fim de jogo 90–120 e medição
+
+Análise com dados de produção (11 contas, 15 personagens, telemetria desde 22/10): fim de jogo alcançado (lv 99/102,
+Coliseu onda 59), 0 abates de Orshabaal/Ferumbras (só agendados no fim de semana), 100–109 sem missão, ouro acumulado no
+topo (gasto de 23% acima do 100), 7 de 15 personagens são feiticeiros, possível parede no 60–80 (9,3 mortes/h em 1,5 h).
+Decisão do dono: **fim de jogo** e **medir antes de mexer**; gasto de ouro no topo e mentor/níveis misturados ficam
+como propostas.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C12-1 | 1 magia de utilidade por vocação no lv 100 (Muralha de Escudos, Luz Restauradora, Ruptura Elemental, Raízes da Terra); condição `exposed`; condição mais forte não é rebaixada (F2-8, parte) | ✅ 2026-10-25 | `spells.test.ts` (shared e server), `spellFamilies`, `hotkeys.test.ts`; E2E `spells.spec.ts` (lv 100) |
+| C12-2 | Missões 100–109: O Selo do Abismo (lv 100) e A Marcha dos Colossos (lv 105) (F2-8, parte) | ✅ 2026-10-25 | `quests.test.ts`, `questWorld.test.ts` |
+| C12-3 | Ferumbras terça 17h e Orshabaal quinta 17h (além do fim de semana) | ✅ 2026-10-25 | `events.test.ts` (sem sobreposição) |
+| C12-4 | Telemetria: abates, XP, dano e dano resistido por level; `admin telemetria` com relatório por vocação | ✅ 2026-10-25 | `telemetry.test.ts`, `combat.test.ts`, `recovery.test.ts` |
+| C12-5 | **Revisar a telemetria em ~1 semana** (até 2026-11-01): força das vocações com a resistência, mortes no 60–80, F2-3 fim de jogo solo | ⏳ | `admin.mjs telemetria` em produção |
+| C12-6 | Gasto de ouro no topo (refino de equipamento, cosmético caro…) | 🧭 | formato a decidir pelo dono |
+| C12-7 | Jogar junto com níveis diferentes (bônus de mentor, Coliseu pelo level médio) | 🧭 | proposta |
+| C12-8 | F2-8 restante: elite "nomeado" de colosso/demônio | ⏳ | |
+
 ## Ajuste pós-ciclo 11 (2026-10-24) — nomes comuns e saídas da Malha
 
 | Item | Status | Validação |

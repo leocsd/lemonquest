@@ -252,6 +252,9 @@ describe("CLI: npm run admin -- reset-password <conta>", () => {
       expect(await runAdminCli([], io, file)).toBe(1);
       expect(await runAdminCli(["deleted"], io, file)).toBe(0);
       expect(out.at(-1)).toBe("Nenhum personagem excluído.");
+      // telemetria: só leitura; sem dados ainda, diz que não há amostra.
+      expect(await runAdminCli(["telemetria"], io, file)).toBe(0);
+      expect(out.at(-1)).toMatch(/Ainda sem 10 min jogados/);
 
       initDb(file);
       ok(await handleResetPassword({ account: "time azul", code: m![1]!, password: "senhanova" }));

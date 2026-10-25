@@ -83,6 +83,8 @@ export interface CombatHooks {
   attack?: (p: PlayerState) => AttackProfile;
   /** Multiplicador do dano causado (postura). */
   dealtMult?: (p: PlayerState) => number;
+  /** % de dano elemental extra no monstro (condição "exposed", Ruptura Elemental); 0 = nenhuma. */
+  exposedPct?: (monsterId: string) => number;
   /** Encantamento ativo do jogador (Dona Marta). Só aplicado no ataque automático contra monstro selvagem (PvE). */
   imbuement?: (p: PlayerState) => ImbuementDef | undefined;
   /** Multiplicador do dano recebido (postura). */
@@ -93,6 +95,10 @@ export interface CombatHooks {
   onMonsterKilled?: (m: Monster) => void;
   /** Um jogador teve parte no abate de um monstro (todos que causaram dano, inclusive no coliseu); `shared` = mais de um jogador. */
   onKillCredit?: (playerId: string, m: Monster, shared: boolean) => void;
+  /** XP recebida (telemetria). */
+  onXp?: (p: PlayerState, amount: number) => void;
+  /** Dano que um jogador tirou de monstro selvagem e o que a resistência elemental cortou (telemetria). */
+  onDealt?: (playerId: string, dealt: number, resisted: number) => void;
   /**
    * Antes da morte normal (penalidade + templo): retorna true se outro sistema assumiu a morte (coliseu: sem
    * penalidade; ele mesmo teletransporta e restaura). Alvos/combate já foram limpos.
@@ -281,7 +287,9 @@ export class CombatSystem {
     if (m.s.hp <= 0 || this.o.monsters.get(m.s.id) !== m) return 0;
     // Resistência elemental: o próprio elemento entra pela metade (shared damageTakenMult). Ponto único: magia,
     // ataque automático, habilidade e invocação passam por aqui.
-    amount *= damageTakenMult(m.def, kind);
+    const before = amount;
+    amount *= damageTakenMult(m.def, kind, this.hooks.exposedPct?.(m.s.id) ?? 0);
+    const resisted = Math.max(0, before - amount);
     if (m.def.invulnerable) {
       // Boneco de treino: mostra o dano (e marca combate), mas a vida não muda, ninguém ganha XP/loot nem ele revida.
       const shown = Math.max(0, Math.round(amount));
@@ -297,6 +305,7 @@ export class CombatSystem {
     }
     const dealt = Math.min(m.s.hp, Math.max(0, Math.round(amount)));
     const credit = o.creditId ?? sourceId;
+    if (credit && (dealt > 0 || resisted > 0) && this.o.getPlayer(credit)) this.hooks.onDealt?.(credit, dealt, resisted);
     this.push({
       sourceId, targetId: m.s.id, amount: dealt, kind,
       crit: o.crit && dealt > 0 ? true : undefined,
@@ -431,6 +440,7 @@ export class CombatSystem {
   /** Dá XP e processa level ups (vários de uma vez, se for o caso). */
   gainXp(p: PlayerState, amount: number, x: number, y: number): void {
     p.xp += amount;
+    this.hooks.onXp?.(p, amount);
     const id = p.id;
     this.after.push(() => this.o.send(id, S2C.XpGain, { amount, x, y } satisfies XpGainMsg));
     const level = levelForXp(p.xp);

@@ -2,7 +2,8 @@
 //   npm run admin -- reset-password <conta>
 //   Docker: docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 // Abre a base em LEMONQUEST_DB (ou data/lemonquest.db). Pode rodar com o servidor ligado (SQLite WAL + busy_timeout).
-import { closeDb, initDb, listDeletedCharacters } from "./db.ts";
+import { closeDb, initDb, listDeletedCharacters, listRankingRows } from "./db.ts";
+import { summarizePlay, vocationReport } from "../systems/telemetry.ts";
 import { createResetCode, formatResetCode } from "./auth.ts";
 
 export interface CliIO { out: (line: string) => void; err: (line: string) => void }
@@ -11,6 +12,7 @@ const USAGE = [
   "Uso:",
   "  npm run admin -- reset-password <conta>   gera um código de recuperação de senha (8 caracteres, 24 h, uso único)",
   "  npm run admin -- deleted                  lista os personagens excluídos (arquivo deleted_characters)",
+  "  npm run admin -- telemetria               progressão medida por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h)",
   "Base: LEMONQUEST_DB (padrão: data/lemonquest.db).",
 ];
 
@@ -21,13 +23,21 @@ export async function runAdminCli(args: string[], io: CliIO = { out: console.log
     for (const l of USAGE) io.out(l);
     return cmd ? 0 : 1;
   }
-  if (cmd !== "reset-password" && cmd !== "deleted") {
+  if (cmd !== "reset-password" && cmd !== "deleted" && cmd !== "telemetria") {
     io.err(`Comando desconhecido: ${cmd}`);
     for (const l of USAGE) io.err(l);
     return 1;
   }
   initDb(dbFile);
   try {
+    if (cmd === "telemetria") {
+      // Só leitura. Com o servidor ligado, vale o último autosave (quem está online pode estar alguns minutos atrás).
+      const rows = listRankingRows();
+      for (const l of summarizePlay(rows.map((r) => r.data.play))) io.out(l);
+      io.out("Por vocação (desde a telemetria do ciclo 12; abates, XP e dano só contam a partir dela):");
+      for (const l of vocationReport(rows.map((r) => ({ vocation: r.vocation, play: r.data.play })))) io.out(`  ${l}`);
+      return 0;
+    }
     if (cmd === "deleted") {
       const rows = listDeletedCharacters();
       if (!rows.length) io.out("Nenhum personagem excluído.");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PlayTelemetry, SUMMARY_MIN_MS, summarizePlay } from "./telemetry.ts";
+import { PlayTelemetry, SUMMARY_MIN_MS, summarizePlay, vocationReport } from "./telemetry.ts";
 
 const H = 3_600_000;
 
@@ -74,5 +74,34 @@ describe("telemetria de progressão", () => {
 
   it("resumo sem dados avisa", () => {
     expect(summarizePlay([])[0]).toContain("ainda sem 10 min");
+  });
+});
+
+describe("telemetria do ciclo 12: abates, XP, dano e resistência", () => {
+  it("conta no level atual e sobrevive ao save; save antigo sem os campos vale 0", () => {
+    let now = 0;
+    const t = new PlayTelemetry(() => now);
+    t.onJoin("a", 90, { ms: 0, byLevel: { "90": { ms: 1000, deaths: 1, goldIn: 5, goldOut: 0 } } });
+    t.onKill("a"); t.onKill("a");
+    t.onXp("a", 8000.7);
+    t.onDamage("a", 300, 100);
+    t.onDamage("a", 0, 0);
+    now = 60_000;
+    const d = t.serialize("a", 90)!;
+    expect(d.byLevel["90"]).toMatchObject({ deaths: 1, goldIn: 5, kills: 2, xp: 8000, dmg: 300, resisted: 100 });
+  });
+
+  it("relatório por vocação e faixa: XP/h, abates/h, dano/h, % resistido e mortes/h; amostra pequena fica de fora", () => {
+    const lv = (ms: number, x: Partial<Record<"kills" | "xp" | "dmg" | "resisted" | "deaths", number>>) => ({ ms, goldIn: 0, goldOut: 0, deaths: 0, ...x });
+    const lines = vocationReport([
+      { vocation: "sorcerer", play: { ms: 2 * H, byLevel: { "100": lv(H, { kills: 60, xp: 600_000, dmg: 300_000, resisted: 100_000, deaths: 2 }), "101": lv(H, { kills: 40, xp: 400_000, dmg: 100_000, resisted: 0 }) } } },
+      { vocation: "knight", play: { ms: SUMMARY_MIN_MS - 1, byLevel: { "100": lv(SUMMARY_MIN_MS - 1, { kills: 5 }) } } },
+      { vocation: "druid", play: undefined },
+    ]);
+    expect(lines).toHaveLength(1);
+    for (const part of ["sorcerer 100+", "2.0 h (1 pers.)", "500.0 mil XP/h", "50 abates/h", "200.0 mil dano/h", "20% resistido", "1.0 mortes/h"]) {
+      expect(lines[0]).toContain(part);
+    }
+    expect(vocationReport([])).toEqual(["Ainda sem 10 min jogados com a telemetria nova em nenhuma vocação/faixa."]);
   });
 });

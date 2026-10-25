@@ -4,7 +4,9 @@ import type { DamageKind, Vocation } from "../types.ts";
 export type ConditionId =
   | "combat" | "poison" | "burn" | "energy" | "bleed" | "freeze"
   | "protect" | "haste" | "slow" | "drunk" | "regen" | "pz"
-  | "manashield" | "rooted" | "taunted" | "fed" | "berserk";
+  | "manashield" | "rooted" | "taunted" | "fed" | "berserk"
+  /** Monstro sem resistência elemental e com +value% de dano elemental (Ruptura Elemental, lv 100). */
+  | "exposed";
 
 /** Fórmula de magia (estilo Tibia): valor = base + level*perLevel + magicLevel*perMagic, ±variance. */
 export interface SpellFormula {
@@ -314,6 +316,32 @@ export const SPELLS: Record<string, SpellDef> = {
     target: "target", range: 6, damage: { kind: "ice", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "ice",
     description: "O gelo mais forte do druida: dano enorme no alvo e 50% de lentidão.",
+  },
+
+  // --- Lv 100 (ciclo 12, GD-08): uma magia de UTILIDADE por vocação para o fim de jogo em grupo (Orshabaal, Ferumbras,
+  // Colossos). Sem dano: cada uma muda o que o grupo consegue fazer, não o número da rotação.
+  shield_wall: {
+    id: "shield_wall", name: "Muralha de Escudos", words: "utamo mas res", vocations: ["knight"], level: 100, mana: 120, cooldownMs: 40_000,
+    // Não soma com a Pele de Ferro (30%, só nele): a condição mais forte ativa não é rebaixada (ConditionSystem.apply).
+    target: "party", radius: 3, condition: { id: "protect", durationMs: 8000, value: 20 }, fx: "buff",
+    description: "Você e os aliados a até 3 tiles recebem 20% menos dano por 8 segundos.",
+  },
+  restoring_light: {
+    id: "restoring_light", name: "Luz Restauradora", words: "exura mas san", vocations: ["paladin"], level: 100, mana: 150, cooldownMs: 30_000,
+    target: "party", radius: 4, condition: { id: "regen", durationMs: 10_000, value: 45 }, fx: "heal",
+    description: "Uma luz cobre o grupo a até 4 tiles: cada um recupera 45 de vida por segundo durante 10 segundos.",
+  },
+  elemental_rupture: {
+    id: "elemental_rupture", name: "Ruptura Elemental", words: "exori mas vis", vocations: ["sorcerer"], level: 100, mana: 120, cooldownMs: 20_000,
+    // Responde à resistência elemental (monstro toma metade do próprio elemento): por 12 s o alvo perde a resistência e
+    // toma +15% de todo dano elemental, de qualquer um do grupo.
+    target: "target", range: 5, condition: { id: "exposed", durationMs: 12_000, value: 15 }, fx: "energy",
+    description: "Rompe as defesas do alvo por 12 segundos: ele perde a resistência elemental e toma 15% a mais de dano mágico.",
+  },
+  earth_roots: {
+    id: "earth_roots", name: "Raízes da Terra", words: "exevo mas tera", vocations: ["druid"], level: 100, mana: 160, cooldownMs: 25_000,
+    target: "area_self", radius: 3, condition: { id: "rooted", durationMs: 3000 }, fx: "root",
+    description: "Raízes brotam do chão num raio de 3 tiles e prendem os inimigos no lugar por 3 segundos.",
   },
 };
 

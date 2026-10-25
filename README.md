@@ -89,6 +89,7 @@ Sem nenhum admin online, o dono do servidor gera o código pelo terminal:
 ```bash
 npm run admin -- reset-password <conta>          # na pasta do projeto (usa LEMONQUEST_DB ou data/lemonquest.db)
 npm run admin -- deleted                         # lista personagens excluídos (arquivo deleted_characters)
+npm run admin -- telemetria                      # progressão por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h)
 ```
 
 Docker: veja [deploy/docker/README.md](deploy/docker/README.md#9-administração).

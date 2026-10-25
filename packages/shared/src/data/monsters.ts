@@ -1224,11 +1224,15 @@ export const MONSTER_RESPAWN_MULT = 0.7;
  */
 export const OWN_ELEMENT_TAKEN = 0.5;
 
-/** Fração do dano de `kind` que o monstro recebe (depois da armadura). */
-export function damageTakenMult(d: Pick<MonsterDef, "damageKind" | "resist">, kind: DamageKind): number {
+/**
+ * Fração do dano de `kind` que o monstro recebe (depois da armadura). `exposedPct` = Ruptura Elemental ativa no monstro
+ * (condição "exposed"): o dano elemental perde a resistência e ganha +exposedPct%; o físico não muda.
+ */
+export function damageTakenMult(d: Pick<MonsterDef, "damageKind" | "resist">, kind: DamageKind, exposedPct = 0): number {
   const own = d.resist?.[kind];
-  if (own !== undefined) return own;
-  return kind !== "physical" && kind === d.damageKind ? OWN_ELEMENT_TAKEN : 1;
+  const base = own !== undefined ? own : kind !== "physical" && kind === d.damageKind ? OWN_ELEMENT_TAKEN : 1;
+  if (!(exposedPct > 0) || kind === "physical") return base;
+  return Math.max(base, 1) * (1 + exposedPct / 100);
 }
 
 /** Elementos em que o dano recebido não é o normal (bestiário), na ordem: resistências primeiro. */
