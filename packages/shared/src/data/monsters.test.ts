@@ -3,7 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CALL_HELP_ID } from "./monsterAbilities.ts";
-import { ELITE, ELITE_CHANCE, HELP_RADIUS, MONSTERS, canBeElite, eliteName, monsterAbilitySpell, monsterDamageMult, summonScaled } from "./monsters.ts";
+import {
+  ELITE, ELITE_CHANCE, HELP_RADIUS, MONSTERS, OWN_ELEMENT_TAKEN, canBeElite, damageTakenMult, eliteName, monsterAbilitySpell, monsterDamageMult,
+  monsterResistances, summonScaled,
+} from "./monsters.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const world = JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8"));
@@ -138,5 +141,25 @@ describe("ciclo 8: dano por level, respawn, elites e bandos", () => {
       expect(a.healAllies!.pct, id).toBeGreaterThan(0);
       expect(a.fx).toBe("heal");
     }
+  });
+});
+
+describe("resistência elemental", () => {
+  it("todo bicho de elemento resiste ao próprio; físico nunca muda; dragões de fogo e de gelo resistem cada um ao seu", () => {
+    for (const m of Object.values(MONSTERS)) {
+      expect(damageTakenMult(m, "physical"), m.id).toBe(1);
+      if (m.damageKind !== "physical") expect(damageTakenMult(m, m.damageKind), m.id).toBe(OWN_ELEMENT_TAKEN);
+    }
+    expect(damageTakenMult(MONSTERS.dragon!, "fire")).toBe(0.5);
+    expect(damageTakenMult(MONSTERS.dragon!, "ice")).toBe(1);
+    expect(damageTakenMult(MONSTERS.frost_dragon!, "ice")).toBe(0.5);
+    expect(damageTakenMult(MONSTERS.frost_dragon!, "fire")).toBe(1);
+    expect(monsterResistances(MONSTERS.frost_dragon!)).toEqual([{ kind: "ice", mult: 0.5 }]);
+    expect(monsterResistances(MONSTERS.rat!)).toEqual([]);
+  });
+
+  it("o Dragão de Gelo usa o sprite próprio (não o dragão verde tingido)", () => {
+    expect(MONSTERS.frost_dragon!.sprite.url).toBe("monsters/FrostDragon.png");
+    expect(MONSTERS.frost_dragon!.sprite.tint).toBeUndefined();
   });
 });

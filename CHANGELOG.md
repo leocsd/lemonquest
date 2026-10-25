@@ -1,5 +1,38 @@
 # Changelog
 
+## [Não lançado] — 2026-10-25 · resistência elemental, Dragão de Gelo e o lag ao andar
+
+**Resistência elemental** (pedido do dono: "dragão de fogo toma menos dano com magia de fogo")
+- Bicho de elemento toma **metade do dano do próprio elemento** (`OWN_ELEMENT_TAKEN`, `damageTakenMult` no shared):
+  dragões/demônios a fogo, Dragão de Gelo/Yeti a gelo, mortos-vivos a morte, aranhas/gosmas a terra. Físico nunca muda.
+  Ponto único em `CombatSystem.damageMonster` (magia, varinha/bastão, habilidade, invocação). `MonsterDef.resist`
+  permite ajustar monstro a monstro (inclusive fraqueza > 1). O Bestiário mostra "Resiste a".
+- O simulador do Coliseu (`arena.test.ts`) passou a considerar a resistência (magias e ataque da arma); metas mantidas.
+
+**Dragão de Gelo com sprite próprio**: era o dragão verde tingido (a tinta multiplica; verde nunca vira azul-gelo).
+`tools/monsters/recolor.mjs` troca a paleta cor por cor → `assets/monsters/FrostDragon.png` (pasta nova no build).
+
+**Lag ao andar** (pedido do dono: "é bug ou delay do servidor?"). Diagnóstico: o PC do dono chega ao servidor pelo
+Tailscale com ~146 ms de ida e volta e ~10% de perda; reproduzido com um proxy de rede ruim + medição por quadro no
+Playwright e com uma simulação predição × servidor. Eram **bugs da predição**, que a rede ruim só tornava visíveis:
+- **Seguir em vez de prever**: depois de qualquer correção, o passo vindo do servidor contava inteiro a partir da
+  chegada, e o cliente ficava um passo atrás só seguindo o servidor (cada variação da rede virava tranco) até soltar
+  a tecla. Agora desconta meia ida e volta e volta a liderar em ~3 passos.
+- **Último passo perdido ao soltar/trocar de direção** (até 17 puxões por minuto, já na LAN): a mensagem chegava antes
+  do instante em que o servidor daria o passo que o cliente já tinha dado. `MoveMsg.at` diz onde a predição está e o
+  servidor completa esse passo (`owed`) antes de mudar.
+- **Passo recusado em silêncio** (monstro/NPC entrou no tile, bloqueio de PvP): o cliente só desistia por tempo
+  (450 ms) e puxava 2–3 tiles. Agora o servidor avisa (`PlayerView.bump`) e a correção sai em uma ida e volta.
+- **Teleporte com a tecla segurada** (portal, morte): o servidor larga a tecla, o cliente seguia prevendo passos do outro
+  lado e puxava de volta. O cliente agora também larga (anda de novo ao reapertar).
+- Tempo-limite da confirmação 450 → 800 ms e com a variação da latência (média + 4 desvios, como o TCP): virou só rede
+  de segurança. Sonda E2E `__lq.predStats()`.
+- Medição no navegador (andando com Pés Ligeiros, 6 idas e voltas): na rede do dono, 7 puxões e paradas de ~315 ms →
+  0 desistências e nenhuma parada; na LAN, 2 desistências por rodada → 0. Teste novo `movement.lag.test.ts` (falha
+  sem as correções) e casos em `movement.test.ts`/`predictor.test.ts`.
+- Recomendação de rede: jogar pela LAN do escritório (ou Tailscale direto, sem relay); com perda de pacotes nenhum
+  ajuste de cliente some com os engasgos do TCP.
+
 ## [Não lançado] — 2026-10-25 · livros de magia e grupos de magia
 
 **Grupos de magia** (pedido do dono: escolher as magias e a ordem da tecla inteligente)

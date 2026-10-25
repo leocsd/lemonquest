@@ -1,7 +1,7 @@
 // Combate estilo Tibia: alvo + ataque automático a cada PLAYER_ATTACK_MS; dano de monstros; XP, level e morte.
 import {
   ELITE, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, S2C, VOCATION_ATTACK, baseStats, critChance, deathPenalty, levelForXp, mitigate, shieldArmorBonus,
-  applyXpStage, autoAttackRange, rollAttack, rollInt, splitXp, xpForLevel, xpStage,
+  applyXpStage, autoAttackRange, damageTakenMult, rollAttack, rollInt, splitXp, xpForLevel, xpStage,
   type AttackMsg, type ItemDef, type SkillId, type CombatEvent, type CombatMsg, type CreatureDiedMsg, type DiedMsg, type LevelUpMsg,
   type DamageKind, type ImbuementDef, type NoticeMsg, type XpGainMsg,
 } from "@lemonquest/shared";
@@ -279,6 +279,9 @@ export class CombatSystem {
   damageMonster(m: Monster, sourceId: string, amount: number, kind: DamageKind, now: number,
     o: { creditId?: string; crit?: boolean; ranged?: boolean } = {}): number {
     if (m.s.hp <= 0 || this.o.monsters.get(m.s.id) !== m) return 0;
+    // Resistência elemental: o próprio elemento entra pela metade (shared damageTakenMult). Ponto único: magia,
+    // ataque automático, habilidade e invocação passam por aqui.
+    amount *= damageTakenMult(m.def, kind);
     if (m.def.invulnerable) {
       // Boneco de treino: mostra o dano (e marca combate), mas a vida não muda, ninguém ganha XP/loot nem ele revida.
       const shown = Math.max(0, Math.round(amount));

@@ -41,6 +41,11 @@ export interface MonsterDef {
   damageKind: DamageKind;
   /** Redução fixa de dano recebido. */
   armor: number;
+  /**
+   * Multiplicador do dano recebido por elemento (0,5 = metade; 1,25 = 25% a mais), aplicado depois da armadura.
+   * Substitui o padrão por elemento; sem a chave vale `damageTakenMult` (o próprio elemento resiste).
+   */
+  resist?: Partial<Record<DamageKind, number>>;
   /** Intervalo entre ataques (ms). */
   attackMs: number;
   /** 1 = corpo a corpo; >1 = ataque à distância até esse alcance (Chebyshev). */
@@ -868,7 +873,8 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "ring_dragon", chance: 0.01 },
       { itemId: "frost_ring", chance: 0.004 },
     ],
-    sprite: grid4(M + "Dragon/SpriteSheet.png", { tint: 0xa8dcff, scale: 1.1 }),
+    // Paleta trocada (tools/monsters/recolor.mjs): a tinta sobre o dragão verde ficava esverdeada.
+    sprite: grid4("monsters/FrostDragon.png", { scale: 1.1 }),
   },
   // Caverna dos Heróis (lv 65-75).
   necromancer: {
@@ -1210,6 +1216,26 @@ export const MONSTER_DAMAGE_TIERS: readonly { fromLevel: number; mult: number }[
 ];
 /** Respawn dos monstros comuns (não chefes): ×0,7 (~30% mais rápido). */
 export const MONSTER_RESPAWN_MULT = 0.7;
+
+/**
+ * Resistência elemental (pedido do dono): bicho do elemento X toma menos dano de X (dragão de fogo resiste a fogo, de
+ * gelo a gelo, morto-vivo a morte). Vale para qualquer fonte (magia, varinha/bastão, invocação). Físico não muda: o
+ * cavaleiro e o paladino batem igual em todo mundo.
+ */
+export const OWN_ELEMENT_TAKEN = 0.5;
+
+/** Fração do dano de `kind` que o monstro recebe (depois da armadura). */
+export function damageTakenMult(d: Pick<MonsterDef, "damageKind" | "resist">, kind: DamageKind): number {
+  const own = d.resist?.[kind];
+  if (own !== undefined) return own;
+  return kind !== "physical" && kind === d.damageKind ? OWN_ELEMENT_TAKEN : 1;
+}
+
+/** Elementos em que o dano recebido não é o normal (bestiário), na ordem: resistências primeiro. */
+export function monsterResistances(d: Pick<MonsterDef, "damageKind" | "resist">): { kind: DamageKind; mult: number }[] {
+  const kinds: DamageKind[] = ["fire", "ice", "energy", "earth", "holy", "death", "physical"];
+  return kinds.map((kind) => ({ kind, mult: damageTakenMult(d, kind) })).filter((r) => r.mult !== 1).sort((a, b) => a.mult - b.mult);
+}
 
 /** Fica de fora do multiplicador e das elites: invocação de jogador e boneco de treino (XP 0, parados). */
 const scalesWithLevel = (d: Pick<MonsterDef, "xp" | "stationary" | "invulnerable">) => d.xp > 0 && !d.stationary && !d.invulnerable;

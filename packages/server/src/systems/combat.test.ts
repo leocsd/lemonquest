@@ -368,3 +368,15 @@ describe("crédito do abate: só quem está perto", () => {
     expect(far.xp).toBe(0);
   });
 });
+
+describe("resistência elemental", () => {
+  it("bicho do elemento toma metade do dano desse elemento; outros elementos e físico, normal; resist do dado manda", () => {
+    const w = setup({ hp: 10_000, armor: 0, damageKind: "fire" });
+    expect(w.combat.damageMonster(w.m, "p", 100, "fire", w.now())).toBe(50);
+    expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(100);
+    expect(w.combat.damageMonster(w.m, "p", 100, "physical", w.now())).toBe(100);
+    w.m.def = { ...w.m.def, resist: { fire: 1, ice: 1.25 } };
+    expect(w.combat.damageMonster(w.m, "p", 100, "fire", w.now())).toBe(100);
+    expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(125);
+  });
+});

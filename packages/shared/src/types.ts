@@ -48,6 +48,12 @@ export interface PlayerView {
   dir: Dir;            // última direção de movimento/olhar
   stepMs: number;      // duração do passo atual (para interpolar)
   seq: number;         // último input "move" processado (reconciliação)
+  /**
+   * Passo da tecla segurada recusado pelo servidor (tile ocupado por monstro/NPC/jogador, bloqueio de PvP): cresce
+   * (mod 256) a cada recusa. Sem isso o boneco não muda de tile, nada é enviado e o cliente só desistia da predição
+   * pelo tempo-limite (450 ms+), puxando 2–3 tiles para trás.
+   */
+  bump?: number;
   hp: number;
   maxHp: number;
   mana: number;

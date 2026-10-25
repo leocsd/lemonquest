@@ -115,3 +115,69 @@ describe("Predictor", () => {
     expect(r.x).toBe(0);
   });
 });
+
+describe("Predictor em rede ruim (lag ao andar)", () => {
+  const LONG = grid(Array.from({ length: 12 }, () => ".".repeat(12)));
+  const make = () => { const p = new Predictor({ grid: LONG, spawn: null, isOccupied: () => false }); p.reset(0, 0, Dir.S); return p; };
+  /** Confirma `n` passos com a espera `rtt` (alimenta a média e o desvio da latência). */
+  const warm = (p: Predictor, rtts: number[]) => {
+    let t = 0;
+    for (const rtt of rtts) {
+      const ev = p.update(t)!;
+      expect(ev.kind).toBe("step");
+      p.onServerPos(p.x, p.y, STEP, t + rtt);
+      t = p.stepEndsAt;
+    }
+    return t;
+  };
+
+  it("passo externo com a tecla segurada desconta meia ida e volta: o próximo é previsto a tempo e volta a liderar", () => {
+    const p = make();
+    p.press(Dir.S);
+    const t = warm(p, [200, 200, 200]); // ~200 ms até confirmar
+    p.reset(0, 3, Dir.S); // como depois de uma correção: sem previsões, servidor seguindo sozinho
+    p.press(Dir.E);
+    expect(p.onServerPos(1, 3, STEP, t)).toEqual({ kind: "external", ms: STEP });
+    expect(p.stepEndsAt).toBe(t + STEP - 100);
+    // Sem tecla (clique, perseguição): o passo inteiro, como antes.
+    const q = make();
+    q.press(Dir.S); warm(q, [200, 200]); q.release();
+    q.reset(0, 3, Dir.S);
+    q.onServerPos(1, 3, STEP, 5000);
+    expect(q.stepEndsAt).toBe(5000 + STEP);
+  });
+
+  it("espera pela confirmação cresce com a variação da latência (média + 4 desvios), não só com a média", () => {
+    const steady = make(); steady.press(Dir.S);
+    warm(steady, [150, 150, 150, 150, 150]);
+    const shaky = make(); shaky.press(Dir.S);
+    warm(shaky, [150, 900, 150, 900, 150]);
+    expect(steady.confirmTimeoutMs).toBe(CONFIRM_TIMEOUT_MS);
+    expect(shaky.confirmTimeoutMs).toBeGreaterThan(steady.confirmTimeoutMs);
+    expect(shaky.confirmTimeoutMs).toBeLessThanOrEqual(CONFIRM_TIMEOUT_MAX_MS);
+  });
+
+  it("passo recusado pelo servidor (bump): volta já para a posição dele; sem previsão pendente, nada muda", () => {
+    const p = make();
+    p.press(Dir.E);
+    p.update(0); p.update(STEP); // previu (1,0) e (2,0)
+    expect(p.onRefused(0, 0, STEP + 50)).toBe(true);
+    expect([p.x, p.y, p.unconfirmed, p.stats.refused]).toEqual([0, 0, 0, 1]);
+    expect(p.onRefused(0, 0, STEP + 60)).toBe(false);
+  });
+});
+
+describe("Predictor: teleporte com a tecla segurada", () => {
+  it("salto longo (portal, morte) larga a tecla como o servidor: nada de passos previstos do outro lado", () => {
+    const LONG = grid(Array.from({ length: 12 }, () => ".".repeat(12)));
+    const p = new Predictor({ grid: LONG, spawn: null, isOccupied: () => false });
+    p.reset(0, 0, Dir.E);
+    p.press(Dir.E);
+    p.update(0);
+    expect(p.onServerPos(8, 8, 0, 100)).toMatchObject({ kind: "external" });
+    expect(p.update(200)).toBeNull();
+    expect(p.update(2000)).toBeNull();
+    p.press(Dir.E); // reapertou: anda de novo
+    expect(p.update(2100)).toMatchObject({ kind: "step", x: 9, y: 8 });
+  });
+});

@@ -115,6 +115,10 @@ test("itens no chão: arrastar um item do chão para outro tile", async ({ page 
   const spots = (await walkableNear(page, 60, 80, 8)).filter((t, _i, all) =>
     all.some((o) => o.x === t.x + 1 && o.y === t.y) && all.some((o) => o.x === t.x + 2 && o.y === t.y) && clear(t.x, t.y) && clear(t.x + 2, t.y));
   const base = spots[0]!;
+  // Só as poções deste canto: o chão dura 10 min e outros testes (ou repetições) deixam poções em outros lugares.
+  const potions = async () => (await ground(page))
+    .filter((g) => g.defId === "mana_potion" && Math.abs(g.y - base.y) <= 1 && g.x >= base.x - 1 && g.x <= base.x + 3)
+    .map((g) => `${g.x},${g.y}`);
   await teleport(page, base.x, base.y);
   await say(page, "/item mana_potion 1");
   await expect.poll(() => countOf(page, "mana_potion"), { timeout: 10_000 }).toBe(1);
@@ -124,7 +128,7 @@ test("itens no chão: arrastar um item do chão para outro tile", async ({ page 
   const from = await tileToClient(page, base.x + 1, base.y, 0.6);
   const to = await tileToClient(page, base.x + 2, base.y, 0.6);
   await drag(page, from, to);
-  await expect.poll(async () => (await ground(page)).filter((g) => g.defId === "mana_potion").map((g) => `${g.x},${g.y}`), { timeout: 10_000 })
+  await expect.poll(potions, { timeout: 10_000 })
     .toEqual([`${base.x + 2},${base.y}`]);
   expect(await countOf(page, "mana_potion")).toBe(0);
 
@@ -133,6 +137,6 @@ test("itens no chão: arrastar um item do chão para outro tile", async ({ page 
   await teleport(page, far.x, far.y);
   await waitSettled(page);
   await drag(page, await tileToClient(page, base.x + 2, base.y, 0.6), await tileToClient(page, base.x + 1, base.y, 0.6));
-  await expect.poll(async () => (await ground(page)).filter((g) => g.defId === "mana_potion").map((g) => `${g.x},${g.y}`), { timeout: 15_000 })
+  await expect.poll(potions, { timeout: 15_000 })
     .toEqual([`${base.x + 1},${base.y}`]);
 });

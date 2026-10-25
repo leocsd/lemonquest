@@ -154,7 +154,12 @@ export type NpcTradeMsg =
 export interface CastMsg { spellId: string; targetId?: string | null }
 
 export interface AttackMsg { targetId: string | null }
-export interface MoveMsg { dir: Dir | null; seq: number }
+/**
+ * `at`: onde a predição do cliente está ao enviar (soltar ou trocar de direção). Se for o próximo tile na direção que
+ * estava segurada, o servidor completa esse passo antes de mudar a intenção: sem isso, quando a mensagem chegava antes
+ * do instante em que o servidor daria o passo, ele era perdido e o cliente puxava o boneco de volta (lag ao soltar).
+ */
+export interface MoveMsg { dir: Dir | null; seq: number; at?: { x: number; y: number } }
 /**
  * Andar até (x,y) pelo caminho. `stop: true` = só cancela o caminho em andamento (o passo já começado termina);
  * x/y são ignorados (o cliente manda o próprio tile, que num servidor antigo também para).

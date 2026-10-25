@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ARENA_BREAK_MS, ARENA_COUNTDOWN_MS, ARENA_MAX_WAVE, arenaWave, ARENA_INTRO_MS, ARENA_SHOP_PAUSE_MS, ARENA_SPAWN_DELAY_MS, S2C, arenaWaveGold,
   ARENA_COMPLETE_GOLD, ITEMS, arenaWaveSpawns, autoAttackRange, baseStats, manaRegenAmount, mitigateSpell, monsterDef,
-  shieldArmorBonus, spellMana, spellsFor, type ItemDef, type TiledMap, type Vocation,
+  damageTakenMult, shieldArmorBonus, spellMana, spellsFor, type DamageKind, type ItemDef, type MonsterDef, type TiledMap, type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { ArenaSystem, parseArenas, type ArenaLayout } from "./arena.ts";
@@ -460,20 +460,26 @@ function fighter(v: Vocation, L: number) {
     v, L, ml, hp: maxHp + bonus("hpMax"),
     armor: bonus("armor") + (gear.some((g) => g.slot === "shield") ? shieldArmorBonus(v === "knight" ? wsk : 10) : 0),
     auto: ((r[0] + r[1]) / 2) * (1 + 0.5 * crit) * 0.95,
+    autoKind: (weapon?.damageKind ?? "physical") as DamageKind,
     regen: manaRegenAmount(mana, L, true, false) / 2,
     spells: spellsFor(v).filter((s) => s.damage && s.level <= L),
   };
 }
 type Fighter = ReturnType<typeof fighter>;
 
-/** Dano por segundo no foco e em área (por alvo) contra `k` monstros de armadura `arm`; cura de poção por segundo. */
-function rotation(f: Fighter, k: number, arm: number) {
+/**
+ * Dano por segundo no foco e em área (por alvo) contra `k` monstros como `foe` (armadura e resistência elemental);
+ * cura de poção por segundo. A rotação prefere o que rende mais contra esse monstro (como o jogador com os grupos).
+ */
+function rotation(f: Fighter, k: number, foe: MonsterDef) {
+  const arm = foe.armor;
   const list = f.spells.map((s) => {
     const raw = s.damage!.base + f.L * s.damage!.perLevel + f.ml * s.damage!.perMagic;
     const cap = AREA_CAP[s.target] ?? 1;
-    return { d: mitigateSpell(raw, arm, s.damage!.kind), t: Math.min(k, cap), area: cap > 1, cd: s.cooldownMs / 1000, mana: spellMana(s, f.L) };
+    const d = mitigateSpell(raw, arm, s.damage!.kind) * damageTakenMult(foe, s.damage!.kind);
+    return { d, t: Math.min(k, cap), area: cap > 1, cd: s.cooldownMs / 1000, mana: spellMana(s, f.L) };
   }).sort((a, b) => b.d * b.t - a.d * a.t);
-  let gcd = 1, st = Math.max(0, f.auto - arm) / 2, aoe = 0, manaPs = 0;
+  let gcd = 1, st = (Math.max(0, f.auto - arm) * damageTakenMult(foe, f.autoKind)) / 2, aoe = 0, manaPs = 0;
   for (const x of list) {
     const rate = Math.min(1 / x.cd, gcd);
     if (rate <= 0) break;
@@ -506,11 +512,11 @@ function arenaRun(vocs: Vocation[], L: number): number {
   const n = fs.length, maxHp = fs.reduce((s, f) => s + f.hp, 0), armor = fs.reduce((s, f) => s + f.armor, 0) / n;
   let hp = maxHp;
   for (let w = 1; w <= ARENA_MAX_WAVE; w++) {
-    const mons = arenaWaveSpawns(w, n, L).map((s) => ({ hp: monsterDef(s.defId)!.hp * s.hpMult, armor: monsterDef(s.defId)!.armor, dps: monsterDps(s, armor) }));
+    const mons = arenaWaveSpawns(w, n, L).map((s) => ({ def: monsterDef(s.defId)!, hp: monsterDef(s.defId)!.hp * s.hpMult, dps: monsterDps(s, armor) }));
     for (let t = 0; mons.some((m) => m.hp > 0); t += 0.25) {
       const alive = mons.filter((m) => m.hp > 0);
       let st = 0, aoe = 0, heal = 0;
-      for (const f of fs) { const r = rotation(f, alive.length, alive[0]!.armor); st += r.st; aoe += r.aoe; heal += r.heal; }
+      for (const f of fs) { const r = rotation(f, alive.length, alive[0]!.def); st += r.st; aoe += r.aoe; heal += r.heal; }
       alive[0]!.hp -= st * 0.25;
       for (const m of alive.slice(0, 4)) m.hp -= aoe * 0.25;
       hp = Math.min(maxHp, hp + (heal - alive.reduce((s, m) => s + m.dps, 0)) * 0.25);

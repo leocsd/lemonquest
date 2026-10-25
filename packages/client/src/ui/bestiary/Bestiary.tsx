@@ -1,13 +1,13 @@
 // Bestiário (tecla B): monstros que você já derrotou, com vida, XP, dano e o que podem soltar. Os que ainda não foram
 // derrotados aparecem como "???" (o level fica visível para dar uma ideia de onde procurar).
-import { MONSTERS, itemDef } from "@lemonquest/shared";
+import { MONSTERS, itemDef, monsterResistances } from "@lemonquest/shared";
 import { useState } from "preact/hooks";
 import { createStore, useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { useWindowDrag } from "../hud/useWindowDrag.ts";
 import { achievementsStore, requestAchievements } from "../achievements/achievements.ts";
 import { bindOverlay } from "../overlays.ts";
-import { bestiaryRows, chanceText, damageLabel, progressText } from "./bestiaryLogic.ts";
+import { bestiaryRows, chanceText, damageLabel, progressText, resistText } from "./bestiaryLogic.ts";
 import "./bestiary.css";
 
 export const bestiaryOpen = createStore(false);
@@ -65,6 +65,7 @@ function BestiaryDialog() {
                 <dt>XP</dt><dd>{def.xp.toLocaleString("pt-BR")}</dd>
                 <dt>Dano</dt><dd>{def.damage[0]}–{def.damage[1]} ({damageLabel(def.damageKind)}){def.attackRange > 1 ? ` · alcance ${def.attackRange}` : ""}</dd>
                 <dt>Armadura</dt><dd>{def.armor}</dd>
+                {monsterResistances(def).length > 0 && <><dt>Resiste a</dt><dd>{resistText(monsterResistances(def))}</dd></>}
                 {def.gold && <><dt>Ouro</dt><dd>{def.gold[0]}–{def.gold[1]}</dd></>}
                 {def.fleeAtHpPct > 0 && <><dt>Comportamento</dt><dd>foge com {Math.round(def.fleeAtHpPct * 100)}% de vida</dd></>}
               </dl>

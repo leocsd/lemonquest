@@ -109,6 +109,8 @@ export class WorldScene extends Phaser.Scene {
   private predictor!: Predictor;
   private input_!: KeyboardInput;
   private moveSeq = 0;
+  /** Último PlayerView.bump visto do próprio jogador (passo recusado pelo servidor). */
+  private lastBump = 0;
   private myLevel = 1;
   private myMaxHp = 1;
 
@@ -448,11 +450,16 @@ export class WorldScene extends Phaser.Scene {
       this.predictor.speedPct = p.speedPct ?? 100;
       this.setMyStats(p.level, p.maxHp);
       this.onServerTarget(p.targetId ?? "");
-      if (!moved) return; // direção local é a da predição
-      const r = this.predictor.onServerPos(p.x, p.y, p.stepMs, performance.now());
-      if (r.kind === "external") this.moveVisual(id, actor, p.x, p.y, r.ms, p.dir);
-      else if (r.kind === "diverged") actor.correctTo(p.x, p.y);
-      return;
+      const bumped = (p.bump ?? 0) !== this.lastBump;
+      this.lastBump = p.bump ?? 0;
+      if (moved) {
+        const r = this.predictor.onServerPos(p.x, p.y, p.stepMs, performance.now());
+        if (r.kind === "external") this.moveVisual(id, actor, p.x, p.y, r.ms, p.dir);
+        else if (r.kind === "diverged") actor.correctTo(p.x, p.y);
+      }
+      // Passo recusado (monstro entrou no tile, bloqueio de PvP): corrige já, sem esperar o tempo-limite.
+      if (bumped && this.predictor.onRefused(p.x, p.y, performance.now())) actor.correctTo(p.x, p.y);
+      return; // sem mudar de tile, a direção local é a da predição
     }
 
     if (moved) this.moveVisual(id, actor, p.x, p.y, p.stepMs, p.dir);
@@ -588,9 +595,11 @@ export class WorldScene extends Phaser.Scene {
     if (d !== null) { this.pendingNpc = null; this.pendingGround = null; window.clearTimeout(this.groundWalkTimer); window.clearTimeout(this.chordTimer); }
     // Mesma ordem do servidor: primeiro recupera um passo que já era devido com a intenção antiga.
     this.stepLocal();
+    // Onde a predição está: se já deu o próximo passo da direção antiga, o servidor o completa antes de mudar.
+    const at = { x: this.predictor.x, y: this.predictor.y };
     if (d === null) this.predictor.release();
     else this.predictor.press(d);
-    this.room.send(C2S.Move, { dir: d, seq: ++this.moveSeq } satisfies MoveMsg);
+    this.room.send(C2S.Move, { dir: d, seq: ++this.moveSeq, at } satisfies MoveMsg);
     this.stepLocal(); // sem esperar o próximo frame: zero atraso percebido
   }
 
@@ -991,6 +1000,8 @@ export class WorldScene extends Phaser.Scene {
         return !!a && stableFrames >= 3 && !a.isMoving && this.pcam.isCenteredOn(a.rx + TILE_SIZE / 2, a.ry + TILE_SIZE / 2);
       },
       players: () => [...this.known].map(([id, k]) => ({ id, x: k.x, y: k.y })),
+      /** Reconciliações da predição do próprio jogador (diagnóstico de lag) e a espera atual pela confirmação. */
+      predStats: () => ({ ...this.predictor.stats, timeoutMs: this.predictor.confirmTimeoutMs }),
       monsters: () => [...this.creatureKnown].filter(([id]) => !this.dying.has(id))
         .map(([id, k]) => ({ id, x: k.x, y: k.y, ...this.creatureInfo.get(id) })),
       ground: () => this.ground?.all() ?? [],

@@ -35,6 +35,13 @@ export const DAMAGE_LABEL: Record<string, string> = {
 };
 export const damageLabel = (k: string): string => DAMAGE_LABEL[k] ?? k;
 
+/** "fogo: metade do dano · gelo: +25%" (vazio = toma dano normal de tudo). */
+export function resistText(rs: readonly { kind: string; mult: number }[]): string {
+  return rs.map(({ kind, mult }) =>
+    `${damageLabel(kind)}: ${mult === 0 ? "imune" : mult === 0.5 ? "metade do dano" : mult < 1 ? `−${Math.round((1 - mult) * 100)}%` : `+${Math.round((mult - 1) * 100)}%`}`,
+  ).join(" · ");
+}
+
 /** "12 de 40 conhecidos" */
 export function progressText(rows: readonly BestiaryRow[]): string {
   return `${rows.filter((r) => r.known).length} de ${rows.length} conhecidos`;
