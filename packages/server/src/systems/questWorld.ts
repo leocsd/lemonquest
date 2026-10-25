@@ -3,11 +3,14 @@
 // - Alavanca de grupo (Aniquilação): com jogadores em pelo menos `minPlayers` placas (todos com o level mínimo, e quem puxa
 //   também numa placa) e a sala vazia, puxar a alavanca solta os monstros na sala (quantidade pelo tamanho do grupo, `leverMonsters`) e leva os
 //   jogadores aos destinos das suas placas. Monstros da sala somem se ela ficar vazia.
+//   Cada personagem entra 1× por dia de jogo (troca às 6h, o mesmo relógio das recompensas diárias): sem isso a sala
+//   virava fazenda de demônios sob demanda.
 import {
   QUEST_OBJECT_RANGE, S2C, leverMonsters, monsterDef, questChestDef, questChestGroup, questLeverDef,
   type FeedMsg, type NoticeMsg, type QuestChestDef, type QuestLeverSpot, type QuestObjectSpot, type UseQuestObjectMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
+import { bountyDay } from "./bounties.ts";
 import type { Monster, MonsterManager } from "./monsters.ts";
 import { cheb } from "./monsters.ts";
 
@@ -25,6 +28,12 @@ export interface QuestWorldOptions {
   send: (sessionId: string, type: string, msg: unknown) => void;
   broadcast?: (type: string, msg: unknown) => void;
   now?: () => number;
+  /**
+   * Dia de jogo (`bountyDay`) da última entrada do personagem pela alavanca, persistido em `CharacterData.leverDay`.
+   * Ausente = guarda só em memória (testes); a regra de 1 entrada por dia vale do mesmo jeito.
+   */
+  getLeverDay?: (id: string) => string | undefined;
+  setLeverDay?: (id: string, day: string) => void;
 }
 
 interface LeverRun { monsterIds: string[]; emptySince: number }
@@ -32,9 +41,14 @@ interface LeverRun { monsterIds: string[]; emptySince: number }
 export class QuestWorldSystem {
   private readonly runs = new Map<string, LeverRun>();
   private readonly now: () => number;
+  private readonly leverDays = new Map<string, string>();
+  private readonly getLeverDay: (id: string) => string | undefined;
+  private readonly setLeverDay: (id: string, day: string) => void;
 
   constructor(private readonly o: QuestWorldOptions) {
     this.now = o.now ?? Date.now;
+    this.getLeverDay = o.getLeverDay ?? ((id) => this.leverDays.get(id));
+    this.setLeverDay = o.setLeverDay ?? ((id, day) => { this.leverDays.set(id, day); });
   }
 
   /** Tiles de baús/alavancas (bloqueados; a IA e o drop de itens não usam). */
@@ -82,9 +96,15 @@ export class QuestWorldSystem {
     if (!group.includes(p)) return this.notice(p, "Suba numa placa para puxar a alavanca.", "warn");
     const weak = group.find((q) => q.level < def.minLevel);
     if (weak) return this.notice(p, `A alavanca não se mexe: todos precisam ser level ${def.minLevel} ou mais (${weak.name} não é).`, "warn");
+    const now = this.now();
+    const today = bountyDay(now);
+    const been = group.filter((q) => this.getLeverDay(q.id) === today).map((q) => q.name);
+    if (been.length) {
+      const who = been.length === 1 ? `${been[0]} já entrou` : `${been.slice(0, -1).join(", ")} e ${been.at(-1)} já entraram`;
+      return this.notice(p, `A alavanca não se mexe: ${who} em "${def.name}" hoje. Cada aventureiro entra uma vez por dia; a alavanca volta às 6h.`, "warn");
+    }
     // Sobras de uma tentativa anterior somem; monstros novos nascem nas posições do mapa.
     this.clear(id);
-    const now = this.now();
     const ids: string[] = [];
     leverMonsters(def, group.length).forEach((mid, i) => {
       const md = monsterDef(mid), at = spot.spawns[i % Math.max(1, spot.spawns.length)];
@@ -93,6 +113,7 @@ export class QuestWorldSystem {
       if (m) ids.push(m.s.id);
     });
     this.runs.set(id, { monsterIds: ids, emptySince: 0 });
+    for (const q of group) this.setLeverDay(q.id, today);
     for (const e of onPlates) this.o.teleport(e.q, e.dest.x, e.dest.y);
     for (const q of group) this.notice(q, `${def.name} começou! Derrote os demônios e alcance o tesouro.`, "warn");
     this.o.broadcast?.(S2C.Feed, { text: `⚔️ ${group.map((q) => q.name).join(", ")} puxaram a alavanca de "${def.name}"!`, kind: "info" } satisfies FeedMsg);

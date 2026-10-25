@@ -57,6 +57,12 @@ export interface Monster {
   lostSince: number;
   /** Quando começou a voltar ao spawn. */
   returnSince: number;
+  /**
+   * Voltando ao spawn por ter passado da coleira (LEASH_DIST): imune a dano, não troca de alvo nem atende bando até
+   * chegar (e lá cura). Sem isso, quem ataca de longe batia no monstro que voltava, ele virava para perseguir, passava
+   * da coleira de novo e recomeçava a volta — nunca curava nem revidava ("dança da coleira", ciclo 14).
+   */
+  evading?: boolean;
   /** Último jogador que o feriu (passivos revidam). */
   lastAttackerId: string;
   /** Quem recebe o crédito do último golpe (dono, no caso de invocação): fica com o loot se ninguém estiver perto. */
@@ -86,6 +92,9 @@ export interface Monster {
   elite?: boolean;
   /** Pedidos de reforço já feitos nesta vida (bits HELP_*), para gritar uma vez por motivo. */
   helpCalled?: number;
+  /** Último dano recebido e início da fuga atual: fuga sem dano por FLEE_GIVE_UP_MS (ai.ts) desiste e volta. */
+  hurtAt?: number;
+  fleeSince?: number;
 }
 
 /** Motivos do pedido de reforço (uma vez cada por vida do monstro). */
@@ -117,6 +126,11 @@ export interface MonsterManagerOptions {
   now?: () => number;
   rng?: () => number;
   defs?: (id: string) => MonsterDef | undefined;
+  /**
+   * Prazo de respawn dos chefes (epoch ms), guardado fora da memória: sem isso todo reinício do servidor recriava os
+   * chefes mortos na hora (WorldRoom grava no kv `boss.respawnAt.<defId>`). `null` = chefe vivo (sem prazo).
+   */
+  bossRespawn?: { load(defId: string): number | undefined; save(defId: string, at: number | null): void };
   /** Aviso global (anúncio de boss). */
   notice?: (text: string, kind: "info" | "warn" | "good") => void;
   /** Chance de um monstro comum nascer elite (padrão ELITE_CHANCE; testes usam 0 ou 1). */
@@ -333,6 +347,12 @@ export class MonsterManager {
     for (const sp of this.o.spawns) {
       const def = this.def(sp.defId);
       if (!def) continue;
+      const due = def.boss ? this.bossDue(def.id) : undefined;
+      if (due && due > now) {
+        // Chefe morto antes do reinício: volta no prazo original, não no boot.
+        for (let i = 0; i < sp.count; i++) this.respawns.push({ spawn: sp, at: due, due });
+        continue;
+      }
       for (let i = 0; i < sp.count; i++) if (!this.spawnOne(sp, def, now)) this.respawns.push({ spawn: sp, at: now + RESPAWN_RETRY_MS, due: now + RESPAWN_RETRY_MS });
     }
   }
@@ -345,7 +365,8 @@ export class MonsterManager {
     const def = this.def(defId);
     const sp = this.o.spawns.find((x) => x.defId === defId);
     if (!def || !sp) return "unknown";
-    for (const m of this.list.values()) if (m.def.id === defId) return "alive";
+    // Cópias do Coliseu, da alavanca ou invocadas por outro monstro não contam: o evento anunciaria um chefe que não está no covil.
+    for (const m of this.list.values()) if (m.def.id === defId && !m.arenaId && !m.questLever && !m.minionOf) return "alive";
     for (let i = this.respawns.length - 1; i >= 0; i--) if (this.respawns[i]!.spawn === sp) this.respawns.splice(i, 1);
     if (this.spawnOne(sp, def, now, RESPAWN_FORCE_DIST)) return "spawned";
     this.respawns.push({ spawn: sp, at: now + RESPAWN_RETRY_MS, due: now + RESPAWN_RETRY_MS }); // sem tile livre agora: tenta de novo
@@ -409,7 +430,10 @@ export class MonsterManager {
     this.list.set(s.id, m);
     this.occ.set(t.y * this.W + t.x, m);
     this.o.collection.set(s.id, s);
-    if (def.boss) this.o.notice?.(`${def.name} apareceu!`, "warn");
+    if (def.boss) {
+      this.saveBossDue(def.id, null);
+      this.o.notice?.(`${def.name} apareceu!`, "warn");
+    }
     return m;
   }
 
@@ -427,6 +451,16 @@ export class MonsterManager {
     }
     if (m.arenaId || m.questLever || m.minionOf) return; // onda do coliseu / sala de quest / invocado por monstro: sem respawn
     this.respawns.push({ spawn: m.spawn, at: now + m.def.respawnMs, due: now + m.def.respawnMs });
+    if (m.def.boss) this.saveBossDue(m.def.id, now + m.def.respawnMs);
+  }
+
+  // Prazo do chefe no banco: falha de disco não pode derrubar o abate (XP, aviso) nem repetir o nascimento a cada tick.
+  private bossDue(id: string): number | undefined {
+    try { return this.o.bossRespawn?.load(id); } catch (e) { this.errors.report("chefe/prazo", e); return undefined; }
+  }
+
+  private saveBossDue(id: string, at: number | null): void {
+    try { this.o.bossRespawn?.save(id, at); } catch (e) { this.errors.report("chefe/prazo", e); }
   }
 
   /**
@@ -572,6 +606,7 @@ export class MonsterManager {
    */
   onDamaged(m: Monster, attackerId: string, amount: number, now: number, creditId = attackerId): void {
     if (m.def.stationary) return; // boneco de treino: não revida, não dá crédito
+    m.hurtAt = now;
     if (amount > 0 && creditId) {
       m.damageBy.set(creditId, (m.damageBy.get(creditId) ?? 0) + amount);
       m.lastCreditId = creditId;
@@ -584,6 +619,7 @@ export class MonsterManager {
       if (!(flags & HELP_FIRST_HIT)) this.callForHelp(m, attackerId, now, HELP_FIRST_HIT);
       else if (!(flags & HELP_HALF_HP) && (m.s.hp - amount) * 2 < m.s.maxHp) this.callForHelp(m, attackerId, now, HELP_HALF_HP);
     }
+    if (m.evading) return; // voltando pela coleira: não revida (o dano já foi barrado no CombatSystem)
     if (m.mode === "idle" || m.mode === "return" || ((m.mode === "chase" || m.mode === "flee") && !this.validTarget(m.s.targetId))) {
       if (this.validTarget(attackerId) && this.allowedFor(m, attackerId)) {
         m.mode = "chase";
@@ -615,7 +651,7 @@ export class MonsterManager {
       if (o.arenaId !== m.arenaId || o.questLever !== m.questLever) continue; // nunca puxa monstro de outra arena/sala
       if (cheb(o.s.x, o.s.y, m.s.x, m.s.y) > HELP_RADIUS || !this.allowedFor(o, target.id)) continue;
       const busy = (o.mode === "chase" || o.mode === "flee") && this.validTarget(o.s.targetId);
-      if (busy) continue;
+      if (busy || o.evading) continue;
       o.mode = "chase";
       o.s.targetId = target.id;
       o.lostSince = 0;

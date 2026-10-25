@@ -35,6 +35,21 @@ describe("MONSTERS", () => {
     }
   });
 
+  it("frames cabem no PNG (largura e altura múltiplas do frame; frames da caminhada existem)", () => {
+    for (const d of Object.values(MONSTERS)) {
+      const png = readFileSync(root + "assets/" + d.sprite.url);
+      const w = png.readUInt32BE(16), h = png.readUInt32BE(20);
+      const { frameWidth: fw, frameHeight: fh } = d.sprite;
+      expect(w % fw, `${d.id}: largura ${w} / ${fw}`).toBe(0);
+      expect(h % fh, `${d.id}: altura ${h} / ${fh}`).toBe(0);
+      const total = (w / fw) * (h / fh);
+      for (const f of Object.values(d.sprite.walk ?? {}).flat()) expect(f, d.id).toBeLessThan(total);
+    }
+    // Samurai Rubro: tira 576x48 de 6 frames 96x48 (em 12 de 48 cada frame mostrava meio samurai).
+    const s = MONSTERS.abyss_samurai!.sprite;
+    expect([s.frameWidth, s.frameHeight, s.walk!.down]).toEqual([96, 48, [0, 1, 2, 3, 4, 5]]);
+  });
+
   it("campos sensatos", () => {
     for (const [key, d] of Object.entries(MONSTERS)) {
       if (d.invulnerable) { expect(d.stationary, key).toBe(true); expect(d.xp, key).toBe(0); continue; } // boneco de treino

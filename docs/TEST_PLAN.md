@@ -141,6 +141,15 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 14 (2026-10-25, correções de bugs e exploits)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1162 passados (97 arquivos; eram 1087), 0 pulados — o teste de faixa inválida das recompensas (`bounties.test.ts`) voltou a rodar; typecheck limpo. Novos: `shared/itemRules.test.ts`, `shared/data/quests.test.ts` (anda pelo mapa real a partir do templo no level mínimo de cada faixa: todo alvo de recompensa e material de encomenda alcançável), `toneShop.test.ts`, `shareText.test.ts`; casos novos em `ai`, `monsters`, `combat`, `portals`, `questWorld`, `spells`, `inventory`, `food`, `m4`, `quests`, `bounties`, `materialRequest`, `challenges`, `shared/data/monsters` (todo sprite cabe no PNG) |
+| Revisão cruzada | Dois agentes revisores acharam 6 defeitos nas correções, todos corrigidos com teste que falha antes: saída sem level ao lado da porta lv 80 do Vulcão ainda atravessável; Provocar num monstro voltando pela coleira o deixava perseguindo imune; gravação do prazo do chefe sem try/catch no tick; baú do lv 48–49 e 63–69 só com acessório (anel de lv 68 subia o piso); encomenda antiga sem faixa no dia do deploy; XP do cartão do Quadro sem o estágio (já existia) |
+| E2E completo | 68/68 na primeira passada (13,4 min, 1 worker; `[tick]` máx 13 ms) |
+| E2E do ciclo | `caves` + `depot` + `sinks` em `--repeat-each=3`: 14/15 — falhou 1× "Minas Abandonadas": o poll apertava "d" de novo antes de ler a chegada e andava além do tile (corrida do teste). Corrigido com `stepUntil` (só aperta enquanto está do lado de partida): `caves` 15/15 em `--repeat-each=5`, com o teste novo da porta lv 80 do Vulcão e da saída ao lado (pisar 10× abaixo do level nunca passa do y 96) e captura do Samurai Rubro inteiro (`caves-samurai.png`) |
+
 ## Resultados — 2026-10-25 (andar sem engasgos e câmera presa ao jogador)
 
 | Camada | Resultado |

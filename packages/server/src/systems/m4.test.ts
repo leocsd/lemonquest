@@ -90,7 +90,7 @@ function npcWorld(rng: () => number = () => 0.5) {
   npcs = new NpcSystem({
     npcs: [
       { id: "shop", x: 10, y: 10 }, { id: "depot", x: 30, y: 10 }, { id: "priest", x: 50, y: 10 }, { id: "armory", x: 60, y: 10 },
-      { id: "casino", x: 70, y: 10 }, { id: "enchanter", x: 80, y: 10 },
+      { id: "casino", x: 70, y: 10 }, { id: "enchanter", x: 80, y: 10 }, { id: "apothecary", x: 90, y: 10 },
     ],
     inventory: w.inv, defs: npcsFx, players: () => players.values(), getPlayer: (id) => players.get(id),
     send: (to, type, msg) => out.push({ to, type, msg }), broadcast: (type, msg) => out.push({ to: "*", type, msg }),
@@ -191,6 +191,47 @@ describe("npcs", () => {
     t.npcs.onTrade(p, { npcId: "casino", action: "casino" }); // prêmio grande
     expect(t.out.at(-1)!.msg.text).toBe("Ficha: PRÊMIO GRANDE! +3000 de ouro!");
     expect(t.w.inv.gold("p1")).toBe(8400 - 1000 - 1000 + 3000);
+  });
+
+  it("cassino com a mochila sem espaço vazio: recusa antes de cobrar mesmo com pilha de Barra de Ferro (o material sorteado sumia)", () => {
+    // Sorteio: material (0.9) e o último do pool (0.99) — a Escama, que não tem pilha na mochila.
+    const seq = [0.9, 0.99];
+    let i = 0;
+    const t = npcWorld(() => seq[i++ % seq.length]!);
+    const p = t.add("p1", 70, 10);
+    t.w.inv.addGold(p, 10_000);
+    t.w.inv.addItem(p, makeItem("iron_bar", 3)); // pilha com espaço do 1º material do pool
+    for (let k = 1; k < BACKPACK_SIZE; k++) t.w.inv.addItem(p, makeItem("sword"));
+    expect(t.w.inv.get("p1")!.backpack.every(Boolean)).toBe(true);
+    t.npcs.onInteract(p, { npcId: "casino" });
+    t.npcs.onTrade(p, { npcId: "casino", action: "casino" });
+    expect(t.out.at(-1)!.msg.text).toBe("Abra um espaço na mochila antes de comprar a ficha.");
+    expect(t.w.inv.gold("p1")).toBe(10_000);
+    expect(i).toBe(0); // recusou antes de sortear: a recusa não revela o prêmio
+    // Com um espaço vazio, o material sorteado entra na mochila.
+    t.w.inv.get("p1")!.backpack[5] = null;
+    t.npcs.onTrade(p, { npcId: "casino", action: "casino" });
+    expect(t.out.at(-1)!.msg.text).toBe("Ficha: você ganhou 1x Escama de Lagarto!");
+    expect(t.w.inv.gold("p1")).toBe(9000);
+    expect(t.w.inv.countItem("p1", "lizard_scale")).toBe(1);
+  });
+
+  it("poção e comida acima do level não se compram; equipamento acima do level continua à venda", () => {
+    const t = npcWorld();
+    const p = t.add("p1", 90, 10);
+    p.level = 10;
+    t.w.inv.addGold(p, 10_000);
+    t.npcs.onInteract(p, { npcId: "apothecary" });
+    t.npcs.onTrade(p, { npcId: "apothecary", action: "buy", itemId: "hp_pot_huge", count: 5 });
+    expect(t.out.at(-1)!.msg.text).toBe("Você precisa ser level 30 para comprar isso.");
+    t.npcs.onTrade(p, { npcId: "apothecary", action: "buy", itemId: "ham", count: 1 });
+    expect(t.out.at(-1)!.msg.text).toBe("Você precisa ser level 30 para comprar isso.");
+    expect(t.w.inv.gold("p1")).toBe(10_000);
+    t.npcs.onTrade(p, { npcId: "apothecary", action: "buy", itemId: "ring", count: 1 }); // anel lv 30
+    expect(t.w.inv.gold("p1")).toBe(9500);
+    p.level = 30;
+    t.npcs.onTrade(p, { npcId: "apothecary", action: "buy", itemId: "hp_pot_huge", count: 5 });
+    expect(t.w.inv.countItem("p1", "hp_pot_huge")).toBe(5);
   });
 
   it("encantamento: precisa de ouro + material, troca sem reembolso, não deixa comprar o mesmo de novo", () => {

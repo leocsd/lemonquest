@@ -285,6 +285,11 @@ export class CombatSystem {
   damageMonster(m: Monster, sourceId: string, amount: number, kind: DamageKind, now: number,
     o: { creditId?: string; crit?: boolean; ranged?: boolean } = {}): number {
     if (m.s.hp <= 0 || this.o.monsters.get(m.s.id) !== m) return 0;
+    if (m.evading) {
+      // Voltando ao spawn pela coleira: imune (anti "dança da coleira"); o golpe aparece como "errou".
+      this.push({ sourceId, targetId: m.s.id, amount: 0, kind, miss: true, ranged: o.ranged ? true : undefined });
+      return 0;
+    }
     // Resistência elemental: o próprio elemento entra pela metade (shared damageTakenMult). Ponto único: magia,
     // ataque automático, habilidade e invocação passam por aqui.
     const before = amount;
@@ -473,10 +478,12 @@ export class CombatSystem {
     this.nextAttackAt.delete(p.id);
     if (this.hooks.interceptDeath?.(p, killerName)) return;
     this.hooks.onDying?.(p, killer, now);
-    const blessed = p.blessed;
-    if (blessed) p.blessed = false;
     const mult = Math.max(1, this.hooks.deathXpMult?.(p) ?? 1);
-    const lostXp = blessed ? 0 : Math.max(0, Math.min(p.xp - xpForLevel(p.level), Math.round(deathPenalty(p.level, p.xp) * mult)));
+    const wouldLose = Math.max(0, Math.min(p.xp - xpForLevel(p.level), Math.round(deathPenalty(p.level, p.xp) * mult)));
+    // A bênção só é gasta quando havia XP a perder (morrer logo depois de subir de level não perde nada e a guardava à toa).
+    const blessed = p.blessed && wouldLose > 0;
+    if (blessed) p.blessed = false;
+    const lostXp = blessed ? 0 : wouldLose;
     p.xp -= lostXp;
     this.o.teleport(p, this.o.spawn.x, this.o.spawn.y);
     p.hp = p.maxHp;

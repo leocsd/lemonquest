@@ -12,8 +12,25 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26c",
+    date: "25 de outubro (noite)",
+    title: "Correções: monstros, portas, poções e recompensas",
+    items: [
+      "Monstro que se afasta demais do covil volta para casa sem levar dano e só lá se cura: bater nele de longe enquanto ele volta não funciona mais.",
+      "Monstro fugindo que passa 10 s sem apanhar desiste e volta para casa. Chefe morto não renasce mais quando o servidor reinicia.",
+      "Portas com level não deixam mais passar pisando duas vezes. A Investida não termina mais dentro da zona de proteção.",
+      "A bênção só é gasta quando você perderia XP. A Aniquilação: cada aventureiro entra uma vez por dia (volta às 6h).",
+      "Rei Goblin e Lich do Pântano: o abate já conta para o grupo todo, sem entregar coroa nem chave. Orshabaal agora pede O Selo do Abismo antes.",
+      "Poções e comidas respeitam o level, e Q/E bebe a melhor poção que o seu level permite. Comer duas comidas diferentes regenera pela média das duas.",
+      "Depot: com ele aberto, clique direito guarda o item e junta na pilha igual. Roupas: clicar num tom só mostra a prévia; comprar pede confirmação.",
+      "Quadro de Recompensas: nada de alvo impossível (Rato Cinzento no lv 1, Crânio Flamejante no 72+) e a XP mostrada já vem com o estágio.",
+      "O Baú de Recompensa agora dá equipamento do seu tier em qualquer level (antes parava no lv 58).",
+      "Encomenda da semana: o material não troca se você subir de level, e a entrega é no Quadro. O Samurai Rubro ganhou o desenho inteiro.",
+    ],
+  },
+  {
     id: "2026-10-26b",
-    date: "26 de outubro",
+    date: "25 de outubro (noite)",
     title: "Andar sem engasgos",
     items: [
       "O boneco anda liso de tile em tile, sem a travadinha a cada passo, inclusive andando por clique.",
@@ -22,7 +39,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "2026-10-26a",
-    date: "26 de outubro",
+    date: "25 de outubro (fim da tarde)",
     title: "Quatro caves novas",
     items: [
       "Minas Abandonadas (lv 10+): um portal brilhante na floresta, logo ao norte da cerca da Vila.",
@@ -202,7 +219,7 @@ export const NEWS: readonly NewsEntry[] = [
     title: "Loot do grupo no chão",
     items: [
       "Em grupo, o loot dos monstros cai no chão onde o monstro morreu.",
-      "O que está no chão é de qualquer um: dá para pegar na hora, sem esperar.",
+      "O que está no chão é de qualquer um. (Mudou depois: o loot de abate em grupo fica 15 s reservado ao grupo.)",
       "Arraste um item do chão para outro tile para mudá-lo de lugar (Shift numa pilha escolhe quanto).",
     ],
   },
@@ -246,7 +263,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Dragões cospem fogo, ciclopes e behemoths dão pisões, demônios fazem chover fogo e bruxas do gelo deixam você lento.",
       "Golpes fortes avisam antes: o chão pisca na cor do elemento. Saia da área a tempo e não leva o dano!",
       "Alguns chefes chamam ajudantes (que somem quando o chefe cai e não dão XP) e outros se curam quando estão quase mortos.",
-      "Estágios de XP: a partir do lv 60 caçar dá 60% da XP, do 80 dá 40% e do 100 dá 30%. Missões continuam dando tudo.",
+      "Estágios de XP: caçar dá menos XP nos levels altos; missões continuam dando tudo. (Mudou depois: hoje começam no lv 40.)",
       "PvP: sair do jogo logo depois de atacar alguém não apaga mais a caveira branca, e o personagem fica no mundo até o bloqueio acabar.",
     ],
   },
@@ -272,7 +289,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Passe pelas trilhas a leste das Ruínas ou do Pântano e chegue às Terras Selvagens, a nova área de fim de jogo (lv 40+).",
       "Hunts clássicas: Fortaleza Orc, Labirinto dos Minotauros, Monte Ciclope, Cemitério dos Olhos, Forte Negro e Vale dos Dragões.",
       "Lá embaixo, o Abismo: behemoths, demônios e o temido Orshabaal. Só com grupo!",
-      "Chefes novos: Raposa Chifruda (no Labirinto), Demodras (terça 20h) e Orshabaal (sábado 21h).",
+      "Chefes novos: Raposa Chifruda (no Labirinto), Demodras e Orshabaal. (Horários de hoje: Demodras sexta 12h15; Orshabaal sábado 21h e quinta 17h.)",
       "Posto da Fronteira: vila protegida no meio das Terras, com loja, depósito e uma batedora que indica as hunts.",
       "Equipamentos novos de lv 50 e 70, como Espada de Fogo, Armadura de Placas Mágica e as famosas Botas da Pressa.",
     ],
@@ -295,7 +312,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Desafios da semana: abra o diário (L) e clique em Desafios semanais. Três metas que zeram toda segunda, com bônus por cumprir todas.",
       "Ranking semanal: XP, abates, peixes e chefes (zeram na segunda-feira), e uma categoria nova de Pescador.",
       "Bestiário (tecla B): veja vida, dano e o que cada monstro solta. Os que você ainda não derrotou aparecem como ???.",
-      "Chefes na agenda: o Lich do Pântano (quarta 20h) e o Rei Goblin (domingo 20h) acordam com bônus de loot.",
+      "Chefes na agenda: o Lich do Pântano e o Rei Goblin acordam com bônus de loot. (Horários de hoje: segunda e terça, 12h15.)",
       "Bônus de login: entre em dias seguidos para ganhar prêmios, com um maior no 7º dia.",
       "Poção automática (botão ⚗): bebe vida ou mana sozinha abaixo do limite que você escolher.",
       "Acessibilidade (botão Aa): texto maior, alto contraste e animações reduzidas. E esta tela de Novidades fica no botão da ajuda (F1).",

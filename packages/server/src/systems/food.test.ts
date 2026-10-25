@@ -16,17 +16,18 @@ describe("food", () => {
     expect(w.food.condition("p1", w.now())).toMatchObject({ id: "fed", remainingMs: 600_000, value: 1, value2: 1 });
   });
 
-  it("duration adds, rates are the max, capped at 20 min; satisfied notice at cap without consuming", () => {
+  it("duration adds, rates are the time-weighted average, capped at 20 min; satisfied notice at cap without consuming", () => {
     const w = invWorld();
     const p = w.mk();
     w.inv.addItem(p, makeItem("bread", 5));
     w.inv.addItem(p, makeItem("steak", 5));
     w.inv.onUseItem(p, { index: 0 });           // bread: +1/+1, 10 min
     w.advance(1000);
-    w.inv.onUseItem(p, { index: 1 });           // steak: +6/+0, 12 min → ~21.98 min → cap 20
+    w.inv.onUseItem(p, { index: 1 });           // steak: +6/+0, 12 min → 599 s + 601 s (cap 20 min)
     const c = w.food.condition("p1", w.now())!;
-    expect(c.value).toBe(6);
-    expect(c.value2).toBe(1);                   // max rule keeps the better mana rate
+    expect(c.value).toBe(4);                    // (1×599 + 6×601) / 1200 = 3,5 (era 6: a maior taxa pelo tempo somado)
+    expect(c.value2).toBe(1);                   // (1×599 + 0×601) / 1200 ≈ 0,5: ainda regenera, o ícone mostra 1
+    expect(w.food.serialize("p1", w.now())).toMatchObject({ hpPerTick: 3.5042, manaPerTick: 0.4992 });
     expect(c.remainingMs).toBe(FOOD_MAX_MS);
     w.advance(1000);
     w.inv.onUseItem(p, { index: 0 });
@@ -85,6 +86,52 @@ describe("food", () => {
     w.advance(5 * 3_600_000);
     w.food.load("p1", { fed: JSON.parse(JSON.stringify(saved)) }, w.now());
     expect(w.food.condition("p1", w.now())).toMatchObject({ remainingMs: 660_000, value: 6, value2: 0 });
+  });
+
+  // Ciclo 14 (14-15): a vida total recuperada é a soma da de cada comida (taxa ponderada pelo tempo), nunca a taxa da
+  // mais forte pelo tempo somado. Bife = 6 por tick × 12 min (360 ticks); Pão = 1 por tick × 10 min (300 ticks).
+  function healedOver(first: string, second: string) {
+    const w = invWorld();
+    const p = w.mk();
+    p.maxHp = 1_000_000; p.hp = 1;
+    w.inv.addItem(p, makeItem(first, 1));
+    w.inv.addItem(p, makeItem(second, 1));
+    w.inv.onUseItem(p, { index: 0 });
+    w.advance(1000);
+    w.inv.onUseItem(p, { index: 1 });
+    const rate = w.food.condition("p1", w.now())!.value!;
+    for (let t = 0; t < FOOD_MAX_MS; t += FOOD_TICK_MS) { w.advance(FOOD_TICK_MS); w.tickFood(); }
+    expect(w.food.condition("p1", w.now())).toBeUndefined();
+    return { healed: p.hp - 1, rate };
+  }
+
+  it("comida fraca em cima de forte não estica a taxa forte; forte em cima de fraca não vale a forte pelo tempo todo", () => {
+    // Bife e depois Pão: 719 s de bife + 481 s de pão (o teto corta o pão) → ~6×359,5 + 1×240,5 = 2.397.
+    const weakOnStrong = healedOver("steak", "bread");
+    expect(weakOnStrong.rate).toBe(4);
+    expect(weakOnStrong.healed).toBeGreaterThanOrEqual(2390);
+    expect(weakOnStrong.healed).toBeLessThanOrEqual(2405);  // regra antiga: 6 × 600 ticks = 3.600
+    // Pão e depois Bife: 599 s de pão + 601 s de bife → ~1×299,5 + 6×300,5 = 2.103.
+    const strongOnWeak = healedOver("bread", "steak");
+    expect(strongOnWeak.rate).toBe(4);
+    expect(strongOnWeak.healed).toBeGreaterThanOrEqual(2095);
+    expect(strongOnWeak.healed).toBeLessThanOrEqual(2110);
+  });
+
+  it("taxa fracionária: o resto acumula entre os ticks (3,5 por tick = 7 a cada 2 ticks)", () => {
+    const w = invWorld();
+    const p = w.mk();
+    p.maxHp = 10_000; p.hp = 1;
+    w.food.load("p1", { fed: { remainingMs: 60_000, hpPerTick: 3.5, manaPerTick: 0 } }, w.now());
+    const heals: number[] = [];
+    for (let k = 0; k < 4; k++) {
+      const before = p.hp;
+      w.advance(FOOD_TICK_MS);
+      w.tickFood();
+      heals.push(p.hp - before);
+    }
+    expect(heals).toEqual([3, 4, 3, 4]);
+    expect(w.food.serialize("p1", w.now())).toMatchObject({ hpPerTick: 3.5, manaPerTick: 0 });
   });
 
   it("food cooldown is separate from potions", () => {

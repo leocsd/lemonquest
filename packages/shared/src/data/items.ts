@@ -278,7 +278,8 @@ mat("rolamento_de_rodeiro", "Engrenagem de Prata", img("Treasure/SilverCoin.png"
 mat("chaveta", "Cunha de Ferro", img("Resource/Branch.png", 0xb8b8c0), 520, "Pequena, torta e indispensável. Ainda quente da fera.");
 
 // Chaves e itens de missão
-add({ id: "crypt_key", name: "Chave da Cripta", kind: "key", value: 0, icon: img("Treasure/SilverKey.png"), description: "Abre o portão selado da Cripta. Cai do Lich do Pântano." });
+// Ciclo 14: não abre nada (a Cripta nunca teve portão trancado); o texto prometia uma porta que não existe.
+add({ id: "crypt_key", name: "Chave da Cripta", kind: "key", value: 0, icon: img("Treasure/SilverKey.png"), description: "Enferrujada e fria. O lich guardava como relíquia, mas a porta que ela abria virou pó há séculos. Prova de que o Lich do Pântano caiu." });
 add({
   id: "bounty_chest", name: "Baú de Recompensa", kind: "quest", stackable: true, maxStack: 20, value: 0, icon: { url: N + "Treasure/LittleTreasureChest.png", frame: 0, frameWidth: 16, frameHeight: 16 },
   use: { chest: true, cooldownMs: 500 },

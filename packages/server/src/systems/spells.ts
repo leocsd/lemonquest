@@ -352,12 +352,18 @@ export class SpellSystem {
     return out;
   }
 
-  /** Investida: anda em linha reta até `range` tiles em direção ao alvo, parando ao lado dele ou em obstáculos. */
+  /**
+   * Investida: anda em linha reta até `range` tiles em direção ao alvo, parando ao lado dele ou em obstáculos.
+   * Vindo de fora, para antes da zona de proteção: o salto não passa pelo bloqueio de PZ do PvP (atacou um jogador e
+   * pulou para dentro da cidade). Quem já está na PZ (treino nos bonecos) segue andando lá dentro.
+   */
   private dash(p: PlayerState, target: Point, range: number): void {
     const mm = this.o.monsters;
     let x = p.x, y = p.y;
+    const fromOutside = !mm.inPz(p.x, p.y);
     const free = (tx: number, ty: number) => {
       if (mm.isMonsterAt(tx, ty) || this.o.isBlocked?.(tx, ty)) return false;
+      if (fromOutside && mm.inPz(tx, ty)) return false;
       for (const o of this.o.players()) if (o.id !== p.id && o.x === tx && o.y === ty) return false;
       return true;
     };

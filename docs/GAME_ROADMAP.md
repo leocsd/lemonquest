@@ -6,6 +6,44 @@ Reflete o estado real. Números `#` = itens de [GAME_AUDIT.md](GAME_AUDIT.md). S
 Ordem de leitura: **Ciclo 9** (o que está em andamento e as decisões tomadas) → pendências dos ciclos 7/7b/8 → ⛔.
 Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
+## Plano dos ciclos 14–20 (aprovado em 2026-10-25)
+
+Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
+Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ⏳ → 16 fim de jogo (tier 8, encantamento com tiers,
+covis, refino, Coliseu 61–70) ⏳ → 17 descoberta e interface (+ bocas de caverna) ⏳ → 18 invasões da Vila e Mural de
+Excursões ⏳ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 14 (2026-10-25) — correções de bugs e exploits
+
+Os 22 itens da tabela "Ciclo 14" do plano, cada um com teste unitário; revisão cruzada achou 6 defeitos nas correções
+(todos corrigidos). Detalhes no CHANGELOG.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 14-1 | Dança da coleira: volta imune, sem trocar de alvo, bando ou provocação | ✅ | `ai.test.ts` (coleira, provocação) |
+| 14-2 | Respawn de chefe persistido no kv | ✅ | `monsters.test.ts` (reinício) |
+| 14-3 | Porta com level: requisito antes da espera; na espera volta ao tile anterior | ✅ | `portals.test.ts`; E2E `caves.spec.ts` (porta e saída do Vulcão) |
+| 14-4 | Level de poção/comida no uso e na compra; Q/E pela melhor permitida | ✅ | `itemRules`, `inventory`, `m4` |
+| 14-5 | Bênção só gasta se houver perda | ✅ | `combat.test.ts` |
+| 14-6 | Rei Goblin e Lich sem passo "entregar" | ✅ | `quests.test.ts` (grupo de 4, progresso antigo) |
+| 14-7 | Aniquilação 1×/dia (`leverDay`) | ✅ | `questWorld.test.ts` |
+| 14-8 | Investida não entra na PZ | ✅ | `spells.test.ts` |
+| 14-9 | Lista do dia grava id do monstro | ✅ | `bounties`, `quests` |
+| 14-10 | Alvos e materiais impossíveis trocados; faixa 106+ da Encomenda | ✅ | `shared/data/quests.test.ts` (mapa real) |
+| 14-11 | Baú por tier/level, arma ou armadura em todo level | ✅ | `quests.test.ts` (lv 1–120 × 4 vocações) |
+| 14-12 | Encomenda: faixa gravada, entrega no Quadro | ✅ | `materialRequest.test.ts` |
+| 14-13 | Cassino confere espaço de todo material | ✅ | `m4.test.ts` |
+| 14-14 | `callBoss` ignora cópias | ✅ | `monsters.test.ts` |
+| 14-15 | Comida pela média ponderada | ✅ | `food.test.ts`, `itemRules` |
+| 14-16 | Fuga com prazo de 10 s | ✅ | `ai.test.ts` |
+| 14-17 | Tingimento com prévia e confirmação | ✅ | `toneShop.test.ts`; E2E `sinks.spec.ts` |
+| 14-18 | Depot: clique direito guarda, junta pilha | ✅ | `inventory.test.ts`; E2E `depot.spec.ts` |
+| 14-19 | Textos (plural, diálogos, promessas, grupo, Coliseu, Novidades); XP do Quadro com estágio | ✅ | `quests.test.ts` (shared), `shareText.test.ts` |
+| 14-20 | Desafio semanal pelo level do começo da semana | ✅ | `challenges.test.ts` |
+| 14-21 | Faixa grampeada, teste religado | ✅ | `bounties.test.ts` |
+| 14-22 | Sprite do Samurai Rubro (6 × 96×48) | ✅ | `shared/data/monsters.test.ts` |
+| 14-23 | Acompanhar a renda do Baú de Recompensa no 70+ (tier 7 a partir do 82) antes do ciclo 16 | ⏳ | `admin.mjs telemetria` |
+
 ## Ciclo 13 (2026-10-25) — caves profundas
 
 Pedido do dono: "mais caves", nas quatro faixas, com monstros existentes + alguns novos.
@@ -15,7 +53,7 @@ Pedido do dono: "mais caves", nas quatro faixas, com monstros existentes + algun
 | C13-1 | Quatro caves (`expansion5.mjs`, mapa 400×560), entradas só-objeto com level mínimo | ✅ 2026-10-25 | `diff-world.mjs` 0 tiles, 699/699; 9160/9160 alcançáveis; E2E `caves.spec.ts` 6/6 (`--repeat-each=3`) |
 | C13-2 | Oito monstros novos (sprites do pack sem uso) e faixa 106+ no Quadro de Recompensas | ✅ 2026-10-25 | `monsters`, `bounties`, `lookInfo` |
 | C13-3 | Revisar com a telemetria (C12-5) se as caves novas tiram a parede do 60–80 e se o 100+ ganha variedade | ⏳ | `admin.mjs telemetria` |
-| C13-4 | Arte: bocas de caverna de verdade na superfície (hoje a entrada é o brilho do portal; exige mudar tiles antigos, decisão do dono) | 🧭 | |
+| C13-4 | Arte: bocas de caverna de verdade na superfície | ⏳ | dono autorizou mudar tiles só nos retângulos das entradas: ciclo 17-12 do plano |
 | C13-5 | Missões/conquistas próprias das caves novas | ⏳ | opcional |
 
 ## Ciclo 12 (2026-10-25) — fim de jogo 90–120 e medição

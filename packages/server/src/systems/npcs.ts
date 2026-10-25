@@ -3,7 +3,7 @@
 // Cocheiro (`travel`): cobra o ouro e leva o jogador ao destino (grátis até TRAVEL_FREE_LEVEL).
 // Ambientação: a cada 20–40 s cada NPC com idleLines fala (S2C.NpcSay) se houver jogador a até 15 tiles.
 import {
-  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, S2C, blessingPrice, findObjects, imbuementDef, keptBySellAll, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
+  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, S2C, blessingPrice, findObjects, imbuementDef, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
   type NoticeMsg, type NpcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcSayMsg, type NpcTradeMsg, type TiledMap, type TravelMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -157,6 +157,10 @@ export class NpcSystem {
       const entry = d.shop.sells.find((e) => e.itemId === msg.itemId);
       const item = entry ? inv.defs(entry.itemId) : undefined;
       if (!entry || !item) return;
+      // Poção e comida acima do level: o uso é recusado (InventorySystem.useAt), então a compra também. Equipamento
+      // continua à venda (comprar antes para equipar ao subir é escolha do jogador; equipar já confere o level).
+      const need = item.use ? levelNeeded(item, p.level) : 0;
+      if (need) return this.notice(p, `Você precisa ser level ${need} para comprar isso.`, "warn");
       if (entry.limited) {
         if (count > 1) return;
         const week = weekId(new Date(this.now()));
@@ -204,8 +208,10 @@ export class NpcSystem {
    */
   private buyCasino(p: PlayerState, d: NpcDef): void {
     if (!d.casino) return;
-    // Um dos prêmios é um material: sem espaço na mochila ele sumiria com o aviso de "ganhou". Confere antes de cobrar.
-    if (this.o.inventory.roomFor(p.id, CASINO_MATERIAL_POOL[0]!) < 1) return this.notice(p, "Abra um espaço na mochila antes de comprar a ficha.", "warn");
+    // Um dos prêmios é um material: sem espaço na mochila ele sumiria com o aviso de "ganhou". Confere antes de cobrar
+    // que CADA material do sorteio cabe (antes só a Barra de Ferro: uma pilha dela "abria espaço" para a Escama sumir).
+    // Conferir todos, e não só o sorteado, para a recusa não revelar o prêmio nem deixar ficha "sem material" de graça.
+    if (CASINO_MATERIAL_POOL.some((id) => this.o.inventory.roomFor(p.id, id) < 1)) return this.notice(p, "Abra um espaço na mochila antes de comprar a ficha.", "warn");
     if (!this.o.inventory.spendGold(p, CASINO_TICKET_PRICE)) return this.notice(p, "Ouro insuficiente.", "warn");
     const r = this.rng();
     if (r < 0.45) {

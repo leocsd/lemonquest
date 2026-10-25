@@ -2,7 +2,7 @@
 // tile com linha de visão. Mundo do testkit: relógio injetado e RNG semeado (resultado sempre igual).
 import { describe, expect, it } from "vitest";
 import { HELP_RADIUS } from "@lemonquest/shared";
-import { LEASH_DIST, LOST_TARGET_MS, THINK_MS, findLosTilePath } from "./ai.ts";
+import { FLEE_GIVE_UP_MS, LEASH_DIST, LOST_TARGET_MS, THINK_MS, findLosTilePath } from "./ai.ts";
 import { HELP_FIRST_HIT, HELP_FLEE, HELP_HALF_HP, HELP_SHOUT_MS, SLEEP_DIST, cheb, type Monster } from "./monsters.ts";
 import { def, grid, openGrid, player, world } from "./testkit.ts";
 
@@ -89,6 +89,56 @@ describe("perseguição", () => {
     expect(arrived).toEqual({ x: 10, y: 10, hp: 100, targetId: "" }); // chegou no spawn curado (depois pode passear)
   });
 
+  it("dança da coleira (ciclo 14): voltando pela coleira fica imune, não revida e chega ao spawn curado", () => {
+    const w = world({ grid: openGrid(80, 40), spawns: [sp(10, 10)], defs: () => def({ aggroRange: 6, stepMs: 100, hp: 100 }) });
+    w.mm.spawnAll();
+    const m = first(w);
+    const p = w.add(player("p", 15, 10, { hp: 50_000, maxHp: 50_000 }));
+    w.run(THINK_MS * 2);
+    m.s.hp = 40;
+    p.x = 60; // foge para longe: o monstro passa da coleira e começa a voltar
+    let shots = 0, dealt = 0, chasedAgain = false, arrived: { hp: number } | null = null;
+    w.run(12_000, () => {
+      // Quem ataca de longe continua batendo no monstro que volta (era assim que nunca curava nem revidava).
+      if (m.mode === "return") { shots++; dealt += w.combat.damageMonster(m, "p", 10, "physical", w.now()); }
+      if (m.evading && m.mode === "chase") chasedAgain = true;
+      if (!arrived && m.mode === "idle" && shots > 0) arrived = { hp: m.s.hp };
+    });
+    expect(shots).toBeGreaterThan(0);
+    expect(dealt).toBe(0);
+    expect(chasedAgain).toBe(false);
+    expect(arrived).toEqual({ hp: 100 });
+    expect(m.evading).toBe(false);
+    // Voltando por perder o alvo (sem coleira) segue normal: o golpe acerta e ele revida.
+    p.x = 13; p.hp = 50_000;
+    w.run(THINK_MS * 2);
+    expect(w.combat.damageMonster(m, "p", 10, "physical", w.now())).toBeGreaterThan(0);
+  });
+
+  it("voltando pela coleira ignora a provocação (senão perseguia imune para sempre dentro da coleira)", () => {
+    const w = world({ grid: openGrid(80, 40), spawns: [sp(10, 10)], defs: () => def({ aggroRange: 6, stepMs: 100, hp: 100 }) });
+    w.mm.spawnAll();
+    const m = first(w);
+    const p = w.add(player("p", 15, 10, { hp: 50_000, maxHp: 50_000 }));
+    w.run(THINK_MS * 2);
+    p.x = 60;
+    let taunted = false, chased = false, arrived = false;
+    w.run(20_000, () => {
+      if (!taunted && m.evading) {
+        // O cavaleiro provoca o monstro que volta, colado nele.
+        const k = w.add(player("k", m.s.x + 1, m.s.y, { hp: 50_000, maxHp: 50_000 }));
+        m.tauntBy = k.id; m.tauntUntil = w.now() + 6_000; taunted = true;
+      }
+      if (taunted && m.mode === "idle") arrived = true;
+      if (taunted && !arrived && m.mode === "chase") chased = true; // atendeu a provocação antes de chegar ao spawn
+    });
+    expect(taunted).toBe(true);
+    expect(arrived).toBe(true);
+    expect(chased).toBe(false);
+    expect(m.evading).toBe(false);
+    expect(m.s.hp).toBe(100);
+  });
+
   it("sem alvo válido por LOST_TARGET_MS (jogador morreu) volta ao spawn", () => {
     const w = world({ grid: openGrid(40, 40), spawns: [sp(10, 10)], defs: () => def({ aggroRange: 6, stepMs: 100 }) });
     w.mm.spawnAll();
@@ -129,6 +179,29 @@ describe("fuga", () => {
     const arrived = runUntilIdle(w, m, LOST_TARGET_MS + 6000);
     expect(m.mode).toBe("idle");
     expect(arrived).toMatchObject({ x: 10, y: 10, hp: 100 });
+  });
+
+  it("fuga com prazo (ciclo 14): 10 s fugindo sem levar dano desiste, volta ao spawn e cura", () => {
+    const w = world({ grid: openGrid(60, 60), spawns: [sp(30, 30)], defs: () => def({ aggroRange: 6, stepMs: 100, hp: 100, fleeAtHpPct: 0.3 }) });
+    w.mm.spawnAll();
+    const m = first(w);
+    const p = w.add(player("p", 32, 30, { hp: 50_000, maxHp: 50_000 }));
+    w.run(1000);
+    m.s.hp = 29;
+    let lastHit = 0;
+    // Enquanto apanha, segue fugindo (o golpe renova o prazo).
+    w.run(FLEE_GIVE_UP_MS + 4000, () => {
+      if (w.now() - lastHit >= 2000) { lastHit = w.now(); w.mm.onDamaged(m, "p", 0, w.now()); }
+    });
+    expect(m.mode).toBe("flee");
+    // Para de bater: desiste dentro do prazo (o jogador continua ali, alvo válido) e chega curado.
+    let gaveUpAt = 0;
+    w.run(FLEE_GIVE_UP_MS + 500, () => { if (!gaveUpAt && m.mode !== "flee") gaveUpAt = w.now(); });
+    expect(gaveUpAt).toBeGreaterThan(0);
+    expect(m.mode === "return" || m.mode === "idle" || m.mode === "chase").toBe(true);
+    p.x = 59; p.y = 59; // longe do aggro: volta e fica
+    const arrived = runUntilIdle(w, m, 20_000);
+    expect(arrived).toMatchObject({ hp: 100 });
   });
 
   it("com fleeAtHpPct 0 nunca foge, mesmo com 1 de vida", () => {

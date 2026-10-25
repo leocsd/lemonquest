@@ -63,7 +63,7 @@ export function MatchBar() {
   }
   if (s.phase === "pause") {
     const me = s.members.find((m) => m.name === session.myName);
-    // Mesma faixa do servidor (membros vivos): abaixo de 2/3 do maior level a onda paga só o ouro.
+    // Mesma faixa do servidor (membros vivos): abaixo de 2/3 do maior level a onda não paga XP nem ouro.
     const minLv = partyMinLevel(Math.max(0, ...s.members.filter((m) => m.alive).map((m) => m.level ?? 0)));
     return (
       <div class="arena-bar pause">

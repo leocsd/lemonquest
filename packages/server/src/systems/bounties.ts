@@ -63,9 +63,21 @@ export interface BountyDef { monster: string; count: number; xp: number; gold: n
 const COUNTS_LOW = [15, 20, 25, 30];
 const COUNTS_HIGH = [10, 15, 20];
 
+/** Índice de faixa válido (save corrompido ou chamada errada não geram ouro negativo nem semente diferente). */
+export function clampBand(band: number): number {
+  return Number.isFinite(band) ? Math.max(0, Math.min(BOUNTY_BANDS.length - 1, Math.floor(band))) : 0;
+}
+
+/** Valores de uma recompensa: XP de bônus = a XP dos próprios abates (dobra a caçada); ouro ≈ o dos abates + fixo por faixa. */
+function bountyFor(monster: string, d: MonsterDef, count: number, band: number): BountyDef {
+  const avgGold = d.gold ? (d.gold[0] + d.gold[1]) / 2 : 0;
+  return { monster, count, xp: Math.round(count * d.xp), gold: Math.round(count * avgGold * 0.8 + 50 * (band + 1)) };
+}
+
 /** As 3 recompensas do dia para a faixa `band` (mesmo dia + faixa = mesmas recompensas para todos). */
 export function generateBounties(day: string, band: number, defs: (id: string) => MonsterDef | undefined = monsterDef): BountyDef[] {
-  const b = BOUNTY_BANDS[Math.max(0, Math.min(BOUNTY_BANDS.length - 1, band))]!;
+  band = clampBand(band);
+  const b = BOUNTY_BANDS[band]!;
   const rng = mulberry32(hashStr(`${day}:${band}`));
   const pool = [...b.monsters];
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j]!, pool[i]!]; }
@@ -75,14 +87,26 @@ export function generateBounties(day: string, band: number, defs: (id: string) =
     const d = defs(id);
     if (!d) continue;
     const opts = d.level >= 24 ? COUNTS_HIGH : COUNTS_LOW;
-    const count = opts[Math.floor(rng() * opts.length)]!;
-    const avgGold = d.gold ? (d.gold[0] + d.gold[1]) / 2 : 0;
-    out.push({
-      monster: id, count,
-      // XP de bônus = a XP dos próprios abates (dobra a caçada); ouro ≈ o ouro dos abates + um fixo por faixa.
-      xp: Math.round(count * d.xp),
-      gold: Math.round(count * avgGold * 0.8 + 50 * (band + 1)),
-    });
+    out.push(bountyFor(id, d, opts[Math.floor(rng() * opts.length)]!, band));
   }
   return out;
+}
+
+/**
+ * Lista do dia gravada (ciclo 14: cada recompensa leva o id do monstro `m` e a quantidade `c`). Assim a lista não
+ * muda se BOUNTY_BANDS mudar no meio do dia (deploy). Gravação antiga, sem `m`/`c`, ou com monstro que não existe
+ * mais: refaz o sorteio do dia + faixa, como antes. XP e ouro são recalculados (seguem os dados atuais do monstro).
+ */
+export function restoreBounties(
+  day: string, band: number, saved: readonly { m?: unknown; c?: unknown }[], defs: (id: string) => MonsterDef | undefined = monsterDef,
+): BountyDef[] {
+  band = clampBand(band);
+  const out: BountyDef[] = [];
+  for (const x of saved.slice(0, BOUNTIES_PER_DAY)) {
+    const d = typeof x?.m === "string" ? defs(x.m) : undefined;
+    const c = Number(x?.c);
+    if (!d || !Number.isInteger(c) || c <= 0) return generateBounties(day, band, defs);
+    out.push(bountyFor(x.m as string, d, c, band));
+  }
+  return out.length ? out : generateBounties(day, band, defs);
 }

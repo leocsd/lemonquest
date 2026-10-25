@@ -302,6 +302,17 @@ describe("player death", () => {
     expect(w.sent.find((s) => s.to === "v" && s.type === S2C.Notice && s.msg.text.includes("bênção"))).toBeTruthy();
   });
 
+  it("bênção não é gasta numa morte sem XP a perder (ciclo 14: recém-subido de level)", () => {
+    const w = setup({ aggroRange: 5, damage: [40, 40], name: "Lobo" });
+    const level = 5, xp = xpForLevel(5);
+    const p = w.add(player("v", 11, 10, { name: "Ana", level, xp, hp: 70, maxHp: 210, targetId: "", blessed: true }));
+    w.combat.onAttack(p, { targetId: w.m.s.id });
+    w.run(1200);
+    expect(w.sent.find((s) => s.type === S2C.Died)).toMatchObject({ to: "v", msg: { lostXp: 0 } });
+    expect(p.blessed).toBe(true);
+    expect(w.sent.find((s) => s.to === "v" && s.type === S2C.Notice && s.msg.text.includes("bênção"))).toBeUndefined();
+  });
+
   it("removePlayer clears monster targets", () => {
     const w = setup({ aggroRange: 5 });
     w.add(player("v", 12, 10));

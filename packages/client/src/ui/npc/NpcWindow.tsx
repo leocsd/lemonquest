@@ -110,10 +110,12 @@ function BuyList({ m, gold, backpack }: { m: NpcOpenMsg; gold: number; backpack:
         const max = shopBuyMax({ price: r.price, gold, room: backpackRoom(backpack, def), limited: r.limited });
         const q = Math.min(Math.max(1, max), Math.max(1, qty[r.itemId] ?? 1));
         const total = r.price * q;
-        const afford = max >= q && gold >= total;
-        const why = gold < r.price ? "Ouro insuficiente" : max < 1 ? "Mochila cheia" : undefined;
-        const set = (v: number) => setQty((s) => ({ ...s, [r.itemId]: Math.max(1, Math.min(Math.max(1, max), Math.floor(v) || 1)) }));
         const needLv = def?.level && me && def.level > me.level ? def.level : 0;
+        // Poção e comida acima do level: o servidor recusa a compra. Equipamento continua à venda (só mostra o "Lv").
+        const lvBlock = needLv > 0 && !!def?.use;
+        const afford = !lvBlock && max >= q && gold >= total;
+        const why = lvBlock ? `Precisa do level ${needLv}` : gold < r.price ? "Ouro insuficiente" : max < 1 ? "Mochila cheia" : undefined;
+        const set = (v: number) => setQty((s) => ({ ...s, [r.itemId]: Math.max(1, Math.min(Math.max(1, max), Math.floor(v) || 1)) }));
         return (
           <li key={r.itemId} class="shop-row">
             <div
@@ -352,7 +354,7 @@ function DepotGrid() {
   }, []);
   return (
     <div class="depot">
-      <div class="depot-hint">Arraste itens entre a mochila e o depot · Shift para dividir pilhas</div>
+      <div class="depot-hint">Arraste ou dê clique direito para guardar e retirar · Shift para dividir pilhas</div>
       <div class="depot-grid">
         {Array.from({ length: DEPOT_SIZE }, (_, i) => (
           <ItemSlot key={i} loc={{ where: "depot", index: i }} inst={depot?.[i]} size={40} class="depot-slot" />

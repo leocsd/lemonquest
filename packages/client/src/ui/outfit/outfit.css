@@ -55,6 +55,13 @@
 .outfit-tone.sel { border-color: var(--hud-gold); box-shadow: 0 0 0 1px var(--hud-gold); }
 .outfit-tone.locked { opacity: 0.55; }
 .outfit-tone .outfit-lock { position: static; filter: drop-shadow(0 0 1px #000); }
+/* Compra do tom em prévia: 1º clique arma (vermelho, como .sg-del.confirm), 2º compra. */
+.outfit-buy { width: 100%; display: flex; flex-direction: column; gap: 5px; }
+.outfit-buy-note { font-size: 11px; color: var(--hud-faint); line-height: 1.25; }
+.outfit-buy-note b { color: var(--hud-text); font-weight: 600; }
+.outfit-btn.outfit-buy-btn { width: 100%; min-width: 0; }
+.outfit-btn.outfit-buy-btn.confirm { color: #fff !important; background: var(--hud-red); border-color: var(--hud-red); }
+.outfit-btn.outfit-buy-btn:disabled { opacity: 0.55; cursor: default; }
 
 .outfit-grid {
   flex: 1; list-style: none; margin: 0; padding: 0; align-content: start;

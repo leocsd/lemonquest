@@ -1,7 +1,7 @@
-// Depot: com a mochila dobrada (padrão em tela baixa), abrir o depot abre a mochila para arrastar; guardar um item;
-// ao fechar, a mochila volta a ficar dobrada.
+// Depot: com a mochila dobrada (padrão em tela baixa), abrir o depot abre a mochila para arrastar; guardar um item
+// arrastando e outro com clique direito (e retirar do mesmo jeito); ao fechar, a mochila volta a ficar dobrada.
 import { expect, test, type Page } from "@playwright/test";
-import { center, clickTile, drag, enterGame, inventory, teleport, waitSettled, walkableNear } from "./helpers.ts";
+import { center, clickTile, countOf, drag, enterGame, inventory, teleport, waitSettled, walkableNear } from "./helpers.ts";
 
 const section = (page: Page, id: string) => page.locator(`.hud-panel [data-panel-id="${id}"]`);
 const isOpen = async (page: Page, id: string) => (await section(page, id).getAttribute("class"))?.includes(" open") ?? false;
@@ -34,6 +34,20 @@ test("depot abre a mochila dobrada, guarda um item arrastando e devolve a mochil
   await drag(page, await center(page, from), await center(page, win.locator('[data-loc="dp:0"]')));
   await expect(win.locator('[data-loc="dp:0"]')).toHaveClass(/filled/, { timeout: 10_000 });
   await expect.poll(async () => (await inventory(page))!.backpack.some((s) => s?.defId === "meat")).toBe(false);
+
+  // Clique direito com o depot aberto guarda a pilha inteira (antes bebia a poção); no depot, devolve para a mochila.
+  const potions = () => countOf(page, "health_potion");
+  const hp0 = await potions();
+  expect(hp0).toBeGreaterThan(0);
+  const p = (await inventory(page))!.backpack.findIndex((s) => s?.defId === "health_potion");
+  const potionSlot = section(page, "backpack").locator(`[data-loc="bp:${p}"]`);
+  await expect(potionSlot).toBeInViewport();
+  await potionSlot.click({ button: "right" });
+  await expect.poll(potions, { timeout: 10_000 }).toBe(0);
+  await expect(win.locator('[data-loc="dp:1"]')).toHaveClass(/filled/, { timeout: 10_000 });
+  await win.locator('[data-loc="dp:1"]').click({ button: "right" });
+  await expect.poll(potions, { timeout: 10_000 }).toBe(hp0);
+  await expect(win.locator('[data-loc="dp:1"]')).not.toHaveClass(/filled/, { timeout: 10_000 });
 
   await page.keyboard.press("Escape");
   await expect(win).toBeHidden();

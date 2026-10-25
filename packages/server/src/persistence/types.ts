@@ -70,10 +70,15 @@ export interface CharacterData {
   week?: { id: string; xp: number; kills: number; fish: number; bosses: number };
   /** Desafios da semana: semana ISO, level no começo dela (meta de XP), desafios resgatados e bônus. */
   challenges?: { week: string; level: number; claimed: string[]; bonus: boolean };
-  /** Encomenda semanal de material (Quadro de Recompensas): semana ISO e se já foi entregue. */
-  request?: { week: string; claimed: boolean };
+  /**
+   * Encomenda semanal de material (Quadro de Recompensas): semana ISO, se já foi entregue e a faixa de level gravada na
+   * primeira consulta da semana (ciclo 14; ausente em gravação antiga, gravada na próxima consulta).
+   */
+  request?: { week: string; claimed: boolean; band?: number };
   /** Bônus de login: último dia de jogo (troca às 6h de Brasília) e quantos dias seguidos. */
   login?: { day: string; streak: number };
+  /** Alavanca da Aniquilação: dia de jogo (bountyDay, troca às 6h) da última entrada; uma por dia. */
+  leverDay?: string;
   /** Lista de amigos (nomes de personagem; /amigo): avisos de entrada e saída. */
   friends?: string[];
   /** Silenciado por um admin (/mute): não fala no chat até `until` (ms epoch). Sobrevive a relog. */
@@ -87,8 +92,12 @@ export interface QuestSaveData {
   active?: Record<string, number[]>;
   done?: string[];
   tracked?: string[];
-  /** Recompensas diárias: dia (chave "AAAA-MM-DD", troca às 6h de Brasília), faixa de level travada no dia e estado de cada uma. */
-  bounty?: { day: string; band: number; s: { st: "open" | "active" | "done"; n: number }[] };
+  /**
+   * Recompensas diárias: dia (chave "AAAA-MM-DD", troca às 6h de Brasília), faixa de level travada no dia e estado de
+   * cada uma. `m`/`c` (monstro e quantidade, ciclo 14) deixam a lista estável se as faixas mudarem; sem eles (gravação
+   * antiga) a lista é sorteada de novo pelo dia + faixa.
+   */
+  bounty?: { day: string; band: number; s: { st: "open" | "active" | "done"; n: number; m?: string; c?: number }[] };
   /** Grupos de baús de quest do mapa já abertos (shared/data/questWorld.ts). */
   chests?: string[];
 }

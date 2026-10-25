@@ -29,7 +29,8 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Família de magias (◆) | uma tecla para várias magias do mesmo tipo (ataque no alvo, área, onda): sai a mais forte que estiver pronta, com mana e no alcance. Na barra, magia de alvo fica avermelhada com o alvo longe e apagada sem alvo |
 | Escolher a tecla de cada magia | `H` (ou ⚙ no fim da barra): até 12 atalhos, qualquer tecla livre, também com `Shift`; salvo no personagem. "Recomendado" monta a barra com as famílias; magia nova entra sozinha numa tecla livre |
 | Montar os seus grupos de magia | `H` → **◆ Grupos**: até 8 grupos com as magias e a ordem que você quiser (arrastar, ↑↓, copiar uma família pronta como modelo); a tecla solta a primeira da lista que estiver pronta. "Pôr na barra" põe o grupo numa tecla livre |
-| Poção de vida / mana | `Q` / `E` |
+| Poção de vida / mana | `Q` / `E` (a que mais recupera entre as que o seu level permite) |
+| Guardar / retirar no depot | com o depot aberto, clique direito ou duplo clique no item (junta na pilha igual que tiver espaço) |
 | Seguir o alvo (gruda no monstro, qualquer vocação) | `F8` |
 | Ataque automático (escolhe sozinho o monstro mais próximo) | `F9` |
 | Seguir um jogador | clique direito no jogador (no mundo ou na Batalha) → *Seguir*; quadrado verde marca quem você segue (andar, atacar ou `Esc` cancela) |
@@ -53,7 +54,7 @@ criatura foge com pouca vida.
 **Quests do mundo (estilo Tibia):** baús de quest dão o prêmio uma vez por personagem; quando há vários baús juntos,
 você escolhe um e os outros ficam vazios. Portas com fechadura pedem level ou uma missão concluída (quem não pode bate e
 volta). Na Cidadela de Ferumbras, a Aniquilação precisa de quatro jogadores de lv 100+ nas placas para alguém puxar a
-alavanca.
+alavanca; cada personagem entra uma vez por dia (o dia troca às 6h, como as recompensas diárias).
 
 Itens no chão somem em 10 min (raros ou melhores: 20 min). Eles sobrevivem a um reinício do servidor, mas o tempo com
 o servidor desligado também conta.

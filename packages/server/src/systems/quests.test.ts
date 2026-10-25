@@ -5,7 +5,7 @@ import {
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { InventorySystem, makeItem } from "./inventory.ts";
-import { QuestSystem, chestGearPool, rollChest, type ZoneRect } from "./quests.ts";
+import { QuestSystem, chestEligible, chestFallbackGem, chestGearPool, rollChest, type ZoneRect } from "./quests.ts";
 import { bountyDay, generateBounties, nextBountyReset, tzOffsetMs } from "./bounties.ts";
 import { player, seeded } from "./testkit.ts";
 
@@ -140,20 +140,54 @@ describe("quests: aceitar, progredir, entregar", () => {
     expect(w.state().done).toEqual(["slime_salve"]);
     expect(w.inv.countItem("p1", "slime_goo")).toBe(2);
 
-    // Lich: chefe + coletar a chave (fica com o jogador).
+    // Lich (ciclo 14): só o chefe; a chave que cai é lembrança e não é pedida nem consumida.
     const ql = qworld();
     const q = ql.mk("p1", { level: 25 }, { done: ["rats_barn", "forest_wolves", "swamp_report"] });
     ql.open.set("p1", "priest");
     ql.qs.onAction(q, { action: "accept", questId: "swamp_lich" });
-    ql.qs.onKill("swamp_lich", ["p1"]);
     ql.qs.onAction(q, { action: "turnIn", questId: "swamp_lich" });
     expect(ql.state().done).not.toContain("swamp_lich");
     ql.inv.addItem(q, makeItem("crypt_key"));
+    ql.qs.onKill("swamp_lich", ["p1"]);
     ql.qs.onAction(q, { action: "turnIn", questId: "swamp_lich" });
     expect(ql.state().done).toContain("swamp_lich");
     expect(ql.inv.countItem("p1", "crypt_key")).toBe(1);
     expect(ql.unlocks).toEqual(["addon:invocador:2"]);
     expect(ql.sent.some((s) => s.to === "*" && s.type === S2C.Feed)).toBe(true);
+  });
+
+  it("chefes com prova (Rei Goblin, Lich): um abate conclui para o grupo inteiro, sem item de prova (14-6)", () => {
+    for (const d of [QUESTS.goblin_king!, QUESTS.swamp_lich!]) {
+      expect(d.steps.map((s) => s.kind), d.id).toEqual(["boss"]);
+    }
+    const w = qworld();
+    const pre = { done: ["rats_barn", "forest_wolves", "swamp_report", "ruins_goblins"] };
+    const group = ["a", "b", "c", "d"].map((id) => w.mk(id, { level: 40 }, pre));
+    for (const p of group) { w.open.set(p.id, "guard_captain"); w.qs.onAction(p, { action: "accept", questId: "goblin_king" }); }
+    // A coroa cai uma vez só (loot do abate); o crédito do chefe vai para todos.
+    w.inv.addItem(group[0]!, makeItem("goblin_crown"));
+    w.qs.onKill("goblin_king", group.map((p) => p.id));
+    for (const p of group) {
+      w.qs.onAction(p, { action: "turnIn", questId: "goblin_king" });
+      expect(w.state(p.id).done, p.id).toContain("goblin_king");
+    }
+    expect(w.inv.countItem("a", "goblin_crown")).toBe(1); // vira lembrança
+  });
+
+  it("progresso salvo antes do ciclo 14 no passo removido: a missão carrega e entrega normalmente", () => {
+    const w = qworld();
+    // Chefe já morto e prova não entregue (o caso de quem ficou sem a coroa no grupo).
+    const p = w.mk("p1", { level: 40 }, { active: { goblin_king: [1, 0], swamp_lich: [1, 0] } });
+    expect(w.state().active).toEqual([{ id: "goblin_king", progress: [1] }, { id: "swamp_lich", progress: [1] }]);
+    for (const [npc, id] of [["guard_captain", "goblin_king"], ["priest", "swamp_lich"]] as const) {
+      w.open.set("p1", npc);
+      w.qs.onAction(p, { action: "turnIn", questId: id });
+    }
+    expect(w.state().done).toEqual(["goblin_king", "swamp_lich"]);
+    // Chefe ainda vivo: continua pedindo o chefe.
+    const w2 = qworld();
+    w2.mk("p1", { level: 40 }, { active: { goblin_king: [0, 0] } });
+    expect(w2.state().active).toEqual([{ id: "goblin_king", progress: [0] }]);
   });
 
   it("falar com outro NPC e explorar uma zona", () => {
@@ -320,18 +354,57 @@ describe("recompensas diárias", () => {
     expect(w.state().bounties.day).toBe(bountyDay(w.now()));
   });
 
-  it("XP da diária segue o estágio de XP do level (lv 50 recebe metade)", () => {
+  it("XP da diária segue o estágio de XP do level (lv 50 recebe metade) e o cartão mostra a XP que vai receber", () => {
     const w = qworld();
     const p = w.mk("p1", { level: 50 });
     w.open.set("p1", "bounty_board");
     w.qs.onAction(p, { action: "bountyAccept", index: 0 });
     const b = w.state().bounties.list[0]!;
+    const full = (w.qs as any).st.get("p1").bounty.defs[0].xp as number;
     for (let i = 0; i < b.count; i++) w.qs.onKill(b.monster, ["p1"]);
     w.qs.onAction(p, { action: "bountyTurnIn", index: 0 });
-    const staged = applyXpStage(b.xp, 50);
-    expect(staged).toBeLessThan(b.xp);
+    const staged = applyXpStage(full, 50);
+    expect(staged).toBeLessThan(full);
+    expect(b.xp).toBe(staged); // o cartão já mostra com o estágio (antes prometia a XP cheia)
     expect(w.xp.at(-1)).toEqual({ id: "p1", n: staged });
     expect(w.sent.find((s) => s.type === S2C.QuestComplete && s.msg.bounty)!.msg.xp).toBe(staged);
+  });
+
+  it("a lista do dia é gravada com o id do monstro e não muda se a faixa mudar (14-9)", () => {
+    const w = qworld();
+    const p = w.mk("p1", { level: 75 });
+    w.open.set("p1", "bounty_board");
+    w.qs.onAction(p, { action: "bountyAccept", index: 2 });
+    const saved = JSON.parse(JSON.stringify(w.qs.serialize("p1")));
+    const list = w.state().bounties.list;
+    expect(saved.bounty.s.map((x: any) => [x.m, x.c])).toEqual(list.map((b) => [b.monster, b.count]));
+    // Simula uma mudança de BOUNTY_BANDS: a gravação aponta para monstros que o sorteio de hoje não daria.
+    const day = saved.bounty.day;
+    saved.bounty.s = [
+      { st: "active", n: 4, m: "frost_dragon", c: 15 },
+      { st: "open", n: 0, m: "dragon", c: 10 },
+      { st: "done", n: 20, m: "hero", c: 20 },
+    ];
+    const w2 = qworld({ now: w.now() });
+    w2.mk("p1", { level: 75 }, saved);
+    expect(w2.state().bounties.list.map((b) => [b.monster, b.count, b.progress, b.status])).toEqual([
+      ["frost_dragon", 15, 4, "active"], ["dragon", 10, 0, "open"], ["hero", 20, 20, "done"],
+    ]);
+    w2.qs.onKill("frost_dragon", ["p1"]);
+    expect(w2.state().bounties.list[0]!.progress).toBe(5);
+    expect(w2.state().bounties.day).toBe(day);
+  });
+
+  it("gravação antiga do dia (sem id do monstro) continua valendo: sorteio do dia + faixa, progresso por posição", () => {
+    const w = qworld();
+    const day = bountyDay(w.now());
+    w.mk("p1", { level: 12 }, { bounty: { day, band: 1, s: [{ st: "active", n: 3 }, { st: "open", n: 0 }, { st: "done", n: 0 }] } });
+    const gen = generateBounties(day, 1);
+    expect(w.state().bounties.list.map((b) => [b.monster, b.count, b.progress, b.status])).toEqual([
+      [gen[0]!.monster, gen[0]!.count, 3, "active"], [gen[1]!.monster, gen[1]!.count, 0, "open"], [gen[2]!.monster, gen[2]!.count, 0, "done"],
+    ]);
+    // Ao gravar de novo, a lista passa a levar o id.
+    expect(w.qs.serialize("p1")!.bounty!.s.map((x) => x.m)).toEqual(gen.map((b) => b.monster));
   });
 
   it("faixa de level travada no dia (subir de level não troca a lista)", () => {
@@ -390,6 +463,62 @@ describe("baú de recompensa", () => {
     expect(gear / N).toBeGreaterThan(0.11);
     expect(gear / N).toBeLessThan(0.19);
     expect(chestGearPool(1, "knight").length).toBeGreaterThan(0);
+  });
+
+  it("equipamento acima do lv 58: lv 60, 80 e 100 recebem o tier que alcançam, de toda vocação (14-11)", () => {
+    const BODY = ["helmet", "armor", "legs"];
+    for (const v of ["knight", "paladin", "sorcerer", "druid"] as const) {
+      for (const [level, minLevel] of [[60, 48], [80, 68], [100, 70]] as const) {
+        const pool = chestGearPool(level, v);
+        expect(pool.some((d) => BODY.includes(d.slot ?? "")), `${v} lv ${level}`).toBe(true);
+        for (const d of pool) {
+          expect(d.level ?? 1, `${v} lv ${level}: ${d.id}`).toBeLessThanOrEqual(level);
+          expect(d.level ?? 1, `${v} lv ${level}: ${d.id}`).toBeGreaterThanOrEqual(minLevel);
+          if (d.vocations) expect(d.vocations, d.id).toContain(v);
+        }
+      }
+    }
+    // Tier 7 (lv 70) no lv 100: a janela desce até o tier mais alto em vez de ficar vazia.
+    expect(chestGearPool(100, "knight").map((d) => d.id)).toEqual(expect.arrayContaining(["demon_helmet", "demon_armor", "demon_legs"]));
+    expect(chestGearPool(100, "sorcerer").map((d) => d.id)).toEqual(expect.arrayContaining(["ferumbras_armor", "destruction_wand"]));
+    // Sorteio real no lv 100: todo equipamento que sai é do tier 7, incomum ou melhor.
+    const rng = seeded(99);
+    let gear = 0;
+    for (let i = 0; i < 1500; i++) {
+      for (const it of rollChest(100, "paladin", rng).items) {
+        const d = ITEMS[it.defId]!;
+        if (!isEquipable(d)) continue;
+        gear++;
+        expect(d.level, it.defId).toBe(70);
+        expect(RARITIES.indexOf(it.rarity)).toBeGreaterThanOrEqual(1);
+      }
+    }
+    expect(gear).toBeGreaterThan(150);
+  });
+
+  it("baú tem arma ou armadura em todo level de 1 a 120, de toda vocação (acessório de level alto não sobe o piso)", () => {
+    for (const v of ["knight", "paladin", "sorcerer", "druid"] as const) {
+      for (let level = 1; level <= 120; level++) {
+        const pool = chestGearPool(level, v);
+        expect(pool.some((d) => d.slot === "weapon" || d.slot === "armor"), `${v} lv ${level}: ${pool.map((d) => d.id).join(",")}`).toBe(true);
+      }
+    }
+  });
+
+  it("o baú não dá prêmio só de missão, item só de baú de quest nem único de chefe; sem opção, sai uma gema", () => {
+    for (const id of ["botas_biqueira", "capacete_obra", "anel_trilho_din", "pirate_saber", "coral_rod", "stonecutter_axe",
+      "amulet_goblin_king", "amulet_minotaur", "anel_do_rodeiro", "ring_demodras", "amulet_orshabaal"]) {
+      expect(chestEligible(id), id).toBe(false);
+    }
+    // Item comum que também é prêmio de missão continua valendo (cai de monstro / é vendido).
+    for (const id of ["ring_vigor", "demon_armor", "spellbook_ferumbras", "boots_haste"]) expect(chestEligible(id), id).toBe(true);
+    for (const L of [1, 60, 120]) {
+      for (const v of ["knight", "paladin", "sorcerer", "druid"] as const) {
+        for (const d of chestGearPool(L, v)) expect(chestEligible(d.id), d.id).toBe(true);
+      }
+    }
+    expect(chestGearPool(50, "knight", [])).toEqual([]);
+    for (const L of [1, 40, 100]) expect(ITEMS[chestFallbackGem(L)]?.kind).toBe("material");
   });
 });
 

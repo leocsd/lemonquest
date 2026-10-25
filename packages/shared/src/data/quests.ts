@@ -243,13 +243,14 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "cave_echoes", name: "Ecos nas Cavernas", giver: "old_hunter", minLevel: 16, requires: ["bee_hunt"],
-    summary: "Tomé ouviu ecos estranhos vindos das Cavernas ao sul. Morcegos demais, diz ele.",
+    summary: "Tomé ouviu ecos estranhos vindos das Cavernas, cuja boca se abre no meio do Pântano Turvo. Morcegos demais, diz ele.",
     steps: [
       { kind: "explore", target: "Cavernas", count: 1, label: "Explorar as Cavernas" },
       { kind: "kill", target: "bat", count: 12, label: "Morcegos" },
     ],
     dialog: {
-      offer: "Nas Cavernas ao sul os morcegos se multiplicaram. Espantam a caça inteira. Entre lá e derrube doze deles.",
+      // A única entrada das Cavernas é a gruta de pedra no Pântano Turvo (o texto antigo dizia "ao sul").
+      offer: "Nas Cavernas os morcegos se multiplicaram. Espantam a caça inteira. A boca fica no Pântano Turvo: siga a estrada da vila para nordeste até a gruta de pedra no meio do brejo. Entre e derrube doze deles.",
       accept: "Leve tocha. E não grite, que eles vêm todos de uma vez.",
       progress: "Doze morcegos. E vá até as Cavernas, não adianta caçar na praça.",
       complete: "Silêncio, finalmente! A caça vai voltar. Este anel me serviu bem por anos; agora é seu.",
@@ -258,16 +259,16 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "swamp_lich", name: "O Lich do Pântano", giver: "priest", minLevel: 22, requires: ["swamp_report"],
-    summary: "A Sacerdotisa Liora sente uma presença morta no Pântano Turvo: um lich. Ele guarda a chave da Cripta.",
-    steps: [
-      { kind: "boss", target: "swamp_lich", count: 1, label: "Lich do Pântano" },
-      { kind: "collect", target: "crypt_key", count: 1, label: "Chave da Cripta" },
-    ],
+    summary: "A Sacerdotisa Liora sente uma presença morta no Pântano Turvo: um lich, um morto que se recusa a descansar.",
+    // Ciclo 14: sem o passo "coletar a chave". A chave cai uma vez só para o grupo, e o passo "boss" já credita todos
+    // os membros; com ela, um grupo de quatro precisava de quatro abates. Quem salvou o progresso no passo antigo fica
+    // só com o índice 0 (o chefe), que já estava feito: a missão aparece pronta para entregar.
+    steps: [{ kind: "boss", target: "swamp_lich", count: 1, label: "Lich do Pântano" }],
     dialog: {
-      offer: "O Capitão me contou da névoa roxa. É um lich, viajante, um morto que se recusa a descansar. Derrote-o e traga a chave da Cripta que ele carrega. Não vá sozinho.",
+      offer: "O Capitão me contou da névoa roxa. É um lich, viajante, um morto que se recusa a descansar. Derrote-o e volte para me contar. Não vá sozinho.",
       accept: "Que a luz te proteja. Reúna amigos: ele é mais forte do que parece.",
-      progress: "O lich ainda caminha. Sinto sua presença daqui. Derrote-o e traga a Chave da Cripta.",
-      complete: "A chave da Cripta... Então é verdade. Guarde-a bem; precisaremos dela. Receba a bênção da luz.",
+      progress: "O lich ainda caminha. Sinto sua presença daqui. Derrote-o e volte.",
+      complete: "A névoa se desfez, senti daqui! Se ele deixou cair uma chave velha, guarde de lembrança: a Cripta nunca teve tranca que segurasse os mortos. Receba a bênção da luz.",
     },
     rewards: { xp: 8000, gold: 3000, items: [{ itemId: "health_potion_large", count: 5 }, { itemId: "mana_potion_large", count: 5 }], unlock: "addon:invocador:2" },
   }),
@@ -282,7 +283,8 @@ export const QUEST_LIST: QuestDef[] = [
     ],
     dialog: {
       offer: "A morte do lich acordou a Cripta. Esqueletos e fantasmas vagam sem paz. Entre lá e devolva-os ao descanso: quinze esqueletos e oito fantasmas.",
-      accept: "A Cripta fica no extremo sudeste. A luz vai contigo.",
+      // A Cripta só se entra pelo mausoléu das Ruínas de Kael (o texto antigo dizia "extremo sudeste").
+      accept: "A entrada da Cripta é o mausoléu com porta de caveira nas Ruínas de Kael, ao norte. A luz vai contigo.",
       progress: "Ainda ouço os lamentos da Cripta. Continue, viajante.",
       complete: "O silêncio voltou à Cripta. Este amuleto foi abençoado no altar; que ele te proteja.",
     },
@@ -306,16 +308,14 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "goblin_king", name: "A Coroa do Rei Goblin", giver: "guard_captain", minLevel: 35, requires: ["ruins_goblins"],
-    summary: "O Rei Goblin comanda os saqueadores das Ruínas de Kael. Derrote-o e traga sua coroa.",
-    steps: [
-      { kind: "boss", target: "goblin_king", count: 1, label: "Rei Goblin" },
-      { kind: "deliver", target: "goblin_crown", count: 1, label: "Coroa do Rei Goblin" },
-    ],
+    summary: "O Rei Goblin comanda os saqueadores das Ruínas de Kael. Derrote-o e volte ao Capitão.",
+    // Ciclo 14: sem o passo "entregar a coroa" (mesmo motivo do Lich: a coroa cai uma vez para o grupo inteiro).
+    steps: [{ kind: "boss", target: "goblin_king", count: 1, label: "Rei Goblin" }],
     dialog: {
-      offer: "Os goblins têm um rei, e ele está nas profundezas das Ruínas de Kael. Acabe com ele e traga a coroa. Leve os melhores guerreiros que conhecer.",
-      accept: "Pela vila de Pedra Clara! Volte vivo, de preferência com a coroa.",
-      progress: "O Rei Goblin ainda reina. Quero aquela coroa na minha mesa.",
-      complete: "A coroa do Rei Goblin! Os bardos vão cantar seu nome por anos. Aceite isto em nome da vila.",
+      offer: "Os goblins têm um rei, e ele está nas profundezas das Ruínas de Kael. Acabe com ele. Leve os melhores guerreiros que conhecer.",
+      accept: "Pela vila de Pedra Clara! Volte vivo, de preferência com uma boa história.",
+      progress: "O Rei Goblin ainda reina. Volte quando ele cair.",
+      complete: "O Rei Goblin caiu! Os bardos vão cantar seu nome por anos. A coroa? Pendure na parede de casa: na minha mesa só cabe relatório. Aceite isto em nome da vila.",
     },
     rewards: { xp: 20000, gold: 15000, items: [{ itemId: "mithril_bar", count: 2 }], unlock: "addon:assassino:2" },
   }),
@@ -416,16 +416,17 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "dragon_scales", name: "Escamas do Vale", giver: "frontier_scout", minLevel: 70, requires: ["black_fort"],
-    summary: "Os ferreiros da Fronteira precisam de escamas de dragão para forjar escudos.",
+    // Ciclo 14: o texto prometia escudo ao jogador e a recompensa nunca foi escudo; os escudos são da guarda do posto.
+    summary: "Os ferreiros da Fronteira precisam de escamas de dragão para forjar escudos para a guarda do posto.",
     steps: [
       { kind: "kill", target: "dragon", count: 25, label: "Dragões" },
       { kind: "deliver", target: "dragon_scale", count: 10, label: "Escamas de Dragão" },
     ],
     dialog: {
-      offer: "Escudo bom só se faz com escama de dragão. Mate vinte e cinco dragões no vale ao sul e me traga dez escamas.",
+      offer: "A guarda do posto está defendendo a estrada com escudo de madeira, e escudo bom só se faz com escama de dragão. Mate vinte e cinco dragões no vale ao sul e me traga dez escamas para o ferreiro.",
       accept: "Fique de lado quando eles respirarem fundo. O fogo vem reto.",
       progress: "Vinte e cinco dragões e dez escamas. O ferreiro está esperando.",
-      complete: "Escamas perfeitas! O ferreiro vai chorar de alegria. Tome.",
+      complete: "Escamas perfeitas! O ferreiro vai chorar de alegria, e a guarda vai ter escudo novo antes do inverno. Tome a sua parte.",
     },
     rewards: { xp: 45000, gold: 9000, items: [{ itemId: "dragon_ham", count: 10 }] },
   }),
@@ -474,7 +475,8 @@ export const QUEST_LIST: QuestDef[] = [
     rewards: { xp: 120000, gold: 25000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }] },
   }),
   q({
-    id: "orshabaal_hunt", name: "O Senhor do Abismo", giver: "frontier_priest", minLevel: 110, requires: ["abyss_gates"],
+    // Ciclo 14 (decisão do dono): o selo forjado na missão anterior é o que abre o caminho ao trono.
+    id: "orshabaal_hunt", name: "O Senhor do Abismo", giver: "frontier_priest", minLevel: 110, requires: ["abyss_gates", "selo_do_abismo"],
     summary: "No trono do Abismo, Orshabaal espera os tolos e os heróis.",
     steps: [{ kind: "boss", target: "orshabaal", count: 1, label: "Orshabaal" }],
     dialog: {
@@ -630,10 +632,11 @@ export const QUEST_LIST: QuestDef[] = [
       { kind: "deliver", target: "frost_dragon_scale", count: 10, label: "Escamas de Dragão de Gelo" },
     ],
     dialog: {
-      offer: "Com o Yeti morto, o ninho dos dragões de gelo está aberto. Mate vinte e me traga dez escamas. Vou forjar o escudo mais frio do mundo!",
+      // Ciclo 14: o escudo é dos guerreiros do Jarl (a recompensa nunca foi escudo).
+      offer: "Com o Yeti morto, o ninho dos dragões de gelo está aberto. Mate vinte e me traga dez escamas: os ferreiros do acampamento vão forjar para os meus guerreiros os escudos mais frios do mundo!",
       accept: "O ninho fica depois da caverna do Yeti. O sopro deles congela o sangue.",
       progress: "Vinte dragões de gelo e dez escamas, guerreiro.",
-      complete: "Escamas lindas! O norte nunca vai esquecer o seu nome.",
+      complete: "Escamas lindas! Os escudos do norte vão aguentar qualquer sopro, e o norte nunca vai esquecer o seu nome. Tome.",
     },
     rewards: { xp: 70000, gold: 14000, items: [{ itemId: "dragon_ham", count: 10 }, { itemId: "health_potion_large", count: 10 }] },
   }),
@@ -750,14 +753,16 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "sapata_gasta", name: "Calo na Roda", giver: "mecanico_vagao", minLevel: 30, requires: ["engate_rapido"],
-    summary: "A sapata travou, a roda arrastou no trilho e as Toupeiras Douradas cavaram a Oficina de Vagões inteira. O Engenheiro do Dark-field quer as toupeiras paradas e as placas de pedra para a análise de desgaste.",
+    summary: "A sapata travou, a roda arrastou no trilho e as Toupeiras Douradas cavaram o Pátio de Manobra inteiro. O Engenheiro do Dark-field quer as toupeiras paradas e as placas de pedra para a análise de desgaste.",
+    // Ciclo 14: as toupeiras nascem no Pátio de Manobra, não na Oficina de Vagões (onde o próprio Engenheiro fica, o que
+    // tornava o "explorar" automático). Quem já cumpriu o passo antigo mantém o progresso (mesmo índice).
     steps: [
-      { kind: "explore", target: "Oficina de Vagões", count: 1, label: "Ir à Oficina de Vagões" },
+      { kind: "explore", target: "Pátio de Manobra", count: 1, label: "Ir ao Pátio de Manobra" },
       { kind: "kill", target: "sapata_gasta", count: 15, label: "Toupeiras Douradas" },
       { kind: "deliver", target: "pastilha_de_sapata", count: 6, label: "Placas de Pedra" },
     ],
     dialog: {
-      offer: "Calo é roda que arrastou: a sapata travou, a roda não girou e o trilho comeu um pedaço dela. Como se não bastasse, as Toupeiras Douradas cavaram o piso da Oficina de Vagões e os trilhos afundaram. Pare quinze e me traga seis Placas de Pedra do piso: quero medir o desgaste antes de pedir peça nova.",
+      offer: "Calo é roda que arrastou: a sapata travou, a roda não girou e o trilho comeu um pedaço dela. Como se não bastasse, as Toupeiras Douradas cavaram o Pátio de Manobra e os trilhos afundaram. Volte ao pátio, pare quinze e me traga seis Placas de Pedra do piso: quero medir o desgaste antes de pedir peça nova.",
       accept: "São lentos, mas duros. Não fique na frente quando um travar.",
       progress: "Quinze toupeiras e seis placas. Enquanto isso, o vagão da linha 3 desce a rampa sozinho.",
       complete: "Desgaste medido: tudo fora de tolerância, como eu disse. Vista este Gibão Reforçado. Na via, quem não se protege não volta.",
@@ -998,9 +1003,16 @@ export const BOUNTY_CHEST_ID = "bounty_chest";
 export const BOUNTY_RESET_HOUR = 6;
 export const BOUNTY_TZ = "America/Sao_Paulo";
 
-/** Faixas de level → monstros possíveis para as recompensas. */
+/**
+ * Faixas de level → monstros possíveis para as recompensas. Desde o ciclo 14 a lista do dia é gravada com o id do
+ * monstro (systems/quests.ts), então mudar uma faixa não troca o alvo de quem já tem recompensa aceita. Ainda assim,
+ * troque no mesmo lugar (mesma posição, mesmo tamanho): o sorteio de quem gravou antes do ciclo 14 depende disso.
+ * Todo alvo precisa ser caçável no level mínimo da faixa: level ≤ mínimo + bountyLevelMargin e spawn fora de área de
+ * missão (teste em data/quests.test.ts).
+ */
 export const BOUNTY_BANDS: { minLevel: number; monsters: string[] }[] = [
-  { minLevel: 1, monsters: ["rat", "slime", "bee", "wolf"] },
+  // Ciclo 14: o Rato Cinzento (lv 3) no lugar do Lobo (lv 8), que pedia lobos a quem acabou de nascer.
+  { minLevel: 1, monsters: ["rat", "slime", "bee", "datacenter_rat"] },
   { minLevel: 10, monsters: ["wolf", "snake", "spider", "bat", "mine_larva"] },
   { minLevel: 18, monsters: ["spider", "bat", "skeleton", "goblin", "mine_mole"] },
   { minLevel: 26, monsters: ["skeleton", "goblin", "ghost", "lizardman"] },
@@ -1009,7 +1021,8 @@ export const BOUNTY_BANDS: { minLevel: number; monsters: string[] }[] = [
   { minLevel: 42, monsters: ["orc_warrior", "orc_shaman", "crocodile", "pirate_buccaneer", "carniphila", "kappa"] },
   { minLevel: 52, monsters: ["minotaur", "minotaur_mage", "cyclops", "winter_wolf", "barbarian", "cave_octopus"] },
   { minLevel: 62, monsters: ["bonelord", "black_knight", "ice_witch", "necromancer", "flame_skull"] },
-  { minLevel: 72, monsters: ["dragon", "hero", "frost_dragon", "dragon_lord", "red_lantern"] },
+  // Ciclo 14: o Crânio Flamejante no lugar do Dragão de Gelo, que só aparece depois da missão do Yeti.
+  { minLevel: 72, monsters: ["dragon", "hero", "flame_skull", "dragon_lord", "red_lantern"] },
   { minLevel: 88, monsters: ["behemoth", "magma_elemental", "hellhound", "demon"] },
   // Ciclo 13: faixa do Abismo Profundo (o 88+ ficaria pesado demais com os monstros de 112–120).
   { minLevel: 106, monsters: ["juggernaut", "abyss_tengu", "abyss_samurai", "demon"] },
@@ -1021,21 +1034,50 @@ export function bountyBand(level: number): number {
   return b;
 }
 
-/** "Mate 20 Lobos" (nome do monstro no plural simples). */
+/**
+ * Quanto o monstro (ou a fonte do material da encomenda) pode passar do level mínimo da faixa. No começo do jogo a
+ * diferença pesa mais (lobo lv 8 contra personagem lv 1), então a margem é no máximo o próprio level mínimo + 4.
+ */
+export function bountyLevelMargin(minLevel: number): number {
+  return Math.min(14, minLevel + 4);
+}
+
+/** "Mate 20 Lobos" (nome do monstro no plural). */
 export function bountyTitle(d: { monster: string; count: number }): string {
   const name = monsterDef(d.monster)?.name ?? d.monster;
   return `Mate ${d.count} ${pluralPt(name)}`;
 }
 
-/** Plural simples em PT-BR da 1ª palavra ("Lobo" → "Lobos", "Homem-Lagarto" → "Homens-Lagarto", "Espírito de Chama" → "Espíritos de Chama"). */
+/** Plurais que a regra não acerta (palavra inteira). */
+const PLURAL_IRREGULAR: Record<string, string> = { "Cão": "Cães", "Capitão": "Capitães" };
+
+function pluralWord(w: string): string {
+  if (Object.hasOwn(PLURAL_IRREGULAR, w)) return PLURAL_IRREGULAR[w]!;
+  if (/ão$/.test(w)) return w.replace(/ão$/, "ões");
+  if (/m$/.test(w)) return w.replace(/m$/, "ns");
+  if (/[rsz]$/.test(w)) return w + "es";
+  if (/l$/.test(w)) return w.replace(/l$/, "is");
+  return w + "s";
+}
+
+/**
+ * Plural em PT-BR de nome de monstro: o substantivo e os adjetivos que vêm logo depois variam; a partir do primeiro
+ * conectivo em minúscula ("de", "do"...) nada muda. Em nome composto com hífen só varia a primeira parte.
+ * "Lobo" → "Lobos", "Cão Infernal" → "Cães Infernais", "Samurai Rubro" → "Samurais Rubros",
+ * "Homem-Lagarto" → "Homens-Lagarto", "Espírito de Chama" → "Espíritos de Chama".
+ * Feito para os monstros comuns do Quadro; nome próprio de chefe ("Rei Goblin") não passa por aqui.
+ */
 export function pluralPt(name: string): string {
   const parts = name.split(" ");
-  const head = parts[0]!;
-  const h = head.includes("-") ? head.split("-") : [head];
-  const w = h[0]!;
-  const pl = /ão$/.test(w) ? w.replace(/ão$/, "ões") : /m$/.test(w) ? w.replace(/m$/, "ns") : /[rsz]$/.test(w) ? w + "es" : /l$/.test(w) ? w.replace(/l$/, "is") : w + "s";
-  h[0] = pl;
-  parts[0] = h.join("-");
+  for (let i = 0; i < parts.length; i++) {
+    const w = parts[i]!;
+    if (!/^\p{Lu}/u.test(w)) break;
+    const h = w.split("-");
+    h[0] = pluralWord(h[0]!);
+    parts[i] = h.join("-");
+    // Depois de um composto ("Homem-Lagarto") o que vem é complemento, não adjetivo.
+    if (h.length > 1) break;
+  }
   return parts.join(" ");
 }
 

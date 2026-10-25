@@ -83,7 +83,10 @@ export interface MonsterDef {
 const grid4 = (url: string, extra: Partial<CreatureSprite> = {}): CreatureSprite =>
   ({ url, frameWidth: 16, frameHeight: 16, layout: "grid4", ...extra });
 
-/** Tira horizontal de um chefe (uma direcao so): usa os mesmos frames nas 4 direcoes. */
+/**
+ * Tira horizontal de um chefe (uma direcao so): usa os mesmos frames nas 4 direcoes. Frames quadrados de `size`
+ * (altura da tira); tira de frames largos (Giant*Samurai: 96x48) passa `frameWidth` em `extra`.
+ */
 const strip = (url: string, size: number, frames: number, extra: Partial<CreatureSprite> = {}): CreatureSprite => {
   const f = Array.from({ length: frames }, (_, i) => i);
   return { url, frameWidth: size, frameHeight: size, layout: "custom", walk: { down: f, up: f, left: f, right: f }, ...extra };
@@ -1330,7 +1333,8 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "demon_armor", chance: 0.003 },
       { itemId: "ferumbras_legs", chance: 0.003 },
     ],
-    sprite: strip(B + "GiantRedSamurai/Walk.png", 48, 12, { scale: 0.65 }),
+    // Walk.png 576x48 = 6 frames de 96x48 (largura dupla; ver assets/CATALOG.md). Em 12 de 48 animava meio samurai.
+    sprite: strip(B + "GiantRedSamurai/Walk.png", 48, 6, { frameWidth: 96, scale: 0.65 }),
   },
 };
 

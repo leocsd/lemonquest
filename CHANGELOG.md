@@ -1,5 +1,67 @@
 # Changelog
 
+## [Não lançado] — 2026-10-25 · ciclo 14: correções de bugs e exploits
+
+Primeiro ciclo do plano 14–20 (`docs/PLANO_CICLOS_14-20.md`, aprovado pelo dono): 22 itens conferidos no código
+durante a análise do jogo, cada um com teste unitário. Feito em três frentes de agentes com arquivos separados +
+revisão cruzada por outros dois agentes (que acharam 6 defeitos nas correções, todos corrigidos antes do merge).
+
+**Monstros e chefes**
+- **Dança da coleira (14-1)**: monstro que passava da coleira (14 tiles) e levava dano voltando ao spawn virava para
+  perseguir, passava da coleira de novo e recomeçava a volta — nunca curava nem revidava (chefes e caves de graça para
+  quem ataca de longe). Agora volta **imune** (`Monster.evading`: o golpe sai como "errou"), sem trocar de alvo, sem
+  atender bando nem provocação, até chegar ao spawn e curar. Voltar por perder o alvo segue como antes.
+- **Chefe renascia a cada reinício (14-2)**: o prazo de respawn de chefe vai para o kv (`boss.respawnAt.<defId>`); no
+  boot o chefe morto volta no prazo original. Falha de disco não derruba o abate (try/catch com log).
+- **`callBoss` (14-14)** ignora cópias do Coliseu, da alavanca e invocadas: o evento não anuncia mais chefe que não está no covil.
+- **Fuga com prazo (14-16)**: 10 s fugindo sem levar dano (`FLEE_GIVE_UP_MS`) → volta ao spawn e cura.
+
+**Portas, alavanca e magias**
+- **Porta com level (14-3)**: o requisito é conferido antes da espera de 1 s do portal, e dentro da espera o jogador
+  volta ao tile anterior em vez de ficar parado no portal. Antes, pisar duas vezes na porta lv 80 do Vulcão (372,96) —
+  ou na saída sem level ao lado (374,96), achado da revisão — e dar mais um passo atravessava a parede.
+- **Aniquilação 1×/dia (14-7)**: cada personagem entra uma vez por dia de jogo (troca às 6h, `bountyDay()`); o grupo é
+  recusado nomeando quem já entrou. `CharacterData.leverDay`.
+- **Investida (14-8)** não termina dentro da zona de proteção para quem vem de fora (quem treina nos bonecos segue).
+- **Bênção (14-5)** só é gasta quando a morte custaria XP (morrer logo depois de subir de level a guardava à toa).
+
+**Missões e recompensas**
+- **Prova de chefe (14-6)**: Rei Goblin e Lich do Pântano ficaram só com o passo "boss" (que já credita o grupo): um
+  abate conclui para o grupo de 4. Progresso salvo é remontado pelos passos atuais (quem já matou entrega direto);
+  coroa e chave seguem caindo como lembrança.
+- **Quadro de Recompensas (14-9, 14-10, 14-21)**: a lista do dia grava o id do monstro e a quantidade (`m`/`c`), então
+  não muda se as faixas mudarem (o ciclo 13 tinha mudado faixas antigas); faixa inválida é grampeada (`clampBand`, sem
+  ouro negativo; teste religado). Alvos impossíveis trocados na mesma posição: Lobo (lv 8) → Rato Cinzento na faixa 1;
+  Dragão de Gelo (atrás do Yeti) → Crânio Flamejante na 72+. O cartão mostra a XP **com o estágio** (prometia até 8×
+  a XP real no lv 100). Teste novo `shared/data/quests.test.ts` anda pelo mapa real a partir do templo no level mínimo
+  de cada faixa e exige spawn alcançável para todo alvo e material.
+- **Encomenda semanal (14-10, 14-12)**: faixa gravada na 1ª consulta da semana (estado antigo usa o level do começo da
+  semana); entrega só com o Quadro aberto. 88+: escama de dragão de gelo → escama de dragão, placa de colosso → ametista;
+  faixa nova 106+ com os materiais do fundo do Abismo.
+- **Baú de Recompensa (14-11)**: o pool era valor ≤ 15 mil (vazio acima do lv ~58). Agora: equipamento vendido por NPC
+  ou derrubado por monstro comum, do tier de arma/armadura mais alto alcançado até o level (`chestGearPool`); a revisão
+  pegou que um anel de lv 68 subia o piso (lv 63–69 só dava acessório) — teste do lv 1 ao 120 nas 4 vocações.
+- **Desafio semanal (14-20)**: a meta de XP usa o level do começo da semana (`levelForXp(week.xp)`), não o de quando a
+  janela abre.
+- **Textos (14-19)**: plural do Quadro (`pluralPt`: "Cães Infernais", "Samurais Rubros"); diálogos de `cave_echoes`,
+  `restless_dead` e `sapata_gasta` apontam o lugar certo; promessas de escudo e da chave da Cripta reescritas;
+  `orshabaal_hunt` exige `selo_do_abismo`; dica do grupo montada das constantes (+35% por membro, +20% com 3
+  vocações); Coliseu explica a regra real dos 2/3; Novidades antigas com informação superada anotadas.
+
+**Itens e NPCs** (regras em `shared/itemRules.ts`, mesmas no servidor e no cliente)
+- **Level de poção e comida (14-4)**: conferido no uso e na compra; Q/E bebe a poção que mais recupera entre as
+  permitidas; o cliente mostra a mesma poção e desabilita "Comprar".
+- **Cassino (14-13)**: confere espaço para cada material do sorteio antes de cobrar (uma Escama sorteada sumia).
+- **Comida (14-15)**: duração soma até o teto e a taxa vira média ponderada pelo tempo (antes acumulava a taxa máxima).
+- **Depot (14-18)**: com o depot aberto, clique direito/duplo clique guarda (antes equipava ou bebia); junta em pilha
+  igual e espalha o resto; "cheio" só quando algo ficou de fora.
+- **Tingimento (14-17)**: clique no tom bloqueado só faz prévia; "Comprar (8.000)" pede um segundo clique.
+- **Samurai Rubro (14-22)**: `Walk.png` tem 6 quadros de 96×48 (estava como 12 de 48, animava meio samurai); teste
+  novo confere que todo sprite de monstro cabe no PNG.
+
+Pontos para o dono acompanhar: o baú passa a dar tier 7 do lv 82 em diante (~0,45 peça/dia com 3 diárias; na venda,
+~8 mil por baú no 70+, quase o ouro da própria recompensa) — olhar o ganho×gasto do topo na telemetria antes do ciclo 16.
+
 ## [Não lançado] — 2026-10-25 · andar sem engasgos e câmera presa ao jogador
 
 Pedido do dono: "o movimento do personagem está muito ruim, com sensação de lagado". Medido quadro a quadro no

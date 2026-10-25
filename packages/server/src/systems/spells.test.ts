@@ -341,6 +341,28 @@ describe("dash", () => {
     expect(v.spells.cast(k2, "dash", v.ms[0].s.id)).toMatchObject({ ok: false, reason: "no_los" });
     expect([k2.x, k2.y]).toEqual([2, 2]);
   });
+
+  it("vindo de fora, para antes da zona de proteção (não fura o bloqueio de PZ do PvP)", () => {
+    // Faixa de PZ na coluna 11; o monstro está em 12, logo depois dela.
+    const w = setup({ monsters: [{ x: 12, y: 10 }], safeZones: [{ x0: 11, y0: 0, x1: 11, y1: 39 }] });
+    const k = w.addP("k", 8, 10, { vocation: "knight" });
+    expect(w.spells.cast(k, "dash", w.ms[0].s.id)).toMatchObject({ ok: true });
+    expect([k.x, k.y]).toEqual([10, 10]);
+    expect(w.mm.inPz(k.x, k.y)).toBe(false);
+    // Em diagonal: nenhum dos desvios entra na PZ.
+    const v = setup({ monsters: [{ x: 14, y: 14 }], safeZones: [{ x0: 12, y0: 12, x1: 13, y1: 13 }] });
+    const k2 = v.addP("k", 10, 10, { vocation: "knight" });
+    expect(v.spells.cast(k2, "dash", v.ms[0].s.id)).toMatchObject({ ok: true });
+    expect(v.mm.inPz(k2.x, k2.y)).toBe(false);
+  });
+
+  it("dentro da PZ (treino no boneco) a investida segue andando", () => {
+    const w = setup({ monsters: [{ x: 14, y: 10, def: { invulnerable: true, stationary: true } }], safeZones: [{ x0: 5, y0: 5, x1: 20, y1: 15 }] });
+    const k = w.addP("k", 10, 10, { vocation: "knight" });
+    k.targetId = w.ms[0].s.id;
+    expect(w.spells.cast(k, "dash", w.ms[0].s.id)).toMatchObject({ ok: true });
+    expect([k.x, k.y]).toEqual([13, 10]);
+  });
 });
 
 describe("summons", () => {

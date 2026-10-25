@@ -61,24 +61,32 @@ export class PortalSystem {
     if (prev && prev.x === p.x && prev.y === p.y) return; // não mudou de tile
     const dest = this.portals.get(`${p.x},${p.y}`);
     if (!dest) return;
-    const now = this.now();
-    if (now < (this.cooldownUntil.get(p) ?? 0)) return;
-    this.cooldownUntil.set(p, now + PORTAL_COOLDOWN_MS);
+    // O requisito vem ANTES da espera: com a espera primeiro, pisar de novo na porta dentro de 1 s deixava o jogador
+    // parado em cima dela (sem conferir nada) e ele atravessava a pé (porta lv 80 do Vulcão).
     const reason = dest.req && this.canPass ? this.canPass(p, dest.req) : null;
     if (reason !== null) {
       // Porta fechada: volta para o tile anterior (ou fica, se não houver um).
       this.refuse?.(p, reason);
-      if (prev && !this.portals.has(`${prev.x},${prev.y}`)) {
-        this.movement.teleport(p, prev.x, prev.y);
-        this.last.set(p, prev);
-        this.send(p.id, prev);
-      }
+      this.bounce(p, prev);
       return;
     }
+    const now = this.now();
+    // Na espera também volta: parado em cima de um portal, o passo seguinte atravessava a parede dele (a saída sem
+    // level ao lado da porta lv 80 do Vulcão levava para dentro da área).
+    if (now < (this.cooldownUntil.get(p) ?? 0)) { this.bounce(p, prev); return; }
+    this.cooldownUntil.set(p, now + PORTAL_COOLDOWN_MS);
     const free = this.isFree;
     const to = (free && nearestFreeTile(dest.toX, dest.toY, (x, y) => free(x, y, p))) || { x: dest.toX, y: dest.toY };
     this.movement.teleport(p, to.x, to.y);
     this.last.set(p, to);
     this.send(p.id, to);
+  }
+
+  /** Devolve ao tile anterior (se houver um que não seja portal); sem ele, fica onde está. */
+  private bounce(p: PlayerState, prev: { x: number; y: number } | undefined): void {
+    if (!prev || this.portals.has(`${prev.x},${prev.y}`)) return;
+    this.movement.teleport(p, prev.x, prev.y);
+    this.last.set(p, prev);
+    this.send(p.id, prev);
   }
 }

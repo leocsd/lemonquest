@@ -13,6 +13,11 @@ export const ITEMS_FX: Record<string, ItemDef> = {
   health_potion_medium: { id: "health_potion_medium", name: "Poção de Vida Média", kind: "potion", stackable: true, value: 120, use: { heal: 180, cooldownMs: 1000 }, icon },
   mana_potion: { id: "mana_potion", name: "Poção de Mana", kind: "potion", stackable: true, value: 45, use: { mana: 50, cooldownMs: 1000 }, icon },
   mana_pot: { id: "mana_pot", name: "Poção de Mana", kind: "potion", stackable: true, maxStack: 10, value: 40, use: { mana: 30, cooldownMs: 1000 }, icon },
+  // Com level (ciclo 14): usar e comprar conferem o level; Q/E escolhe a melhor permitida.
+  hp_pot_big: { id: "hp_pot_big", name: "Poção de Vida Média", kind: "potion", stackable: true, value: 120, level: 15, use: { heal: 200, cooldownMs: 1000 }, icon },
+  hp_pot_huge: { id: "hp_pot_huge", name: "Poção de Vida Grande", kind: "potion", stackable: true, value: 300, level: 30, use: { heal: 450, cooldownMs: 1000 }, icon },
+  mana_pot_big: { id: "mana_pot_big", name: "Poção de Mana Média", kind: "potion", stackable: true, value: 130, level: 15, use: { mana: 300, cooldownMs: 1000 }, icon },
+  ham: { id: "ham", name: "Presunto de Dragão", kind: "food", stackable: true, value: 150, level: 30, use: { food: { hpPerTick: 12, manaPerTick: 4, durationMs: 600_000 }, cooldownMs: 1000 }, icon },
   bread: { id: "bread", name: "Pão", kind: "food", stackable: true, value: 5, use: { food: { hpPerTick: 1, manaPerTick: 1, durationMs: 600_000 }, cooldownMs: 1000 }, icon },
   meat: { id: "meat", name: "Carne Assada", kind: "food", stackable: true, value: 12, use: { food: { hpPerTick: 3, manaPerTick: 0, durationMs: 240_000 }, cooldownMs: 1000 }, icon },
   steak: { id: "steak", name: "Bife", kind: "food", stackable: true, value: 50, use: { food: { hpPerTick: 6, manaPerTick: 0, durationMs: 720_000 }, cooldownMs: 1000 }, icon },
@@ -54,6 +59,7 @@ export const NPCS_FX: Record<string, NpcDef> = {
   casino: { id: "casino", name: "Mascate", sprite: "", greeting: "Oi.", casino: true },
   enchanter: { id: "enchanter", name: "Ervanária", sprite: "", greeting: "Oi.", imbuement: true },
   armory: { id: "armory", name: "Armeiro", sprite: "", greeting: "Oi.", shop: { sells: [{ itemId: "vest", price: 50, limited: true }] } },
+  apothecary: { id: "apothecary", name: "Boticária", sprite: "", greeting: "Oi.", shop: { sells: [{ itemId: "hp_pot_huge" }, { itemId: "ham" }, { itemId: "ring" }] } },
 };
 export const npcsFx = (id: string) => NPCS_FX[id];
 

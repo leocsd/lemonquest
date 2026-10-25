@@ -30,18 +30,27 @@ test("sinks: encantamento (Dona Marta), tingimento (janela de roupas) e ficha de
   await marta.getByRole("button", { name: "Fechar" }).click();
   await expect(marta).toBeHidden();
 
-  // Tingimento: na janela de roupas (botão do trilho = tecla O) o tom nasce trancado; o 1º clique compra (8 000),
-  // o 2º seleciona; OK aplica. (O estado sincronizado não expõe o tom à sonda: confere-se o desbloqueio e o ouro.)
+  // Tingimento: na janela de roupas (botão do trilho = tecla O) o tom nasce trancado; clicar nele só faz a prévia no
+  // boneco; o botão "Comprar (8.000)" pede um 2º clique para confirmar e só então compra; OK aplica. (O estado
+  // sincronizado não expõe o tom à sonda: confere-se o desbloqueio e o ouro.)
   await page.locator('.rail-btn[data-tip="Roupas"]').click();
   const outfit = page.getByRole("dialog", { name: "Roupas" });
   await expect(outfit).toBeVisible();
   const crimson = outfit.getByRole("listbox", { name: "Tons de tingimento" }).getByRole("button", { name: "Carmesim" });
   await expect(crimson).toHaveClass(/locked/);
-  await expect(crimson).toHaveAttribute("data-tip", "Carmesim · 8000 de ouro");
+  await expect(crimson).toHaveAttribute("data-tip", "Carmesim · 8.000 de ouro");
+  const before = await gold(page);
   await crimson.click();
+  await expect(crimson).toHaveAttribute("aria-selected", "true");
+  await expect(crimson).toHaveClass(/locked/); // prévia: nada comprado
+  const buy = outfit.getByRole("button", { name: "Comprar (8.000)" });
+  await buy.click();
+  await expect(outfit.getByRole("button", { name: "Clique de novo para comprar (8.000)" })).toBeVisible();
+  expect(await gold(page)).toBe(before);
+  await outfit.getByRole("button", { name: "Clique de novo para comprar (8.000)" }).click();
   await expect(crimson).not.toHaveClass(/locked/);
   await expect.poll(() => gold(page)).toBe(7_000);
-  await crimson.click();
+  await expect(outfit.getByRole("button", { name: /Comprar|comprar/ })).toHaveCount(0);
   await expect(crimson).toHaveAttribute("aria-selected", "true");
   await snap(page, "sink-tone");
   await outfit.getByRole("button", { name: "OK" }).click();

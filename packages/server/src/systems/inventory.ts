@@ -5,6 +5,7 @@
 import { randomBytes } from "node:crypto";
 import {
   BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
+  levelNeeded, pickQuickPotion,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
   type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
   type StatId, type Stats, type UseItemMsg, type Vocation,
@@ -479,16 +480,13 @@ export class InventorySystem {
     this.useAt(p, inv, msg.index);
   }
 
-  /** C2S.QuickPotion: primeira poção de vida/mana da mochila. */
+  /** C2S.QuickPotion: a melhor poção de vida/mana que o level permite (regra em shared/itemRules.ts; o cliente mostra a mesma). */
   onQuickPotion(p: PlayerState, msg: QuickPotionMsg): void {
     const inv = this.inv.get(p.id);
     if (!inv || !msg || (msg.kind !== "hp" && msg.kind !== "mana")) return;
-    const idx = inv.backpack.findIndex((it) => {
-      const u = it ? this.defs(it.defId)?.use : undefined;
-      return !!u && (msg.kind === "hp" ? (u.heal ?? 0) > 0 : (u.mana ?? 0) > 0);
-    });
-    if (idx < 0) return this.warn(p, msg.kind === "hp" ? MSG.noHp : MSG.noMana);
-    this.useAt(p, inv, idx);
+    const { index, needLevel } = pickQuickPotion(inv.backpack, msg.kind, p.level, this.defs);
+    if (index < 0) return this.warn(p, needLevel ? MSG.level(needLevel) : msg.kind === "hp" ? MSG.noHp : MSG.noMana);
+    this.useAt(p, inv, index);
   }
 
   /** C2S.DiscardItem: destrói o item do slot da mochila. */
@@ -625,11 +623,15 @@ export class InventorySystem {
       if (n === it.count) { dst[di] = it; src[si] = null; }
       else { dst[di] = { ...it, uid: newUid(), count: n, bonuses: it.bonuses.map((b) => ({ ...b })) }; it.count -= n; }
     } else if (d?.stackable && target.defId === it.defId && target.rarity === it.rarity) {
-      const mv = Math.min(n, maxStackOf(d) - target.count);
-      if (mv <= 0) return;
+      const mv = Math.max(0, Math.min(n, maxStackOf(d) - target.count));
       target.count += mv;
       it.count -= mv;
       if (it.count <= 0) src[si] = null;
+      // Entre mochila e depot (o clique rápido aponta a primeira pilha igual, shared/itemRules.ts stackTarget), o que
+      // não coube nela vai para as outras pilhas iguais e os espaços vazios do destino; "cheio" só se algo ficou de fora.
+      const spilled = src !== dst && n > mv ? this.spill(src, si, dst, n - mv, d) : 0;
+      if (src !== dst && mv + spilled < n) this.warn(p, dst === inv.depot ? MSG.depotFull : MSG.full);
+      if (mv + spilled <= 0) return;
     } else if (n === it.count) {
       dst[di] = it;
       src[si] = target;
@@ -639,11 +641,44 @@ export class InventorySystem {
     this.touched(p, inv, src, dst);
   }
 
+  /**
+   * Põe até `count` unidades da pilha `src[si]` em `dst`: primeiro nas pilhas iguais (item e raridade) com espaço,
+   * depois nos espaços vazios (o resto inteiro vai como a própria instância; parte, como cópia com uid novo).
+   * Retorna quantas unidades moveu.
+   */
+  private spill(src: (ItemInstance | null)[], si: number, dst: (ItemInstance | null)[], count: number, d: ItemDef): number {
+    const it = src[si];
+    if (!it) return 0;
+    const max = maxStackOf(d);
+    let left = count;
+    for (const s of dst) {
+      if (left <= 0) break;
+      if (!s || s === it || s.defId !== it.defId || s.rarity !== it.rarity || s.count >= max) continue;
+      const mv = Math.min(left, max - s.count);
+      s.count += mv;
+      it.count -= mv;
+      left -= mv;
+    }
+    for (let i = 0; i < dst.length && left > 0; i++) {
+      if (dst[i]) continue;
+      const mv = Math.min(left, max);
+      if (mv === it.count) { dst[i] = it; src[si] = null; }
+      else { dst[i] = { ...it, uid: newUid(), count: mv, bonuses: it.bonuses.map((b) => ({ ...b })) }; it.count -= mv; }
+      left -= mv;
+    }
+    if (it.count <= 0 && src[si] === it) src[si] = null;
+    return count - left;
+  }
+
   private useAt(p: PlayerState, inv: Inventory, index: number): void {
     const it = inv.backpack[index];
     if (!it || p.hp <= 0) return;
-    const use = this.defs(it.defId)?.use;
+    const def = this.defs(it.defId);
+    const use = def?.use;
     if (!use) return this.warn(p, MSG.notUsable);
+    // Level do item vale para usar, não só para equipar: a Poção de Vida Grande (lv 30) curava 450 no lv 1.
+    const need = levelNeeded(def, p.level);
+    if (need) return this.warn(p, MSG.level(need));
     const now = this.now();
     if (use.chest) {
       if (!this.o.openChest) return this.warn(p, MSG.notUsable);

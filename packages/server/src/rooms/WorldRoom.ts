@@ -225,6 +225,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       players: () => this.state.players.values(),
       getPlayer,
       notice: (text, kind) => this.broadcast(S2C.Notice, { text, kind }),
+      bossRespawn: {
+        load: (id) => Number(getKv(`boss.respawnAt.${id}`) ?? 0) || undefined,
+        save: (id, at) => setKv(`boss.respawnAt.${id}`, String(at ?? 0)),
+      },
       errors: this.errors,
     });
     this.combat = new CombatSystem({
@@ -323,6 +327,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         this.movement.teleport(p, to.x, to.y);
         send(p.id, S2C.Teleported, to);
       },
+      // Entrada da Aniquilação 1×/dia: vai junto com o personagem (autosave), como o recorde do Coliseu.
+      getLeverDay: (id) => this.records.get(id)?.data.leverDay,
+      setLeverDay: (id, day) => { const rec = this.records.get(id); if (rec) rec.data.leverDay = day; },
       send, broadcast,
     });
     this.loot = new LootSystem({
@@ -504,6 +511,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     });
     this.materialRequest = new MaterialRequestSystem({
       record: (id) => this.records.get(id), send, inventory: this.inventory, save: (id) => this.save(id),
+      npcOpen: (id) => this.npcs.openFor(id),
     });
     this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) }, bonusStore: { get: () => getKv("event.bonus"), set: (v) => setKv("event.bonus", v) } });
     this.clickup = this.createClickUp();
