@@ -1,12 +1,10 @@
-// Câmera pixel-perfect: zoom inteiro, seguimento suave (lerp independente de FPS), limitada ao mapa.
+// Câmera pixel-perfect: zoom inteiro, presa ao jogador (como no Tibia), limitada ao mapa.
 import Phaser from "phaser";
 import { TILE_SIZE } from "@lemonquest/shared";
 import { getHudInsets } from "../ui/hud/layout.ts";
 
 /** Tiles visíveis na vertical que buscamos (~15–19). */
 const TARGET_ROWS = 17;
-/** Constante de suavização do seguimento (1/s). Maior = mais grudado. */
-const FOLLOW_SHARPNESS = 12;
 /** Suavização do deslocamento quando o HUD abre/fecha (1/s). */
 const INSET_SHARPNESS = 9;
 
@@ -44,11 +42,10 @@ export class PixelCamera {
   }
 
   follow(x: number, y: number, dtMs: number) {
-    const k = 1 - Math.exp(-FOLLOW_SHARPNESS * dtMs / 1000);
-    this.cx += (x - this.cx) * k;
-    this.cy += (y - this.cy) * k;
-    if (Math.abs(x - this.cx) < 0.01) this.cx = x;
-    if (Math.abs(y - this.cy) < 0.01) this.cy = y;
+    // Presa ao jogador: o seguimento suave (lerp 12/s) deixava a tela ~0,7 tile atrás andando e deslizando ~300 ms
+    // depois de parar — o mundo respondia atrasado à tecla e o boneco balançava 1–2 px em relação à tela.
+    this.cx = x;
+    this.cy = y;
     // Deslocamento do HUD (barra lateral) também desliza suave ao abrir/fechar.
     const ins = getHudInsets();
     const kO = 1 - Math.exp(-INSET_SHARPNESS * dtMs / 1000);
@@ -71,8 +68,9 @@ export class PixelCamera {
     const clamp = (c: number, half: number, size: number) =>
       size <= half * 2 ? size / 2 : Phaser.Math.Clamp(c, half, size - half);
     // O alvo fica no centro da área NÃO coberta pelo HUD: desloca o centro da câmera por inset/2 (px de tela).
-    const x = this.snap(clamp(this.cx + this.ox / this.zoom, halfW, this.mapW));
-    const y = this.snap(clamp(this.cy + this.oy / this.zoom, halfH, this.mapH));
+    // Alvo e deslocamento arredondados à parte, como o ator (snap(rx)): o boneco fica parado na tela, sem tremer 1 px.
+    const x = this.snap(clamp(this.snap(this.cx) + this.snap(this.ox / this.zoom), halfW, this.mapW));
+    const y = this.snap(clamp(this.snap(this.cy) + this.snap(this.oy / this.zoom), halfH, this.mapH));
     this.cam.setScroll(x - this.cam.width / 2, y - this.cam.height / 2);
   }
 }

@@ -11,7 +11,8 @@ export interface PredictWorld {
 }
 
 export type PredictEvent =
-  | { kind: "step"; x: number; y: number; dir: Dir; ms: number }
+  /** `at` = início do passo no relógio de `update` (encadeado: o fim do anterior), para o ator andar no mesmo tempo. */
+  | { kind: "step"; x: number; y: number; dir: Dir; ms: number; at: number }
   | { kind: "turn"; dir: Dir };
 
 /** Resultado da reconciliação com a posição vinda do servidor. */
@@ -104,7 +105,7 @@ export class Predictor {
     this.stepEndsAt = startAt + ms;
     this.x = tx; this.y = ty; this.dir = d;
     this.queue.push({ x: tx, y: ty, at: now, ms });
-    return { kind: "step", x: tx, y: ty, dir: d, ms };
+    return { kind: "step", x: tx, y: ty, dir: d, ms, at: startAt };
   }
 
   /** Nova posição autoritativa do próprio jogador. */

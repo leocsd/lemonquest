@@ -141,6 +141,16 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — 2026-10-25 (andar sem engasgos e câmera presa ao jogador)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1093 passados, 1 pulado (`npm test`, 93 arquivos); typecheck limpo. `segments.test.ts` novo: predição + fila a 60/75/144 Hz, quadro perdido, correção e clique com chegada irregular; os casos sem relógio reproduzem o defeito antigo |
+| Medição no navegador | Sonda temporária (posição do ator e da câmera por quadro, não commitada), servidor E2E isolado; rede do dono por proxy só no WebSocket (73 ms ±15 por sentido, engasgo 3% de 250 ms, FIFO). Quadros no meio de uma caminhada fora de ±10% da vizinhança: teclado LAN 4,6% → 0; teclado rede do dono 4,2% → 0 (2 236 quadros); clique rede do dono 6,1% → 0. Boneco balançando na tela 32 px → 0. Predição: 0 correções e 0 desistências antes e depois |
+| Desempenho | `update` da cena 0,8 ms por quadro (mediana; p99 3,6 ms) com 781 monstros, 0 quadros longos (Long Animation Frames) |
+| E2E completo | Parcial no commit: 24/24 passando (account → ground, inclusive morte, pesca, chão e caves); o restante ainda rodando |
+| Lição do proxy | A 1ª versão do proxy usava um timer por pacote: timers do Node com o mesmo vencimento disparam fora de ordem e o cliente aplicava patches trocados (servidor "voltava" um tile). Proxy de rede ruim precisa de fila FIFO |
+
 ## Resultados — ciclo 13 (2026-10-25, caves profundas)
 
 | Camada | Resultado |

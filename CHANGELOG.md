@@ -1,5 +1,31 @@
 # Changelog
 
+## [Não lançado] — 2026-10-25 · andar sem engasgos e câmera presa ao jogador
+
+Pedido do dono: "o movimento do personagem está muito ruim, com sensação de lagado". Medido quadro a quadro no
+navegador (posição do boneco e da câmera a cada quadro, na LAN e com a rede do dono simulada: 73 ms ±15 por sentido,
+engasgo de 250 ms em 3% dos pacotes). A predição já segurava a rede (0 correções e 0 desistências nas duas); o
+problema era **local, igual na LAN e na rede ruim**:
+- **Engasgo a cada tile** (~4×/s): o ator somava o delta do quadro e começava cada passo até um quadro adiantado em
+  relação à predição. Na virada do tile ele ou parava um quadro (0,1 px em vez de 1,1 px) ou dava um tranco de 35%
+  (catch-up com fila 2). Agora o passo previsto leva o instante em que começou (`PredictEvent.at` → `Segment.at`) e a
+  posição sai do relógio do quadro (timestamp do requestAnimationFrame, o mesmo da predição): passos encadeados emendam
+  exatos em qualquer taxa de quadros. Um passo nunca começa antes do anterior terminar na tela (correção, passo do
+  servidor), então não há salto. Lógica pura em `game/segments.ts` (saiu do `Actor`).
+- **Câmera com inércia**: o seguimento suave (lerp 12/s) deixava a tela ~0,7 tile atrás do boneco andando, deslizava
+  ~300 ms depois de parar e fazia o boneco balançar 1–2 px em relação à tela. A câmera agora é **presa ao jogador**,
+  como no Tibia (o deslocamento do HUD ao abrir/fechar continua suave); alvo e deslocamento são arredondados à parte,
+  então o boneco fica parado na tela e o mundo rola.
+- **Andar por clique** (passos vindos do servidor): também pelo relógio, a partir da chegada, emendando no fim do passo
+  anterior em vez do catch-up. A cadência do servidor é exata; a variação da chegada (tick + envio do estado, ±50 ms) só
+  atrasa o primeiro passo, e daí em diante não há parada nem tranco. Monstros e outros jogadores não mudaram.
+- Medição (quadros no meio de uma caminhada com velocidade fora de ±10% da vizinhança): teclado na LAN 4,6% → 0;
+  teclado na rede do dono 4,2% → 0 (2 236 quadros); clique na rede do dono 6,1% → 0. Boneco balançando na tela
+  32 px → 0. Custo do `update` da cena: 0,8 ms por quadro (mediana) com 781 monstros, sem quadros longos — não era
+  desempenho. Teste novo `segments.test.ts` (predição + fila a 60/75/144 Hz com variação e o delta suavizado do Phaser,
+  quadro perdido, correção, clique com chegada irregular); os casos sem relógio reproduzem o defeito antigo (36 de 598
+  quadros fora de ±10% no teclado, 56 no clique).
+
 ## [Não lançado] — 2026-10-25 · ciclo 13: caves profundas
 
 Pedido do dono: "mais caves", nas quatro faixas (12–28, 35–55, 60–85, 100–130), com monstros conhecidos e alguns novos.

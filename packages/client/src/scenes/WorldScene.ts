@@ -453,8 +453,12 @@ export class WorldScene extends Phaser.Scene {
       const bumped = (p.bump ?? 0) !== this.lastBump;
       this.lastBump = p.bump ?? 0;
       if (moved) {
-        const r = this.predictor.onServerPos(p.x, p.y, p.stepMs, performance.now());
-        if (r.kind === "external") this.moveVisual(id, actor, p.x, p.y, r.ms, p.dir);
+        const now = performance.now();
+        const r = this.predictor.onServerPos(p.x, p.y, p.stepMs, now);
+        // Passo do servidor (clique, perseguição) também pelo relógio, a partir da chegada: emenda no fim do anterior em
+        // vez do catch-up. A cadência do servidor é exata, então a variação da chegada (tick + patch, ±50 ms) só atrasa
+        // o primeiro passo; com o catch-up o boneco alternava parada e tranco a cada tile.
+        if (r.kind === "external") this.moveVisual(id, actor, p.x, p.y, r.ms, p.dir, now);
         else if (r.kind === "diverged") actor.correctTo(p.x, p.y);
       }
       // Passo recusado (monstro entrou no tile, bloqueio de PvP): corrige já, sem esperar o tempo-limite.
@@ -470,10 +474,13 @@ export class WorldScene extends Phaser.Scene {
   private chargeAt = new Map<string, number>();
   private recentCharge(id: string) { return performance.now() - (this.chargeAt.get(id) ?? -1e9) < 500; }
 
-  /** Movimento visual: saltos de 2+ tiles junto de uma investida viram um deslize de ~120 ms. */
-  private moveVisual(id: string, actor: Actor, x: number, y: number, ms: number, dir: Dir) {
+  /**
+   * Movimento visual: saltos de 2+ tiles junto de uma investida viram um deslize de ~120 ms. `at` = passo no relógio
+   * (Segment.at), só para o próprio jogador.
+   */
+  private moveVisual(id: string, actor: Actor, x: number, y: number, ms: number, dir: Dir, at?: number) {
     const far = Math.max(Math.abs(x - actor.tileX), Math.abs(y - actor.tileY)) >= 2;
-    if (!far) { actor.stepTo(x, y, ms, dir); return; }
+    if (!far) { actor.stepTo(x, y, ms, dir, at); return; }
     const apply = () => {
       // O ator pode ter saído (logout logo após o teleporte) ou sido recriado nesses 40 ms.
       if (this.actors.get(id) !== actor) return;
@@ -1039,10 +1046,14 @@ export class WorldScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     const dt = Math.min(delta, 100);
-    this.stepLocal();
-    this.checkStalePrediction();
+    // Um relógio só no quadro: a predição inicia o passo e o ator o desenha no mesmo instante (Segment.at). `time` é o
+    // timestamp do requestAnimationFrame (mesma origem do performance.now, alinhado ao vsync): lido no meio do callback,
+    // o performance.now variava ~1 ms por quadro e o passo andava ±6% de um quadro para o outro.
+    const now = time;
+    this.stepLocal(now);
+    this.checkStalePrediction(now);
 
-    for (const a of this.actors.values()) a.update(dt);
+    for (const a of this.actors.values()) a.update(dt, now);
 
     const me = this.actors.get(this.myId);
     if (me) this.pcam.follow(me.rx + TILE_SIZE / 2, me.ry + TILE_SIZE / 2, dt);
@@ -1050,7 +1061,7 @@ export class WorldScene extends Phaser.Scene {
     // Criaturas: culling por distância ao jogador; só as visíveis fazem trabalho de render.
     const mtx = me ? me.rx / TILE_SIZE : 0, mty = me ? me.ry / TILE_SIZE : 0;
     for (const a of this.creatures.values()) {
-      a.update(dt);
+      a.update(dt, now);
       a.setCulled(!!me && Math.max(Math.abs(a.rx / TILE_SIZE - mtx), Math.abs(a.ry / TILE_SIZE - mty)) > CULL_TILES);
     }
 
@@ -1101,20 +1112,20 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Avança a predição local (pode iniciar um passo). */
-  private stepLocal() {
+  private stepLocal(now = performance.now()) {
     const me = this.actors.get(this.myId);
     if (!me || !this.room) return;
-    const ev = this.predictor.update(performance.now());
+    const ev = this.predictor.update(now);
     if (!ev) return;
-    if (ev.kind === "step") me.stepTo(ev.x, ev.y, ev.ms, ev.dir);
+    if (ev.kind === "step") me.stepTo(ev.x, ev.y, ev.ms, ev.dir, ev.at);
     else me.face(ev.dir);
   }
 
-  private checkStalePrediction() {
+  private checkStalePrediction(now: number) {
     const me = this.actors.get(this.myId);
     const k = this.known.get(this.myId);
     if (!me || !k) return;
-    if (this.predictor.checkStale(k.x, k.y, performance.now())) me.correctTo(k.x, k.y);
+    if (this.predictor.checkStale(k.x, k.y, now)) me.correctTo(k.x, k.y);
   }
 
   /** Criaturas a até 10 tiles → battle list (só republica se mudou). */

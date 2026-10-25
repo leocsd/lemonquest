@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26b",
+    date: "26 de outubro",
+    title: "Andar sem engasgos",
+    items: [
+      "O boneco anda liso de tile em tile, sem a travadinha a cada passo, inclusive andando por clique.",
+      "A tela agora acompanha o personagem na hora, como no Tibia: sem atraso ao começar e sem deslizar depois de parar.",
+    ],
+  },
+  {
     id: "2026-10-26a",
     date: "26 de outubro",
     title: "Quatro caves novas",
