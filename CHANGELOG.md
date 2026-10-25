@@ -1,5 +1,30 @@
 # Changelog
 
+## [Não lançado] — 2026-10-25 · ciclo 13: caves profundas
+
+Pedido do dono: "mais caves", nas quatro faixas (12–28, 35–55, 60–85, 100–130), com monstros conhecidos e alguns novos.
+Dados que motivaram: acima do lv 90 só havia Abismo e Cidadela (48 monstros); 60–85 só Caverna dos Heróis e Ninho.
+
+- **Mapa** (`tools/mapgen/expansion5.mjs`, 400×472 → 400×560): quatro caves escavadas abaixo do Túnel da Serra, cada
+  uma com entrada, duas salas de caça, galeria funda e covil; plantas espelhadas alternadas. **Entrada só-objeto**: um
+  portal com level mínimo num recanto da região de origem (o cliente já dá o brilho roxo de portal); a porta norte da
+  sala de entrada devolve ao lado dela. `diff-world.mjs`: **0 tiles alterados**, 699/699 objetos antigos idênticos,
+  tilesets estáveis; 9160/9160 tiles novos alcançáveis a pé.
+
+| Cave | Faixa | Entrada | Monstros (92 no total) |
+|---|---|---|---|
+| Minas Abandonadas | lv 10+ | Floresta, ao norte da cerca da Vila (89,74) | Larva das Minas*, Toupeira das Minas* (bando), aranha, morcego, esqueleto |
+| Grutas Alagadas | lv 35+ | sul da Selva de Banuta (283,116) | Kappa do Lodo*, Polvo das Grutas*, crocodilo, merlkin |
+| Catacumbas Esquecidas | lv 60+ | oeste da Floresta Sombria (163,54) | Crânio Flamejante*, Lanterna Rubra* (cura aliados), necromante, cavaleiro negro, herói |
+| Abismo Profundo | lv 100+ | salão de entrada do Abismo (256,136) | Tengu Rubro*, Samurai Rubro*, demônio, behemoth, colosso |
+
+  * monstro novo (8), com sprite do pack ainda sem uso, atributos interpolados dos vizinhos de level e loot só com itens
+  que já existiam; os monstros com elemento resistem a ele (ciclo de elementos).
+- **Quadro de Recompensas**: os novos entram nas faixas do level deles; faixa nova 106+ (Colosso, Tengu, Samurai, Demônio).
+- "Olhar": família de bando "toupeiras".
+- Testes: `monsters.test.ts` (XP/vida, dano por level), `bounties.test.ts`, `lookInfo.test.ts`; E2E novo
+  `caves.spec.ts` (porta barra abaixo do level, entra, sai pela porta norte; monstros novos no Abismo Profundo).
+
 ## [Não lançado] — 2026-10-25 · ciclo 12: fim de jogo 90–120 e medição
 
 Pedido do dono depois da análise com os dados de produção (11 contas, 15 personagens): dois personagens perto do lv 100,

@@ -1196,6 +1196,142 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "TRex/SpriteSheet.png", { tint: 0x8898b8, scale: 2 }),
   },
+
+  // ===== Caves profundas (ciclo 13, pedido do dono: "mais caves"): duas criaturas novas por cave, com sprites do pack
+  // ainda sem uso. Atributos interpolados dos vizinhos de level (aranha/esqueleto, crocodilo/minotauro mago, necromante/
+  // herói, colosso), loot só com itens que já existem.
+  // Minas Abandonadas (lv 12–28)
+  mine_larva: {
+    id: "mine_larva", name: "Larva das Minas", level: 14, hp: 150, xp: 80, damage: [10, 22], damageKind: "earth", armor: 3,
+    abilities: [
+      ability.bolt({ name: "Cuspe Ácido", range: 3, min: 14, max: 26, kind: "earth", fx: "earth", cooldownMs: 9000, condition: { id: "poison", durationMs: 6000, value: 3 } }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 420, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 45_000,
+    gold: [15, 35],
+    loot: [
+      { itemId: "slime_goo", chance: 0.5, min: 1, max: 2 },
+      { itemId: "herb", chance: 0.2 },
+      { itemId: "spider_silk", chance: 0.08 },
+      { itemId: "health_potion", chance: 0.08 },
+    ],
+    sprite: grid4(M + "Larva/Larva.png"),
+  },
+  mine_mole: {
+    id: "mine_mole", name: "Toupeira das Minas", level: 22, hp: 260, xp: 175, damage: [18, 38], damageKind: "physical", armor: 7,
+    attackMs: 1900, attackRange: 1, stepMs: 380, aggroRange: 6, fleeAtHpPct: 0.15, respawnMs: 55_000,
+    pack: { family: "mine_mole", shout: "Grrr! Cavem, irmãs!" },
+    gold: [30, 65],
+    loot: [
+      { itemId: "bone", chance: 0.3 },
+      { itemId: "iron_bar", chance: 0.06 },
+      { itemId: "gem_green", chance: 0.012 },
+      { itemId: "health_potion", chance: 0.12 },
+    ],
+    sprite: grid4(M + "Mole/Mole.png"),
+  },
+  // Grutas Alagadas (lv 35–55)
+  kappa: {
+    id: "kappa", name: "Kappa do Lodo", level: 40, hp: 640, xp: 760, damage: [34, 70], damageKind: "ice", armor: 12,
+    abilities: [
+      ability.bolt({ name: "Jato de Água", range: 4, min: 40, max: 75, kind: "ice", fx: "ice", cooldownMs: 9000, condition: { id: "slow", durationMs: 3000, value: 30 } }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 360, aggroRange: 6, fleeAtHpPct: 0.15, respawnMs: 70_000,
+    gold: [130, 260],
+    loot: [
+      { itemId: "lizard_scale", chance: 0.25 },
+      { itemId: "croc_leather", chance: 0.1 },
+      { itemId: "gem_green", chance: 0.03 },
+      { itemId: "health_potion_medium", chance: 0.15 },
+      { itemId: "mana_potion_medium", chance: 0.1 },
+    ],
+    sprite: grid4(M + "KappaGreen/SpriteSheet.png"),
+  },
+  cave_octopus: {
+    id: "cave_octopus", name: "Polvo das Grutas", level: 50, hp: 820, xp: 1150, damage: [40, 85], damageKind: "energy", armor: 9,
+    abilities: [
+      ability.blast({ name: "Nuvem de Tinta", radius: 1, range: 4, min: 55, max: 95, kind: "energy", fx: "energy", cooldownMs: 9000, condition: { id: "slow", durationMs: 3000, value: 40 } }),
+    ],
+    attackMs: 2200, attackRange: 4, stepMs: 400, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 80_000,
+    gold: [150, 280],
+    loot: [
+      { itemId: "pirate_coin", chance: 0.25, min: 1, max: 3 },
+      { itemId: "ectoplasm", chance: 0.15 },
+      { itemId: "gem_yellow", chance: 0.04 },
+      { itemId: "mana_potion_medium", chance: 0.2 },
+    ],
+    sprite: grid4(M + "Octopus/SpriteSheet.png"),
+  },
+  // Catacumbas Esquecidas (lv 60–85)
+  flame_skull: {
+    id: "flame_skull", name: "Crânio Flamejante", level: 70, hp: 1700, xp: 3200, damage: [75, 145], damageKind: "fire", armor: 16,
+    abilities: [
+      ability.bolt({ name: "Chama Profana", range: 5, min: 90, max: 160, kind: "fire", fx: "fire", cooldownMs: 8000, condition: { id: "burn", durationMs: 5000, value: 10 } }),
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 300, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 100_000,
+    gold: [210, 400],
+    loot: [
+      { itemId: "ember", chance: 0.3 },
+      { itemId: "bone", chance: 0.4 },
+      { itemId: "necro_skull", chance: 0.12 },
+      { itemId: "gem_purple", chance: 0.03 },
+      { itemId: "health_potion_large", chance: 0.1 },
+    ],
+    sprite: grid4(M + "Skull/SpriteSheet.png", { scale: 1.1 }),
+  },
+  red_lantern: {
+    id: "red_lantern", name: "Lanterna Rubra", level: 78, hp: 2100, xp: 4250, damage: [85, 165], damageKind: "death", armor: 18,
+    abilities: [
+      ability.healAllies({ name: "Luz Sangrenta", pct: 0.12, radius: 4, belowHpPct: 0.7, cooldownMs: 10_000 }),
+      ability.bolt({ name: "Chama Rubra", range: 4, min: 100, max: 175, kind: "death", fx: "death", cooldownMs: 10_000 }),
+    ],
+    attackMs: 2200, attackRange: 4, stepMs: 380, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 110_000,
+    gold: [240, 460],
+    loot: [
+      { itemId: "ectoplasm", chance: 0.3 },
+      { itemId: "necro_skull", chance: 0.15 },
+      { itemId: "gem_purple", chance: 0.05 },
+      { itemId: "mana_potion_large", chance: 0.12 },
+      { itemId: "amulet_lich", chance: 0.005 },
+    ],
+    sprite: grid4(M + "LanternRed/SpriteSheet.png", { scale: 1.1 }),
+  },
+  // Abismo Profundo (lv 100–130)
+  abyss_tengu: {
+    id: "abyss_tengu", name: "Tengu Rubro", level: 112, hp: 6000, xp: 13500, damage: [140, 270], damageKind: "energy", armor: 30,
+    abilities: [
+      ability.blast({ name: "Vendaval", radius: 2, range: 4, min: 170, max: 290, kind: "energy", fx: "energy", windupMs: 800, cooldownMs: 11_000 }),
+      ability.bolt({ name: "Raio do Tengu", range: 5, min: 150, max: 260, kind: "energy", fx: "energy", cooldownMs: 8000 }),
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 320, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 150_000,
+    gold: [480, 950],
+    loot: [
+      { itemId: "demonic_essence", chance: 0.12 },
+      { itemId: "gem_purple", chance: 0.12 },
+      { itemId: "mana_potion_large", chance: 0.25, min: 1, max: 3 },
+      { itemId: "health_potion_large", chance: 0.2, min: 1, max: 2 },
+      { itemId: "starstorm_wand", chance: 0.004 },
+      { itemId: "mystic_armor", chance: 0.004 },
+    ],
+    sprite: strip(B + "TenguRed/Walk.png", 82, 10, { scale: 0.38 }),
+  },
+  abyss_samurai: {
+    id: "abyss_samurai", name: "Samurai Rubro", level: 120, hp: 8000, xp: 17500, damage: [170, 320], damageKind: "physical", armor: 44,
+    abilities: [
+      ability.stomp({ name: "Corte Giratório", radius: 1, min: 200, max: 340, windupMs: 700, cooldownMs: 10_000 }),
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 340, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 170_000,
+    gold: [600, 1200],
+    loot: [
+      { itemId: "juggernaut_plate", chance: 0.15 },
+      { itemId: "mithril_bar", chance: 0.15 },
+      { itemId: "gem_yellow", chance: 0.15 },
+      { itemId: "health_potion_large", chance: 0.3, min: 2, max: 3 },
+      { itemId: "magic_longsword", chance: 0.004 },
+      { itemId: "demon_armor", chance: 0.003 },
+      { itemId: "ferumbras_legs", chance: 0.003 },
+    ],
+    sprite: strip(B + "GiantRedSamurai/Walk.png", 48, 12, { scale: 0.65 }),
+  },
 };
 
 // ---------------------------------------------------------------------------

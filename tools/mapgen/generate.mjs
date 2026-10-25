@@ -10,6 +10,7 @@ import { expand } from './expansion.mjs';
 import { expand2 } from './expansion2.mjs';
 import { expand3 } from './expansion3.mjs';
 import { expand4 } from './expansion4.mjs';
+import { expand5 } from './expansion5.mjs';
 import { PNG } from 'pngjs';
 
 const SEED = 20260611;
@@ -901,14 +902,19 @@ const lateNpcs11 = [['agente_parada', 154, 404]];
   }
 }
 
+// ===================================================================== CAVES PROFUNDAS (ciclo 13: tools/mapgen/expansion5.mjs)
+// Terceira expansão para baixo: o mapa acima (400×472) fica intacto e quatro caves (12–28, 35–55, 60–85, 100–130) entram
+// nas linhas 498..559. Entradas só-objeto: um portal com level mínimo num recanto andável de cada região de origem.
+const { map: world5 } = expand5({ old: world4, L: LEMON, spawnTile: SPAWN });
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
-fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world4.toTiled()));
+fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world5.toTiled()));
 { const cp = LEMON.set.croppedPng(); const out = new PNG({ width: cp.width, height: cp.height }); out.data = Buffer.from(cp.data); const dir = path.join(MAPS_DIR, '../tiles'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'lemon-terrain.png'), PNG.sync.write(out)); }
 // Os previews ficam só no disco (assets/maps/preview*.png está no .gitignore): são regenerados aqui a cada rodada.
-const a = renderPreview(world4, path.join(MAPS_DIR, 'preview.png'));
-const b = renderPreview(world4, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
+const a = renderPreview(world5, path.join(MAPS_DIR, 'preview.png'));
+const b = renderPreview(world5, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
 if (process.argv.includes('--debug')) {
-  renderPreview(world4, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
+  renderPreview(world5, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
 }
-console.log(`world.json ${world4.w}x${world4.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world4.objects.length}`);
+console.log(`world.json ${world5.w}x${world5.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world5.objects.length}`);

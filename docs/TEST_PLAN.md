@@ -141,6 +141,14 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 13 (2026-10-25, caves profundas)
+
+| Camada | Resultado |
+|---|---|
+| Mapa | `diff-world.mjs`: 0 tiles alterados, 699/699 objetos antigos, tilesets estáveis, 400×472 → 400×560; validação interna 9160/9160 tiles das caves alcançáveis do spawn |
+| Unitários | 1087 passados, 1 pulado; typecheck limpo |
+| E2E | `caves.spec.ts` 6/6 em `--repeat-each=3` (o portal tem 1 s de espera entre usos: o teste espera antes de sair); `world`, `travel`, `malha`, `oficina` 19/19 com o mapa novo |
+
 ## Resultados — 2026-10-25 (livros e grupos de magia, elementos e lag, ciclo 12)
 
 | Camada | Resultado |

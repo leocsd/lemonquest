@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26a",
+    date: "26 de outubro",
+    title: "Quatro caves novas",
+    items: [
+      "Minas Abandonadas (lv 10+): um portal brilhante na floresta, logo ao norte da cerca da Vila.",
+      "Grutas Alagadas (lv 35+): no sul da Selva de Banuta. Catacumbas Esquecidas (lv 60+): no oeste da Floresta Sombria.",
+      "Abismo Profundo (lv 100+): um portal no salão de entrada do Abismo, com o Tengu Rubro e o Samurai Rubro.",
+      "Oito criaturas novas, também no Quadro de Recompensas.",
+    ],
+  },
+  {
     id: "2026-10-25c",
     date: "25 de outubro (noite)",
     title: "Fim de jogo: magias do lv 100, missões e chefes no expediente",

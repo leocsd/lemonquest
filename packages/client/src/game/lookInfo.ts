@@ -31,7 +31,7 @@ export function lookCreature(c: { defId: string; name: string; level: number; bo
 
 /** Nome em português da família de bando (MonsterDef.pack.family); família nova sem rótulo mostra o id mesmo. */
 const PACK_FAMILY_LABEL: Record<string, string> = {
-  wolf: "lobos", goblin: "goblins", orc: "orcs", minotaur: "minotauros", ape: "macacos", pirate: "piratas", barbarian: "bárbaros",
+  wolf: "lobos", mine_mole: "toupeiras", goblin: "goblins", orc: "orcs", minotaur: "minotauros", ape: "macacos", pirate: "piratas", barbarian: "bárbaros",
   slag: "gosmas cinzentas", lastro: "ratazanas",
 };
 export const packFamilyLabel = (family: string): string => PACK_FAMILY_LABEL[family] ?? family;

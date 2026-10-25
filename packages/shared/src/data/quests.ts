@@ -1001,16 +1001,18 @@ export const BOUNTY_TZ = "America/Sao_Paulo";
 /** Faixas de level → monstros possíveis para as recompensas. */
 export const BOUNTY_BANDS: { minLevel: number; monsters: string[] }[] = [
   { minLevel: 1, monsters: ["rat", "slime", "bee", "wolf"] },
-  { minLevel: 10, monsters: ["wolf", "snake", "spider", "bat"] },
-  { minLevel: 18, monsters: ["spider", "bat", "skeleton", "goblin"] },
+  { minLevel: 10, monsters: ["wolf", "snake", "spider", "bat", "mine_larva"] },
+  { minLevel: 18, monsters: ["spider", "bat", "skeleton", "goblin", "mine_mole"] },
   { minLevel: 26, monsters: ["skeleton", "goblin", "ghost", "lizardman"] },
   { minLevel: 34, monsters: ["ghost", "lizardman", "flame_spirit", "goblin"] },
   // Faixas acrescentadas no fim (as antigas não mudam: a geração do dia depende do índice da faixa).
-  { minLevel: 42, monsters: ["orc_warrior", "orc_shaman", "crocodile", "pirate_buccaneer", "carniphila"] },
-  { minLevel: 52, monsters: ["minotaur", "minotaur_mage", "cyclops", "winter_wolf", "barbarian"] },
-  { minLevel: 62, monsters: ["bonelord", "black_knight", "ice_witch", "necromancer"] },
-  { minLevel: 72, monsters: ["dragon", "hero", "frost_dragon", "dragon_lord"] },
+  { minLevel: 42, monsters: ["orc_warrior", "orc_shaman", "crocodile", "pirate_buccaneer", "carniphila", "kappa"] },
+  { minLevel: 52, monsters: ["minotaur", "minotaur_mage", "cyclops", "winter_wolf", "barbarian", "cave_octopus"] },
+  { minLevel: 62, monsters: ["bonelord", "black_knight", "ice_witch", "necromancer", "flame_skull"] },
+  { minLevel: 72, monsters: ["dragon", "hero", "frost_dragon", "dragon_lord", "red_lantern"] },
   { minLevel: 88, monsters: ["behemoth", "magma_elemental", "hellhound", "demon"] },
+  // Ciclo 13: faixa do Abismo Profundo (o 88+ ficaria pesado demais com os monstros de 112–120).
+  { minLevel: 106, monsters: ["juggernaut", "abyss_tengu", "abyss_samurai", "demon"] },
 ];
 
 export function bountyBand(level: number): number {

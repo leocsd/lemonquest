@@ -6,6 +6,18 @@ Reflete o estado real. Números `#` = itens de [GAME_AUDIT.md](GAME_AUDIT.md). S
 Ordem de leitura: **Ciclo 9** (o que está em andamento e as decisões tomadas) → pendências dos ciclos 7/7b/8 → ⛔.
 Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
+## Ciclo 13 (2026-10-25) — caves profundas
+
+Pedido do dono: "mais caves", nas quatro faixas, com monstros existentes + alguns novos.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C13-1 | Quatro caves (`expansion5.mjs`, mapa 400×560), entradas só-objeto com level mínimo | ✅ 2026-10-25 | `diff-world.mjs` 0 tiles, 699/699; 9160/9160 alcançáveis; E2E `caves.spec.ts` 6/6 (`--repeat-each=3`) |
+| C13-2 | Oito monstros novos (sprites do pack sem uso) e faixa 106+ no Quadro de Recompensas | ✅ 2026-10-25 | `monsters`, `bounties`, `lookInfo` |
+| C13-3 | Revisar com a telemetria (C12-5) se as caves novas tiram a parede do 60–80 e se o 100+ ganha variedade | ⏳ | `admin.mjs telemetria` |
+| C13-4 | Arte: bocas de caverna de verdade na superfície (hoje a entrada é o brilho do portal; exige mudar tiles antigos, decisão do dono) | 🧭 | |
+| C13-5 | Missões/conquistas próprias das caves novas | ⏳ | opcional |
+
 ## Ciclo 12 (2026-10-25) — fim de jogo 90–120 e medição
 
 Análise com dados de produção (11 contas, 15 personagens, telemetria desde 22/10): fim de jogo alcançado (lv 99/102,
