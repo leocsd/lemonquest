@@ -149,7 +149,7 @@ reportou 0 erros isolados e heap de 32–43 MB.
 | Revisão cruzada | Dois agentes revisores acharam 6 defeitos nas correções, todos corrigidos com teste que falha antes: saída sem level ao lado da porta lv 80 do Vulcão ainda atravessável; Provocar num monstro voltando pela coleira o deixava perseguindo imune; gravação do prazo do chefe sem try/catch no tick; baú do lv 48–49 e 63–69 só com acessório (anel de lv 68 subia o piso); encomenda antiga sem faixa no dia do deploy; XP do cartão do Quadro sem o estágio (já existia) |
 | E2E completo | 68/68 na primeira passada (13,4 min, 1 worker; `[tick]` máx 13 ms) |
 | E2E do ciclo | `caves` + `depot` + `sinks` em `--repeat-each=3`: 14/15 — falhou 1× "Minas Abandonadas": o poll apertava "d" de novo antes de ler a chegada e andava além do tile (corrida do teste). Corrigido com `stepUntil` (só aperta enquanto está do lado de partida): `caves` 15/15 em `--repeat-each=5`, com o teste novo da porta lv 80 do Vulcão e da saída ao lado (pisar 10× abaixo do level nunca passa do y 96) e captura do Samurai Rubro inteiro (`caves-samurai.png`) |
-| CI da PR | 1ª rodada: 66 passados, 1 instável, 1 falha. `spells.spec` "feiticeiro lv 90" falhou 2× com "Sem alvo" (já falhava no CI dos ciclos 12 e do "andar sem engasgos"): o clique vai no tile do servidor e, na máquina lenta, o desenho da Gosma andando ainda está no anterior. A falha trocou o worker e o novo começou noutro trecho da lista de nomes, já gasto: `world.spec` "som" caiu com "nenhum nome livre". Correções nos helpers: `targetNearest` alterna o clique no tile com o clique na linha da Batalha; `createPlayer` percorre a lista inteira de nomes. Local: os 9 specs que usam `targetNearest` 24/24; `spells` 9/9 em `--repeat-each=3` |
+| CI da PR | 1ª rodada: 66 passados, 1 instável, 1 falha. `spells.spec` "feiticeiro lv 90" falhou 2× com "Sem alvo" (já falhava no CI dos ciclos 12 e do "andar sem engasgos"): o clique vai no tile do servidor e, na máquina lenta, o desenho da Gosma andando ainda está no anterior. A falha trocou o worker e o novo começou noutro trecho da lista de nomes, já gasto: `world.spec` "som" caiu com "nenhum nome livre". Correções nos helpers: `targetNearest` alterna o clique no tile com o clique na linha da Batalha; `createPlayer` percorre a lista inteira de nomes. Local: os 9 specs que usam `targetNearest` 24/24; `spells` 9/9 em `--repeat-each=3`. 2ª rodada do CI: 66 passados, `death` instável (passou no retry), `spells` falhou de novo (ver "Instabilidade conhecida") |
 
 ## Resultados — 2026-10-25 (andar sem engasgos e câmera presa ao jogador)
 
@@ -237,6 +237,12 @@ Achados do próprio ciclo:
 rodadas: 9/9 e 8/9); com as mudanças 2 em 9, e a falha persistia com as mudanças de cliente ou de `WorldRoom.ts`
 revertidas (bisseção) → não era regressão. Correção: `recordUi`/`seenUi` gravam cada toast/faixa/barra no momento em
 que aparece. Depois: 12/12 (`--repeat-each=4`).
+
+**Só no CI (ciclo 14, em aberto):** `spells.spec` "feiticeiro lv 90" falha no runner do GitHub (4 das últimas 6 rodadas,
+desde o ciclo 12) e passa local (9/9 em `--repeat-each=3`). Capturas do CI: "Sem linha de visão"/"Sem alvo" com as
+Gosmas a 10 sqm atrás de árvores — o alvo escolhido fica longe ou some entre a mira e a palavra. `death.spec` caiu 1×
+(passou no retry): o `/tp` de dev pôs o cavaleiro no tile de um rato (distância 0 na Batalha) — o comando não confere
+monstro no tile. Pendência: `/tp` de dev com `nearestFreeTile` e `castWorks` escolhendo alvo com linha de visão.
 
 ## Pendente / exige avaliação manual
 

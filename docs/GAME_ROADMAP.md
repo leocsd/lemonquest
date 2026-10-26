@@ -43,6 +43,7 @@ Os 22 itens da tabela "Ciclo 14" do plano, cada um com teste unitário; revisão
 | 14-21 | Faixa grampeada, teste religado | ✅ | `bounties.test.ts` |
 | 14-22 | Sprite do Samurai Rubro (6 × 96×48) | ✅ | `shared/data/monsters.test.ts` |
 | 14-23 | Acompanhar a renda do Baú de Recompensa no 70+ (tier 7 a partir do 82) antes do ciclo 16 | ⏳ | `admin.mjs telemetria` |
+| 14-24 | E2E só no CI: `spells.spec` "feiticeiro lv 90" (alvo sem linha de visão) e `/tp` de dev caindo no tile de monstro (`death.spec`) | ⏳ | TEST_PLAN "Instabilidade conhecida" |
 
 ## Ciclo 13 (2026-10-25) — caves profundas
 
