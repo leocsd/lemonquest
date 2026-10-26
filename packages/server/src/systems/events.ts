@@ -179,7 +179,8 @@ export class EventSystem {
   /** A semana a partir de `now`: uma ocorrência de cada evento agendado, a em andamento primeiro. */
   agendaMsg(now = this.now()): AgendaMsg {
     const events = upcomingEvents(new Date(now)).map(({ def, start, end }) => ({
-      id: def.id, name: def.name, desc: def.desc, xpMult: def.xpMult, lootMult: def.lootMult, ...(def.boss ? { boss: def.boss } : {}), start, end,
+      id: def.id, name: def.name, desc: def.desc, xpMult: def.xpMult, lootMult: def.lootMult, ...(def.boss ? { boss: def.boss } : {}),
+      ...(def.invasion ? { invasion: true as const } : {}), start, end,
     }));
     return { events, serverNow: now };
   }

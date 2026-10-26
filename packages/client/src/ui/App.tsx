@@ -5,9 +5,11 @@ import { useLoginReady } from "./loading.ts";
 import { Chat } from "./Chat.tsx";
 import { Toasts } from "./Toasts.tsx";
 import { PartyInvites } from "./party/PartyInvites.tsx";
+import { ExcursionCards } from "./excursions/ExcursionCards.tsx";
 import { TradeInvite, TradeWindow } from "./trade/TradeWindow.tsx";
 import { EventBadge } from "./events/EventBadge.tsx";
 import { MatchBar } from "./arena/ArenaHud.tsx";
+import { InvasionBar } from "./invasion/InvasionBar.tsx";
 import { FeedTicker } from "./items/LootToasts.tsx";
 import { LookCardView } from "./look/LookCard.tsx";
 import { NewsWindow } from "./news/NewsWindow.tsx";
@@ -39,10 +41,12 @@ export function App() {
       {/* Centro do topo numa pilha só (nada se sobrepõe): evento, barra do Coliseu, avisos, notícias e convites. */}
       <div class="top-stack">
         <EventBadge />
+        <InvasionBar />
         <MatchBar />
         <Toasts />
         <FeedTicker />
         <PartyInvites />
+        <ExcursionCards />
         <TradeInvite />
       </div>
       <LookCardView />

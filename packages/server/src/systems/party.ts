@@ -132,20 +132,28 @@ export class PartySystem {
   }
 
   invite(p: PlayerState, targetId: string): void {
+    const why = this.tryInvite(p, targetId);
+    if (why) return this.notice(p.id, why, "warn");
+    this.notice(p.id, `Convite enviado para ${this.o.getPlayer(targetId)?.name ?? "?"}.`, "info");
+  }
+
+  /**
+   * Convite sem aviso a quem convida: null = enviado; senão o motivo. O "Convidar todos" do Mural de Excursões
+   * (systems/excursions.ts) junta os resultados num aviso só.
+   */
+  tryInvite(p: PlayerState, targetId: string): string | null {
     const t = this.o.getPlayer(targetId);
-    if (!t || t.id === p.id) return this.notice(p.id, "Jogador não encontrado.", "warn");
+    if (!t || t.id === p.id) return "Jogador não encontrado.";
     const party = this.partyOf.get(p.id);
-    if (party && party.leaderId !== p.id) return this.notice(p.id, "Só o líder pode convidar.", "warn");
-    if (this.partyOf.has(t.id)) {
-      return this.notice(p.id, party && this.partyOf.get(t.id) === party ? `${t.name} já está no seu grupo.` : `${t.name} já está em um grupo.`, "warn");
-    }
-    if (party && party.members.length >= PARTY_MAX) return this.notice(p.id, `O grupo está cheio (máx. ${PARTY_MAX}).`, "warn");
+    if (party && party.leaderId !== p.id) return "Só o líder pode convidar.";
+    if (this.partyOf.has(t.id)) return party && this.partyOf.get(t.id) === party ? `${t.name} já está no seu grupo.` : `${t.name} já está em um grupo.`;
+    if (party && party.members.length >= PARTY_MAX) return `O grupo está cheio (máx. ${PARTY_MAX}).`;
     const now = this.now();
     const mine = this.invites.get(t.id) ?? new Map<string, number>();
     mine.set(p.id, now + PARTY_INVITE_MS);
     this.invites.set(t.id, mine);
     this.o.send(t.id, S2C.PartyInvite, { fromId: p.id, fromName: p.name, expiresInMs: PARTY_INVITE_MS } satisfies PartyInviteMsg);
-    this.notice(p.id, `Convite enviado para ${t.name}.`, "info");
+    return null;
   }
 
   accept(p: PlayerState, fromId: string): void {

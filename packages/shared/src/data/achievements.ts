@@ -8,11 +8,17 @@ import { ARENA_MAX_WAVE } from "./arena.ts";
 /** Métricas que o servidor calcula para cada personagem. */
 export type AchMetric =
   | "kills" | "bosses" | "bestiary" | "boss:goblin_king" | "boss:swamp_lich"
+  // Ciclo 18: os dois chefes de zona do fim de jogo.
+  | "boss:ferumbras" | "boss:orshabaal"
   | "level" | "melee" | "distance" | "magic" | "shield"
   | "arena" | "gold" | "deaths" | "steps" | "foods" | "drops" | "pickups" | "offline" | "explore" | "equipped"
   | "quests" | "party" | "fish"
   // Ciclo 11: chefes da Malha da Ferrovia e tarefas fechadas no ClickUp pelo usuário vinculado (server/systems/clickup.ts).
-  | "boss:vagao_nao_inspecionavel" | "boss:locomotiva_fantasma" | "work_tasks";
+  | "boss:vagao_nao_inspecionavel" | "boss:locomotiva_fantasma" | "work_tasks"
+  // Ciclo 18: excursões do Mural que saíram (o líder juntou no grupo 2+ inscritos; server/systems/excursions.ts).
+  | "excursions"
+  // Ciclo 18: invasões da Vila defendidas com o prêmio (contribuição mínima; server/systems/invasion.ts).
+  | "invasions";
 
 export interface AchievementDef {
   id: string;
@@ -65,6 +71,11 @@ export const TITLES: Record<string, string> = {
   algoz_ferumbras: "Algoz de Ferumbras",
   aniquilador: "o Aniquilador",
   cacador_covis: "Caçador de Covis",
+  // Ciclo 18: levels 100/120 e chefes de zona (algoz_ferumbras continua sendo da missão).
+  centenario: "o Centenário",
+  lenda_limao: "Lenda do Limão",
+  quebra_cajado: "Quebra-Cajado",
+  banidor: "Banidor de Demônios",
   // Escritório (ciclo 10): piadas internas, ver bloco correspondente em ACHIEVEMENTS.
   compras_onfire: "Compras Onfire",
   superposto: "o Superposto",
@@ -81,6 +92,10 @@ export const TITLES: Record<string, string> = {
   fechador_sprint: "Fechador de Sprint",
   mestre_kanban: "Mestre do Kanban",
   lenda_backlog: "Lenda do Backlog",
+  // Ciclo 18: Mural de Excursões.
+  guia_excursao: "Guia de Excursão",
+  // Ciclo 18: Invasão da Vila.
+  defensor_vila: "Defensor da Vila",
 };
 export const MAX_TITLE_LEN = 24;
 
@@ -111,6 +126,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("boss_10", "Caçador de Demônios", "Derrote 10 chefes", "😈", 40, "bosses", 10, { rewards: ["outfit:cacador_demonios"] }),
   a("boss_lich_5", "Pesadelo do Lich", "Derrote o Lich do Pântano 5 vezes", "🦇", 40, "boss:swamp_lich", 5, { rewards: ["addon:cacador_demonios:1"] }),
   a("boss_goblin_5", "Destronador", "Derrote o Rei Goblin 5 vezes", "🗡️", 40, "boss:goblin_king", 5, { rewards: ["addon:cacador_demonios:2"], rare: true }),
+  // Ciclo 18: chefes de zona do fim de jogo (no evento da Agenda ou nas ondas 60/70 do Coliseu: todo abate conta).
+  a("boss_ferumbras", "Cajado Partido", "Derrote Ferumbras", "🧙", 60, "boss:ferumbras", 1, { rewards: ["title:quebra_cajado"], rare: true }),
+  a("boss_orshabaal", "Demônio Banido", "Derrote Orshabaal", "👹", 60, "boss:orshabaal", 1, { rewards: ["title:banidor"], rare: true }),
   // Level
   a("level_10", "Dez e Contando", "Chegue ao level 10", "🔟", 5, "level", 10, { rewards: ["outfit:cavaleiro"] }),
   a("level_20", "Veterano Novato", "Chegue ao level 20", "🎖️", 15, "level", 20, { rewards: ["outfit:guerreiro"] }),
@@ -118,6 +136,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("level_40", "Quarentão Heroico", "Chegue ao level 40", "🏅", 40, "level", 40, { rewards: ["addon:cavaleiro:2", "title:veterano"], rare: true }),
   a("level_50", "Quase Lendário", "Chegue ao level 50", "🌟", 60, "level", 50, { rewards: ["addon:invocador:2"], rare: true }),
   a("level_75", "Senhor da Guerra", "Chegue ao level 75", "👑", 80, "level", 75, { rewards: ["addon:senhor_guerra:1"], rare: true }),
+  // Ciclo 18: o fim de jogo (tier Abissal, Coliseu 61–70) foi até o 120.
+  a("level_90", "Rumo ao Topo", "Chegue ao level 90", "⛰️", 90, "level", 90, { rare: true }),
+  a("level_100", "Centenário", "Chegue ao level 100", "💯", 100, "level", 100, { rewards: ["title:centenario"], rare: true }),
+  a("level_110", "Além do Abismo", "Chegue ao level 110", "🌋", 110, "level", 110, { rare: true }),
+  a("level_120", "Lenda do Limão", "Chegue ao level 120", "🍋", 120, "level", 120, { rewards: ["title:lenda_limao"], rare: true }),
   // Skills
   a("melee_30", "Mão Pesada", "Chegue a 30 de corpo a corpo", "💪", 15, "melee", 30, { rewards: ["addon:guerreiro:1"] }),
   a("melee_60", "Mestre das Armas", "Chegue a 60 de corpo a corpo", "⚒️", 40, "melee", 60, { rewards: ["addon:guerreiro:2"], rare: true }),
@@ -147,7 +170,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("deaths_50", "Mártir", "Morra 50 vezes", "😵", 20, "deaths", 50, { rewards: ["addon:bruxo:1"] }),
   a("food_50", "Gourmet", "Coma 50 comidas", "🍖", 10, "foods", 50, { rewards: ["outfit:druida"] }),
   a("fish_10", "Pescador", "Pesque 10 peixes", "🎣", 5, "fish", 10, { rewards: ["title:pescador"] }),
-  a("fish_100", "Mestre Pescador", "Pesque 100 peixes", "🐟", 20, "fish", 100, { rewards: ["addon:nordico:1", "title:mestre_pescador"] }),
+  // Ciclo 18: meta de 100 → 50 (o id fica: é o que está salvo em quem já tem). Baú do Pescador: server/systems/fishing.ts.
+  a("fish_100", "Mestre Pescador", "Pesque 50 peixes", "🐟", 20, "fish", 50, { rewards: ["addon:nordico:1", "title:mestre_pescador"] }),
   a("food_200", "Pança de Ferro", "Coma 200 comidas", "🍗", 25, "foods", 200, { rewards: ["addon:druida:1"] }),
   a("offline_12h", "Treinador Dedicado", "Treine offline por 12 horas no total", "🛌", 30, "offline", 720, { rewards: ["addon:druida:2"] }),
   a("offline_3h", "Meditação", "Treine offline por 3 horas no total", "🧘", 10, "offline", 180, { rewards: ["outfit:monge"] }),
@@ -200,6 +224,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("work_10", "Sprint Entregue", "Feche 10 tarefas no ClickUp vinculado", "🏁", 15, "work_tasks", 10, { rewards: ["title:fechador_sprint"] }),
   a("work_50", "Quadro Limpo", "Feche 50 tarefas no ClickUp vinculado", "📌", 30, "work_tasks", 50, { rewards: ["title:mestre_kanban"] }),
   a("work_200", "Backlog Zerado", "Feche 200 tarefas no ClickUp vinculado", "🏆", 50, "work_tasks", 200, { rewards: ["title:lenda_backlog"], rare: true }),
+  // Mural de Excursões (ciclo 18): "saiu" = o líder juntou no grupo pelo menos 2 inscritos perto do horário.
+  a("excursion_3", "Guia de Excursão", "Lidere 3 excursões do Mural que saíram (marcadas com 15+ min de antecedência, 2+ inscritos no seu grupo; uma por dia)", "🧭", 20, "excursions", 3, { rewards: ["title:guia_excursao"] }),
+  // Invasão da Vila (ciclo 18): ganhar o prêmio (10+ pontos de contribuição) numa invasão em que a Vila resistiu.
+  a("defensor_da_vila", "Defensor da Vila", "Ajude a Vila a resistir a uma invasão (10+ pontos de contribuição)", "🛡️", 20, "invasions", 1, { rewards: ["title:defensor_vila"] }),
 ];
 
 export const ACHIEVEMENTS_BY_ID: Record<string, AchievementDef> = Object.fromEntries(ACHIEVEMENTS.map((x) => [x.id, x]));

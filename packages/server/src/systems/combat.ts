@@ -1,6 +1,6 @@
 // Combate estilo Tibia: alvo + ataque automático a cada PLAYER_ATTACK_MS; dano de monstros; XP, level e morte.
 import {
-  ELITE, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, PVP_DAMAGE_MULT, S2C, VOCATION_ATTACK, baseStats, critChance, deathXpLoss, levelForXp, manaShieldSplit, mitigate, shieldArmorBonus,
+  DEATH_RECAP_MAX, DEATH_RECAP_MS, ELITE, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, PVP_DAMAGE_MULT, S2C, VOCATION_ATTACK, baseStats, critChance, deathXpLoss, levelForXp, manaShieldSplit, mitigate, shieldArmorBonus,
   applyXpStage, autoAttackRange, damageTakenMult, imbuementSpellValue, mitigateSpell, rollAttack, rollInt, splitXp, xpStage,
   type AttackMsg, type ItemDef, type SkillId, type CombatEvent, type CombatMsg, type CreatureDiedMsg, type DiedMsg, type LevelUpMsg,
   type DamageKind, type ImbuementBonus, type NoticeMsg, type XpGainMsg,
@@ -103,8 +103,12 @@ export interface CombatHooks {
   onKillCredit?: (playerId: string, m: Monster, shared: boolean) => void;
   /** XP recebida (telemetria). */
   onXp?: (p: PlayerState, amount: number) => void;
-  /** Dano que um jogador tirou de monstro selvagem e o que a resistência elemental cortou (telemetria). */
-  onDealt?: (playerId: string, dealt: number, resisted: number) => void;
+  /** Dano que um jogador tirou de monstro selvagem e o que a resistência elemental cortou (telemetria; invasão: `m`). */
+  onDealt?: (playerId: string, dealt: number, resisted: number, m: Monster) => void;
+  /** Um jogador curou OUTRO jogador (magia de cura em alvo, em área ou de grupo): `healed` = o que curou de fato. */
+  onHealOther?: (healer: PlayerState, target: PlayerState, healed: number, now: number) => void;
+  /** Um jogador perdeu `dealt` de vida para `sourceId` (monstro, habilidade, dano contínuo ou PvP); antes da morte. */
+  onPlayerDamaged?: (p: PlayerState, sourceId: string, dealt: number, now: number) => void;
   /**
    * Antes da morte normal (penalidade + templo): retorna true se outro sistema assumiu a morte (coliseu: sem
    * penalidade; ele mesmo teletransporta e restaura). Alvos/combate já foram limpos.
@@ -149,6 +153,8 @@ export class CombatSystem {
   /** Último dano dado em/recebido de monstro (sem boneco de treino nem PvP): relógio do encantamento. */
   private readonly lastPveAt = new Map<string, number>();
   private readonly nextShieldTryAt = new Map<string, number>();
+  /** Golpes recebidos (dano na vida) dos últimos DEATH_RECAP_MS por jogador: o resumo da tela de morte (DiedMsg.lastHits). */
+  private readonly recentHits = new Map<string, { at: number; source: string; amount: number }[]>();
   private readonly rng: () => number;
   hooks: CombatHooks = {};
 
@@ -238,7 +244,25 @@ export class CombatSystem {
     this.lastCombatAt.delete(id);
     this.lastPveAt.delete(id);
     this.nextShieldTryAt.delete(id);
+    this.recentHits.delete(id);
     this.o.monsters.clearTargetsOf(id);
+  }
+
+  /** Guarda um golpe recebido (descarta os que passaram da janela do resumo). */
+  private recordHit(p: PlayerState, source: string, amount: number, now: number): void {
+    const list = this.recentHits.get(p.id) ?? [];
+    while (list.length && now - list[0]!.at > DEATH_RECAP_MS) list.shift();
+    list.push({ at: now, source, amount });
+    this.recentHits.set(p.id, list);
+  }
+
+  /** Resumo dos golpes dos últimos DEATH_RECAP_MS (soma por fonte, maior primeiro, até DEATH_RECAP_MAX) e limpa o registro. */
+  takeLastHits(id: string, now: number): { source: string; amount: number }[] {
+    const list = this.recentHits.get(id) ?? [];
+    this.recentHits.delete(id);
+    const by = new Map<string, number>();
+    for (const h of list) if (now - h.at <= DEATH_RECAP_MS) by.set(h.source, (by.get(h.source) ?? 0) + h.amount);
+    return [...by].map(([source, amount]) => ({ source, amount })).sort((a, b) => b.amount - a.amount).slice(0, DEATH_RECAP_MAX);
   }
 
   /** Ataques automáticos dos jogadores. */
@@ -361,7 +385,7 @@ export class CombatSystem {
     }
     const dealt = Math.min(m.s.hp, Math.max(0, Math.round(amount)));
     const credit = o.creditId ?? sourceId;
-    if (credit && (dealt > 0 || resisted > 0) && this.o.getPlayer(credit)) this.hooks.onDealt?.(credit, dealt, resisted);
+    if (credit && (dealt > 0 || resisted > 0) && this.o.getPlayer(credit)) this.hooks.onDealt?.(credit, dealt, resisted, m);
     this.push({
       sourceId, targetId: m.s.id, amount: dealt, kind,
       crit: o.crit && dealt > 0 ? true : undefined,
@@ -413,6 +437,8 @@ export class CombatSystem {
     }
     if (dealt <= 0) return 0;
     p.hp -= dealt;
+    this.recordHit(p, o.killerName ?? "?", dealt, now);
+    this.hooks.onPlayerDamaged?.(p, sourceId, dealt, now);
     if (p.hp <= 0) this.playerDied(p, o.killerName ?? "?", o.killerId ? this.o.getPlayer(o.killerId) : undefined, now, o.killerKey ?? "?");
     return dealt;
   }
@@ -423,7 +449,12 @@ export class CombatSystem {
     const healed = Math.max(0, Math.min(p.maxHp - p.hp, Math.round(amount)));
     p.hp += healed;
     this.push({ sourceId, targetId: p.id, amount: healed, kind: "heal" });
-    if (healed > 0 && sourceId && sourceId !== p.id && this.o.getPlayer(sourceId)) this.hooks.onActivity?.(sourceId, (this.o.now ?? Date.now)());
+    const healer = healed > 0 && sourceId && sourceId !== p.id ? this.o.getPlayer(sourceId) : undefined;
+    if (healer) {
+      const now = (this.o.now ?? Date.now)();
+      this.hooks.onActivity?.(sourceId, now);
+      this.hooks.onHealOther?.(healer, p, healed, now);
+    }
     return healed;
   }
 
@@ -534,6 +565,7 @@ export class CombatSystem {
     this.lastCombatAt.delete(p.id);
     this.lastPveAt.delete(p.id);
     this.nextAttackAt.delete(p.id);
+    const lastHits = this.takeLastHits(p.id, now); // tirado antes: a morte no Coliseu também zera o registro
     if (this.hooks.interceptDeath?.(p, killerName)) return;
     this.hooks.onDying?.(p, killer, now);
     // Perda por faixa de level (DEATH_PENALTY_STAGES) × caveira vermelha, sem derrubar o level.
@@ -549,6 +581,7 @@ export class CombatSystem {
     this.hooks.onPlayerDied?.(p, killerName, killerKey);
     const id = p.id, name = p.name;
     const died: DiedMsg = blessed ? { lostXp, killerName, blessingUsed: true, savedXp: wouldLose } : { lostXp, killerName };
+    if (lastHits.length) died.lastHits = lastHits;
     this.after.push(() => {
       this.o.send(id, S2C.Died, died);
       if (blessed) this.o.send(id, S2C.Notice, { text: `Sua bênção te protegeu: ${wouldLose.toLocaleString("pt-BR")} XP salvos.`, kind: "good" } satisfies NoticeMsg);

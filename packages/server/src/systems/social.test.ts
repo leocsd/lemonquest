@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { S2C } from "@lemonquest/shared";
-import { EMOTE_COOLDOWN_MS, MAX_FRIENDS, SocialSystem, WHISPER_COOLDOWN_MS } from "./social.ts";
+import { EMOTE_COOLDOWN_MS, MAX_FRIENDS, ONLINE_CHECK_MS, SocialSystem, WHISPER_COOLDOWN_MS } from "./social.ts";
 
 type Sent = { to: string; type: string; msg: any };
 
@@ -150,7 +150,7 @@ describe("social: /quem", () => {
     expect(notices(w, "s0")).toEqual(["Online (4): veja a lista no chat. ✓ grupo = divide XP com você."]);
     const r = rows(w, "s0");
     expect(r.every((m) => m.channel === "system" && m.from === "")).toBe(true);
-    // Zona só de você (e de amigos, grupo e quem está na PZ — abaixo): a de terceiros era um radar para PK.
+    // Zona só de você (e de amigos mútuos, grupo e quem está na PZ — abaixo): a de terceiros era um radar para PK.
     expect(r.map((m) => m.text)).toEqual([
       "Duda · lv 100 · Feiticeiro",
       "Beto · lv 45 · Druida ✓ grupo", // 30 ≥ 2/3 de 45
@@ -174,13 +174,14 @@ describe("social: /quem", () => {
     expect(rows(bare, "s0").map((m) => m.text)).toEqual(["Ana · lv 5 · Druida (você)"]);
   });
 
-  it("zona aparece para amigos, para o grupo e para quem está em zona de proteção", () => {
+  it("zona aparece para amigos mútuos, para o grupo e para quem está em zona de proteção", () => {
     const w = world(["Ana", "Beto", "Caio", "Duda"], { zoneAt, inPz: (x) => x >= 200, sameParty: (a, b) => new Set([a, b]).size === 2 && [a, b].every((id) => id === "s0" || id === "s2") });
     Object.assign(w.by("Ana"), { level: 30, vocation: "knight", x: 10, y: 1 });
-    Object.assign(w.by("Beto"), { level: 45, vocation: "druid", x: 150, y: 1 }); // amigo
+    Object.assign(w.by("Beto"), { level: 45, vocation: "druid", x: 150, y: 1 }); // amigo mútuo
     Object.assign(w.by("Caio"), { level: 19, vocation: "paladin", x: 50, y: 1 }); // mesmo grupo
     Object.assign(w.by("Duda"), { level: 100, vocation: "sorcerer", x: 250, y: 1 }); // na PZ (x ≥ 200)
     w.records.get("s0")!.data.friends = ["Beto"];
+    w.records.get("s1")!.data.friends = ["ana"]; // a lista guarda o nome como foi digitado: compara por nameKey
     w.social.command(w.by("Ana"), "/quem");
     expect(rows(w, "s0").map((m) => m.text)).toEqual([
       "Duda · lv 100 · Feiticeiro · fora das zonas",
@@ -190,6 +191,26 @@ describe("social: /quem", () => {
     ]);
   });
 
+  it("amigo de um lado só não mostra a zona (a ☆ não pede licença): nem no /quem, nem no painel, nem ausente", () => {
+    const w = world(["Ana", "Beto"], { zoneAt, away: ["s1"] });
+    Object.assign(w.by("Ana"), { level: 30, vocation: "knight", x: 10, y: 1 });
+    Object.assign(w.by("Beto"), { level: 45, vocation: "druid", x: 150, y: 1 }); // caiu e ficou no mundo
+    w.social.command(w.by("Ana"), "/amigo Beto");
+    expect(notices(w, "s0").at(-1)).toBe("Beto entrou na sua lista de amigos. A zona aparece quando a amizade for mútua.");
+    w.social.command(w.by("Ana"), "/quem");
+    expect(rows(w, "s0").map((m) => m.text)).toContain("Beto · lv 45 · Druida (ausente) ✓ grupo");
+    expect(w.social.onlineFor(w.by("Ana")).list[0]).toMatchObject({ name: "Beto", friend: true });
+    expect(w.social.onlineFor(w.by("Ana")).list[0]!.zone).toBeUndefined();
+    // Beto também adiciona Ana: agora os dois veem a zona um do outro.
+    w.social.command(w.by("Beto"), "/amigo Ana");
+    expect(notices(w, "s1").at(-1)).toBe("Ana entrou na sua lista de amigos. Amizade mútua: vocês veem a zona um do outro.");
+    expect(w.social.onlineFor(w.by("Ana")).list[0]!.zone).toBe("Pântano Turvo");
+    expect(w.social.onlineFor(w.by("Beto")).list[0]!.zone).toBe("Vila de Pedra Clara");
+    // Sem o registro do outro lado (não carregado): não dá para provar a mútua, a zona fica escondida.
+    w.records.delete("s1");
+    expect(w.social.onlineFor(w.by("Ana")).list[0]!.zone).toBeUndefined();
+  });
+
   it("quem está no mundo sem ninguém no controle aparece como (ausente); a hora da linha vem do relógio do host", () => {
     const w = setup(["s1"]); // Beto caiu (ou saiu em combate) e o personagem ainda está no mundo
     w.social.command(w.by("Ana"), "/quem");
@@ -197,5 +218,107 @@ describe("social: /quem", () => {
     expect(r.map((m) => m.text)).toContain("Beto · lv 45 · Druida (ausente) ✓ grupo");
     expect(r.filter((m) => m.text.includes("(ausente)"))).toHaveLength(1);
     expect(r.every((m) => m.ts === 1_000_000)).toBe(true);
+  });
+});
+
+describe("social: painel Online", () => {
+  const zoneAt = (x: number) => (x < 100 ? "Vila de Pedra Clara" : x < 200 ? "Pântano Turvo" : null);
+  const setup = () => {
+    const w = world(["Ana", "Beto", "Caio", "Duda", "Eva"], { zoneAt, inPz: (x) => x >= 200, sameParty: (a, b) => a !== b && [a, b].every((id) => id === "s0" || id === "s2"), away: ["s4"] });
+    const stats: [string, number, string, number][] = [["Ana", 30, "knight", 10], ["Beto", 45, "druid", 150], ["Caio", 19, "paladin", 50], ["Duda", 100, "sorcerer", 250], ["Eva", 40, "druid", 160]];
+    for (const [n, level, vocation, x] of stats) Object.assign(w.by(n), { level, vocation, x, y: 1 });
+    w.records.get("s0")!.data.friends = ["Eva", "Zeca", "Beto"]; // Zeca está offline
+    w.records.get("s4")!.data.friends = ["Ana"]; // Eva também tem Ana (mútua); Beto não tem (um lado só)
+    return w;
+  };
+  const online = (w: ReturnType<typeof world>, to: string) => w.sent.filter((s) => s.to === to && s.type === S2C.Online).map((s) => s.msg);
+
+  it("amigos primeiro, sem você; zona pela regra do /quem (amigo mútuo, grupo, PZ); XP dividida, ausente e amigos offline", () => {
+    const w = setup();
+    const m = w.social.onlineFor(w.by("Ana"));
+    expect(m.list.map((e) => e.name)).toEqual(["Beto", "Eva", "Duda", "Caio"]);
+    expect(m.list).toEqual([
+      { id: "s1", name: "Beto", level: 45, vocation: "druid", friend: true, party: false, share: true }, // amigo de um lado só
+      { id: "s4", name: "Eva", level: 40, vocation: "druid", friend: true, party: false, share: true, zone: "Pântano Turvo", away: true },
+      { id: "s3", name: "Duda", level: 100, vocation: "sorcerer", friend: false, party: false, share: false, zone: "fora das zonas" }, // na PZ
+      { id: "s2", name: "Caio", level: 19, vocation: "paladin", friend: false, party: true, share: false, zone: "Vila de Pedra Clara" }, // grupo
+    ]);
+    expect(m.offlineFriends).toEqual(["Zeca"]);
+    // Para Beto (sem amigos nem grupo) só a zona de quem está na PZ aparece.
+    const b = w.social.onlineFor(w.by("Beto"));
+    expect(b.list.filter((e) => e.zone).map((e) => e.name)).toEqual(["Duda"]);
+    expect(b.offlineFriends).toEqual([]);
+  });
+
+  it("a conferência do tick manda só quando a lista de quem vê muda, no máximo a cada ONLINE_CHECK_MS", () => {
+    const w = setup();
+    w.social.tick(1_000_000);
+    expect(new Set(w.sent.filter((s) => s.type === S2C.Online).map((s) => s.to))).toEqual(new Set(["s0", "s1", "s2", "s3", "s4"]));
+    const n0 = w.sent.length;
+    w.social.tick(1_000_000 + ONLINE_CHECK_MS); // nada mudou
+    expect(w.sent.length).toBe(n0);
+    // Eva (amiga mútua de Ana) muda de zona: só Ana vê a zona dela, então só ela recebe.
+    w.by("Eva").x = 50;
+    w.social.tick(1_000_000 + ONLINE_CHECK_MS + 100); // antes do intervalo: não confere
+    expect(w.sent.length).toBe(n0);
+    w.social.tick(1_000_000 + 2 * ONLINE_CHECK_MS);
+    expect(w.sent.slice(n0).map((s) => s.to)).toEqual(["s0"]);
+    expect(online(w, "s0").at(-1).list.find((e: any) => e.name === "Eva").zone).toBe("Vila de Pedra Clara");
+    // Beto (na lista de Ana, mas Ana não está na dele) muda de zona: ninguém vê, ninguém recebe.
+    w.by("Beto").x = 50;
+    const nb = w.sent.length;
+    w.social.tick(1_000_000 + 3 * ONLINE_CHECK_MS);
+    expect(w.sent.length).toBe(nb);
+    // Alguém sai: todo mundo recebe.
+    w.players.splice(w.players.indexOf(w.by("Caio")), 1);
+    const n1 = w.sent.length;
+    w.social.tick(1_000_000 + 4 * ONLINE_CHECK_MS);
+    expect(w.sent.slice(n1).map((s) => s.to).sort()).toEqual(["s0", "s1", "s3", "s4"]);
+  });
+
+  it("C2S.Social: lista sob pedido; pôr/tirar amigo sem alternar e com o painel na hora", () => {
+    const w = setup();
+    w.social.onAction(w.by("Beto"), { action: "list" });
+    w.social.onAction(w.by("Beto"), { action: "list" }); // sob pedido: manda mesmo sem mudança
+    expect(online(w, "s1")).toHaveLength(2);
+    w.social.onAction(w.by("Beto"), { action: "friend", name: "duda", on: true });
+    expect(w.records.get("s1")!.data.friends).toEqual(["Duda"]);
+    expect(online(w, "s1").at(-1).list[0]).toMatchObject({ name: "Duda", friend: true });
+    w.social.onAction(w.by("Beto"), { action: "friend", name: "Duda", on: true }); // de novo: nada muda
+    expect(w.records.get("s1")!.data.friends).toEqual(["Duda"]);
+    expect(online(w, "s1")).toHaveLength(3);
+    w.social.onAction(w.by("Beto"), { action: "friend", name: "Duda", on: false });
+    expect(w.records.get("s1")!.data.friends).toEqual([]);
+    for (const bad of [null, { action: "friend", name: 3, on: true }, { action: "friend", name: "Duda" }, { action: "friend", name: "x".repeat(65), on: true }, { action: "x" }]) {
+      w.social.onAction(w.by("Beto"), bad as any);
+    }
+    expect(w.records.get("s1")!.data.friends).toEqual([]);
+  });
+
+  it("/amigo também atualiza o painel; quem entra recebe a lista na hora; reconexão reenvia", () => {
+    const w = setup();
+    w.social.onJoin(w.by("Caio"));
+    expect(online(w, "s2")).toHaveLength(1);
+    w.social.command(w.by("Caio"), "/amigo Ana");
+    expect(online(w, "s2").at(-1).list[0]).toMatchObject({ name: "Ana", friend: true, zone: "Vila de Pedra Clara" });
+    w.social.resendOnline("s2");
+    expect(online(w, "s2")).toHaveLength(3);
+    w.social.onLeave(w.by("Caio"));
+    w.social.resendOnline("ninguém"); // sessão que não existe: nada
+    expect(online(w, "s2")).toHaveLength(3);
+  });
+});
+
+describe("social: amigo que não existe mais", () => {
+  it("dá para tirar da lista (estrela do painel e /amigo), mas não para pôr", () => {
+    const w = world(["Ana"]);
+    w.records.get("s0")!.data.friends = ["Excluído", "Outro Excluído"];
+    w.social.onAction(w.by("Ana"), { action: "friend", name: "excluído", on: false });
+    expect(w.records.get("s0")!.data.friends).toEqual(["Outro Excluído"]);
+    w.social.command(w.by("Ana"), "/amigo Outro Excluído");
+    expect(w.records.get("s0")!.data.friends).toEqual([]);
+    w.social.onAction(w.by("Ana"), { action: "friend", name: "Excluído", on: true });
+    expect(w.records.get("s0")!.data.friends).toEqual([]);
+    expect(notices(w, "s0").at(-1)).toContain("não encontrado");
   });
 });

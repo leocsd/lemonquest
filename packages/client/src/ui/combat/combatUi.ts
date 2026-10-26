@@ -13,6 +13,8 @@ export interface DeathInfo {
   blessingUsed?: boolean;
   /** XP que a bênção salvou (DiedMsg.savedXp). */
   savedXp?: number;
+  /** O que te acertou nos últimos 5 s (DiedMsg.lastHits). */
+  lastHits?: { source: string; amount: number }[];
 }
 
 export const levelBannerStore = createStore<LevelBanner | null>(null);

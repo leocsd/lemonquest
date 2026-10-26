@@ -1,12 +1,18 @@
 // Janela de ranking (tecla R): top 10 por categoria, recorde do Coliseu. Dados de GET /api/ranking (cache de 30 s).
+// Ciclo 18: a sua linha fica em destaque e, fora do top 10, uma linha extra "você: #N" (RankingResponse.me).
 import { useEffect, useState } from "preact/hooks";
 import { timeLeftText, type RankingCategoryId } from "@lemonquest/shared";
-import { useStore } from "../hud/store.ts";
+import { selectStore, useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { useWindowDrag } from "../hud/useWindowDrag.ts";
+import { meStore } from "../hud/world.ts";
+import { session } from "../../session.ts";
 import { bindOverlay } from "../overlays.ts";
 import { fmtNum, loadRanking, rankingOpen, rankingStore } from "./achievements.ts";
 import "./achievements.css";
+
+/** Só o level do seu personagem (a linha "você"): não re-renderiza a cada patch de vida/mana. */
+const myLevel = selectStore(meStore, (m) => m?.level ?? 0);
 
 // Esc pela pilha de sobreposições (registrado no instante em que abre: a última janela aberta fecha primeiro).
 bindOverlay("ranking", rankingOpen, (v) => v, () => rankingOpen.set(false));
@@ -25,6 +31,10 @@ function RankingDialog() {
   useEffect(() => { void loadRanking(); }, []);
   const c = data?.categories.find((x) => x.id === cat);
   const showLv = cat !== "level"; // no ranking de level a coluna "Lv" repetiria o valor
+  const myName = session.myName;
+  const level = useStore(myLevel);
+  const mine = data?.me?.[cat];
+  const inTop = !!c?.entries.some((e) => e.name === myName);
   const drag = useWindowDrag("ranking");
   useDialogFocus(drag.ref);
 
@@ -50,11 +60,16 @@ function RankingDialog() {
             <thead><tr><th>#</th><th>Personagem</th>{showLv && <th>Lv</th>}<th class="num">{c.unit}</th></tr></thead>
             <tbody>
               {c.entries.map((e) => (
-                <tr key={e.rank} class={e.rank <= 3 ? `top${e.rank}` : ""}>
+                <tr key={e.rank} class={`${e.rank <= 3 ? `top${e.rank}` : ""}${e.name === myName ? " me" : ""}`} aria-current={e.name === myName ? "true" : undefined}>
                   <td>{e.rank}</td><td>{e.name}</td>{showLv && <td>{e.level}</td>}<td class="num">{fmtNum(e.value)}</td>
                 </tr>
               ))}
               {c.entries.length === 0 && <tr><td colspan={showLv ? 4 : 3} class="ach-empty">Ninguém ainda.</td></tr>}
+              {!inTop && mine && (
+                <tr class="me me-extra" data-testid="rank-me">
+                  <td>#{mine.rank}</td><td>você</td>{showLv && <td>{level || ""}</td>}<td class="num">{fmtNum(mine.value)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         )}

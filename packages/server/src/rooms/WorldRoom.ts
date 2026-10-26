@@ -7,7 +7,7 @@ import {
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
-  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg,
+  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg, type ExcursionActionMsg, type SocialActionMsg, buildWorldIndex, excursionDestinations, type WorldIndex,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -28,6 +28,8 @@ import { grantLoginBonus } from "../systems/loginBonus.ts";
 import { ChallengeSystem } from "../systems/challenges.ts";
 import { MaterialRequestSystem } from "../systems/materialRequest.ts";
 import { RefineSystem } from "../systems/refine.ts";
+import { ExcursionSystem } from "../systems/excursions.ts";
+import { InvasionSystem, parseInvasion } from "../systems/invasion.ts";
 import { FishingSystem } from "../systems/fishing.ts";
 import { FoodSystem } from "../systems/food.ts";
 import { ImbuementSystem } from "../systems/imbuement.ts";
@@ -83,7 +85,7 @@ export const KICK_DEFAULT_REASON = "Expulso por um administrador";
 export const MAX_MESSAGES_PER_SECOND = 60;
 /** Limites por tipo de mensagem (excesso descartado em silêncio). */
 export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
-  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1,
+  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1, [C2S.Excursion]: 3, [C2S.Social]: 3,
   // Chat inclui comandos (/convidar...) e palavras mágicas, que não passam pelo limite de fala do chat.ts.
   [C2S.Chat]: 6,
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
@@ -139,8 +141,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private ach!: AchievementSystem;
   private party!: PartySystem;
   private social!: SocialSystem;
+  private excursions!: ExcursionSystem;
+  /** Índice do mundo (ciclo 17): zonas, spawns, portais; montado uma vez (~15 ms) e usado por mural e invasão. */
+  private worldIndex!: WorldIndex;
   private trade!: TradeSystem;
   private events!: EventSystem;
+  private invasion!: InvasionSystem;
   private clickup!: ClickUpSystem;
   private fishing!: FishingSystem;
   private weeklyAt = 0;
@@ -207,6 +213,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     }
     liveWorld = this;
     this.map = loadMap("world");
+    this.worldIndex = buildWorldIndex(this.map.tiled);
     this.exploration = new ExplorationSystem(this.map.tiled.width, this.map.tiled.height);
     this.movement = new MovementSystem(this.map.grid, { spawn: this.map.spawn, groundSpeed: this.map.groundSpeed });
     this.portals = new PortalSystem(
@@ -324,7 +331,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       zones: parseZones(this.map.tiled),
       placeLoot: (p, it) => this.placeReward(p, it),
       onUnlock: (id, unlockId) => this.onUnlock(id, unlockId),
-      onComplete: (id, _q, bounty) => { if (!bounty) this.ach?.event(id, "quest"); },
+      // Recompensa do Quadro conta para o desafio semanal "Quadro da semana" (ciclo 18); missão, para as conquistas.
+      onComplete: (id, _q, bounty) => this.ach?.event(id, bounty ? "bounty" : "quest"),
     });
     this.questWorld = new QuestWorldSystem({
       objects: findQuestObjects(this.map.tiled), levers: findQuestLevers(this.map.tiled),
@@ -433,7 +441,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         this.telemetry.onKill(pid);
       },
       onXp: (p, n) => this.telemetry.onXp(p.id, n),
-      onDealt: (pid, dealt, resisted) => this.telemetry.onDamage(pid, dealt, resisted),
+      onDealt: (pid, dealt, resisted, m) => { this.telemetry.onDamage(pid, dealt, resisted); this.invasion?.onDamage(pid, m, dealt); },
+      onHealOther: (healer, target, healed) => this.invasion?.onHealOther(healer, target, healed),
+      onPlayerDamaged: (p, sourceId, dealt) => this.invasion?.onPlayerDamaged(p, sourceId, dealt),
       interceptDeath: (p) => this.arena.interceptDeath(p),
       canAttackPlayer: (a, b) => this.pvp.canAttack(a, b),
       onPlayerHit: (a, b, now) => this.pvp.onHit(a, b, now),
@@ -493,6 +503,16 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       equippedCount: (id) => this.inventory.equippedCount(id),
     });
     setActiveAchievements(this.ach);
+    // Invasão da Vila (ciclo 18): ondas pelo relógio do evento; pontos, placar e prêmios pendentes no kv (sobrevivem a reinício).
+    this.invasion = new InvasionSystem({
+      layout: parseInvasion(this.map.tiled), monsters: this.monsters,
+      players: () => this.state.players.values(), getPlayer, send, broadcast,
+      inventory: this.inventory, placeLoot: (p, it) => this.placeReward(p, it),
+      onDefended: (p) => this.ach.event(p.id, "invasion"),
+      save: (id) => this.save(id),
+      store: { get: () => getKv("invasao.v1"), set: (v) => setKv("invasao.v1", v) },
+      away: (id) => this.lingering.has(id),
+    });
     this.monsters.spawnAll();
     console.log(`[lemonquest] ${this.monsters.size} monstros em ${parseSpawns(this.map.tiled).length} spawns, ${this.npcs.list.length} NPCs`);
 
@@ -515,6 +535,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       caught: (id) => this.records.get(id)?.data.ach?.stats?.fish ?? 0,
       onCatch: (p) => this.ach.event(p.id, "fish"),
       inArena: (id) => this.arena.inMatch(id),
+      placeLoot: (p, it) => this.placeReward(p, it), // Baú do Pescador com a mochila cheia vai para o chão
     });
     this.challenges = new ChallengeSystem({
       getPlayer, record: (id) => this.records.get(id), send, inventory: this.inventory, placeLoot: (p, it) => this.placeReward(p, it),
@@ -526,7 +547,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       record: (id) => this.records.get(id), send, inventory: this.inventory, save: (id) => this.save(id),
       npcOpen: (id) => this.npcs.openFor(id),
     });
-    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) }, bonusStore: { get: () => getKv("event.bonus"), set: (v) => setKv("event.bonus", v) } });
+    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); this.invasion.start(ev); }, onEnd: (ev) => this.invasion.end(ev), store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) }, bonusStore: { get: () => getKv("event.bonus"), set: (v) => setKv("event.bonus", v) } });
     this.clickup = this.createClickUp();
     this.trade = new TradeSystem({
       getPlayer: (id) => this.state.players.get(id), send, inventory: this.inventory,
@@ -545,6 +566,17 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       away: (id) => this.lingering.has(id),
       inPz: (x, y) => this.monsters.inPz(x, y),
       sameParty: (a, b) => this.party.sameParty(a, b),
+    });
+    // Mural de Excursões (ciclo 18): só escolhas (destino, faixa, horário, vagas), persistido no kv.
+    this.excursions = new ExcursionSystem({
+      players: () => this.state.players.values(), send, broadcast,
+      npcOpen: (id) => this.npcs.openFor(id),
+      destinations: excursionDestinations(this.worldIndex),
+      partyMembers: (id) => this.party.membersOf(id),
+      invite: (p, id) => this.party.tryInvite(p, id),
+      onDeparted: (id) => this.ach.event(id, "excursion"),
+      feed: (text) => this.loot.feed(text, "info"),
+      getKv, setKv, report: (w, e) => this.errors.report(w, e),
     });
     const command = (p: PlayerState, text: string) => help(p, text) || this.social.command(p, text) || this.party.command(p, text) || handleAdminCommand(p, text, {
       send, broadcast,
@@ -621,6 +653,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<RefineMsg>(C2S.Refine, (p, m) => this.refine.onRefine(p, m));
     this.on(C2S.AgendaRequest, (p) => this.events.sendAgenda(p.id));
     this.on<SortContainerMsg>(C2S.SortContainer, (p, m) => this.inventory.onSortContainer(p, m));
+    this.on<ExcursionActionMsg>(C2S.Excursion, (p, m) => this.excursions.onMessage(p, m));
+    this.on<SocialActionMsg>(C2S.Social, (p, m) => this.social.onAction(p, m));
     this.on<SetOutfitMsg>(C2S.SetOutfit, (p, m) => {
       const rec = this.records.get(p.id);
       applySetOutfit(p, rec, m, rec ? getAccountTones(rec.accountId) : []);
@@ -653,11 +687,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["achievements", () => this.ach.tick(this.tickNow)],
       ["monsters", () => this.monsters.tick(this.tickNow)],
       ["monsterAbilities", () => this.monsterAbilities.tick(this.tickNow)],
+      ["invasion", () => this.invasion.tick(this.tickNow)],
       ["combat", () => this.combat.tick(this.tickNow)],
       ["conditions", () => this.conditions.tick(this.tickNow)],
       ["regen", () => this.regen.tick(this.tickNow, players())],
       ["arena", () => this.arena.tick(this.tickNow)],
       ["food", () => this.food.tick(this.tickNow, players())],
+      ["social", () => this.social.tick(this.tickNow)],
+      ["excursions", () => this.excursions.tick(this.tickNow)],
       ["imbue", () => this.imbue.tick(this.tickNow)],
       ["npcs", () => this.npcs.tick(this.tickNow)],
       ["quests", () => this.quests.tick(this.tickNow, players())],
@@ -665,6 +702,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["party", () => this.party.sync(this.tickNow)],
       ["trade", () => this.trade.tick()],
       ["fishing", () => this.fishing.tick()],
+      ["challenges", () => this.challenges.tick(this.tickNow, players())],
       ["events", () => this.events.tick(this.tickNow)],
       ["clickup", () => this.clickup.tick(this.tickNow)],
       // Virada da semana com o jogador online: renova a linha de base (no máximo 1×/min).
@@ -912,6 +950,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       const pl = this.state.players.get(sid);
       if (!pl) return;
       this.social.onJoin(pl);
+      this.invasion.onJoin(pl); // baú pendente de invasão (estava offline no fim) + estado da invasão em andamento
       if (firstLogin) {
         const w = welcomeFeed(pl.name, pl.vocation);
         this.broadcast(S2C.Feed, w.all);
@@ -1135,6 +1174,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.party.resend(sid);
     this.trade.resend(sid);
     this.events.sendTo(sid); // evento que começou/terminou durante a queda (#55)
+    this.excursions.resend(sid);
+    this.social.resendOnline(sid);
+    this.invasion.sendTo(sid);
+    this.challenges.forget(sid); // a próxima passada do tick reenvia o estado dos desafios (ponto no trilho)
     console.log(`[world] ${this.names.get(sid) ?? sid} reconectou`);
   }
 
@@ -1233,6 +1276,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["regen", () => this.regen.removePlayer(sid)],
         ["food", () => this.food.removePlayer(sid)],
         ["imbue", () => this.imbue.removePlayer(sid)],
+        ["invasion", () => this.invasion.removePlayer(sid)],
         ["exploration", () => this.exploration.removePlayer(sid)],
         ["inventory", () => this.inventory.removePlayer(sid)],
         ["ground", () => this.ground.removePlayer(sid)],
@@ -1263,6 +1307,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.shuttingDown = true;
     const n = this.saveAll();
     this.ground.flush();
+    this.excursions?.flushNow(); // mural coalescido (1×/s): grava o último segundo
     console.log(`[world] desligando: ${n} personagem(ns) salvo(s)`);
     super.onBeforeShutdown();
   }
@@ -1270,6 +1315,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   onDispose() {
     this.saveAll();
     this.ground.flush();
+    this.excursions?.flushNow();
     if (liveWorld === this) { liveWorld = null; setActiveAchievements(null); }
   }
 

@@ -202,6 +202,18 @@ export const NPCS: Record<string, NpcDef> = {
       "Sprint da semana: três cabeças, um baú.",
     ],
   },
+  // Ciclo 18: Mural de Excursões (shared/data/excursions.ts, server/systems/excursions.ts), ao lado do Quadro de
+  // Recompensas. A aba "Excursões" (postar e "Quero ir") abre pelo id; a mesma lista fica na Agenda.
+  excursion_board: {
+    id: "excursion_board", name: "Mural de Excursões", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "Papéis presos com tachinha: destino, horário e vagas. Marque uma saída em grupo ou ponha seu nome numa que já está aqui. Quem marca avisa o líder; o líder chama todo mundo para o grupo.",
+    idleLines: [
+      "Excursão para as Minas às 12h15. Leve poção. E marmita.",
+      "Vagas limitadas! Quem chegar depois do horário vai de carona no próximo.",
+      "Ponto de encontro: aqui na praça. Atrasado paga o café.",
+      "Saída em grupo rende mais XP. Ninguém caça sozinho na sexta.",
+    ],
+  },
   arena_master: {
     id: "arena_master", name: "Mestre do Coliseu", sprite: C + "RedGladiator/SpriteSheet.png",
     greeting: "Bem-vindo ao Coliseu! Forme seu grupo, escolha uma arena e enfrente as ondas de monstros. Quanto mais longe for, maior a glória.",

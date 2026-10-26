@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BACKPACK_SIZE, S2C } from "@lemonquest/shared";
-import { LOGIN_REWARDS, grantLoginBonus, nextLoginState, previousDay, rewardForStreak } from "./loginBonus.ts";
+import { BACKPACK_SIZE, S2C, challengeGold, itemDef } from "@lemonquest/shared";
+import { LOGIN_REWARDS, continuesStreak, grantLoginBonus, isWeekendDay, nextLoginState, previousDay, rewardForStreak } from "./loginBonus.ts";
 import { bountyDay } from "./bounties.ts";
 import { makeItem } from "./inventory.ts";
 import { invWorld } from "./m4kit.ts";
@@ -21,11 +21,38 @@ describe("dias seguidos (puro)", () => {
 
   it("o prêmio segue o ciclo de 7 dias e o dia 7 é o maior", () => {
     expect(LOGIN_REWARDS).toHaveLength(7);
-    expect(rewardForStreak(1)).toEqual(LOGIN_REWARDS[0]);
-    expect(rewardForStreak(7)).toEqual(LOGIN_REWARDS[6]);
-    expect(rewardForStreak(8)).toEqual(LOGIN_REWARDS[0]); // recomeça o ciclo
-    expect(rewardForStreak(0)).toEqual(LOGIN_REWARDS[0]);
+    expect(rewardForStreak(1)).toEqual({ gold: 50 });
+    expect(rewardForStreak(2)).toEqual({ items: [{ itemId: "health_potion", count: 3 }] });
+    expect(rewardForStreak(8)).toEqual(rewardForStreak(1)); // recomeça o ciclo
+    expect(rewardForStreak(0)).toEqual(rewardForStreak(1));
     expect(LOGIN_REWARDS[6]!.gold!).toBeGreaterThan(Math.max(...LOGIN_REWARDS.slice(0, 6).map((r) => r.gold ?? 0)));
+  });
+
+  it("sábado e domingo não quebram a sequência; faltar um dia útil quebra (ciclo 18)", () => {
+    expect(isWeekendDay("2026-10-24")).toBe(true); // sábado
+    expect(isWeekendDay("2026-10-25")).toBe(true); // domingo
+    expect(isWeekendDay("2026-10-26")).toBe(false); // segunda
+    expect(continuesStreak("2026-10-23", "2026-10-26")).toBe(true); // sexta → segunda
+    expect(continuesStreak("2026-10-24", "2026-10-26")).toBe(true); // sábado → segunda
+    expect(continuesStreak("2026-10-23", "2026-10-25")).toBe(true); // sexta → domingo
+    expect(continuesStreak("2026-10-22", "2026-10-26")).toBe(false); // quinta → segunda: faltou a sexta
+    expect(continuesStreak("2026-10-21", "2026-10-23")).toBe(false); // quarta → sexta: faltou a quinta
+    expect(continuesStreak("2026-10-16", "2026-10-26")).toBe(false); // uma semana inteira
+    expect(continuesStreak("2026-10-26", "2026-10-26")).toBe(false);
+    expect(continuesStreak("2026-10-27", "2026-10-26")).toBe(false); // relógio voltou
+    expect(nextLoginState({ day: "2026-10-23", streak: 5 }, "2026-10-26")).toEqual({ state: { day: "2026-10-26", streak: 6 }, fresh: true });
+    expect(nextLoginState({ day: "2026-10-22", streak: 5 }, "2026-10-26").state.streak).toBe(1);
+  });
+
+  it("o prêmio escala com o level: ouro +10%/level e a poção na maior faixa que o level bebe", () => {
+    expect(rewardForStreak(7, 1)).toEqual({ gold: 500, items: [{ itemId: "health_potion", count: 3 }] });
+    expect(rewardForStreak(7, 14).items).toEqual([{ itemId: "health_potion", count: 3 }]); // a média (lv 15) ficava sem uso
+    expect(rewardForStreak(7, 15).items).toEqual([{ itemId: "health_potion_medium", count: 3 }]);
+    expect(rewardForStreak(7, 50)).toEqual({ gold: challengeGold(500, 50), items: [{ itemId: "health_potion_large", count: 3 }] });
+    expect(rewardForStreak(6, 40).items).toEqual([{ itemId: "health_potion_large", count: 5 }, { itemId: "meat", count: 3 }]);
+    for (let d = 1; d <= 7; d++) for (const lv of [1, 8, 14, 15, 29, 30, 100]) {
+      for (const i of rewardForStreak(d, lv).items ?? []) expect(itemDef(i.itemId)?.level ?? 1, `dia ${d} lv ${lv}`).toBeLessThanOrEqual(lv);
+    }
   });
 });
 
@@ -51,6 +78,14 @@ describe("grantLoginBonus", () => {
     expect(grantLoginBonus(s.host(day(16)), s.p, s.rec)).toEqual({ streak: 2, fresh: true });
     expect(s.w.inv.countItem("p", "health_potion")).toBe(3);
     expect(s.rec.data.login).toEqual({ day: bountyDay(day(16)), streak: 2 });
+  });
+
+  it("o prêmio usa o level do jogador", () => {
+    const s = setup();
+    s.p.level = 21;
+    grantLoginBonus(s.host(day(15)), s.p, s.rec);
+    expect(s.w.inv.gold("p")).toBe(challengeGold(50, 21));
+    expect(s.out.at(-1)!.msg.text).toContain("fim de semana não quebra");
   });
 
   it("faltar um dia volta ao dia 1", () => {

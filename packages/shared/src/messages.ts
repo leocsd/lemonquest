@@ -87,6 +87,10 @@ export const C2S = {
   AgendaRequest: "agendaRequest",
   /** Organizar o depot aberto (SortContainerMsg): junta pilhas iguais e ordena por categoria e nome. */
   SortContainer: "sortContainer",
+  /** Mural de Excursões (ExcursionActionMsg, shared/data/excursions.ts): postar, cancelar, quero ir, sair, convidar todos. */
+  Excursion: "excursion",
+  /** Painel Online (SocialActionMsg, shared/online.ts): pedir a lista, pôr/tirar amigo. */
+  Social: "social",
 } as const;
 
 /** C2S.SortContainer: só o depot (aberto e perto do guarda-volumes). */
@@ -275,6 +279,14 @@ export const S2C = {
   Agenda: "agenda",
   /** Um evento agendado começa daqui a EVENT_SOON_MS (EventSoonMsg): o cliente chama a atenção na aba. */
   EventSoon: "eventSoon",
+  /** Invasão da Vila (InvasionMsg, shared/data/invasion.ts): estado por jogador (1×/s quando muda) e o resultado no fim. */
+  Invasion: "invasion",
+  /** Mural de Excursões inteiro (ExcursionsMsg): a todos quando muda e a quem pede. */
+  Excursions: "excursions",
+  /** "Quero ir" (ao líder) ou lembrete de 2 min (ExcursionPingMsg). */
+  ExcursionPing: "excursionPing",
+  /** Painel Online (OnlineMsg, shared/online.ts): só para você, quando a sua lista muda (no máximo a cada 2 s). */
+  Online: "online",
 } as const;
 
 /** Ocorrência da agenda. Horários em ms epoch, calculados no fuso do servidor (o mesmo do agendador). */
@@ -282,6 +294,8 @@ export interface AgendaEntry {
   id: string; name: string; desc: string; xpMult: number; lootMult: number;
   /** Chefe convocado no começo (id em MONSTERS). */
   boss?: string;
+  /** Invasão da Vila (GameEventDef.invasion). */
+  invasion?: true;
   start: number; end: number;
 }
 /** A semana a partir de agora (uma ocorrência de cada evento, a em andamento primeiro). */
@@ -497,7 +511,12 @@ export interface DiedMsg {
   blessingUsed?: boolean;
   /** XP que a bênção salvou (a perda que haveria sem ela). */
   savedXp?: number;
+  /** O que te acertou nos últimos DEATH_RECAP_MS (ciclo 18): dano na vida por fonte, do maior para o menor. */
+  lastHits?: { source: string; amount: number }[];
 }
+/** Janela do resumo da tela de morte (DiedMsg.lastHits) e quantas fontes ele mostra no máximo. */
+export const DEATH_RECAP_MS = 5000;
+export const DEATH_RECAP_MAX = 5;
 export interface CreatureDiedMsg { id: string; x: number; y: number; defId: string }
 export interface ExploredMsg { width: number; height: number; bits: string /* base64 */ }
 export interface NoticeMsg {

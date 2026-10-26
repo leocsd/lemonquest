@@ -11,7 +11,18 @@ Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
 Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 16 fim de jogo (tier 8, encantamento com tiers,
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
-Excursões ⏳ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+Excursões ✅ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 18 (2026-10-26) — social e retenção
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 18-1 | Invasão da Vila (quarta 12h15; Maré → quinta 13h) | ✅ | `invasion.test.ts` (shared e servidor), `events.test.ts` (sem sobreposição), `diff-world` 0 tiles |
+| 18-2 | Mural de Excursões | ✅ | `excursions.test.ts` (shared e servidor) |
+| 18-3 | Painel Online/Amigos | ✅ | `social.test.ts` |
+| 18-4 | Desafios semanais, bônus de login, conquistas, pesca, ranking, tela de morte, alerta da aba | ✅ | `challenges`, `loginBonus`, `achievements`, `fishing`, `ranking`, `attentionLogic` |
+| 14-24 | E2E `spells.spec` instável no CI | ✅ | `castWorks` com bonecos de treino, linha de visão e mira por id (CI da PR) |
+| 18-5 | Acompanhar a 1ª Invasão real (quarta 12h15): presença, ondas, prêmios | ⏳ | logs `[invasao]` |
 
 ## Ciclo 17 (2026-10-26) — descoberta, missões e interface
 
@@ -100,7 +111,7 @@ Os 22 itens da tabela "Ciclo 14" do plano, cada um com teste unitário; revisão
 | 14-21 | Faixa grampeada, teste religado | ✅ | `bounties.test.ts` |
 | 14-22 | Sprite do Samurai Rubro (6 × 96×48) | ✅ | `shared/data/monsters.test.ts` |
 | 14-23 | Acompanhar a renda do Baú de Recompensa no 70+ (tier 7 a partir do 82) antes do ciclo 16 | ⏳ | `admin.mjs telemetria` |
-| 14-24 | E2E só no CI: `spells.spec` "feiticeiro lv 90" (alvo sem linha de visão) e `/tp` de dev caindo no tile de monstro (`death.spec`) | ⏳ | TEST_PLAN "Instabilidade conhecida" |
+| 14-24 | E2E só no CI: `spells.spec` "feiticeiro lv 90" (alvo sem linha de visão) e `/tp` de dev caindo no tile de monstro (`death.spec`) | ✅ | ciclo 18: `spells` refeito; `death.spec` escolhe tile sem monstro (o `/tp` de dev segue exato, como os helpers esperam) |
 
 ## Ciclo 13 (2026-10-25) — caves profundas
 

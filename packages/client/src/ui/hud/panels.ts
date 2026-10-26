@@ -1,7 +1,7 @@
 // Ordem e "fixação" (pin) dos cards da barra lateral. Funções puras + stores persistidos (versionados).
 import { createStore, type Store } from "./store.ts";
 
-export const PANEL_IDS = ["minimap", "status", "equipment", "battle", "backpack", "party"] as const;
+export const PANEL_IDS = ["minimap", "status", "equipment", "battle", "backpack", "party", "online"] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
 
 export const ORDER_KEY = "lemonquest.ui.panelOrder.v1";

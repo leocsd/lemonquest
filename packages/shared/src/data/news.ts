@@ -12,6 +12,21 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26g",
+    date: "26 de outubro",
+    title: "Invasão da Vila, Mural de Excursões e desafios da semana",
+    items: [
+      "Invasão da Vila toda quarta, 12h15–12h55: monstros cercam a Vila em 5 ondas, com um líder elite no fim. A Maré de Tesouros foi para quinta, 13h.",
+      "Quem ajuda (dano nos invasores ou cura de quem eles feriram) ganha Baú de Recompensa, e mais um se a Vila resistir. Quem cair na invasão perde XP normalmente.",
+      "Mural de Excursões ao lado do Quadro: marque destino, faixa de level, horário e vagas. Quem quer ir avisa o líder, que convida todos com um clique.",
+      "Painel Online na barra lateral: quem está jogando, amigos primeiro, com botões de convidar e sussurrar. A zona de um amigo aparece quando a amizade é mútua.",
+      "Desafios da semana: 3 sorteados entre 9 (caça, convívio, folga), prêmio pelo seu level, aviso ao cumprir e resgate automático na segunda. Botão 🎯.",
+      "Bônus de login: sábado e domingo não quebram a sequência, e o prêmio cresce com o level. Pesca: a cada 25 peixes, um Baú de Recompensa.",
+      "Conquistas novas: level 90, 100, 110 e 120, Ferumbras e Orshabaal. O Mestre Pescador agora pede 50 peixes.",
+      "Ranking com a sua linha em destaque. A tela de morte mostra o que te acertou nos últimos 5 s, e a aba do jogo avisa quando você é atacado.",
+    ],
+  },
+  {
     id: "2026-10-26f",
     date: "26 de outubro",
     title: "Descobrir o mundo: agenda, guia, marcadores e bocas de caverna",

@@ -86,11 +86,13 @@ if (!PROD) {
   });
 }
 app.use(express.json({ limit: "16kb" }));
-// Ranking público (cache de 30 s no servidor e no navegador); só nomes de personagens.
-app.get("/api/ranking", (_req, res) => {
+// Ranking público (cache de 30 s no servidor e no navegador); só nomes de personagens. `?me=<personagem>` (janela do
+// jogo) acrescenta a posição dele em cada categoria — a mesma informação pública, só que além do top 10.
+app.get("/api/ranking", (req, res) => {
   try {
+    const me = typeof req.query.me === "string" && req.query.me.length <= 40 ? req.query.me : undefined;
     res.setHeader("Cache-Control", `public, max-age=${RANKING_CACHE_S}`);
-    res.type("application/json").send(rankingJson());
+    res.type("application/json").send(rankingJson(Date.now(), me));
   } catch (e) {
     console.error("[ranking] falhou:", e);
     res.status(500).json({ ok: false });

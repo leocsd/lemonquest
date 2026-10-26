@@ -47,6 +47,10 @@
 .rank-table tr.top1 td { color: var(--hud-gold); }
 .rank-table tr.top2 td { color: #cfd4de; }
 .rank-table tr.top3 td { color: #d79a5a; }
+/* Ciclo 18: o seu personagem (no top 10 ou na linha extra "você: #N" embaixo). */
+.rank-table tr.me td { background: rgba(255, 214, 90, 0.12); font-weight: 600; }
+.rank-table tr.me td:first-child { box-shadow: inset 3px 0 0 var(--hud-gold); }
+.rank-table tr.me-extra td { border-top: 1px dashed var(--hud-line-soft); }
 .rank-foot { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px 10px; font-size: 12px; color: var(--hud-muted); }
 .rank-foot a { color: var(--hud-gold); }
 

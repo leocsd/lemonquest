@@ -1,4 +1,4 @@
-import type { SpellGroup, Vocation } from "@lemonquest/shared";
+import type { SpellGroup, Vocation, WeeklyExtraKey } from "@lemonquest/shared";
 import type { PlayData } from "../systems/telemetry.ts";
 
 /** Dados flexíveis do personagem, guardados como JSON na coluna `data`. Cada marco acrescenta campos opcionais. */
@@ -75,9 +75,18 @@ export interface CharacterData {
   /** Telemetria de progressão (systems/telemetry.ts): tempo jogado, mortes (e causas), ouro, abates, XP e dano por level. */
   play?: PlayData;
   /** Linha de base da semana (ranking e missões semanais): contadores no começo da semana ISO `id`. */
-  week?: { id: string; xp: number; kills: number; fish: number; bosses: number };
-  /** Desafios da semana: semana ISO, level no começo dela (meta de XP), desafios resgatados e bônus. */
-  challenges?: { week: string; level: number; claimed: string[]; bonus: boolean };
+  week?: { id: string; xp: number; kills: number; fish: number; bosses: number; extra?: Partial<Record<WeeklyExtraKey, number>> };
+  /**
+   * Desafios da semana: semana ISO, level no começo dela (meta e prêmio), desafios resgatados e bônus. Ciclo 18:
+   * `notified` = cumpridos já avisados; `pending` = prêmios da semana que acabou (resgate automático na virada), pagos
+   * quando o jogador está no mundo; `settled` = última semana já fechada (nunca paga a mesma semana duas vezes).
+   */
+  challenges?: {
+    week: string; level: number; claimed: string[]; bonus: boolean;
+    notified?: string[];
+    pending?: { week: string; level: number; ids: string[]; bonus: boolean }[];
+    settled?: string;
+  };
   /**
    * Encomenda semanal de material (Quadro de Recompensas): semana ISO, se já foi entregue e a faixa de level gravada na
    * primeira consulta da semana (ciclo 14; ausente em gravação antiga, gravada na próxima consulta).

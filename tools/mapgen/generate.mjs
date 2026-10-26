@@ -994,6 +994,82 @@ const lateObjects14 = {
 // tiles só nos retângulos de ENTRANCE_RECTS. Vem depois de todas as etapas já publicadas; etapas futuras entram depois.
 drawEntrances14({ map: world5, S, L: LEMON, spawnTile: SPAWN, portalMap: portals5, caves: caves5 });
 
+// ===================================================================== INVASÃO E MURAL (ciclo 18: só objetos)
+// Invasões da Vila (shared/data/invasion.ts): 4 pontos de onde os invasores saem, num anel a ~8 tiles da PZ da Vila;
+// cada um leva a borda da PZ para onde a coluna marcha (goalX/goalY: o tile fora da PZ mais perto a pé). E o Mural de
+// Excursões (NPC-quadro) ao lado do Quadro de Recompensas (75,92), na praça. Nenhum tile muda; tudo depois dos objetos
+// já publicados (ids antigos estáveis). O ponto de invasão não é obstáculo; o NPC é (não pode fechar bolsão).
+const lateObjects18 = {
+  points: [['invasion_n', 72, 67], ['invasion_ne', 88, 67], ['invasion_e', 112, 97], ['invasion_w', 49, 86]],
+  npcs: [['excursion_board', 73, 92]], // dois tiles a oeste do Quadro de Recompensas, fora do caminho do templo
+  /** Distância (Chebyshev) mínima da PZ e passos máximos (a pé, sem entrar na PZ) até a borda. */
+  ring: { min: 6, maxSteps: 12 },
+};
+{
+  const W5 = world5.w, at = (x, y) => y * W5 + x;
+  const prop = (o, n) => o.properties?.find((p) => p.name === n)?.value;
+  const cheb = (ax, ay, bx, by) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+  const vila = world5.objects.find((o) => o.type === 'zone' && o.name === 'Vila de Pedra Clara');
+  if (!vila) fail('lateObjects18: zona Vila de Pedra Clara não existe');
+  const V = { x0: vila.x / 16, y0: vila.y / 16, x1: (vila.x + vila.width) / 16 - 1, y1: (vila.y + vila.height) / 16 - 1 };
+  const pzZones = world5.objects.filter((o) => o.type === 'zone' && prop(o, 'pz') === true);
+  const inPz = (x, y) => pzZones.some((z) => x * 16 >= z.x && x * 16 < z.x + z.width && y * 16 >= z.y && y * 16 < z.y + z.height);
+  const inVila = (x, y) => x >= V.x0 && x <= V.x1 && y >= V.y0 && y <= V.y1;
+  const pointAt = new Set(world5.objects.filter((o) => o.point || o.type === 'npc' || o.type === 'portal').map((o) => `${Math.floor(o.x / 16)},${Math.floor(o.y / 16)}`));
+  const isPortalOrTarget = (x, y) => portals5.has(`${x},${y}`) || [...portals5.values()].some(([tx, ty]) => tx === x && ty === y);
+  // As bocas de caverna (etapa anterior) mudaram tiles: alcançável recalculado aqui.
+  const reach = bfs(world5, SPAWN[0], SPAWN[1], portals5);
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  /** Passos (4 direções, fora de qualquer PZ) até um tile vizinho da PZ da Vila: [x, y, passos] ou null. */
+  const borderFrom = (sx, sy) => {
+    const seen = new Map([[at(sx, sy), 0]]);
+    const q = [[sx, sy]];
+    for (let i = 0; i < q.length; i++) {
+      const [x, y] = q[i], d = seen.get(at(x, y));
+      if (d > lateObjects18.ring.maxSteps) return null;
+      if (N4.some(([a, b]) => inVila(x + a, y + b) && !world5.blocked(x + a, y + b))) return [x, y, d];
+      for (const [a, b] of N4) {
+        const nx = x + a, ny = y + b;
+        if (world5.blocked(nx, ny) || inPz(nx, ny) || seen.has(at(nx, ny))) continue;
+        seen.set(at(nx, ny), d + 1);
+        q.push([nx, ny]);
+      }
+    }
+    return null;
+  };
+  const late = [];
+  for (const [name, x, y] of lateObjects18.points) {
+    if (world5.blocked(x, y) || !reach[at(x, y)]) fail(`ponto de invasão ${name} em ${x},${y} bloqueado ou inalcançável`);
+    if (inPz(x, y)) fail(`ponto de invasão ${name} em ${x},${y} dentro de PZ`);
+    const ring = Math.max(V.x0 - x, x - V.x1, V.y0 - y, y - V.y1);
+    if (ring < lateObjects18.ring.min) fail(`ponto de invasão ${name} em ${x},${y} a ${ring} tile(s) da Vila (mínimo ${lateObjects18.ring.min})`);
+    if (pointAt.has(`${x},${y}`) || isPortalOrTarget(x, y)) fail(`ponto de invasão ${name} em ${x},${y} em cima de outro objeto`);
+    const goal = borderFrom(x, y);
+    if (!goal) fail(`ponto de invasão ${name} em ${x},${y}: borda da Vila a mais de ${lateObjects18.ring.maxSteps} passos`);
+    late.push(['invasion_point', x, y, { goalX: goal[0], goalY: goal[1] }, name]);
+  }
+  const npcTiles = world5.objects.filter((o) => o.type === 'npc').map((o) => [o.x / 16, o.y / 16]);
+  const spawnObjs = world5.objects.filter((o) => o.type === 'monster_spawn').map((o) => [o.x / 16, o.y / 16, prop(o, 'radius') ?? 0]);
+  for (const [id, x, y] of lateObjects18.npcs) {
+    if (world5.blocked(x, y) || !reach[at(x, y)]) fail(`late npc ${id} em ${x},${y} bloqueado ou inalcançável`);
+    if (!inVila(x, y) || !inPz(x, y)) fail(`late npc ${id} em ${x},${y} fora da Vila`);
+    if (npcTiles.some(([a, b]) => cheb(a, b, x, y) < 2)) fail(`late npc ${id} a menos de 2 tiles de outro NPC`);
+    if (spawnObjs.some(([a, b, r]) => cheb(a, b, x, y) - r < 8)) fail(`late npc ${id} perto demais de um spawn`);
+    if (x === SPAWN[0] && y === SPAWN[1]) fail(`late npc ${id} no tile de nascimento`);
+    if (pointAt.has(`${x},${y}`) || isPortalOrTarget(x, y)) fail(`late npc ${id} em ${x},${y} em cima de outro objeto`);
+    // Vira obstáculo em jogo: o mapa alcançável a partir do templo perde exatamente o próprio tile.
+    let before = 0; for (let i = 0; i < reach.length; i++) before += reach[i];
+    world5.block(x, y);
+    const r = bfs(world5, SPAWN[0], SPAWN[1], portals5);
+    world5.block(x, y, false);
+    let after = 0; for (let i = 0; i < r.length; i++) after += r[i];
+    if (after !== before - 1) fail(`late npc ${id} em ${x},${y} fecha ${before - 1 - after} tile(s) do mapa`);
+    late.push(['npc', x, y, { npcId: id }, id]);
+  }
+  for (const [type, x, y, props, name] of late) world5.tileObj(type, x, y, props, name);
+  console.log(`lateObjects18: ${lateObjects18.points.length} pontos de invasão (${late.filter(([t]) => t === 'invasion_point').map(([, x, y, p]) => `${x},${y}→${p.goalX},${p.goalY}`).join(' ')}), ${lateObjects18.npcs.length} NPC`);
+}
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
 fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world5.toTiled()));

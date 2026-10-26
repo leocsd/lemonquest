@@ -10,6 +10,7 @@ import { subscribeHudInsets } from "./hud/layout.ts";
 import { inTab, pushLine, pushNotice, type Line, type Tab } from "./chatLines.ts";
 import { addedLines, decideScroll, isAtBottom, unseenText } from "./chatScroll.ts";
 import { onToast } from "./toasts.ts";
+import { chatDraftStore } from "./chatDraft.ts";
 
 const hhmm = (ts: number) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -124,6 +125,20 @@ export function Chat() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Texto pronto (Sussurrar no painel Online): abre na aba Geral com o foco e o cursor no fim.
+  useEffect(() => chatDraftStore.subscribe((d) => {
+    if (!d) return;
+    setTab("global");
+    collapsedStore.set(false);
+    setText(d.text);
+    requestAnimationFrame(() => {
+      const el = input.current;
+      if (!el) return;
+      el.focus({ preventScroll: true });
+      el.setSelectionRange(d.text.length, d.text.length);
+    });
+  }), []);
 
   // Clicar fora do chat (ex.: no mapa) devolve o teclado ao jogo. O Phaser cancela o mousedown do
   // canvas, então o navegador não tira o foco sozinho. O texto digitado é mantido.

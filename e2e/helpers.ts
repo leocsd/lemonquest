@@ -217,6 +217,31 @@ export async function targetNearest(page: Page, filter?: (defId: string) => bool
 }
 
 
+/**
+ * Mira ESTE monstro (por id) até `__lq.target() === id`: alterna a linha dele na Batalha (`data-id`, não tira o
+ * jogador do lugar) e o clique no tile dele. false = ele sumiu (morreu ou saiu da tela) antes de pegar a mira.
+ */
+export async function targetMonster(page: Page, id: string, timeoutMs = 10_000): Promise<boolean> {
+  const end = Date.now() + timeoutMs;
+  for (let tries = 0; Date.now() < end; tries++) {
+    if ((await page.evaluate(() => (window as any).__lq.target())) === id) return true;
+    const t = (await monsters(page)).find((m) => m.id === id);
+    if (!t) return false;
+    const row = page.locator(`.battle-row.monster[data-id="${id}"]`);
+    if (tries % 2 === 0 && (await row.count())) {
+      await row.first().click();
+      // O botão da linha fica com o foco: o Enter que abre o chat (say) o "clicaria" de novo e tiraria a mira.
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    } else await clickTile(page, t.x, t.y, { fy: 0.6 });
+    await page.waitForTimeout(200);
+  }
+  return (await page.evaluate(() => (window as any).__lq.target())) === id;
+}
+
+/** Linha de visão entre dois tiles pela regra do servidor (sonda `__lq.los`). */
+export const los = (page: Page, x0: number, y0: number, x1: number, y1: number) =>
+  page.evaluate(([x0, y0, x1, y1]) => (window as any).__lq.los(x0, y0, x1, y1) as boolean, [x0, y0, x1, y1] as const);
+
 /** Captura para revisão visual (só com E2E_SNAPS=1): test-results/snaps/<nome>.png. */
 export async function snap(page: Page, name: string): Promise<void> {
   if (process.env.E2E_SNAPS !== "1") return;

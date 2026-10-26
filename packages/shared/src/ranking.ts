@@ -31,4 +31,9 @@ export interface RankingResponse {
   /** Fim da semana (ms epoch): as categorias "week_*" zeram nesse instante. */
   weekEndsAt: number;
   categories: RankingCategory[];
+  /**
+   * Só com `?me=<personagem>` (janela do jogo, ciclo 18): a posição desse personagem em cada categoria em que ele tem
+   * valor, para destacar a linha dele ou mostrar "você: #N" quando está fora do top 10.
+   */
+  me?: Partial<Record<RankingCategoryId, { rank: number; value: number }>>;
 }

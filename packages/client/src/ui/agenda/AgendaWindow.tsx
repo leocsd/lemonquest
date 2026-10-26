@@ -11,6 +11,9 @@ import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { bindOverlay } from "../overlays.ts";
 import { agendaByDay, nextEvent, visibleAgenda } from "./agendaLogic.ts";
 import { agendaNow, agendaOpen, agendaStore } from "./agenda.ts";
+import { ExcursionsTab } from "../excursions/ExcursionsTab.tsx";
+import { openExcursions } from "../excursions/excursionLogic.ts";
+import { agendaTabStore, excursionsStore } from "../excursions/excursions.ts";
 import "./agenda.css";
 
 // Esc pela pilha de sobreposições: fecha só esta janela (não tira o alvo).
@@ -39,7 +42,9 @@ function Row({ e, next, live }: { e: AgendaEntry; next: boolean; live: boolean }
         {live && <span class="ag-tag live">agora</span>}
         {next && <span class="ag-tag">próximo</span>}
         <span class="ag-desc">{e.desc}</span>
-        {(bonus || e.boss) && <span class="ag-meta">{[bonus, e.boss ? `chefe: ${bossName(e.boss)}` : ""].filter(Boolean).join(" · ")}</span>}
+        {(bonus || e.boss || e.invasion) && (
+          <span class="ag-meta">{[bonus, e.boss ? `chefe: ${bossName(e.boss)}` : "", e.invasion ? "⚔ invasão: defenda a Vila" : ""].filter(Boolean).join(" · ")}</span>
+        )}
       </span>
       <GuideBoss boss={e.boss} />
     </li>
@@ -53,17 +58,28 @@ export function AgendaWindow() {
   const winRef = useRef<HTMLDivElement>(null);
   useDialogFocus(winRef, open);
   useTicker(open ? 30_000 : 0);
+  const tab = useStore(agendaTabStore);
+  const excursions = useStore(excursionsStore);
   if (!open) return null;
   const now = agendaNow();
   const list = data ? visibleAgenda(data.events, now, active?.id ?? null) : [];
   const next = nextEvent(list, now);
+  const nEx = openExcursions(excursions?.list ?? []);
   return (
     <div ref={winRef} class="agenda-window panel" role="dialog" aria-label="Agenda de eventos" data-testid="agenda-window">
       <div class="ag-head">
         <b>Agenda de eventos</b>
         <button class="win-close ag-x" onClick={() => agendaOpen.set(false)} aria-label="Fechar">×</button>
       </div>
-      <div class="ag-body">
+      {/* Ciclo 18: aba do Mural de Excursões (lista, Quero ir, sair; postar só no Mural, na praça). */}
+      <div class="ag-tabs" role="tablist">
+        <button class={`ag-tab${tab === "events" ? " active" : ""}`} role="tab" aria-selected={tab === "events"} onClick={() => agendaTabStore.set("events")}>Eventos</button>
+        <button class={`ag-tab${tab === "excursions" ? " active" : ""}`} role="tab" aria-selected={tab === "excursions"} onClick={() => agendaTabStore.set("excursions")} data-testid="agenda-tab-excursions">
+          Excursões{nEx > 0 && <span class="ag-tab-n">{nEx}</span>}
+        </button>
+      </div>
+      {tab === "excursions" && <div class="ag-body"><ExcursionsTab /></div>}
+      {tab === "events" && <div class="ag-body">
         {active && (
           <div class="ag-card live" data-testid="agenda-active">
             <span class="ag-card-k">Agora</span>
@@ -86,8 +102,8 @@ export function AgendaWindow() {
             <ul>{d.items.map((e) => <Row key={`${e.id}@${e.start}`} e={e} next={e === next} live={e.start <= now} />)}</ul>
           </section>
         ))}
-      </div>
-      <div class="ag-foot">Horário do servidor. No chat: /agenda (a semana) e /evento (agora e o próximo). Avisamos 10 min antes de cada evento.</div>
+      </div>}
+      {tab === "events" && <div class="ag-foot">Horário do servidor. No chat: /agenda (a semana) e /evento (agora e o próximo). Avisamos 10 min antes de cada evento.</div>}
     </div>
   );
 }

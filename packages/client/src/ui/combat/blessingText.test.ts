@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { xpForLevel } from "@lemonquest/shared";
-import { blessingLine, blessingProtects } from "./blessingText.ts";
+import { blessingLine, blessingProtects, lastHitsRows } from "./blessingText.ts";
 
 describe("blessingLine (tela de morte)", () => {
   it("bênção gasta: diz quanto salvou, em qualquer level", () => {
@@ -25,5 +25,18 @@ describe("blessingProtects (sacerdotisa)", () => {
     expect(blessingProtects(100, xpForLevel(100))).toBe("Protege até 19.328 XP neste level.");
     // Caveira vermelha: o teto do level também dobra (a mesma conta da morte).
     expect(blessingProtects(100, xpForLevel(100), "red")).toBe("Protege até 38.656 XP neste level.");
+  });
+});
+
+describe("lastHitsRows (tela de morte, ciclo 18)", () => {
+  it("fonte com inicial maiúscula, dano formatado e barra relativa ao maior", () => {
+    expect(lastHitsRows([{ source: "Dragão", amount: 1240 }, { source: "veneno", amount: 310 }])).toEqual([
+      { source: "Dragão", amount: "1.240", pct: 100 },
+      { source: "Veneno", amount: "310", pct: 25 },
+    ]);
+  });
+  it("ausente ou malformado: nada", () => {
+    expect(lastHitsRows(undefined)).toEqual([]);
+    expect(lastHitsRows([{ source: 3, amount: 1 }, null, { source: "Rato", amount: Number.NaN }, { source: "Rato", amount: 0 }])).toEqual([]);
   });
 });

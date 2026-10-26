@@ -7,8 +7,9 @@ import { createStore, persistedJson, selectStore } from "../hud/store.ts";
 import { meStore } from "../hud/world.ts";
 import { inventoryStore } from "../items/inventory.ts";
 import { inventoryCounter, questStore } from "../quests/quests.ts";
+import { invasionStore } from "../invasion/invasion.ts";
 import {
-  MARKER_ORDER, guideMarkers, personalMarkers, portalMarkers, questMarkers, sanitizePersonal, serviceMarkers, togglePersonal,
+  MARKER_ORDER, guideMarkers, invasionMarkers, personalMarkers, portalMarkers, questMarkers, sanitizePersonal, serviceMarkers, togglePersonal,
   type MapMarker,
 } from "./markers.ts";
 
@@ -25,6 +26,8 @@ export const togglePersonalMark = (x: number, y: number): void => personalMarksS
 export const mapMarkersStore = createStore<MapMarker[]>([]);
 
 const myLevel = selectStore(meStore, (me) => me?.level ?? null);
+/** Só o que vira marcador (pontos e líder): a contribuição muda a cada golpe e não precisa refazer a lista. */
+const invasionSpots = selectStore(invasionStore, (s) => (s ? JSON.stringify([s.points, s.leader]) : ""));
 
 function rebuild() {
   const index = worldIndexStore.get();
@@ -34,6 +37,7 @@ function rebuild() {
     ...(index ? portalMarkers(index.portals) : []),
     ...(index ? serviceMarkers(index.npcs) : []),
     ...(index && st && level !== null ? questMarkers(index.npcs, (id) => npcMarker(id, st, level, count)) : []),
+    ...invasionMarkers(invasionStore.get()),
     ...guideMarkers(guideDestStore.get()),
     ...personalMarkers(personalMarksStore.get()),
   ];
@@ -41,5 +45,5 @@ function rebuild() {
   mapMarkersStore.set(list);
 }
 
-for (const s of [worldIndexStore, questStore, inventoryStore, myLevel, guideDestStore, personalMarksStore]) s.subscribe(rebuild);
+for (const s of [worldIndexStore, questStore, inventoryStore, myLevel, guideDestStore, personalMarksStore, invasionSpots]) s.subscribe(rebuild);
 rebuild();

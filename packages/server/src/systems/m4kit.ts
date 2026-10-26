@@ -45,6 +45,7 @@ export const ITEMS_FX: Record<string, ItemDef> = {
   trout: { id: "trout", name: "Truta", kind: "food", stackable: true, value: 14, use: { food: { hpPerTick: 3, manaPerTick: 0, durationMs: 240_000 }, cooldownMs: 1000 }, icon },
   salmon: { id: "salmon", name: "Salmão", kind: "food", stackable: true, value: 40, use: { food: { hpPerTick: 5, manaPerTick: 1, durationMs: 360_000 }, cooldownMs: 1000 }, icon },
   golden_fish: { id: "golden_fish", name: "Peixe Dourado", kind: "material", stackable: true, value: 220, icon },
+  bounty_chest: { id: "bounty_chest", name: "Baú de Recompensa", kind: "quest", stackable: true, maxStack: 20, value: 0, use: { chest: true, cooldownMs: 500 }, icon },
   vest: { id: "vest", name: "Colete", kind: "armor", slot: "armor", stats: { armor: 2, hpMax: 20 }, value: 30, icon },
   boots: { id: "boots", name: "Botas", kind: "boots", slot: "boots", stats: { speed: 10 }, value: 60, icon },
   ring: { id: "ring", name: "Anel", kind: "ring", slot: "ring", stats: { crit: 10, magic: 2, hpRegen: 3 }, value: 500, level: 30, icon },

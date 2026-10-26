@@ -390,6 +390,20 @@ describe("player death", () => {
     expect(w.sent.find((s) => s.type === S2C.Died)).toMatchObject({ to: "v", msg: { lostXp: lost, killerName: "Lobo" } });
     expect(w.sent.find((s) => s.type === S2C.Notice && s.to === "*")!.msg.text).toBe("Ana foi derrotado por Lobo");
     expect(w.m.s.targetId).toBe("");
+    expect(w.sent.find((s) => s.type === S2C.Died)!.msg.lastHits).toEqual([{ source: "Lobo", amount: 70 }]);
+  });
+
+  it("tela de morte (ciclo 18): o Died traz o que acertou nos últimos 5 s, somado por fonte e do maior para o menor", () => {
+    const w = setup();
+    const p = w.add(player("v", 20, 20, { name: "Ana", level: 5, xp: xpForLevel(5), hp: 100, maxHp: 100 }));
+    w.combat.damagePlayer(p, "m1", 30, "physical", 1000, { killerName: "Rato" }); // 7 s antes da morte: fora
+    w.combat.damagePlayer(p, "m2", 20, "earth", 6000, { killerName: "veneno" });
+    w.combat.damagePlayer(p, "m3", 25, "physical", 7000, { killerName: "Lobo" });
+    w.combat.damagePlayer(p, "m3", 40, "physical", 8000, { killerName: "Lobo" }); // só 25 de vida restavam
+    w.combat.flush();
+    expect(w.sent.find((s) => s.type === S2C.Died)!.msg.lastHits).toEqual([{ source: "Lobo", amount: 50 }, { source: "veneno", amount: 20 }]);
+    // A morte zera o registro: a próxima começa limpa.
+    expect(w.combat.takeLastHits("v", 8000)).toEqual([]);
   });
 
   it("blessed player loses no XP on death, consuming the blessing", () => {
@@ -427,11 +441,11 @@ describe("player death", () => {
       return { p, died: w.sent.find((s) => s.type === S2C.Died)!.msg, notices: w.sent.filter((s) => s.to === "v" && s.type === S2C.Notice).map((s) => s.msg.text as string) };
     };
     const plain = die(false);
-    expect(plain.died).toEqual({ lostXp: 19328, killerName: "Lobo" });
+    expect(plain.died).toEqual({ lostXp: 19328, killerName: "Lobo", lastHits: [{ source: "Lobo", amount: 30 }] });
     expect(plain.p.xp).toBe(xp - 19328);
     expect(plain.p.level).toBe(100);
     const saved = die(true);
-    expect(saved.died).toEqual({ lostXp: 0, killerName: "Lobo", blessingUsed: true, savedXp: 19328 });
+    expect(saved.died).toEqual({ lostXp: 0, killerName: "Lobo", blessingUsed: true, savedXp: 19328, lastHits: [{ source: "Lobo", amount: 30 }] });
     expect(saved.p.xp).toBe(xp);
     expect(saved.p.blessed).toBe(false);
     expect(saved.notices).toContain("Sua bênção te protegeu: 19.328 XP salvos.");

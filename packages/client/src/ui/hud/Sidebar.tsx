@@ -17,6 +17,7 @@ import { panelOrderStore, panelPinsStore, type PanelId } from "./panels.ts";
 import { usePanelDrag } from "./reorder.ts";
 import { PinButton } from "./Section.tsx";
 import { PartyPanel } from "../party/PartyPanel.tsx";
+import { OnlinePanel } from "../social/OnlinePanel.tsx";
 import { StatBar } from "./StatBar.tsx";
 import { Portrait, StatusPanel } from "./StatusPanel.tsx";
 import { useStore } from "./store.ts";
@@ -27,6 +28,7 @@ import { a11yOpen, autoOpen, helpOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDE
 import { meStore } from "./world.ts";
 import { bestiaryOpen, toggleBestiary } from "../bestiary/Bestiary.tsx";
 import { agendaOpen, toggleAgenda } from "../agenda/agenda.ts";
+import { challengesOpen, challengesReady, toggleChallenges } from "../challenges/challenges.ts";
 
 export function Sidebar() {
   const open = useStore(sidebarOpen);
@@ -44,6 +46,8 @@ export function Sidebar() {
   const achOpen = useStore(achievementsOpen);
   const rankOpen = useStore(rankingOpen);
   const agenda = useStore(agendaOpen);
+  const chOpen = useStore(challengesOpen);
+  const chReady = useStore(challengesReady);
 
   const order = useStore(panelOrderStore);
   const pins = useStore(panelPinsStore);
@@ -120,6 +124,12 @@ export function Sidebar() {
         </button>
         <button class="rail-btn" onClick={openWorldMap} data-tip="Mapa do mundo" data-tip-sub="Tecla M" aria-label="Mapa do mundo">
           <PixelIcon name="map" size={14} />
+        </button>
+        <button
+          class={`rail-btn${chOpen ? " active" : ""}${chReady ? " has-dot" : ""}`} onClick={toggleChallenges} data-testid="rail-challenges"
+          data-tip="Desafios da semana" data-tip-sub={chReady ? "Prêmio para resgatar!" : "3 metas que zeram na segunda"} aria-label="Desafios da semana" aria-pressed={chOpen}
+        >
+          <PixelIcon name="target" size={14} />
         </button>
         <button class={`rail-btn${agenda ? " active" : ""}`} onClick={toggleAgenda} data-tip="Agenda de eventos" data-tip-sub="Eventos da semana · /agenda no chat" aria-label="Agenda de eventos" aria-pressed={agenda} data-testid="rail-agenda">
           <PixelIcon name="calendar" size={14} />
@@ -203,6 +213,7 @@ const PANELS: Record<PanelId, ComponentChild> = {
   battle: <BattleList key="battle" />,
   backpack: <Backpack key="backpack" />,
   party: <PartyPanel key="party" />,
+  online: <OnlinePanel key="online" />,
 };
 
 /** O mapa-múndi (ui/minimap) alterna com a tecla M num listener de window; reutilizamos o mesmo caminho. */

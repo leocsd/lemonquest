@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { NPCS, buildWorldIndex, type TiledMap } from "@lemonquest/shared";
 import {
-  MAX_PERSONAL_MARKERS, guideMarkers, markerNear, npcService, personalMarkers, portalMarkers, questMarkers, sanitizePersonal,
+  MAX_PERSONAL_MARKERS, guideMarkers, invasionMarkers, markerNear, npcService, personalMarkers, portalMarkers, questMarkers, sanitizePersonal,
   serviceMarkers, togglePersonal, visibleMarkers,
 } from "./markers.ts";
 
@@ -40,6 +40,16 @@ describe("marcadores do mapa", () => {
     expect(visibleMarkers(all, () => false).map((m) => m.kind)).toEqual(["guide", "guide", "personal"]);
     expect(visibleMarkers(all, () => true)).toHaveLength(all.length);
     expect(guideMarkers(null)).toEqual([]);
+  });
+
+  it("invasão da Vila: pontos de saída sempre visíveis e o líder só enquanto vivo", () => {
+    expect(invasionMarkers(null)).toEqual([]);
+    const pts = [{ x: 72, y: 67 }, { x: 112, y: 97 }];
+    const alive = invasionMarkers({ points: pts, leader: { name: "Pirata Bucaneiro", alive: true, x: 90, y: 70 } });
+    expect(alive.map((m) => [m.kind, m.x, m.y])).toEqual([["invasion", 72, 67], ["invasion", 112, 97], ["invasion", 90, 70]]);
+    expect(alive.at(-1)!.label).toBe("Líder da invasão: Pirata Bucaneiro");
+    expect(invasionMarkers({ points: pts, leader: { name: "X", alive: false } })).toHaveLength(2);
+    expect(visibleMarkers(alive, () => false)).toHaveLength(3); // não depende do explorado
   });
 
   it("marcador mais perto do mouse (o de cima vence o empate)", () => {

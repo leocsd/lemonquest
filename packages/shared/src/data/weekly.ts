@@ -3,8 +3,18 @@
 export type WeeklyKey = "xp" | "kills" | "fish" | "bosses";
 export const WEEKLY_KEYS: readonly WeeklyKey[] = ["xp", "kills", "fish", "bosses"];
 
-/** Contadores do personagem no começo da semana: o ganho da semana é o valor atual menos isto. */
-export interface WeekBaseline { id: string; xp: number; kills: number; fish: number; bosses: number }
+/**
+ * Contadores que só os desafios da semana medem (ciclo 18; data/challenges.ts). Ficam em `WeekBaseline.extra`, fora
+ * do ranking semanal (que continua com as 4 chaves acima).
+ */
+export type WeeklyExtraKey = "party" | "steps" | "foods" | "offline" | "waves" | "bounties";
+export const WEEKLY_EXTRA_KEYS: readonly WeeklyExtraKey[] = ["party", "steps", "foods", "offline", "waves", "bounties"];
+
+/**
+ * Contadores do personagem no começo da semana: o ganho da semana é o valor atual menos isto. `extra` falta em linha
+ * de base gravada antes do ciclo 18: o servidor completa com o valor atual (o ganho conta dali em diante).
+ */
+export interface WeekBaseline { id: string; xp: number; kills: number; fish: number; bosses: number; extra?: Partial<Record<WeeklyExtraKey, number>> }
 
 /** "2026-W42": semana ISO-8601 (a semana 1 é a que tem a primeira quinta-feira do ano). */
 export function weekId(d: Date): string {

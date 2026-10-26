@@ -609,3 +609,65 @@ describe("ranking", () => {
     expect(defaultOutfit("paladin")).toBe("cacador");
   });
 });
+
+// --- ciclo 18 (retenção) ------------------------------------------------------------------------------------------------
+
+describe("conquistas: ciclo 18", () => {
+  it("levels 90–120 e Ferumbras/Orshabaal, sem repetir par (métrica, alvo); Mestre Pescador com meta 50", () => {
+    const by = (id: string) => ACHIEVEMENTS.find((a) => a.id === id)!;
+    for (const lv of [90, 100, 110, 120]) expect(by(`level_${lv}`)).toMatchObject({ metric: "level", target: lv });
+    expect(by("boss_ferumbras")).toMatchObject({ metric: "boss:ferumbras", target: 1 });
+    expect(by("boss_orshabaal")).toMatchObject({ metric: "boss:orshabaal", target: 1 });
+    expect(by("fish_100")).toMatchObject({ metric: "fish", target: 50 });
+    const pairs = ACHIEVEMENTS.map((a) => `${a.metric}:${a.target}`);
+    expect(new Set(pairs).size).toBe(pairs.length);
+  });
+
+  it("abate de Ferumbras conta pelo contador boss:<id>; level 100 conclui as de level até 100", () => {
+    const t = setup();
+    t.sys.event("s1", "kill", { defId: "ferumbras", boss: true });
+    expect(t.done()).toContain("boss_ferumbras");
+    expect(t.done()).not.toContain("boss_orshabaal");
+    t.p.level = 100;
+    t.sys.event("s1", "check");
+    expect(t.done()).toEqual(expect.arrayContaining(["level_90", "level_100"]));
+    expect(t.done()).not.toContain("level_110");
+  });
+
+  it("contadores dos desafios: onda vencida soma `waves` (além do recorde) e recompensa do Quadro soma `bounties`", () => {
+    const t = setup();
+    t.sys.event("s1", "arena", { wave: 3 });
+    t.sys.event("s1", "arena", { wave: 4 });
+    t.sys.event("s1", "bounty");
+    expect(t.rec.data.ach!.stats).toMatchObject({ arena: 4, waves: 2, bounties: 1 });
+  });
+});
+
+describe("ranking: a posição do próprio personagem (ciclo 18)", () => {
+  function row(name: string, level: number, data: CharacterRecord["data"] = {}) {
+    return { name, vocation: "knight", level, xp: level * 100, data };
+  }
+
+  it("buildRankingFull dá a posição de todos, inclusive fora do top 10", async () => {
+    const { buildRankingFull } = await import("../persistence/ranking.ts");
+    const rows = Array.from({ length: 14 }, (_, i) => row(`N${String(i).padStart(2, "0")}`, 30 - i));
+    const { res, positions } = buildRankingFull(rows, 0, 1234);
+    expect(res.categories[0]!.entries).toHaveLength(10);
+    expect(positions.get("n12")!.level).toEqual({ rank: 13, value: 18 });
+    expect(positions.get("n00")!.level).toEqual({ rank: 1, value: 30 });
+    expect(positions.get("n00")!.fish).toBeUndefined(); // sem valor na categoria = fora
+  });
+
+  it("rankingJson com ?me= acrescenta `me` (nome sem diferenciar maiúsculas); sem ou desconhecido, a resposta pública", () => {
+    resetRankingCache();
+    createAccount("Heroi", "h", "s", "sorcerer");
+    createAccount("Outro", "h", "s", "knight");
+    const t0 = 2_000_000;
+    const pub = JSON.parse(rankingJson(t0));
+    expect(pub.me).toBeUndefined();
+    const mine = JSON.parse(rankingJson(t0, "heroi"));
+    expect(mine.me.level.rank).toBeGreaterThanOrEqual(1);
+    expect(mine.categories).toEqual(pub.categories);
+    expect(JSON.parse(rankingJson(t0, "Ninguem")).me).toBeUndefined();
+  });
+});

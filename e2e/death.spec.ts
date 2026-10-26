@@ -18,7 +18,10 @@ const xpOf = async (p: Page) => (await meState(p))!.xp as number;
  */
 async function earnSomeXp(page: Page): Promise<void> {
   const floor = await xpOf(page);
-  const spot = (await walkableNear(page, RATS.x, RATS.y, 4))[0]!;
+  // Tile sem monstro: o /tp de dev não confere ocupação, e cair em cima de um rato deixava o cavaleiro a distância 0 dele
+  // (não bate nem é batido) até o fim do poll (CI do ciclo 14).
+  const busy = new Set((await monsters(page)).map((m) => `${m.x},${m.y}`));
+  const spot = (await walkableNear(page, RATS.x, RATS.y, 4)).find((t) => !busy.has(`${t.x},${t.y}`))!;
   await teleport(page, spot.x, spot.y);
   await setChase(page, true);
   await expect.poll(async () => {

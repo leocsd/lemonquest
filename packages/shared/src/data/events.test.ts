@@ -22,8 +22,9 @@ describe("eventos semanais", () => {
     expect(scheduledEvent(at(2026, 10, 16, 19, 0))).toMatchObject({ id: "noite_de_cacada", xpMult: 2 });
     expect(scheduledEvent(at(2026, 10, 16, 19, 59))?.id).toBe("noite_de_cacada");
     expect(scheduledEvent(at(2026, 10, 16, 20, 0))).toBeNull();
-    expect(scheduledEvent(at(2026, 10, 14, 12, 30))?.id).toBe("mare_de_tesouros"); // quarta
+    expect(scheduledEvent(at(2026, 10, 14, 12, 30))?.id).toBe("invasao_da_vila"); // quarta (ciclo 18)
     expect(scheduledEvent(at(2026, 10, 15, 12, 30))?.id).toBe("rugido_do_yeti"); // quinta: chefe do almoço
+    expect(scheduledEvent(at(2026, 10, 15, 13, 30))?.id).toBe("mare_de_tesouros"); // quinta 13h–14h (ciclo 18)
     expect(scheduledEvent(at(2026, 10, 15, 14, 0))).toBeNull(); // quinta à tarde: nenhum
     expect(scheduledEvent(at(2026, 10, 14, 17, 30))).toMatchObject({ id: "apito_da_locomotiva", boss: "locomotiva_fantasma" }); // quarta 17h–18h
     expect(scheduledEvent(at(2026, 10, 14, 18, 0))).toBeNull();
@@ -39,14 +40,18 @@ describe("eventos semanais", () => {
   });
 
   it("próximo evento: o mais cedo depois de agora", () => {
-    // Ciclo 11: depois da Maré de quarta vem o Apito da Locomotiva (17h) e só então o Yeti (quinta 12h15).
-    const apito = nextScheduled(at(2026, 10, 14, 13, 0))!; // quarta depois da Maré (12h)
+    // Ciclo 11: depois do almoço de quarta (Invasão da Vila desde o ciclo 18) vem o Apito da Locomotiva (17h) e só então o
+    // Yeti (quinta 12h15).
+    const apito = nextScheduled(at(2026, 10, 14, 13, 0))!; // quarta depois da Invasão (12h15–12h55)
     expect(apito.def.id).toBe("apito_da_locomotiva");
     expect(apito.at).toBe(at(2026, 10, 14, 17, 0).getTime());
     const n = nextScheduled(at(2026, 10, 14, 18, 0))!; // quarta depois do Apito: o próximo é o Yeti, quinta 12h15
     expect(n.def.id).toBe("rugido_do_yeti");
     expect(n.at).toBe(at(2026, 10, 15, 12, 15).getTime());
-    // Ciclo 12: quinta depois do Yeti vem o Cerco de Orshabaal (17h); depois dele, Demodras na sexta 12h15.
+    // Ciclo 18: quinta, a Maré de Tesouros vem colada no Yeti (13h); depois dela, o Cerco de Orshabaal (17h, ciclo 12) e
+    // então Demodras na sexta 12h15.
+    expect(nextScheduled(at(2026, 10, 15, 12, 30))!.def.id).toBe("mare_de_tesouros");
+    expect(nextScheduled(at(2026, 10, 15, 12, 30))!.at).toBe(at(2026, 10, 15, 13, 0).getTime());
     expect(nextScheduled(at(2026, 10, 15, 13, 0))!.def.id).toBe("orshabaal_no_expediente");
     expect(nextScheduled(at(2026, 10, 15, 18, 0))!.def.id).toBe("furia_de_demodras");
     expect(nextScheduled(at(2026, 10, 16, 13, 0))!.def.id).toBe("sextou"); // sexta depois de Demodras: Sextou 17h
@@ -58,7 +63,7 @@ describe("eventos semanais", () => {
     expect(nextScheduled(at(2026, 10, 19, 10, 0))!.def.id).toBe("despertar_do_lich"); // segunda depois da Reunião: 12h15
     expect(nextScheduled(at(2026, 10, 19, 13, 0))!.def.id).toBe("cacada_ao_rei"); // segunda depois do Lich: terça 12h15
     expect(nextScheduled(at(2026, 10, 20, 13, 0))!.def.id).toBe("ferumbras_no_expediente"); // terça depois do Rei: Ferumbras 17h
-    expect(nextScheduled(at(2026, 10, 20, 18, 0))!.def.id).toBe("mare_de_tesouros"); // terça depois de Ferumbras: quarta 12h
+    expect(nextScheduled(at(2026, 10, 20, 18, 0))!.def.id).toBe("invasao_da_vila"); // terça depois de Ferumbras: quarta 12h15
   });
 
   it("eventos de chefe: o chefe existe no catálogo e as janelas não se sobrepõem", () => {
@@ -96,24 +101,42 @@ describe("eventos semanais", () => {
     expect(withBoss.filter((e) => e.hour >= 18).map((e) => e.id)).toEqual(["invasao_de_orshabaal"]);
   });
 
+  it("ciclo 18: Invasão da Vila na quarta 12h15–12h55 e Maré de Tesouros na quinta 13h–14h, sem sobrepor ninguém", () => {
+    expect(eventDef("invasao_da_vila")).toMatchObject({ day: 3, hour: 12, minute: 15, durationMin: 40, invasion: true, xpMult: 1, lootMult: 1 });
+    expect(eventDef("mare_de_tesouros")).toMatchObject({ day: 4, hour: 13, durationMin: 60, lootMult: 1.5 });
+    expect(WEEKLY_EVENTS.filter((e) => e.invasion).map((e) => e.id)).toEqual(["invasao_da_vila"]);
+    expect(eventDef("invasao_da_vila")!.boss).toBeUndefined();
+    // Quinta: Yeti 12h15–13h, Maré 13h–14h, Orshabaal 17h; quarta: Invasão 12h15–12h55, Apito 17h.
+    const day = (d: number) => WEEKLY_EVENTS.filter((e) => e.day === d).map((e) => `${e.id}@${e.hour * 60 + (e.minute ?? 0)}+${e.durationMin}`).sort();
+    expect(day(3)).toEqual(["apito_da_locomotiva@1020+60", "invasao_da_vila@735+40"]);
+    expect(day(4)).toEqual(["mare_de_tesouros@780+60", "orshabaal_no_expediente@1020+60", "rugido_do_yeti@735+45"]);
+    expect(scheduledEvent(at(2026, 10, 14, 12, 14))).toBeNull();
+    expect(scheduledEvent(at(2026, 10, 14, 12, 15))?.id).toBe("invasao_da_vila");
+    expect(scheduledEvent(at(2026, 10, 14, 12, 54))?.until).toBe(at(2026, 10, 14, 12, 55).getTime());
+    expect(scheduledEvent(at(2026, 10, 14, 12, 55))).toBeNull();
+    expect(scheduledEvent(at(2026, 10, 15, 12, 59))?.id).toBe("rugido_do_yeti");
+    expect(scheduledEvent(at(2026, 10, 15, 13, 0))?.id).toBe("mare_de_tesouros");
+  });
+
   it("agenda: a semana inteira a partir de agora, em ordem, com o evento em andamento primeiro", () => {
-    const now = at(2026, 10, 14, 12, 30); // quarta, no meio da Maré de Tesouros (12h–13h)
+    const now = at(2026, 10, 14, 12, 30); // quarta, no meio da Invasão da Vila (12h15–12h55)
     const week = upcomingEvents(now);
     expect(week).toHaveLength(WEEKLY_EVENTS.length);
     expect(new Set(week.map((e) => e.def.id)).size).toBe(WEEKLY_EVENTS.length); // uma ocorrência de cada
-    expect(week[0]).toMatchObject({ live: true, start: at(2026, 10, 14, 12, 0).getTime(), end: at(2026, 10, 14, 13, 0).getTime() });
-    expect(week[0]!.def.id).toBe("mare_de_tesouros");
+    expect(week[0]).toMatchObject({ live: true, start: at(2026, 10, 14, 12, 15).getTime(), end: at(2026, 10, 14, 12, 55).getTime() });
+    expect(week[0]!.def.id).toBe("invasao_da_vila");
     expect(week.slice(1).every((e) => !e.live)).toBe(true);
     for (let i = 1; i < week.length; i++) expect(week[i]!.start).toBeGreaterThan(week[i - 1]!.start);
     // O próximo depois do em andamento é o mesmo do agendador (nextScheduled): mesmo fuso, mesma conta.
     expect(week[1]!.def.id).toBe(nextScheduled(now)!.def.id);
     expect(week[1]!.start).toBe(nextScheduled(now)!.at);
     expect(week.at(-1)!.start).toBeLessThan(now.getTime() + 7 * 86_400_000);
-    // Fim exclusivo: às 13h a Maré já saiu da lista e volta só na quarta seguinte (o último da semana).
-    const after = upcomingEvents(at(2026, 10, 14, 13, 0));
+    // Fim exclusivo: às 12h55 a Invasão já saiu da lista e volta só na quarta seguinte (o último da semana).
+    const after = upcomingEvents(at(2026, 10, 14, 12, 55));
     expect(after[0]!.live).toBe(false);
-    expect(after.at(-1)).toMatchObject({ start: at(2026, 10, 21, 12, 0).getTime() });
-    expect(upcomingEvents(now, 3).map((e) => e.def.id)).toEqual(["mare_de_tesouros", "apito_da_locomotiva", "rugido_do_yeti"]);
+    expect(after.at(-1)).toMatchObject({ start: at(2026, 10, 21, 12, 15).getTime() });
+    expect(after.at(-1)!.def.id).toBe("invasao_da_vila");
+    expect(upcomingEvents(now, 3).map((e) => e.def.id)).toEqual(["invasao_da_vila", "apito_da_locomotiva", "rugido_do_yeti"]);
     expect(upcomingEvents(now, 0)).toEqual([]);
   });
 

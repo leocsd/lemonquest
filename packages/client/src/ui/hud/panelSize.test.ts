@@ -12,8 +12,8 @@ describe("panelSize", () => {
   });
 
   it("tela baixa (<= 820 px): Equipamento dobrado e Mochila aberta; tela alta: tudo aberto", () => {
-    expect(defaultSections(768)).toMatchObject({ equipment: false, backpack: true, status: true, battle: true, party: true });
-    expect(defaultSections(900)).toEqual({ status: true, equipment: true, battle: true, backpack: true, party: true });
+    expect(defaultSections(768)).toMatchObject({ equipment: false, backpack: true, status: true, battle: true, party: true, online: false });
+    expect(defaultSections(900)).toEqual({ status: true, equipment: true, battle: true, backpack: true, party: true, online: true });
   });
 
   it("clampRows limita a min/max, arredonda e trata inválidos", () => {

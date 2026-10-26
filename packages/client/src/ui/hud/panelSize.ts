@@ -34,11 +34,12 @@ export const defaultSizes = (h = viewportH()): Sizes => ({
   backpack: SIZE_SPEC.backpack.def,
 });
 
-export type SectionId = "status" | "equipment" | "battle" | "backpack" | "party";
+export type SectionId = "status" | "equipment" | "battle" | "backpack" | "party" | "online";
 
 /**
  * Seções abertas por padrão (preferência salva vale mais). Em 1366×768 os cards somam mais que a coluna: o Equipamento
  * começa dobrado e a Mochila aberta — ela é o painel mais usado e antes nascia dobrada, fora da vista do novato.
+ * O Online (ciclo 18) entra no fim da coluna e também começa dobrado em tela baixa.
  */
 export const defaultSections = (h = viewportH()): Record<SectionId, boolean> => ({
   status: true,
@@ -46,6 +47,7 @@ export const defaultSections = (h = viewportH()): Record<SectionId, boolean> => 
   battle: true,
   backpack: true,
   party: true,
+  online: h > SHORT_SCREEN_PX,
 });
 
 /** Linhas válidas (inteiro entre min e max); valor inválido volta ao padrão. */

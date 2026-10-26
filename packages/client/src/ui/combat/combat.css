@@ -61,5 +61,13 @@
 .death-hint { font-size: 12px; color: #7a7f90; }
 .death-tip { max-width: 420px; font-size: 13px; line-height: 1.4; color: #e6d9a8; text-align: center; }
 .death-bless { color: #9fdcab; }
+/* "O que te acertou nos últimos 5 s" (ciclo 18): fonte, barrinha proporcional ao maior dano e o número. */
+.death-hits { width: min(320px, 90vw); display: flex; flex-direction: column; gap: 3px; padding: 6px 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.35); }
+.death-hits-title { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #9a8f8a; text-align: left; }
+.death-hit { display: grid; grid-template-columns: minmax(0, 1fr) 70px auto; align-items: center; gap: 8px; font-size: 13px; color: #e8dccb; }
+.death-hit-src { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.death-hit-bar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.death-hit-bar span { display: block; height: 100%; background: #d9453f; }
+.death-hit-n { color: #ff8a7a; font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
 @keyframes death-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes death-title { from { opacity: 0; transform: translateY(-14px) scale(1.15); letter-spacing: 12px; } to { opacity: 1; transform: none; letter-spacing: 4px; } }

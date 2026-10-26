@@ -14,7 +14,13 @@ import type { CharacterData, CharacterRecord } from "../persistence/types.ts";
 export type AchievementEventType =
   | "kill" | "death" | "steps" | "gold" | "eat" | "drop" | "pickup" | "offline" | "quest" | "party_kill" | "arena" | "check" | "fish"
   /** Tarefas fechadas no ClickUp pelo usuário vinculado (systems/clickup.ts; métrica `work_tasks`). */
-  | "work";
+  | "work"
+  /** Excursão do Mural que saiu, creditada ao líder (systems/excursions.ts; métrica `excursions`). */
+  | "excursion"
+  /** Recompensa do Quadro entregue (ciclo 18: contador `bounties`, medido pelos desafios da semana). */
+  | "bounty"
+  /** Prêmio de uma Invasão da Vila defendida (systems/invasion.ts; métrica `invasions`). */
+  | "invasion";
 
 export interface AchievementEventData {
   /** kill: tipo do monstro e se é chefe. */
@@ -33,6 +39,7 @@ type Ach = NonNullable<CharacterData["ach"]>;
 /** Contadores simples (stats) que cada evento soma. */
 const COUNTER: Partial<Record<AchievementEventType, string>> = {
   death: "deaths", steps: "steps", gold: "gold", eat: "foods", drop: "drops", pickup: "pickups", quest: "quests", party_kill: "party", fish: "fish", work: "work_tasks",
+  excursion: "excursions", bounty: "bounties", invasion: "invasions",
 };
 
 /** Soma tarefas do ClickUp no registro de quem está offline (avaliado no próximo login). */
@@ -137,6 +144,7 @@ export class AchievementSystem {
         break;
       case "arena":
         a.stats.arena = Math.max(a.stats.arena ?? 0, Math.floor(d.wave ?? 0));
+        a.stats.waves = (a.stats.waves ?? 0) + 1; // ondas vencidas no total (desafio da semana "Areia")
         break;
       case "check":
         break;

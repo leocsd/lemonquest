@@ -1,4 +1,4 @@
-// Textos da bênção (tela de morte e sacerdotisa). Sem dependência de UI (testável).
+// Textos da bênção (tela de morte e sacerdotisa) e o resumo dos golpes da tela de morte. Sem dependência de UI (testável).
 import { RED_SKULL_DEATH_XP_MULT, deathXpLoss, xpForLevel } from "@lemonquest/shared";
 import { fmtNum } from "../items/itemInfo.ts";
 
@@ -17,6 +17,22 @@ export function blessingLine(d: { level: number; lostXp: number; blessed: boolea
   if (d.blessed && d.lostXp === 0) return "Nada a perder neste level: sua bênção continua ativa.";
   if (!d.blessed && d.lostXp > 0) return "Dica: a Bênção (Liora, no templo) zera a perda de XP da próxima morte.";
   return "";
+}
+
+/**
+ * Linhas do "o que te acertou nos últimos 5 s" (DiedMsg.lastHits, ciclo 18): fonte com inicial maiúscula (as condições
+ * vêm em minúscula: "veneno"), dano formatado e a fração do maior golpe (largura da barrinha). Lista malformada = vazia.
+ */
+export function lastHitsRows(hits: unknown): { source: string; amount: string; pct: number }[] {
+  if (!Array.isArray(hits)) return [];
+  const ok = hits.filter((h): h is { source: string; amount: number } =>
+    !!h && typeof h.source === "string" && typeof h.amount === "number" && Number.isFinite(h.amount) && h.amount > 0);
+  const max = Math.max(1, ...ok.map((h) => h.amount));
+  return ok.map((h) => ({
+    source: h.source ? h.source[0]!.toUpperCase() + h.source.slice(1) : "?",
+    amount: fmtNum(Math.round(h.amount)),
+    pct: Math.round((h.amount / max) * 100),
+  }));
 }
 
 /**

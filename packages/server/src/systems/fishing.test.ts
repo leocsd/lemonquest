@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { BACKPACK_SIZE, S2C } from "@lemonquest/shared";
-import { FISH_CAST_MS, FISH_MAX_CHANCE, FISH_RANGE, FishingSystem, biteChance, rollFish } from "./fishing.ts";
+import { FISHER_CHEST_EVERY, FISH_CAST_MS, FISH_MAX_CHANCE, FISH_RANGE, FishingSystem, biteChance, rollFish } from "./fishing.ts";
 import { makeItem } from "./inventory.ts";
 import { invWorld } from "./m4kit.ts";
 
 /** Água à direita de x = 10; o jogador fica em (5,5). `rngs` = sequência dos sorteios (1º = morde?, 2º = qual peixe). */
-function setup(rngs: number[] = [0.0, 0.5], o: { rod?: boolean; caught?: number; inArena?: boolean } = {}) {
+function setup(rngs: number[] = [0.0, 0.5], o: { rod?: boolean; caught?: number; inArena?: boolean; ground?: boolean } = {}) {
   const w = invWorld();
   const p = w.mk("p");
   p.name = "Pescador";
@@ -13,15 +13,19 @@ function setup(rngs: number[] = [0.0, 0.5], o: { rod?: boolean; caught?: number;
   let t = 1_000_000;
   const out: { type: string; msg: any }[] = [];
   const caught: string[] = [];
+  const ground: any[] = [];
+  // Como na sala: o contador de peixes (estatística de conquistas) sobe no onCatch.
+  let total = o.caught ?? 0;
   let i = 0;
   const fishing = new FishingSystem({
     getPlayer: (id) => (id === "p" ? p : undefined), send: (_to, type, msg) => out.push({ type, msg: structuredClone(msg) }),
     broadcast: (type, msg) => out.push({ type, msg: structuredClone(msg) }), isWater: (x, y) => x >= 10 && y >= 0 && y < 20,
-    inventory: w.inv, caught: () => o.caught ?? 0, onCatch: (_p, id) => caught.push(id), inArena: () => !!o.inArena,
+    inventory: w.inv, caught: () => total, onCatch: (_p, id) => { total++; caught.push(id); }, inArena: () => !!o.inArena,
     rng: () => rngs[i++ % rngs.length]!, now: () => t,
+    ...(o.ground ? { placeLoot: (_p: unknown, it: unknown) => { ground.push(it); return true; } } : {}),
   });
   const notices = () => out.filter((x) => x.type === S2C.Notice).map((x) => x.msg.text as string);
-  return { w, p, fishing, out, caught, notices, advance: (ms: number) => { t += ms; fishing.tick(); }, fish: (x = 10, y = 5) => fishing.onMessage(p, { x, y }) };
+  return { w, p, fishing, out, caught, ground, notices, advance: (ms: number) => { t += ms; fishing.tick(); }, fish: (x = 10, y = 5) => fishing.onMessage(p, { x, y }) };
 }
 
 describe("pesca: regras", () => {
@@ -135,5 +139,36 @@ describe("pesca: cancelamento", () => {
     s.p.hp = 120;
     s.advance(100);
     expect(s.fishing.casting("p")).toBe(true);
+  });
+});
+
+describe("pesca: Baú do Pescador (ciclo 18)", () => {
+  it("a cada 25 peixes um Baú de Recompensa na mochila, com aviso; fora do marco, nada", () => {
+    const s = setup([0.0, 0.5], { caught: FISHER_CHEST_EVERY - 2 });
+    s.fish(); s.advance(FISH_CAST_MS); // 24º
+    expect(s.w.inv.countItem("p", "bounty_chest")).toBe(0);
+    s.fish(); s.advance(FISH_CAST_MS); // 25º
+    expect(s.w.inv.countItem("p", "bounty_chest")).toBe(1);
+    const n = s.out.filter((x) => x.type === S2C.Notice).at(-1)!.msg;
+    expect(n).toMatchObject({ kind: "good", log: true });
+    expect(n.text).toContain(`Baú do Pescador: ${FISHER_CHEST_EVERY} peixes`);
+    s.fish(); s.advance(FISH_CAST_MS); // 26º
+    expect(s.w.inv.countItem("p", "bounty_chest")).toBe(1);
+  });
+
+  it("mochila cheia: o baú vai ao chão (ou se perde sem chão) e o aviso diz", () => {
+    const fill = (s: ReturnType<typeof setup>) => {
+      for (let k = 0; k < BACKPACK_SIZE - 2; k++) s.w.inv.addItem(s.p, makeItem("vest")); // vara + 1 espaço para o peixe
+    };
+    const g = setup([0.0, 0.5], { caught: FISHER_CHEST_EVERY - 1, ground: true });
+    fill(g);
+    g.fish(); g.advance(FISH_CAST_MS);
+    expect(g.w.inv.countItem("p", "trout")).toBe(1);
+    expect(g.ground.map((it) => it.defId)).toEqual(["bounty_chest"]);
+    expect(g.notices().at(-1)).toContain("caiu no chão");
+    const l = setup([0.0, 0.5], { caught: FISHER_CHEST_EVERY * 2 - 1 });
+    fill(l);
+    l.fish(); l.advance(FISH_CAST_MS);
+    expect(l.notices().at(-1)).toContain("se perdeu");
   });
 });

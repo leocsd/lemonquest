@@ -1,4 +1,5 @@
-// Janela "Desafios da semana": 3 metas com barra de progresso, resgate e o bônus por cumprir todas.
+// Janela "Desafios da semana": as 3 metas sorteadas da semana com barra de progresso, resgate e o bônus por cumprir
+// todas. Abre pelo botão do trilho (ciclo 18) e pelo diário de missões.
 import { itemDef, timeLeftText, type ChallengeReward } from "@lemonquest/shared";
 import { useRef } from "preact/hooks";
 import { useStore } from "../hud/store.ts";
@@ -37,7 +38,10 @@ export function ChallengesWindow() {
       {!data && <div class="ch-empty">Carregando…</div>}
       {data && (
         <>
-          <div class="ch-sub">Zera em <b>{timeLeftText(data.weekEndsAt, Date.now())}</b> (segunda 00h). O progresso conta desde segunda-feira.</div>
+          <div class="ch-sub">
+            Zera em <b>{timeLeftText(data.weekEndsAt, Date.now())}</b> (segunda 00h). O progresso conta desde segunda-feira e o
+            prêmio cresce com o seu level. Cumpriu e não resgatou? Ele chega sozinho na virada.
+          </div>
           <ul class="ch-list">
             {data.goals.map((g) => {
               const done = g.progress >= g.target;

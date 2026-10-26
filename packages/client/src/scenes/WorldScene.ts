@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { Callbacks, type Room } from "@colyseus/sdk";
 import {
   C2S, DROP_RANGE, EMOTES, MONSTERS, S2C, TILE_SIZE, NPC_RANGE,
-  eliteName, monsterAbilitySpell, spellDef, spellsFor, type AttackMsg, type LookGroundMsg, type MonsterTelegraphMsg, type CombatEvent, type ChatMessage, type CombatMsg, type EmoteMsg, type FishCastMsg, type ConditionsMsg, type SkillUpMsg, type SpellCastMsg, type SpellDef, type CreatureDiedMsg, type DiedMsg, type Dir, type LevelUpMsg,
+  eliteName, lineOfSight, monsterAbilitySpell, spellDef, spellsFor, type AttackMsg, type LookGroundMsg, type MonsterTelegraphMsg, type CombatEvent, type ChatMessage, type CombatMsg, type EmoteMsg, type FishCastMsg, type ConditionsMsg, type SkillUpMsg, type SpellCastMsg, type SpellDef, type CreatureDiedMsg, type DiedMsg, type Dir, type LevelUpMsg,
   type GroundItemView, type MonsterView, type LootMsg, type MoveMsg, type NpcOpenMsg, type NpcSayMsg, type PlayerView, type TurnMsg, type WalkToMsg, type XpGainMsg,
 } from "@lemonquest/shared";
 import { session } from "../session.ts";
@@ -1009,7 +1009,9 @@ export class WorldScene extends Phaser.Scene {
       spellCd: (id: string) => spellCooldownLeft(id),
       textResolutions: () => sceneTexts(this).reduce<Record<string, number>>((acc, t) => { acc[t.style.resolution] = (acc[t.style.resolution] ?? 0) + 1; return acc; }, {}),
       walkable: (x: number, y: number) => this.world.grid.isWalkable(x, y),
-      statues: () => this.statues.list.map((s) => ({ id: s.id, x: s.x, y: s.y })),
+      /** Linha de visão entre dois tiles: a mesma regra do servidor (lineOfSight do shared na grade de colisão). */
+      los: (x0: number, y0: number, x1: number, y1: number) => lineOfSight(x0, y0, x1, y1, (x, y) => this.world.grid.isWalkable(x, y)),
+      statues:() => this.statues.list.map((s) => ({ id: s.id, x: s.x, y: s.y })),
       npcTile: (id: string) => this.npcs.tileOf(id),
       /** Marcador de missão sobre o NPC ("available" | "progress" | "ready" | null). */
       npcMarker: (id: string) => this.npcs.markerOf(id),
@@ -1294,8 +1296,8 @@ export class WorldScene extends Phaser.Scene {
     sfx.play("skillup", { volume: 0.8 });
   }
 
-  onDied(killerName: string, lostXp: number, bless: Pick<DiedMsg, "blessingUsed" | "savedXp"> = {}) {
-    showDeath({ killerName, lostXp, blessingUsed: bless.blessingUsed, savedXp: bless.savedXp });
+  onDied(killerName: string, lostXp: number, bless: Pick<DiedMsg, "blessingUsed" | "savedXp" | "lastHits"> = {}) {
+    showDeath({ killerName, lostXp, blessingUsed: bless.blessingUsed, savedXp: bless.savedXp, lastHits: bless.lastHits });
     sfx.play("died", { volume: 0.9 });
   }
 

@@ -43,6 +43,7 @@ export function BattleRows({ entries }: { entries: BattleEntry[] }) {
               onClick={() => toggleTarget({ id: e.id, kind: e.kind })}
               onContextMenu={(ev) => menu(ev as MouseEvent, e)}
               data-tip={e.name}
+              data-id={e.id}
               data-tip-sub={`${e.kind === "player" ? `Jogador${fol ? " (seguindo)" : ""} · botão direito: seguir, grupo, troca, atacar` : `Criatura${e.elite ? " elite" : ""}${e.difficulty ? ` ${e.difficulty}` : ""}${e.pack ? " · chama o bando" : ""}`} · ${e.distance} sqm · ${e.hpPct}% HP`}
             >
               <span class="battle-mark" aria-hidden="true" />

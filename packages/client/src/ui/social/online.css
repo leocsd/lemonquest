@@ -1,0 +1,18 @@
+/* Card "Online" da barra lateral (ciclo 18). A lista rola a partir de ~9 linhas para não empurrar a mochila. */
+.online { display: flex; flex-direction: column; gap: 6px; }
+.online-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 230px; overflow-y: auto; }
+.online-row { display: flex; align-items: center; gap: 4px; min-height: 24px; padding: 1px 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.18); border: 1px solid transparent; }
+.online-row.friend { border-color: rgba(217, 164, 65, 0.28); }
+.online-row.party { border-color: rgba(157, 255, 138, 0.3); }
+.online-row.away .online-main, .online-row.off .online-main { opacity: 0.55; }
+.online-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
+.online-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.online-row.off .online-name { color: var(--hud-muted); font-weight: 400; }
+.online-sub { flex: none; max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
+.online-actions { display: flex; gap: 2px; flex: none; }
+.online-mini { width: 20px; height: 20px; padding: 0; font-size: 12px; line-height: 1; }
+.online-star { width: 18px; height: 18px; padding: 0; flex: none; font-size: 13px; line-height: 1; color: var(--hud-faint) !important; background: transparent !important; border-color: transparent !important; }
+.online-star.on { color: var(--hud-gold) !important; }
+.online-star:hover { color: #ffe066 !important; }
+.online-off { display: flex; flex-direction: column; gap: 3px; }
+.online-off-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--hud-faint); }

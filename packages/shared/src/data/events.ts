@@ -15,13 +15,18 @@ export interface GameEventDef {
   durationMin: number;
   /** Chefe (id em MONSTERS) que o evento convoca no começo, no spawn dele (se não houver um vivo). */
   boss?: string;
+  /** Invasão da Vila (shared/data/invasion.ts, server/systems/invasion.ts): ondas de monstros durante a janela. */
+  invasion?: true;
 }
 
 /** Chefes do almoço: dias úteis, 12h15 às 13h (o público joga no intervalo do escritório). */
 const LUNCH = { hour: 12, minute: 15, durationMin: 45 } as const;
 
 export const WEEKLY_EVENTS: readonly GameEventDef[] = [
-  { id: "mare_de_tesouros", name: "Maré de Tesouros", desc: "Chance de loot +50%", xpMult: 1, lootMult: 1.5, day: 3, hour: 12, durationMin: 60 },
+  // Ciclo 18 (decisão do dono): a quarta do almoço é da Invasão da Vila (12h15–12h55, como os chefes do almoço, mas
+  // terminando antes das 13h); a Maré de Tesouros passou para quinta 13h–14h, logo depois do Yeti.
+  { id: "invasao_da_vila", name: "Invasão da Vila", desc: "Monstros cercam a Vila em ondas: quem ajudar a defender ganha Baú de Recompensa", xpMult: 1, lootMult: 1, day: 3, hour: 12, minute: 15, durationMin: 40, invasion: true },
+  { id: "mare_de_tesouros", name: "Maré de Tesouros", desc: "Chance de loot +50%", xpMult: 1, lootMult: 1.5, day: 4, hour: 13, durationMin: 60 },
   { id: "noite_de_cacada", name: "Noite de Caçada", desc: "XP em dobro", xpMult: 2, lootMult: 1, day: 5, hour: 19, durationMin: 60 },
   // Evento de XP em horário de escritório (ciclo 9, GD-14): terça às 13h, logo depois do Rei Goblin (12h15–13h) — o
   // agendador devolve um evento só, então as janelas não podem se sobrepor.
@@ -31,14 +36,15 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   // 19h) e a Reunião Geral de segunda às 9h, quando a TV da War Room fala sozinha (antes do Lich, 12h15).
   { id: "sextou", name: "Sextou!", desc: "XP ×1,5 e loot +25% até o fim do expediente", xpMult: 1.5, lootMult: 1.25, day: 5, hour: 17, durationMin: 60 },
   { id: "reuniao_geral", name: "Reunião Geral", desc: "Enquanto a TV da War Room fala, os monstros largam mais loot: +50%", xpMult: 1, lootMult: 1.5, day: 1, hour: 9, durationMin: 45 },
-  // Chefes no almoço (seg, ter, qui, sex; a quarta é da Maré de Tesouros), do mais fácil ao mais difícil na semana.
+  // Chefes no almoço (seg, ter, qui, sex; a quarta é da Invasão da Vila), do mais fácil ao mais difícil na semana.
   { id: "despertar_do_lich", name: "Despertar do Lich", desc: "O Lich do Pântano acordou! Loot +50%", xpMult: 1, lootMult: 1.5, day: 1, ...LUNCH, boss: "swamp_lich" },
   { id: "cacada_ao_rei", name: "Caçada ao Rei Goblin", desc: "O Rei Goblin voltou às Ruínas! Loot +50%", xpMult: 1, lootMult: 1.5, day: 2, ...LUNCH, boss: "goblin_king" },
   // Raids das Terras Selvagens, como no Tibia: o chefe aparece no covil dele na hora marcada.
   { id: "rugido_do_yeti", name: "Rugido do Yeti", desc: "O Yeti saiu da caverna na Ilha Gelada! Loot +50%", xpMult: 1, lootMult: 1.5, day: 4, ...LUNCH, boss: "yeti" },
   { id: "furia_de_demodras", name: "Fúria de Demodras", desc: "Demodras acordou no Vale dos Dragões! Loot +50%", xpMult: 1, lootMult: 1.5, day: 5, ...LUNCH, boss: "demodras" },
   // Malha da Ferrovia (ciclo 11): o apito das cinco de quarta, fim do expediente. Fora do almoço porque a quarta ao meio-dia
-  // é da Maré de Tesouros e o almoço já tem um chefe por dia útil; antes das 18h para o Orshabaal seguir o único noturno.
+  // é da Invasão da Vila (era da Maré de Tesouros até o ciclo 18) e o almoço já tem um chefe por dia útil; antes das 18h
+  // para o Orshabaal seguir o único noturno.
   { id: "apito_da_locomotiva", name: "Apito da Locomotiva", desc: "O Tirano da Serra desceu ao Túnel da Serra! Loot +50%", xpMult: 1, lootMult: 1.5, day: 3, hour: 17, durationMin: 60, boss: "locomotiva_fantasma" },
   // Fim de semana: Ferumbras à tarde e o único chefe noturno (Orshabaal), para quem joga de casa.
   { id: "retorno_de_ferumbras", name: "Retorno de Ferumbras", desc: "Ferumbras voltou à Cidadela! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 0, hour: 15, durationMin: 90, boss: "ferumbras" },

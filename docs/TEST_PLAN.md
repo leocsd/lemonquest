@@ -141,6 +141,15 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 18 (2026-10-26, social e retenção)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1525 passados (132 arquivos; eram 1423), 0 pulados; typecheck limpo. Novos: `invasion.test.ts` (shared e servidor: ondas pelo relógio e após reinício, escala por presentes fora da PZ, teto de 40 com o líder garantido, nunca em PZ, cura só do dano de invasor, prêmio e Vila defendida, sem segunda rodada na mesma janela), `excursions.test.ts` (shared e servidor: escolhas, limites, ping a cada 30 s, lembrete, expiração, kv, crédito do Guia só com 15 min e 1×/dia), `challenges.test.ts` (shared), `challengeLogic`, `onlineLogic`; casos novos em `social` (zona só com amizade mútua, grupo ou PZ), `events` (Invasão e Maré sem sobreposição), `loginBonus`, `fishing`, `achievements` (sem par repetido), `weekly`, `combat` (`lastHits`) |
+| Mapa | `diff-world.mjs` contra o ciclo 17: 0 tiles alterados, 846/846 objetos antigos, 5 novos (4 `invasion_point` + Mural) |
+| Revisão cruzada | 7 achados corrigidos: cura pontuando sem invasor, zona vazando pela estrela de amigo (agora amizade mútua, no painel e no `/quem`), invasão que podia rodar e premiar 2×, Guia de Excursão em 1 minuto, líder que não nascia com o teto cheio, spam de "Quero ir", presença inflada por quem fica no templo |
+| E2E | Specs novas, não executadas localmente: `invasion.spec.ts`, `mural.spec.ts` (duas páginas); `spells.spec` refeito (bonecos de treino, linha de visão, mira por id) e `death.spec` (tile sem monstro) contra a instabilidade 14-24. Resultado do CI da PR abaixo |
+
 ## Resultados — ciclo 17 (2026-10-26, descoberta, missões e interface)
 
 | Camada | Resultado |

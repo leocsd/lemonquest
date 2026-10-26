@@ -1,0 +1,19 @@
+/* Barra da Invasão da Vila: mora na pilha do topo (App: .top-stack), como a barra do Coliseu. */
+.invasion-bar {
+  display: flex; align-items: center; gap: 7px; padding: 4px 12px; cursor: pointer;
+  background: rgba(36, 12, 10, 0.9); border: 1px solid rgba(217, 83, 79, 0.6); border-radius: 6px;
+  font-size: 12.5px; color: var(--hud-text); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35); white-space: nowrap;
+  font-variant-numeric: tabular-nums; max-width: calc(100vw - var(--hud-right, 0px) - 24px); overflow: hidden; text-overflow: ellipsis;
+}
+.invasion-bar b { color: #ffb09a; }
+.invasion-bar .sep { color: var(--hud-faint); }
+.invasion-bar .inv-icon { color: #ff7b72; }
+.invasion-bar .inv-ok { color: #8fe08f; }
+.invasion-bar .inv-leader { color: #ff7b72; font-weight: 600; }
+.invasion-bar.leader { border-color: rgba(255, 91, 82, 0.95); box-shadow: 0 0 12px rgba(255, 91, 82, 0.3); }
+.invasion-bar.leader .inv-icon { animation: inv-pulse 1.4s ease-in-out infinite; }
+.invasion-bar.result { cursor: default; white-space: normal; }
+.invasion-bar.result.won { background: rgba(14, 32, 14, 0.9); border-color: rgba(143, 224, 143, 0.6); }
+.invasion-bar.result.won .inv-icon { color: #8fe08f; }
+@keyframes inv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .invasion-bar.leader .inv-icon { animation: none; } }

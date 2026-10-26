@@ -7,7 +7,7 @@ describe("normalizeOrder", () => {
     expect(normalizeOrder("lixo")).toEqual([...PANEL_IDS]);
   });
   it("ignora ids desconhecidos/duplicados e acrescenta os novos no fim", () => {
-    expect(normalizeOrder(["battle", "ghost", "battle", 3, "minimap"])).toEqual(["battle", "minimap", "status", "equipment", "backpack", "party"]);
+    expect(normalizeOrder(["battle", "ghost", "battle", 3, "minimap"])).toEqual(["battle", "minimap", "status", "equipment", "backpack", "party", "online"]);
   });
 });
 

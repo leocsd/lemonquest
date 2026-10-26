@@ -19,3 +19,6 @@
 .ch-reward { font-size: 11.5px; color: #ffd447; }
 .ch-done { font-size: 12px; color: #8fe08f; }
 .ch-goal button:disabled, .ch-bonus button:disabled { opacity: 0.45; cursor: default; }
+/* Botão do trilho (ciclo 18): ponto quando há prêmio para resgatar. */
+.rail-btn.has-dot { position: relative; }
+.rail-btn.has-dot::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: #ffd447; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }

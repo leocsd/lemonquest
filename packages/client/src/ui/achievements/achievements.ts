@@ -64,18 +64,20 @@ export function outfitUnlockedFor(
 
 // --- ranking ----------------------------------------------------------------------------------------------------------------
 
-export const rankingStore = createStore<{ data: RankingResponse | null; error: boolean; at: number }>({ data: null, error: false, at: 0 });
+/** `name` = personagem da busca (o `me` da resposta é dele: trocar de personagem busca de novo). */
+export const rankingStore = createStore<{ data: RankingResponse | null; error: boolean; at: number; name?: string }>({ data: null, error: false, at: 0 });
 const CLIENT_CACHE_MS = 30_000;
 
-/** Busca /api/ranking (cache de 30 s no cliente; `force` ignora). */
+/** Busca /api/ranking (cache de 30 s no cliente; `force` ignora). `?me=` traz a posição do seu personagem (ciclo 18). */
 export async function loadRanking(force = false): Promise<void> {
   const cur = rankingStore.get();
-  if (!force && cur.data && Date.now() - cur.at < CLIENT_CACHE_MS) return;
+  const name = session.myName;
+  if (!force && cur.data && cur.name === name && Date.now() - cur.at < CLIENT_CACHE_MS) return;
   try {
-    const r = await fetch(`${endpoint}/api/ranking`);
+    const r = await fetch(`${endpoint}/api/ranking${name ? `?me=${encodeURIComponent(name)}` : ""}`);
     if (!r.ok) throw new Error(String(r.status));
-    rankingStore.set({ data: (await r.json()) as RankingResponse, error: false, at: Date.now() });
+    rankingStore.set({ data: (await r.json()) as RankingResponse, error: false, at: Date.now(), name });
   } catch {
-    rankingStore.set({ data: cur.data, error: true, at: cur.at });
+    rankingStore.set({ ...cur, error: true });
   }
 }

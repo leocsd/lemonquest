@@ -1,8 +1,8 @@
 // Marcadores do minimapa e do mapa-múndi (ciclo 17): serviços dos NPCs (templo, depot, loja, viagem, Quadro), "!"/"?" de
 // missão, portais, destino do guia e marcadores pessoais. Puro (sem DOM): Minimap.tsx desenha, markerState.ts monta.
-import { BOUNTY_NPC, NPCS, type NpcDef, type NpcMarker, type WorldNpc, type WorldPortal } from "@lemonquest/shared";
+import { BOUNTY_NPC, NPCS, type InvasionState, type NpcDef, type NpcMarker, type WorldNpc, type WorldPortal } from "@lemonquest/shared";
 
-export type MarkerKind = "temple" | "depot" | "shop" | "travel" | "board" | "quest" | "questReady" | "portal" | "guide" | "personal";
+export type MarkerKind = "temple" | "depot" | "shop" | "travel" | "board" | "quest" | "questReady" | "invasion" | "portal" | "guide" | "personal";
 
 export interface MapMarker { kind: MarkerKind; x: number; y: number; label: string }
 
@@ -18,13 +18,14 @@ export const MARKER_STYLE: Record<MarkerKind, { glyph: string; color: string; le
   board: { glyph: "◆", color: "#ff9f43", legend: "Quadro de Recompensas" },
   quest: { glyph: "!", color: "#ffd447", legend: "Missão nova" },
   questReady: { glyph: "?", color: "#ffd447", legend: "Entregar missão" },
+  invasion: { glyph: "⚔", color: "#ff5b52", legend: "Invasão da Vila" },
   guide: { glyph: "✦", color: "#ffd447", legend: "Destino do guia" },
   personal: { glyph: "⚑", color: "#ff6b6b", legend: "Seu marcador" },
 };
 export const MARKER_ORDER = Object.keys(MARKER_STYLE) as MarkerKind[];
 
 /** Marcadores que aparecem mesmo em área não explorada (o resto só depois de visto). */
-const ALWAYS_VISIBLE: ReadonlySet<MarkerKind> = new Set(["quest", "questReady", "guide", "personal"]);
+const ALWAYS_VISIBLE: ReadonlySet<MarkerKind> = new Set(["quest", "questReady", "invasion", "guide", "personal"]);
 
 /** Serviço que o NPC marca no mapa (um por NPC: o mais útil para quem procura). */
 export function npcService(def: NpcDef): MarkerKind | null {
@@ -62,6 +63,15 @@ export function guideMarkers(t: { dest: { x: number; y: number; label: string };
   if (!t) return [];
   const out: MapMarker[] = [{ kind: "guide", x: t.dest.x, y: t.dest.y, label: t.dest.label }];
   if (t.hop) out.push({ kind: "guide", x: t.hop.x, y: t.hop.y, label: `Caminho: ${t.hop.label}` });
+  return out;
+}
+
+/** Invasão da Vila em andamento (ciclo 18): de onde as colunas saem e o líder elite enquanto vivo. */
+export function invasionMarkers(s: Pick<InvasionState, "points" | "leader"> | null): MapMarker[] {
+  if (!s) return [];
+  const out: MapMarker[] = s.points.map((p) => ({ kind: "invasion", x: p.x, y: p.y, label: "Invasão: invasores saem daqui" }));
+  const l = s.leader;
+  if (l?.alive && Number.isFinite(l.x) && Number.isFinite(l.y)) out.push({ kind: "invasion", x: l.x!, y: l.y!, label: `Líder da invasão: ${l.name}` });
   return out;
 }
 

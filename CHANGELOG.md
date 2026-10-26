@@ -1,5 +1,37 @@
 # Changelog
 
+## [Não lançado] — 2026-10-26 · ciclo 18: social e retenção
+
+Quinto ciclo do plano 14–20. Dados que motivaram: dois blocos de jogadores (lv 35–102 e lv ≤ 16) quase sem jogo
+misto. Decisões do dono: Invasão na quarta 12h15 (Maré → quinta 13h), morte na invasão perde XP normalmente, regra de
+2/3 do grupo e mentoria como estão. Três frentes (invasão, mural/online, retenção) + revisão cruzada.
+
+**Invasão da Vila (18-1)** — `shared/data/invasion.ts`, `server/systems/invasion.ts`. Quarta 12h15–12h55, 5 ondas
+pela fração da duração (0/20/40/60/80%; a onda atual sai do relógio, então um reinício não duplica nada; pontos,
+placar e prêmios pendentes no kv `invasao.v1`). Escala por presentes até 20 tiles da Vila e por faixa de level (baixa
+sempre nasce; média/alta só com gente da faixa), teto de 40 vivos, última onda com líder elite. Os invasores nascem
+em 4 `invasion_point` (objetos, `lateObjects18`), marcham até a borda da PZ e nunca entram; somem no fim. Contribuição
+por dano e por cura em outro defensor (`onHealOther`); ≥ 10 pontos ganham um Baú de Recompensa e +1 se a Vila foi
+defendida (75% dos invasores e o líder derrotados); quem estava offline recebe no próximo login. HUD na `top-stack`,
+marcador no minimapa, etiqueta na Agenda, conquista "Defensor da Vila".
+
+**Mural de Excursões (18-2)** — NPC `excursion_board` ao lado do Quadro. Só escolhas: destino (zonas do índice do
+mundo com faixa, Coliseu, chefes de covil), faixa de level, horário (agora até +12 h, de 15 em 15 min), vagas 2–8.
+"Quero ir" avisa o líder, que convida todos pelo grupo de sempre; lembrete 2 min antes; expira 30 min depois; kv
+`excursoes.v1`; aba Excursões na Agenda; conquista "Guia de Excursão".
+
+**Painel Online (18-3)** na barra lateral, com a regra de zona do `/quem`, amigos primeiro, convidar/sussurrar/amizade.
+
+**Retenção (18-4)** — desafios semanais: 9 em 3 grupos, 1 de cada por semana (igual para todos, sem repetir em
+semanas seguidas), prêmio pelo level do começo da semana (poção sempre bebível), aviso ao cumprir, resgate automático
+na virada (`settled`), botão 🎯 no trilho. Bônus de login sem quebrar no fim de semana e escalando com o level.
+Conquistas lv 90/100/110/120, Ferumbras e Orshabaal; "Mestre Pescador" 100 → 50 peixes; Baú de Recompensa a cada 25
+peixes. Ranking com a própria linha em destaque (`/api/ranking?me=`). Tela de morte com os golpes dos últimos 5 s
+(`DiedMsg.lastHits`). Título da aba avisa ataque, vida baixa e morte com a aba em segundo plano.
+
+**Testes** — `e2e/spells.spec.ts` (instabilidade 14-24 do CI): magias de alvo no campo de treino (boneco não morre nem
+anda), alvo escolhido com linha de visão (`__lq.los`), mira por id (`targetMonster`, `data-id` na Batalha).
+
 ## [Não lançado] — 2026-10-26 · ciclo 17: descoberta, missões e interface
 
 Quarto ciclo do plano 14–20. Achados da análise que motivaram: ninguém sabia da agenda de eventos (0 abates de

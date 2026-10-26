@@ -1,11 +1,11 @@
-// Overlays de combate: banner de level-up e tela de morte.
+// Overlays de combate: banner de level-up e tela de morte (com o resumo do que te acertou nos últimos 5 s).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { worldIndexStore } from "../../game/worldIndex.ts";
 import { useStore } from "../hud/store.ts";
 import { meStore } from "../hud/world.ts";
 import { levelUnlockLines } from "../quests/questInfo.ts";
 import { questStore } from "../quests/quests.ts";
-import { blessingLine } from "./blessingText.ts";
+import { blessingLine, lastHitsRows } from "./blessingText.ts";
 import { deathStore, hideDeath, levelBannerStore } from "./combatUi.ts";
 import "./combat.css";
 
@@ -94,6 +94,7 @@ function DeathOverlay() {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [d, ready]);
   if (!d) return null;
+  const hits = lastHitsRows(d.lastHits);
   return (
     <div class="death-overlay" role="alertdialog" aria-label="Você morreu">
       <div class="death-card">
@@ -102,6 +103,18 @@ function DeathOverlay() {
           Derrotado por <b>{d.killerName || "algo misterioso"}</b>
           {d.lostXp > 0 && <> · <span class="death-xp">−{d.lostXp.toLocaleString("pt-BR")} XP</span></>}
         </div>
+        {hits.length > 0 && (
+          <div class="death-hits" aria-label="O que te acertou nos últimos 5 segundos">
+            <div class="death-hits-title">Nos últimos 5 s</div>
+            {hits.map((h) => (
+              <div class="death-hit" key={h.source}>
+                <span class="death-hit-src">{h.source}</span>
+                <span class="death-hit-bar" aria-hidden="true"><span style={{ width: `${h.pct}%` }} /></span>
+                <span class="death-hit-n">{h.amount}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {tip && <div class="death-tip">{tip}</div>}
         {bless && <div class="death-tip death-bless">{bless}</div>}
         <button class={`death-btn${ready ? " ready" : ""}`} onClick={hideDeath}>Voltar</button>

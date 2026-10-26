@@ -1,29 +1,66 @@
 // Magias do fim de jogo (lv 35–90) no jogo de verdade: palavras no chat → conjura (o slot entra em recarga). A Fúria do cavaleiro
 // aparece na faixa de condições.
 import { expect, test, type Page } from "@playwright/test";
-import { enterGame, me, monsters, say, setLevel, targetNearest, teleport, walkableNear } from "./helpers.ts";
+import { DEFAULT_SPELL_RANGE, spellDef } from "../packages/shared/src/data/spells.ts";
+import { enterGame, say, setLevel, targetMonster, teleport, walkableNear } from "./helpers.ts";
 
-/** Floresta ao norte da vila (fora da PZ; ratos e gosmas para os alvos). */
+/** Floresta ao norte da vila (fora da PZ; ratos e gosmas para as magias de área). */
 const FOREST = { x: 70, y: 62 };
+/**
+ * Campo de treino da vila (bonecos em 48..56 × 104..110, na PZ, onde se conjura ofensivo só contra eles): alvo que não
+ * morre, não foge e não anda entre a mira e a palavra — o que derrubava as magias de alvo no CI ("Sem alvo").
+ */
+const DUMMY_YARD = { x: 52, y: 107 };
+
+/**
+ * Escolhe um alvo para uma magia de alcance `range` e um tile para ficar: o tile é andável, livre de monstros, a até 2
+ * do alvo e com linha de visão até ele (`__lq.los`, a regra do servidor) — árvores entre os dois davam "Sem linha de
+ * visão". Prefere o boneco de treino (não morre), depois quem não é rato (rato foge a 15% de vida), o mais perto.
+ */
+async function pickTarget(page: Page, range: number): Promise<{ id: string; stand: { x: number; y: number } } | null> {
+  return page.evaluate((range) => {
+    const lq = (window as any).__lq;
+    const me = lq.me() as { x: number; y: number } | null;
+    if (!me) return null;
+    const mons = lq.monsters() as { id: string; x: number; y: number; defId?: string }[];
+    const cheb = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+    const rank = (m: { defId?: string }) => (m.defId === "training_dummy" ? 0 : m.defId === "rat" ? 2 : 1);
+    const taken = new Set(mons.map((m) => `${m.x},${m.y}`));
+    const list = [...mons].sort((a, b) => rank(a) - rank(b) || cheb(a, me) - cheb(b, me));
+    for (const m of list) {
+      const spots: { x: number; y: number; d: number }[] = [];
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const x = m.x + dx, y = m.y + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
+        if (d === 0 || d > Math.min(2, range) || taken.has(`${x},${y}`) || !lq.walkable(x, y) || !lq.los(x, y, m.x, m.y)) continue;
+        spots.push({ x, y, d: d * 10 + (dx !== 0 && dy !== 0 ? 1 : 0) }); // perto e em linha reta primeiro
+      }
+      spots.sort((a, b) => a.d - b.d);
+      if (spots[0]) return { id: m.id, stand: { x: spots[0].x, y: spots[0].y } };
+    }
+    return null;
+  }, range);
+}
 
 /**
  * Fala as palavras e confere que a magia saiu: ela entra em recarga (confirmação do servidor; vale também dentro de uma
  * família da barra). Mana não serve de prova no lv 90: a regeneração por tique cobre o custo de algumas magias.
+ * Magia de alvo: escolhe o alvo (pickTarget), teleporta para o tile escolhido ao lado DELE, mira nele pelo id e, logo
+ * antes de falar, confere de novo alcance e linha de visão (ele pode ter andado); senão, escolhe outra vez.
  */
 async function castWorks(page: Page, words: string, spellId: string, needsTarget: boolean): Promise<void> {
-  // Alvo de rato morre fácil (queimadura/veneno das magias anteriores) entre a mira e a magia: até 3 tentativas.
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const range = spellDef(spellId)?.range ?? DEFAULT_SPELL_RANGE;
+  for (let attempt = 0; attempt < 4; attempt++) {
     if (needsTarget) {
-      // As magias de área anteriores limpam os ratos de perto, e um rato longe pode estar embaixo do HUD (o clique não
-      // pega): vai para o lado do monstro mais próximo e então mira.
-      // Prefere quem não é rato: o rato foge a 15% de vida e some do alcance entre a mira e a magia.
-      const pos = (await me(page))!;
-      const all = (await monsters(page)).sort((a, b) => Math.max(Math.abs(a.x - pos.x), Math.abs(a.y - pos.y)) - Math.max(Math.abs(b.x - pos.x), Math.abs(b.y - pos.y)));
-      const notRat = all.filter((x) => x.defId !== "rat");
-      const t = (notRat.length ? notRat : all)[0];
-      const near = t && (await walkableNear(page, t.x, t.y, 2)).find((w) => w.x !== t.x || w.y !== t.y);
-      if (near) await teleport(page, near.x, near.y);
-      await targetNearest(page, notRat.length ? (d) => d !== "rat" : undefined);
+      const t = await pickTarget(page, range);
+      if (!t) { await page.waitForTimeout(1000); continue; }
+      await teleport(page, t.stand.x, t.stand.y);
+      if (!(await targetMonster(page, t.id))) continue;
+      const ready = await page.evaluate(([id, range]) => {
+        const lq = (window as any).__lq;
+        const me = lq.me(), m = (lq.monsters() as { id: string; x: number; y: number }[]).find((x) => x.id === id);
+        return !!me && !!m && lq.target() === id && Math.max(Math.abs(me.x - m.x), Math.abs(me.y - m.y)) <= range && lq.los(me.x, me.y, m.x, m.y);
+      }, [t.id, range] as const);
+      if (!ready) continue;
     }
     await say(page, words);
     const ok = await page.evaluate((id) => new Promise<boolean>((res) => {
@@ -38,19 +75,20 @@ async function castWorks(page: Page, words: string, spellId: string, needsTarget
     if (ok || !needsTarget) { expect(ok, words).toBe(true); await page.waitForTimeout(1100); return; }
     await page.waitForTimeout(1100);
   }
-  throw new Error(`${words}: não conjurou em 3 tentativas`);
+  throw new Error(`${words}: não conjurou em 4 tentativas`);
 }
 
 test("feiticeiro lv 90: as 4 magias novas conjuram pelas palavras", async ({ page }) => {
   test.setTimeout(120_000);
   await enterGame(page, "sorcerer");
   await setLevel(page, 90);
-  const spot = (await walkableNear(page, FOREST.x, FOREST.y, 4))[0]!;
-  await teleport(page, spot.x, spot.y);
-  // Primeiro as de alvo, com os ratos de vida cheia (morrem de um golpe). Depois das de área, os que sobram fogem
-  // com pouca vida (ratos fogem a 15%) e saem do alcance.
+  // As de alvo no campo de treino (o boneco não morre nem anda); as de área na floresta, fora da PZ.
+  const yard = (await walkableNear(page, DUMMY_YARD.x, DUMMY_YARD.y, 2))[0]!;
+  await teleport(page, yard.x, yard.y);
   await castWorks(page, "exori mort", "sudden_death", true);
   await castWorks(page, "exori gran flam", "eternal_flame", true);
+  const spot = (await walkableNear(page, FOREST.x, FOREST.y, 4))[0]!;
+  await teleport(page, spot.x, spot.y);
   await castWorks(page, "exevo flam hur", "fire_wave", false);
   await castWorks(page, "exevo gran mas vis", "electric_storm", false);
   // Barra recomendada: 13 magias em 8 teclas, com as famílias ◆ (alvo, área, onda). No lv 90 aparecem 7: a tecla 8 é a

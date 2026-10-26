@@ -1,4 +1,4 @@
-// Janela de NPC: fala com digitação, abas Na obra / Missões / Refinar / Encantar / Viagem / Comprar / Vender / Depot.
+// Janela de NPC: fala com digitação, abas Na obra / Missões / Excursões / Refinar / Encantar / Viagem / Comprar / Vender / Depot.
 import { C2S, CASINO_TICKET_PRICE, DEPOT_SIZE, RARITY_LABEL, backpackRoom, itemDef, keptBySellAll, refinedName, shopBuyMax, type NpcOpenMsg, type SortContainerMsg } from "@lemonquest/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { sectionsStore } from "../hud/Section.tsx";
@@ -22,13 +22,14 @@ import { blessingProtects } from "../combat/blessingText.ts";
 import { WorkTab } from "../work/WorkTab.tsx";
 import { RefineTab } from "../refine/RefineTab.tsx";
 import { ImbuementTab } from "../imbue/ImbuementTab.tsx";
+import { ExcursionsTab } from "../excursions/ExcursionsTab.tsx";
 import { send } from "../items/net.ts";
 import { depotMatches } from "./depotSearch.ts";
 import { travelInfo } from "./travelInfo.ts";
 import { worldIndexStore } from "../../game/worldIndex.ts";
 import "./npc.css";
 
-const TAB_LABEL: Record<NpcTab, string> = { work: "Na obra", quests: "Missões", bounties: "Recompensas", request: "Encomenda", refine: "Refinar", imbue: "Encantar", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
+const TAB_LABEL: Record<NpcTab, string> = { work: "Na obra", quests: "Missões", bounties: "Recompensas", request: "Encomenda", excursions: "Excursões", refine: "Refinar", imbue: "Encantar", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
 const TYPE_MS = 25;
 
 export function NpcWindow() {
@@ -64,6 +65,7 @@ export function NpcWindow() {
         {st.tab === "quests" && <NpcQuestList npcId={m.npcId} />}
         {st.tab === "bounties" && <BountyBoard />}
         {st.tab === "request" && <MaterialRequestBoard />}
+        {st.tab === "excursions" && <ExcursionsTab board />}
         {st.tab === "refine" && <RefineTab />}
         {st.tab === "imbue" && m.imbuement && <ImbuementTab npcId={m.npcId} imbue={m.imbuement} gold={inv?.gold ?? 0} />}
         {st.tab === "travel" && m.travel && <TravelList m={m} gold={inv?.gold ?? 0} />}

@@ -493,23 +493,26 @@ export class MonsterManager {
   }
 
   /**
-   * Monstro de sala de quest (alavanca da Aniquilação) em (x,y): confinado a `bounds`, sem respawn, com XP e loot
-   * normais. Tile ocupado → o livre mais próximo dentro da sala; nenhum livre → null.
+   * Monstro de sala de quest (alavanca da Aniquilação) ou de invasão (ciclo 18) em (x,y): confinado a `bounds`, sem
+   * respawn, com XP e loot normais. Tile ocupado → o livre mais próximo dentro da sala; nenhum livre → null. Nunca nasce
+   * em PZ nem em portal. `hpMult` multiplica a vida; `elite` aplica o ELITE (vida, dano, e XP/ouro/loot no abate).
    */
-  spawnQuest(def: MonsterDef, x: number, y: number, o: { leverId: string; bounds: TileRect }, now = this.now()): Monster | null {
+  spawnQuest(def: MonsterDef, x: number, y: number, o: { leverId: string; bounds: TileRect; hpMult?: number; elite?: boolean }, now = this.now()): Monster | null {
     const inside = (tx: number, ty: number) => tx >= o.bounds.x0 && tx <= o.bounds.x1 && ty >= o.bounds.y0 && ty <= o.bounds.y1;
     let t: Point | null = null;
     for (let r = 0; r <= 3 && !t; r++) {
       for (let dy = -r; dy <= r && !t; dy++) for (let dx = -r; dx <= r; dx++) {
         const tx = x + dx, ty = y + dy;
-        if (inside(tx, ty) && this.grid.isWalkable(tx, ty) && !this.isMonsterAt(tx, ty) && this.playerAt(tx, ty) === undefined) { t = { x: tx, y: ty }; break; }
+        if (inside(tx, ty) && this.grid.isWalkable(tx, ty) && !this.isForbidden(tx, ty) && !this.isMonsterAt(tx, ty) && this.playerAt(tx, ty) === undefined) { t = { x: tx, y: ty }; break; }
       }
     }
     if (!t) return null;
-    const m = this.spawnArena(def, t.x, t.y, { arenaId: 0, bounds: o.bounds, allow: () => true }, now);
+    const hpMult = (o.hpMult ?? 1) * (o.elite ? ELITE.hp : 1);
+    const m = this.spawnArena(def, t.x, t.y, { arenaId: 0, bounds: o.bounds, allow: () => true, hpMult, dmgMult: o.elite ? ELITE.dmg : 1 }, now);
     delete m.arenaId;
     delete m.allow;
     m.questLever = o.leverId;
+    if (o.elite) { m.elite = true; m.s.elite = true; }
     return m;
   }
 

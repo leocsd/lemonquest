@@ -1,6 +1,7 @@
 // Pesca: com a Vara de Pesca na mochila, botão direito num tile de água (até 5 tiles) lança a linha. Depois de 5 s sem
 // se mexer nem apanhar, o peixe morde (ou escapa). Quanto mais peixes já pescou, maior a chance. Recasta é manual.
-import { S2C, itemDef, type FishCastMsg, type FishMsg, type NoticeMsg } from "@lemonquest/shared";
+// Baú do Pescador (ciclo 18): a cada FISHER_CHEST_EVERY peixes, um Baú de Recompensa (o prêmio sai pelo level ao abrir).
+import { BOUNTY_CHEST_ID, S2C, itemDef, type FishCastMsg, type FishMsg, type ItemInstance, type NoticeMsg } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { makeItem, type InventorySystem } from "./inventory.ts";
 
@@ -14,6 +15,8 @@ export const FISH_MAX_CHANCE = 0.9;
 /** Peixes (na ordem do sorteio): fatia de probabilidade de cada um; o resto é truta. */
 export const FISH_GOLDEN_PCT = 0.04;
 export const FISH_SALMON_PCT = 0.26;
+/** Baú do Pescador: um Baú de Recompensa a cada tantos peixes pescados (25, 50, 75...). */
+export const FISHER_CHEST_EVERY = 25;
 
 interface Cast { x: number; y: number; px: number; py: number; hp: number; endsAt: number }
 
@@ -28,6 +31,8 @@ export interface FishingHost {
   /** Pescou `itemId` (conquistas e contador). */
   onCatch(p: PlayerState, itemId: string): void;
   inArena(id: string): boolean;
+  /** Baú do Pescador sem espaço na mochila vai ao chão; false/ausente = perdido. */
+  placeLoot?(p: PlayerState, item: ItemInstance): boolean;
   rng?: () => number;
   now?(): number;
 }
@@ -102,6 +107,18 @@ export class FishingSystem {
     if (left > 0) { this.notice(p.id, "O peixe pulou da mochila cheia e fugiu!", "warn"); return; }
     this.o.onCatch(p, id);
     this.notice(p.id, `Você pescou: ${itemDef(id)?.name ?? id}!`, "good");
+    const total = this.o.caught(p.id);
+    if (total > 0 && total % FISHER_CHEST_EVERY === 0) this.fisherChest(p, total);
+  }
+
+  /** Baú do Pescador: marco de FISHER_CHEST_EVERY peixes (o contador já inclui o peixe de agora). */
+  private fisherChest(p: PlayerState, total: number) {
+    const chest = makeItem(BOUNTY_CHEST_ID, 1);
+    const where = this.o.inventory.addItem(p, chest) <= 0 ? "" : this.o.placeLoot?.(p, chest) ? " Mochila cheia: ele caiu no chão." : " Mochila cheia: ele se perdeu.";
+    this.o.send(p.id, S2C.Notice, {
+      text: `🎣 Baú do Pescador: ${total} peixes pescados! Você ganhou um Baú de Recompensa (use para abrir).${where}`,
+      kind: where ? "warn" : "good", log: true,
+    } satisfies NoticeMsg);
   }
 
   removePlayer(id: string): void { this.cancel(id); }
