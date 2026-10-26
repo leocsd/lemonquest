@@ -349,7 +349,7 @@ export class WorldScene extends Phaser.Scene {
     msg<NpcSayMsg>(S2C.NpcSay, (m) => this.npcs.say(m.npcId, m.text));
     msg<NpcOpenMsg>(S2C.NpcOpen, (m) => this.npcs.say(m.npcId, m.greeting));
     msg<LootMsg>(S2C.Loot, (m) => this.onLoot(m));
-    msg<DiedMsg>(S2C.Died, (m) => this.onDied(m.killerName, m.lostXp));
+    msg<DiedMsg>(S2C.Died, (m) => this.onDied(m.killerName, m.lostXp, m));
     msg<CreatureDiedMsg>(S2C.CreatureDied, (m) => this.onCreatureDied(m));
     room.onLeave(() => { if (this.room === room) this.unbindRoom(); });
   }
@@ -1305,8 +1305,8 @@ export class WorldScene extends Phaser.Scene {
     sfx.play("skillup", { volume: 0.8 });
   }
 
-  onDied(killerName: string, lostXp: number) {
-    showDeath({ killerName, lostXp });
+  onDied(killerName: string, lostXp: number, bless: Pick<DiedMsg, "blessingUsed" | "savedXp"> = {}) {
+    showDeath({ killerName, lostXp, blessingUsed: bless.blessingUsed, savedXp: bless.savedXp });
     sfx.play("died", { volume: 0.9 });
   }
 

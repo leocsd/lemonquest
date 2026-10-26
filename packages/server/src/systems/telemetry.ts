@@ -2,14 +2,19 @@
 // `CharacterData.play` e alimenta o /status com médias por faixa de level — é o dado que faltava para calibrar o
 // balanço do ciclo 8 (pendência "medir playedMs/mortes por level" dos ciclos 7 e 8). Puro: o WorldRoom liga os ganchos
 // (entrada, level up, morte, ouro) e chama `serialize` ao gravar o personagem.
+import { SKILL_START, SKILLS, VOCATIONS, attackSkillOf, monsterDef, type SkillId } from "@lemonquest/shared";
+import { DOT_LABEL } from "./conditions.ts";
 
 /**
  * Por level. Ciclo 12 (medir antes de mexer): abates, XP, dano causado a monstros e dano perdido para a resistência
  * elemental — o que falta para comparar as vocações e ver o efeito da resistência. Saves antigos: campos ausentes = 0.
+ * Ciclo 15: `deathsBy` = mortes por causa (chave de `CombatHooks.onPlayerDied`), para ver o que mata em cada faixa antes
+ * de travar as metas de balanço; mortes de antes disso só estão em `deaths`.
  */
 export interface LevelStats {
   ms: number; deaths: number; goldIn: number; goldOut: number;
   kills?: number; xp?: number; dmg?: number; resisted?: number;
+  deathsBy?: Record<string, number>;
 }
 export interface PlayData { ms: number; byLevel: Record<string, LevelStats> }
 
@@ -20,7 +25,11 @@ const emptyStats = (): LevelStats => ({ ms: 0, deaths: 0, goldIn: 0, goldOut: 0 
 
 function cloneData(d: PlayData): PlayData {
   const byLevel: Record<string, LevelStats> = {};
-  for (const [k, v] of Object.entries(d.byLevel ?? {})) byLevel[k] = { ...emptyStats(), ...v };
+  for (const [k, v] of Object.entries(d.byLevel ?? {})) {
+    const s: LevelStats = { ...emptyStats(), ...v };
+    if (v?.deathsBy) s.deathsBy = { ...v.deathsBy }; // o mapa também é copiado: o salvo não pode mudar com o vivo
+    byLevel[k] = s;
+  }
   return { ms: d.ms ?? 0, byLevel };
 }
 
@@ -59,7 +68,14 @@ export class PlayTelemetry {
     l.level = level;
   }
 
-  onDeath(id: string): void { const l = this.live.get(id); if (l) this.bucket(l).deaths++; }
+  /** Morte no level atual; `cause` (formato em `causeLabel`) entra também em `deathsBy`. */
+  onDeath(id: string, cause?: string): void {
+    const l = this.live.get(id);
+    if (!l) return;
+    const b = this.bucket(l);
+    b.deaths++;
+    if (cause) { const by = (b.deathsBy ??= {}); by[cause] = (by[cause] ?? 0) + 1; }
+  }
   onGold(id: string, n: number): void { const l = this.live.get(id); if (l && n > 0) this.bucket(l).goldIn += Math.floor(n); }
   onSpend(id: string, n: number): void { const l = this.live.get(id); if (l && n > 0) this.bucket(l).goldOut += Math.floor(n); }
   onKill(id: string): void { const l = this.live.get(id); if (l) { const b = this.bucket(l); b.kills = (b.kills ?? 0) + 1; } }
@@ -157,4 +173,92 @@ export function vocationReport(rows: Iterable<{ vocation: string; play: PlayData
 
 function fmtNum(n: number): string {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} mi` : n >= 1000 ? `${(n / 1000).toFixed(1)} mil` : String(Math.round(n));
+}
+
+const bandIndex = (lv: number) => VOCATION_BANDS.findIndex(([a, b]) => lv >= a && lv <= b);
+const bandLabel = (lo: number, hi: number) => (hi >= 999 ? `${lo}+` : `${lo}–${hi}`);
+
+/**
+ * Nome legível da causa de morte. Chaves (gravadas em `deathsBy`, estáveis entre versões): id do monstro (golpe
+ * corpo a corpo/distância), "monstro/habilidade" (habilidade de monstro), "condição@monstro" (queimadura, veneno...
+ * aplicados por ele; só "condição" se o dono não era conhecido), "pvp" (jogador, inclusive condição aplicada por
+ * jogador) e "?" (sem causa informada).
+ */
+export function causeLabel(key: string): string {
+  const name = (id: string) => monsterDef(id)?.name ?? id;
+  const dot = (id: string) => DOT_LABEL[id as keyof typeof DOT_LABEL] ?? id;
+  if (key === "pvp") return "PvP";
+  if (key === "?") return "desconhecida";
+  const at = key.indexOf("@");
+  if (at >= 0) return `${dot(key.slice(0, at))} (${name(key.slice(at + 1))})`;
+  const slash = key.indexOf("/");
+  if (slash >= 0) {
+    const mon = key.slice(0, slash), ab = key.slice(slash + 1);
+    return `${name(mon)}: ${monsterDef(mon)?.abilities?.find((a) => a.id === ab)?.name ?? ab}`;
+  }
+  return key in DOT_LABEL ? dot(key) : name(key);
+}
+
+/**
+ * Causas de morte por faixa (CLI `admin telemetria`): total de mortes e as `top` causas mais comuns de `deathsBy`.
+ * Mortes de antes do ciclo 15 aparecem como "sem causa".
+ */
+export function deathReport(all: Iterable<PlayData | undefined>, top = 5): string[] {
+  const bands = VOCATION_BANDS.map(() => ({ deaths: 0, by: new Map<string, number>() }));
+  for (const d of all) {
+    for (const [k, v] of Object.entries(d?.byLevel ?? {})) {
+      const i = bandIndex(Number(k));
+      if (i < 0) continue;
+      const b = bands[i]!;
+      b.deaths += v.deaths ?? 0;
+      for (const [c, n] of Object.entries(v.deathsBy ?? {})) if (n > 0) b.by.set(c, (b.by.get(c) ?? 0) + n);
+    }
+  }
+  const out: string[] = [];
+  VOCATION_BANDS.forEach(([lo, hi], i) => {
+    const b = bands[i]!;
+    if (!(b.deaths > 0)) return;
+    const sorted = [...b.by].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+    const parts = sorted.slice(0, top).map(([c, n]) => `${causeLabel(c)} ${n}`);
+    const rest = sorted.slice(top).reduce((s, [, n]) => s + n, 0);
+    if (rest > 0) parts.push(`outras ${rest}`);
+    const unknown = b.deaths - sorted.reduce((s, [, n]) => s + n, 0);
+    if (unknown > 0) parts.push(`sem causa ${unknown}`);
+    out.push(`${bandLabel(lo, hi).padEnd(7)} ${String(b.deaths).padStart(4)} mortes · ${parts.join(" · ")}`);
+  });
+  return out.length ? out : ["Nenhuma morte registrada."];
+}
+
+/** Personagem salvo para o relatório de skills (level atual e `CharacterData.skills`). */
+export interface SkillRow { vocation: string; level: number; skills?: Partial<Record<SkillId, { level: number }>> }
+
+/**
+ * Skills treinadas dos personagens salvos por vocação × faixa do level atual (CLI `admin telemetria`): média [mín–máx]
+ * do ML, da skill da arma do ataque básico (melee do cavaleiro, distância do paladino; nos magos a arma é o próprio
+ * ML) e do escudo, sem bônus de equipamento. É o "real" para conferir o `skillEstimate` do modelo de balanço.
+ */
+export function skillReport(rows: Iterable<SkillRow>): string[] {
+  const acc = new Map<string, Record<SkillId, number[]>>();
+  for (const r of rows) {
+    const i = bandIndex(r.level);
+    if (i < 0) continue;
+    const key = `${r.vocation}|${i}`;
+    const a = acc.get(key) ?? { melee: [], distance: [], magic: [], shield: [] };
+    for (const s of SKILLS) a[s].push(r.skills?.[s]?.level ?? SKILL_START[s]);
+    acc.set(key, a);
+  }
+  const stat = (v: number[]) => `${(v.reduce((s, x) => s + x, 0) / v.length).toFixed(1)} [${Math.min(...v)}–${Math.max(...v)}]`;
+  const out: string[] = [];
+  for (const voc of VOCATIONS) {
+    const weapon = attackSkillOf(voc);
+    VOCATION_BANDS.forEach(([lo, hi], i) => {
+      const a = acc.get(`${voc}|${i}`);
+      if (!a) return;
+      const cols = [`ML ${stat(a.magic)}`];
+      if (weapon !== "magic") cols.push(`arma ${stat(a[weapon])}`);
+      cols.push(`escudo ${stat(a.shield)}`);
+      out.push(`${voc.padEnd(8)} ${bandLabel(lo, hi).padEnd(7)} ${String(a.magic.length).padStart(3)} pers. · ${cols.join(" · ")}`);
+    });
+  }
+  return out.length ? out : ["Nenhum personagem salvo."];
 }

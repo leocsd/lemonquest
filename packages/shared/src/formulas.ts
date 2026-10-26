@@ -51,9 +51,12 @@ export function xpForLevel(level: number): number {
   return Math.round(50 * l + 25 * l * l + 2 * l * l * l);
 }
 
+// Ciclo 15: paladino 10 → 12 → 13 de vida por level (lv 100: 1.140 → 1.437 sem equipamento; o 13 veio da calibração
+// 15-13 em vocationBalance.test.ts). Era o mais frágil depois dos magos sem ter escudo de mana nem cura forte. A vida
+// máxima não é salva: o login a recalcula por aqui (WorldRoom).
 const VOC_GROWTH: Record<Vocation, { hp: number; mana: number }> = {
   knight: { hp: 15, mana: 5 },
-  paladin: { hp: 10, mana: 15 },
+  paladin: { hp: 13, mana: 15 },
   sorcerer: { hp: 6, mana: 30 },
   druid: { hp: 6, mana: 30 },
 };
@@ -77,8 +80,6 @@ export const REGEN_INTERVAL_MS = 2000;
 export const CRIT_CHANCE = 0.07;
 export const CRIT_MULT = 1.5;
 export const MISS_CHANCE = 0.05;
-/** Fração da XP do level atual perdida ao morrer. */
-export const DEATH_PENALTY_PCT = 0.1;
 
 export interface VocationAttack {
   /** Alcance (Chebyshev). 1 = corpo a corpo. */
@@ -100,7 +101,7 @@ export const VOCATION_ATTACK: Record<Vocation, VocationAttack> = {
  * Dano DESARMADO por vocação. Cresce devagar de propósito: a arma do seu tier bate ~1,5–2,5× o punho e a de um tier
  * atrás ainda bate mais que ele (antes, com perLevel 1,6/1,4/1,1, o punho alcançava a melhor arma no level 50 e arma
  * de tier baixo batia menos que lutar sem nada). O dano do jogador equipado ficou no patamar em que o Coliseu foi
- * calibrado (ver `estimate` em arena.test.ts).
+ * calibrado (modelo em server/systems/balanceKit.ts).
  */
 const VOC_DAMAGE: Record<Vocation, { base: number; perLevel: number }> = {
   knight: { base: 6, perLevel: 0.85 },
@@ -194,6 +195,25 @@ export function mitigate(raw: number, armor: number): number {
   return Math.max(0, Math.round(raw - Math.max(0, armor)));
 }
 
+/**
+ * Fração do dano que o Escudo de Mana tira da mana (o resto vai na vida). Ciclo 15: era 1 (tudo na mana) e o
+ * feiticeiro lv 100 aguentava 5.124 de dano com o escudo cheio (2,3× o cavaleiro) e 900/s bebendo poção de mana;
+ * com 0,5: 2.288 e 360/s. Constante única: dá para voltar a 0,6 sem mexer em mais nada.
+ */
+export const MANA_SHIELD_ABSORB = 0.5;
+
+/**
+ * Divide um dano (já mitigado) entre mana e vida com o Escudo de Mana: `absorb` do dano sai da mana enquanto houver;
+ * o que a mana não cobre vai na vida (sem mana, tudo na vida).
+ */
+export function manaShieldSplit(damage: number, mana: number, absorb = MANA_SHIELD_ABSORB): { fromMana: number; fromHp: number } {
+  const total = Number.isFinite(damage) ? Math.max(0, Math.round(damage)) : 0;
+  const pool = Number.isFinite(mana) ? Math.max(0, Math.floor(mana)) : 0;
+  const share = Math.max(0, Math.min(1, absorb));
+  const fromMana = Math.min(pool, Math.round(total * share));
+  return { fromMana, fromHp: total - fromMana };
+}
+
 /** Level correspondente a uma XP total. */
 export function levelForXp(xp: number): number {
   let level = 1;
@@ -229,11 +249,42 @@ export function applyXpStage(amount: number, level: number): number {
   return Math.max(1, Math.round(amount * xpStage(level).mult));
 }
 
-/** XP perdida ao morrer: 10% da XP entre o início do level atual e o próximo; nunca derruba o level. */
+/**
+ * Fração da XP do level (do início do level atual ao próximo) perdida ao morrer, por faixa de level. Ordem crescente
+ * de `fromLevel`; o primeiro começa no level 1. Ciclo 15: era 10% em qualquer level e, no fim de jogo, morrer quase não
+ * custava (lv 100: 6.443 XP; agora 19.328). Vai no mesmo deploy das compensações (bênção que só é gasta se houver
+ * perda, fraquezas elementais, curandeiros com limite).
+ */
+export const DEATH_PENALTY_STAGES: readonly { fromLevel: number; pct: number }[] = [
+  { fromLevel: 1, pct: 0.1 },
+  { fromLevel: 60, pct: 0.2 },
+  { fromLevel: 80, pct: 0.25 },
+  { fromLevel: 100, pct: 0.3 },
+];
+
+/** Fração da XP do level perdida ao morrer neste level (o último estágio cujo `fromLevel` ≤ level). */
+export function deathPenaltyPct(level: number): number {
+  let pct = DEATH_PENALTY_STAGES[0]!.pct;
+  for (const s of DEATH_PENALTY_STAGES) if (level >= s.fromLevel) pct = s.pct;
+  return pct;
+}
+
+/**
+ * XP perdida ao morrer: `deathPenaltyPct(level)` da XP entre o início do level atual e o próximo; nunca derruba o
+ * level (limitada à XP acima do início do level). Com `xp` = Infinity, a perda cheia do level.
+ */
 export function deathPenalty(level: number, xp: number): number {
   const start = xpForLevel(level);
   const span = xpForLevel(level + 1) - start;
-  return Math.max(0, Math.min(Math.round(span * DEATH_PENALTY_PCT), xp - start));
+  return Math.max(0, Math.min(Math.round(span * deathPenaltyPct(level)), xp - start));
+}
+
+/**
+ * XP que a morte tira de fato: deathPenalty × `mult` (caveira vermelha), ainda sem derrubar o level. É também o que a
+ * bênção salva: servidor (morte) e cliente ("Protege ~X XP agora" na sacerdotisa) usam esta conta.
+ */
+export function deathXpLoss(level: number, xp: number, mult = 1): number {
+  return Math.max(0, Math.min(xp - xpForLevel(level), Math.round(deathPenalty(level, xp) * Math.max(1, mult))));
 }
 
 /** Bênção no templo: preço em ouro escalado pelo level. Consumida na próxima morte, zera o deathPenalty. */
@@ -281,6 +332,21 @@ export function evalSpellFormula(
   const avg = f.base + level * f.perLevel + magicLevel * f.perMagic;
   const v = Math.max(0, f.variance || 0);
   return Math.max(0, Math.round(avg * (1 + v * (2 * rng() - 1))));
+}
+
+/**
+ * "Magic level" que entra no DANO das magias (a cura segue com o ML). Cavaleiro e paladino treinam a arma, não o ML
+ * (lv 100: ML ~10), e as magias deles ficavam presas a um número que quase não sobe; valem
+ * max(ML, ⌊(skill da arma + bônus do equipamento + level − 10)/2⌋). Magos: o ML. `ml` já inclui o bônus de magia dos
+ * itens. Ciclo 15-13: entrou o level (estilo Tibia): na produção a skill da arma fica em 25–43 em qualquer level
+ * (corpo a corpo 60 pede ~19 h de golpes) e, só com ela, o cavaleiro lv 100 tinha potência 17 contra ML 55 do mago.
+ */
+export function spellPower(vocation: Vocation, ml: number, weaponSkill: number, weaponBonus: number, level: number): number {
+  const own = Number.isFinite(ml) ? ml : 0;
+  if (vocation !== "knight" && vocation !== "paladin") return own;
+  const skill = (Number.isFinite(weaponSkill) ? weaponSkill : 10) + (Number.isFinite(weaponBonus) ? weaponBonus : 0);
+  const lvl = Number.isFinite(level) ? Math.max(0, level) : 0;
+  return Math.max(own, Math.floor((skill + lvl - 10) / 2));
 }
 
 /** Fração da armadura do alvo que vale contra dano mágico (magia ignora metade). Físico usa a armadura cheia. */

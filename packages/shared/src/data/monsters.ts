@@ -1,7 +1,7 @@
 import type { DamageKind } from "../types.ts";
 import type { LootEntry } from "./items.ts";
 import { CALL_HELP_ID, MONSTER_ABILITY_PREFIX, ability, type MonsterAbility } from "./monsterAbilities.ts";
-import type { SpellDef, SpellTarget } from "./spells.ts";
+import type { ConditionId, SpellDef, SpellTarget } from "./spells.ts";
 
 /**
  * VERIFICACAO DE LAYOUT (sheets abertos e ampliados 4x): Mouse, Slime, Snake, SpiderRed, BlueBat, Skull,
@@ -46,6 +46,8 @@ export interface MonsterDef {
    * Substitui o padrão por elemento; sem a chave vale `damageTakenMult` (o próprio elemento resiste).
    */
   resist?: Partial<Record<DamageKind, number>>;
+  /** Morto-vivo (esqueletos, fantasmas, liches, crânios, lanternas assombradas): fraco contra sagrado (ELEMENT_WEAKNESS). */
+  undead?: boolean;
   /** Intervalo entre ataques (ms). */
   attackMs: number;
   /** 1 = corpo a corpo; >1 = ataque à distância até esse alcance (Chebyshev). */
@@ -219,7 +221,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "BlueBat/SpriteSheet.png"),
   },
   skeleton: {
-    id: "skeleton", name: "Esqueleto", level: 24, hp: 280, xp: 200, damage: [20, 42], damageKind: "physical", armor: 6,
+    id: "skeleton", name: "Esqueleto", level: 24, hp: 280, xp: 200, damage: [20, 42], damageKind: "physical", armor: 6, undead: true,
     attackMs: 2000, attackRange: 1, stepMs: 400, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 60_000,
     gold: [35, 75],
     loot: [
@@ -256,7 +258,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Reptile2/Reptile2.png"),
   },
   ghost: {
-    id: "ghost", name: "Fantasma", level: 31, hp: 380, xp: 360, damage: [25, 50], damageKind: "death", armor: 5,
+    id: "ghost", name: "Fantasma", level: 31, hp: 380, xp: 360, damage: [25, 50], damageKind: "death", armor: 5, undead: true,
     attackMs: 2000, attackRange: 1, stepMs: 360, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 70_000,
     gold: [55, 110],
     loot: [
@@ -334,7 +336,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "BambooYellow/SpriteSheet.png"),
   },
   swamp_lich: {
-    id: "swamp_lich", name: "Lich do Pântano", level: 25, hp: 3500, xp: 2500, damage: [30, 70], damageKind: "death", armor: 8,
+    id: "swamp_lich", name: "Lich do Pântano", level: 25, hp: 3500, xp: 2500, damage: [30, 70], damageKind: "death", armor: 8, undead: true,
     abilities: [
       ability.blast({ name: "Nuvem Tóxica", radius: 1, range: 5, min: 35, max: 65, kind: "earth", fx: "earth", condition: { id: "poison", durationMs: 8000, value: 8 } }),
       ability.summon({ name: "Levantem-se!", monsterId: "skeleton", count: 1, max: 2, cooldownMs: 25_000 }),
@@ -447,7 +449,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Cyclope/SpriteSheet.png", { tint: 0xe0b890 }),
   },
   bonelord: {
-    id: "bonelord", name: "Olho Maligno", level: 60, hp: 1100, xp: 1760, damage: [55, 110], damageKind: "death", armor: 10,
+    id: "bonelord", name: "Olho Maligno", level: 60, hp: 1100, xp: 1760, damage: [55, 110], damageKind: "death", armor: 10, undead: true,
     abilities: [
       ability.bolt({ name: "Olhar Mortal", range: 4, min: 70, max: 125, kind: "death", fx: "death", condition: { id: "slow", durationMs: 3000, value: 40 } }),
     ],
@@ -1085,7 +1087,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
   // À distância, de fogo, com um clarão de energia.
   iluminador_rebelde: {
-    id: "iluminador_rebelde", name: "Lanterna Assombrada", level: 36, hp: 460, xp: 530, damage: [28, 56], damageKind: "fire", armor: 6,
+    id: "iluminador_rebelde", name: "Lanterna Assombrada", level: 36, hp: 460, xp: 530, damage: [28, 56], damageKind: "fire", armor: 6, undead: true,
     abilities: [
       ability.bolt({ name: "Clarão Fantasma", range: 4, min: 30, max: 60, kind: "energy", fx: "energy", cooldownMs: 9000, condition: { id: "energy", durationMs: 4000, value: 6 } }),
     ],
@@ -1102,7 +1104,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
   // Foge cedo (45%) e rápido: some antes de alguém conferir se era mesmo um espectro.
   frame_descartado: {
-    id: "frame_descartado", name: "Espectro Errante", level: 40, hp: 500, xp: 650, damage: [30, 60], damageKind: "energy", armor: 6,
+    id: "frame_descartado", name: "Espectro Errante", level: 40, hp: 500, xp: 650, damage: [30, 60], damageKind: "energy", armor: 6, undead: true,
     attackMs: 1800, attackRange: 1, stepMs: 260, aggroRange: 4, fleeAtHpPct: 0.45, respawnMs: 60_000,
     gold: [90, 190],
     loot: [
@@ -1266,7 +1268,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
   // Catacumbas Esquecidas (lv 60–85)
   flame_skull: {
-    id: "flame_skull", name: "Crânio Flamejante", level: 70, hp: 1700, xp: 3200, damage: [75, 145], damageKind: "fire", armor: 16,
+    id: "flame_skull", name: "Crânio Flamejante", level: 70, hp: 1700, xp: 3200, damage: [75, 145], damageKind: "fire", armor: 16, undead: true,
     abilities: [
       ability.bolt({ name: "Chama Profana", range: 5, min: 90, max: 160, kind: "fire", fx: "fire", cooldownMs: 8000, condition: { id: "burn", durationMs: 5000, value: 10 } }),
     ],
@@ -1282,7 +1284,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Skull/SpriteSheet.png", { scale: 1.1 }),
   },
   red_lantern: {
-    id: "red_lantern", name: "Lanterna Rubra", level: 78, hp: 2100, xp: 4250, damage: [85, 165], damageKind: "death", armor: 18,
+    id: "red_lantern", name: "Lanterna Rubra", level: 78, hp: 2100, xp: 4250, damage: [85, 165], damageKind: "death", armor: 18, undead: true,
     abilities: [
       ability.healAllies({ name: "Luz Sangrenta", pct: 0.12, radius: 4, belowHpPct: 0.7, cooldownMs: 10_000 }),
       ability.bolt({ name: "Chama Rubra", range: 4, min: 100, max: 175, kind: "death", fx: "death", cooldownMs: 10_000 }),
@@ -1364,19 +1366,52 @@ export const MONSTER_RESPAWN_MULT = 0.7;
  */
 export const OWN_ELEMENT_TAKEN = 0.5;
 
+/** Natureza que dá fraqueza elemental: morto-vivo, bicho de fogo, bicho de gelo. */
+export type MonsterNature = "undead" | "fire" | "ice";
+
+/**
+ * Fraquezas elementais (ciclo 15): morto-vivo toma +25% de sagrado; bicho de fogo, +15% de gelo; bicho de gelo, +15% de
+ * fogo. Dão papel ao paladino nos mortos-vivos do lv 60–80 e ao druida contra dragões e demônios. Como a resistência,
+ * valem para qualquer fonte; o `resist` do monstro sobrepõe as duas.
+ */
+export const ELEMENT_WEAKNESS: Readonly<Record<MonsterNature, { kind: DamageKind; mult: number }>> = {
+  undead: { kind: "holy", mult: 1.25 },
+  fire: { kind: "ice", mult: 1.15 },
+  ice: { kind: "fire", mult: 1.15 },
+};
+
+/**
+ * Naturezas do monstro: morto-vivo pelo campo `undead`; bicho de fogo/gelo pelo mesmo critério da resistência (o
+ * `damageKind`), para quem resiste a fogo ser sempre fraco a gelo e vice-versa.
+ */
+export function monsterNatures(d: Pick<MonsterDef, "damageKind" | "undead">): MonsterNature[] {
+  const out: MonsterNature[] = [];
+  if (d.undead) out.push("undead");
+  if (d.damageKind === "fire") out.push("fire");
+  if (d.damageKind === "ice") out.push("ice");
+  return out;
+}
+
 /**
  * Fração do dano de `kind` que o monstro recebe (depois da armadura). `exposedPct` = Ruptura Elemental ativa no monstro
- * (condição "exposed"): o dano elemental perde a resistência e ganha +exposedPct%; o físico não muda.
+ * (condição "exposed"): o dano elemental perde a resistência (a fraqueza fica) e ganha +exposedPct%; o físico não muda.
+ * O próprio elemento resiste antes de qualquer fraqueza: ninguém é fraco ao próprio elemento.
  */
-export function damageTakenMult(d: Pick<MonsterDef, "damageKind" | "resist">, kind: DamageKind, exposedPct = 0): number {
+export function damageTakenMult(d: Pick<MonsterDef, "damageKind" | "resist" | "undead">, kind: DamageKind, exposedPct = 0): number {
   const own = d.resist?.[kind];
-  const base = own !== undefined ? own : kind !== "physical" && kind === d.damageKind ? OWN_ELEMENT_TAKEN : 1;
+  let base = 1;
+  if (own !== undefined) base = own;
+  else if (kind !== "physical" && kind === d.damageKind) base = OWN_ELEMENT_TAKEN;
+  else for (const n of monsterNatures(d)) if (ELEMENT_WEAKNESS[n].kind === kind) base *= ELEMENT_WEAKNESS[n].mult;
   if (!(exposedPct > 0) || kind === "physical") return base;
   return Math.max(base, 1) * (1 + exposedPct / 100);
 }
 
-/** Elementos em que o dano recebido não é o normal (bestiário), na ordem: resistências primeiro. */
-export function monsterResistances(d: Pick<MonsterDef, "damageKind" | "resist">): { kind: DamageKind; mult: number }[] {
+/**
+ * Elementos em que o dano recebido não é o normal (bestiário), em ordem de multiplicador: resistências (< 1) primeiro,
+ * depois as fraquezas (> 1).
+ */
+export function monsterResistances(d: Pick<MonsterDef, "damageKind" | "resist" | "undead">): { kind: DamageKind; mult: number }[] {
   const kinds: DamageKind[] = ["fire", "ice", "energy", "earth", "holy", "death", "physical"];
   return kinds.map((kind) => ({ kind, mult: damageTakenMult(d, kind) })).filter((r) => r.mult !== 1).sort((a, b) => a.mult - b.mult);
 }
@@ -1416,11 +1451,12 @@ export const ELITE_COLOR = "#f0c040";
 /**
  * Invocações escalam com o level de quem invoca (ciclo 9, GD-05): o catálogo descreve a criatura no seu `level` base
  * (o Lobo Espiritual, no 20), e o lobo fixo ficava inútil no 50+. Cada level acima do base soma SUMMON_HP_PER_LEVEL de
- * vida e o dano cresce linearmente até ×(1 + SUMMON_DMG_BONUS) SUMMON_DMG_LEVELS levels acima (lobo lv 46: vida 570,
- * dano ×1,75). Abaixo do level base nada muda; o catálogo não é alterado.
+ * vida e o dano cresce linearmente: ×(1 + SUMMON_DMG_BONUS) SUMMON_DMG_LEVELS levels acima, e segue a mesma reta (lobo
+ * lv 46: vida 830, dano ×2,5; lv 100: vida 2.180, dano ×5,6). Abaixo do level base nada muda; o catálogo não é alterado.
+ * Ciclo 15: era 15 de vida por level e bônus 0,75 (lv 100: vida 1.380, dano ×3,3): o lobo sumia no fim de jogo.
  */
-export const SUMMON_HP_PER_LEVEL = 15;
-export const SUMMON_DMG_BONUS = 0.75;
+export const SUMMON_HP_PER_LEVEL = 25;
+export const SUMMON_DMG_BONUS = 1.5;
 export const SUMMON_DMG_LEVELS = 26;
 export function summonScaled(def: MonsterDef, casterLevel: number): MonsterDef {
   const over = Math.max(0, Math.floor(casterLevel) - def.level);
@@ -1437,6 +1473,21 @@ export function canBeElite(d: Pick<MonsterDef, "boss" | "level" | "xp" | "statio
 
 /** Raio (Chebyshev) do pedido de reforço dos bandos. */
 export const HELP_RADIUS = 6;
+
+/**
+ * Controle em chefe (ciclo 15): a raiz vira lentidão de BOSS_ROOT_SLOW_PCT% e a lentidão vale BOSS_SLOW_MULT do valor.
+ * Raiz inteira deixava o chefe parado 3 s com o grupo batendo de longe. As Raízes da Terra (lv 100) seguem úteis contra
+ * chefes: 30% é mais que qualquer lentidão de magia pela metade (a maior, 50%, vira 25%).
+ */
+export const BOSS_ROOT_SLOW_PCT = 30;
+export const BOSS_SLOW_MULT = 0.5;
+
+/** Condição que um chefe recebe no lugar de `id`/`value` (as demais passam iguais). */
+export function bossCondition(id: ConditionId, value: number | undefined): { id: ConditionId; value: number | undefined } {
+  if (id === "rooted") return { id: "slow", value: BOSS_ROOT_SLOW_PCT };
+  if (id === "slow") return { id, value: Math.round((value ?? 0) * BOSS_SLOW_MULT) };
+  return { id, value };
+}
 
 export function monsterDef(id: string): MonsterDef | undefined {
   return Object.hasOwn(MONSTERS, id) ? MONSTERS[id] : undefined;

@@ -309,8 +309,30 @@ describe("player death", () => {
     w.combat.onAttack(p, { targetId: w.m.s.id });
     w.run(1200);
     expect(w.sent.find((s) => s.type === S2C.Died)).toMatchObject({ to: "v", msg: { lostXp: 0 } });
+    expect(w.sent.find((s) => s.type === S2C.Died)!.msg.blessingUsed).toBeUndefined();
     expect(p.blessed).toBe(true);
     expect(w.sent.find((s) => s.to === "v" && s.type === S2C.Notice && s.msg.text.includes("bênção"))).toBeUndefined();
+  });
+
+  it("morte no lv 100 (ciclo 15): perde 30% da XP do level; com bênção, o Died diz quanto ela salvou", () => {
+    const xp = xpForLevel(101) - 1; // fim do level: a perda cheia cabe
+    const die = (blessed: boolean) => {
+      // Vida alta: o lv 100 não mata o lobo antes de levar o golpe.
+      const w = setup({ aggroRange: 5, damage: [40, 40], name: "Lobo", hp: 100_000 });
+      const p = w.add(player("v", 11, 10, { name: "Ana", level: 100, xp, hp: 30, maxHp: 1338, targetId: "", blessed }));
+      w.combat.onAttack(p, { targetId: w.m.s.id });
+      w.run(1200);
+      return { p, died: w.sent.find((s) => s.type === S2C.Died)!.msg, notices: w.sent.filter((s) => s.to === "v" && s.type === S2C.Notice).map((s) => s.msg.text as string) };
+    };
+    const plain = die(false);
+    expect(plain.died).toEqual({ lostXp: 19328, killerName: "Lobo" });
+    expect(plain.p.xp).toBe(xp - 19328);
+    expect(plain.p.level).toBe(100);
+    const saved = die(true);
+    expect(saved.died).toEqual({ lostXp: 0, killerName: "Lobo", blessingUsed: true, savedXp: 19328 });
+    expect(saved.p.xp).toBe(xp);
+    expect(saved.p.blessed).toBe(false);
+    expect(saved.notices).toContain("Sua bênção te protegeu: 19.328 XP salvos.");
   });
 
   it("removePlayer clears monster targets", () => {
@@ -384,7 +406,8 @@ describe("resistência elemental", () => {
   it("bicho do elemento toma metade do dano desse elemento; outros elementos e físico, normal; resist do dado manda", () => {
     const w = setup({ hp: 10_000, armor: 0, damageKind: "fire" });
     expect(w.combat.damageMonster(w.m, "p", 100, "fire", w.now())).toBe(50);
-    expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(100);
+    expect(w.combat.damageMonster(w.m, "p", 100, "energy", w.now())).toBe(100);
+    expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(115); // fraqueza do bicho de fogo (ciclo 15)
     expect(w.combat.damageMonster(w.m, "p", 100, "physical", w.now())).toBe(100);
     w.m.def = { ...w.m.def, resist: { fire: 1, ice: 1.25 } };
     expect(w.combat.damageMonster(w.m, "p", 100, "fire", w.now())).toBe(100);
@@ -399,8 +422,8 @@ describe("telemetria de dano (ciclo 12)", () => {
     const got: [string, number, number][] = [];
     w.combat.hooks = { ...w.combat.hooks, onDealt: (id, d, r) => got.push([id, d, r]) };
     w.combat.damageMonster(w.m, "p", 100, "fire", w.now());
-    w.combat.damageMonster(w.m, "p", 100, "ice", w.now());
-    w.combat.damageMonster(w.m, "ninguem", 100, "ice", w.now()); // fonte que não é jogador
+    w.combat.damageMonster(w.m, "p", 100, "energy", w.now()); // elemento neutro (gelo seria fraqueza: 115)
+    w.combat.damageMonster(w.m, "ninguem", 100, "energy", w.now()); // fonte que não é jogador
     expect(got).toEqual([["p", 50, 50], ["p", 100, 0]]);
     const d = setup({ hp: 10_000, armor: 0, invulnerable: true });
     d.add(player("q", 11, 10));

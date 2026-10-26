@@ -86,6 +86,8 @@ export interface Monster {
   questLever?: string;
   /** Habilidades (monsterAbilities.ts): id da habilidade → quando fica pronta de novo. */
   abilityReadyAt?: Map<string, number>;
+  /** Última cura em grupo recebida de um curandeiro (HEAL_ALLIES_LOCKOUT_MS). */
+  healedAt?: number;
   /** Invocado por outro monstro (id do invocador): sem respawn, XP nem loot; some quando o invocador some. */
   minionOf?: string;
   /** Elite (nasceu com ELITE_CHANCE): vida ×2,5 e dano ×1,3 aqui; XP, ouro e loot maiores no abate. */

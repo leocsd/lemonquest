@@ -1,7 +1,7 @@
 import { e2eMode } from "../e2e.ts";
 import { CloseCode, ErrorCode, Room, ServerError, type Client, type Deferred, type RoomException, type RoomMethodName } from "@colyseus/core";
 import {
-  C2S, CLOSE_KICKED, CYCLE_START_MS, WEEKLY_EVENTS, WaterGrid, type ChallengeActionMsg, type FishMsg, type TradeMsg, wrapCycle, CLOSE_REPLACED, CLOSE_TRAINING, S2C, SKILLS, TICK_MS, baseStats,
+  C2S, CLOSE_KICKED, CYCLE_START_MS, attackSkillOf, WEEKLY_EVENTS, WaterGrid, type ChallengeActionMsg, type FishMsg, type TradeMsg, wrapCycle, CLOSE_REPLACED, CLOSE_TRAINING, S2C, SKILLS, TICK_MS, baseStats,
   type ArenaActionMsg, type AttackMsg, type CastMsg, type ChatSendMsg, type DiscardItemMsg, type ItemInstance, type DropItemMsg, type FeedMsg, type FightModeMsg, type FollowMsg, type JoinOptions,
   type MoveItemMsg, type MoveMsg, type NoticeMsg, type PartyActionMsg, type NpcInteractMsg, type NpcTradeMsg, type PickupItemMsg, type QuickPotionMsg, type SetOutfitMsg, type SetTitleMsg, type TurnMsg,
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
@@ -356,6 +356,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       teleport: (p, x, y) => this.movement.teleport(p, x, y),
       send, broadcast,
       magicBonus: (p) => this.inventory.stat(p.id, "magic"),
+      // Potência das magias de cavaleiro/paladino (spellPower): skill da arma + bônus de skill do equipamento.
+      weaponSkillBonus: (p) => this.inventory.stat(p.id, attackSkillOf(p.vocation)),
       dealtMult: (p) => this.dealtMult(p),
       // Investida não para em NPC nem em portal (cair num portal teleportava o cavaleiro sem querer).
       isBlocked: (x, y) => this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y),
@@ -386,8 +388,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       },
       hasShield: (p) => !!this.inventory.get(p.id)?.equipment.shield,
       onShieldTry: (p) => this.skills.addTries(p, "shield", 1),
-      onPlayerDied: (p, killer) => {
-        this.telemetry.onDeath(p.id);
+      onPlayerDied: (p, killer, killerKey) => {
+        this.telemetry.onDeath(p.id, killerKey);
         this.conditions.clear(p.id);
         this.summons.despawnOwner(p.id);
         this.loot.feed(`💀 ${p.name} foi derrotado por ${killer}`, "death");

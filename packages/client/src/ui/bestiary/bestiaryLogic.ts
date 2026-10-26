@@ -42,6 +42,17 @@ export function resistText(rs: readonly { kind: string; mult: number }[]): strin
   ).join(" · ");
 }
 
+/**
+ * Linhas "Resiste a" (multiplicador < 1) e "Fraco contra" (> 1, ciclo 15), cada uma da mais forte para a mais fraca.
+ * Texto vazio = a linha não aparece.
+ */
+export function elementLines(rs: readonly { kind: string; mult: number }[]): { resists: string; weak: string } {
+  return {
+    resists: resistText(rs.filter((r) => r.mult < 1).sort((a, b) => a.mult - b.mult)),
+    weak: resistText(rs.filter((r) => r.mult > 1).sort((a, b) => b.mult - a.mult)),
+  };
+}
+
 /** "12 de 40 conhecidos" */
 export function progressText(rows: readonly BestiaryRow[]): string {
   return `${rows.filter((r) => r.known).length} de ${rows.length} conhecidos`;

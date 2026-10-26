@@ -3,7 +3,7 @@
 // Cocheiro (`travel`): cobra o ouro e leva o jogador ao destino (grátis até TRAVEL_FREE_LEVEL).
 // Ambientação: a cada 20–40 s cada NPC com idleLines fala (S2C.NpcSay) se houver jogador a até 15 tiles.
 import {
-  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, S2C, blessingPrice, findObjects, imbuementDef, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
+  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, RED_SKULL_DEATH_XP_MULT, S2C, blessingPrice, deathXpLoss, findObjects, imbuementDef, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
   type NoticeMsg, type NpcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcSayMsg, type NpcTradeMsg, type TiledMap, type TravelMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -198,7 +198,10 @@ export class NpcSystem {
     const price = blessingPrice(p.level);
     if (!this.o.inventory.spendGold(p, price)) return this.notice(p, "Ouro insuficiente.", "warn");
     p.blessed = true;
-    this.notice(p, `Você comprou uma bênção por ${price} de ouro. Sua próxima morte não vai custar XP.`, "good");
+    // Mesma conta da morte (deathXpLoss, com a caveira vermelha): quanto a bênção salvaria se a morte fosse agora.
+    const saves = deathXpLoss(p.level, p.xp, p.skull === "red" ? RED_SKULL_DEATH_XP_MULT : 1);
+    const now = saves > 0 ? ` Hoje ela protege ~${saves.toLocaleString("pt-BR")} XP.` : "";
+    this.notice(p, `Você comprou uma bênção por ${price} de ouro. Sua próxima morte não vai custar XP.${now}`, "good");
     this.o.send(p.id, S2C.NpcOpen, this.openMsg(d, p));
   }
 

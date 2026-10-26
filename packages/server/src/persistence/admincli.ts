@@ -3,7 +3,7 @@
 //   Docker: docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 // Abre a base em LEMONQUEST_DB (ou data/lemonquest.db). Pode rodar com o servidor ligado (SQLite WAL + busy_timeout).
 import { closeDb, initDb, listDeletedCharacters, listRankingRows } from "./db.ts";
-import { summarizePlay, vocationReport } from "../systems/telemetry.ts";
+import { deathReport, skillReport, summarizePlay, vocationReport } from "../systems/telemetry.ts";
 import { createResetCode, formatResetCode } from "./auth.ts";
 
 export interface CliIO { out: (line: string) => void; err: (line: string) => void }
@@ -12,7 +12,7 @@ const USAGE = [
   "Uso:",
   "  npm run admin -- reset-password <conta>   gera um código de recuperação de senha (8 caracteres, 24 h, uso único)",
   "  npm run admin -- deleted                  lista os personagens excluídos (arquivo deleted_characters)",
-  "  npm run admin -- telemetria               progressão medida por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h)",
+  "  npm run admin -- telemetria               progressão medida por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h), skills reais e causas de morte",
   "Base: LEMONQUEST_DB (padrão: data/lemonquest.db).",
 ];
 
@@ -36,6 +36,10 @@ export async function runAdminCli(args: string[], io: CliIO = { out: console.log
       for (const l of summarizePlay(rows.map((r) => r.data.play))) io.out(l);
       io.out("Por vocação (desde a telemetria do ciclo 12; abates, XP e dano só contam a partir dela):");
       for (const l of vocationReport(rows.map((r) => ({ vocation: r.vocation, play: r.data.play })))) io.out(`  ${l}`);
+      io.out("Skills treinadas por vocação e faixa do level atual (média [mín–máx]; arma = melee do cavaleiro, distância do paladino; sem bônus de equipamento):");
+      for (const l of skillReport(rows.map((r) => ({ vocation: r.vocation, level: r.level, skills: r.data.skills })))) io.out(`  ${l}`);
+      io.out("Causas de morte por faixa (top 5; registradas desde o ciclo 15, as anteriores contam como \"sem causa\"):");
+      for (const l of deathReport(rows.map((r) => r.data.play))) io.out(`  ${l}`);
       return 0;
     }
     if (cmd === "deleted") {

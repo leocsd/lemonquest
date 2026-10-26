@@ -2,7 +2,14 @@
 import { createStore } from "../hud/store.ts";
 
 export interface LevelBanner { level: number; n: number; /** Nomes das magias recém-liberadas. */ spells: string[] }
-export interface DeathInfo { killerName: string; lostXp: number }
+export interface DeathInfo {
+  killerName: string;
+  lostXp: number;
+  /** A bênção foi gasta nesta morte (DiedMsg.blessingUsed). */
+  blessingUsed?: boolean;
+  /** XP que a bênção salvou (DiedMsg.savedXp). */
+  savedXp?: number;
+}
 
 export const levelBannerStore = createStore<LevelBanner | null>(null);
 export const deathStore = createStore<DeathInfo | null>(null);

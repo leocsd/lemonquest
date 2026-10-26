@@ -7,7 +7,7 @@ import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { useWindowDrag } from "../hud/useWindowDrag.ts";
 import { achievementsStore, requestAchievements } from "../achievements/achievements.ts";
 import { bindOverlay } from "../overlays.ts";
-import { bestiaryRows, chanceText, damageLabel, progressText, resistText } from "./bestiaryLogic.ts";
+import { bestiaryRows, chanceText, damageLabel, elementLines, progressText } from "./bestiaryLogic.ts";
 import "./bestiary.css";
 
 export const bestiaryOpen = createStore(false);
@@ -35,6 +35,7 @@ function BestiaryDialog() {
   useDialogFocus(drag.ref);
   const row = rows.find((r) => r.id === sel) ?? rows.find((r) => r.known) ?? rows[0];
   const def = row ? MONSTERS[row.id] : undefined;
+  const el = def ? elementLines(monsterResistances(def)) : null;
   return (
     <div ref={drag.ref} class={`hud-card hud-window bestiary-win${drag.dragging ? " dragging" : ""}`} style={drag.style} role="dialog" aria-label="Bestiário">
       <div class="win-title" onPointerDown={drag.onTitleDown}>
@@ -65,7 +66,8 @@ function BestiaryDialog() {
                 <dt>XP</dt><dd>{def.xp.toLocaleString("pt-BR")}</dd>
                 <dt>Dano</dt><dd>{def.damage[0]}–{def.damage[1]} ({damageLabel(def.damageKind)}){def.attackRange > 1 ? ` · alcance ${def.attackRange}` : ""}</dd>
                 <dt>Armadura</dt><dd>{def.armor}</dd>
-                {monsterResistances(def).length > 0 && <><dt>Resiste a</dt><dd>{resistText(monsterResistances(def))}</dd></>}
+                {el?.resists && <><dt>Resiste a</dt><dd>{el.resists}</dd></>}
+                {el?.weak && <><dt>Fraco contra</dt><dd>{el.weak}</dd></>}
                 {def.gold && <><dt>Ouro</dt><dd>{def.gold[0]}–{def.gold[1]}</dd></>}
                 {def.fleeAtHpPct > 0 && <><dt>Comportamento</dt><dd>foge com {Math.round(def.fleeAtHpPct * 100)}% de vida</dd></>}
               </dl>

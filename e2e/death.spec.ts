@@ -50,7 +50,7 @@ test("morte: perde XP, renasce no templo com vida cheia e vê a tela de morte", 
 
   const overlay = await dieTo(page);
   await expect(overlay).toContainText("Derrotado por Espírito de Chama");
-  await expect(overlay).toContainText(/−\d+ XP/);
+  await expect(overlay).toContainText(/−[\d.]+ XP/); // milhar com ponto: "−19.328 XP"
   await snap(page, "death-overlay");
   // XP menor (sem derrubar o level), vida e mana cheias, de volta ao templo.
   await expect.poll(() => xpOf(page)).toBeLessThan(before.xp);

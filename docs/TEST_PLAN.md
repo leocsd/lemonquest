@@ -141,6 +141,15 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 15 (2026-10-25, balanço das vocações e morte)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1214 passados (102 arquivos; eram 1162), 0 pulados; typecheck limpo. Novos: `balanceKit.ts` + `vocationBalance.test.ts` (P por vocação nos lv 30/60/100 nas tabelas de produção e do plano; feiticeiro não lidera dano e sobrevivência juntos; vida efetiva do escudo ≤ 1,1× a do cavaleiro), `skills.test.ts`, `admincli.test.ts`, `blessingText.test.ts`; casos novos em `combatFormulas`, `pvp`, `combat`, `spells`, `telemetry`, `monsterAbilities`, `conditions`, `shared/data/monsters`, `shared/data/spells`, `hotkeys`, `bestiaryLogic`. `arena.test.ts` com as metas de volta e sem `it.fails` |
+| Balanço medido | Pior/melhor do P (produção): 0,52/0,39/0,49 → 0,74/0,66/0,86; tabela do plano 0,74/0,73/0,83. Coliseu: solo lv 34 22–23, solo lv 120 29–30, grupo justo da 40/45/50/55/60 em 38/46/48/54/completa, lv 100 cai na 54, lv 120 completa |
+| Revisão cruzada | Sem bug grave; corrigidos: descrição do Escudo de Mana presa a "metade" (agora travada contra a constante por teste), teto "Protege até" da sacerdotisa sem a caveira vermelha, `cloneData` da telemetria quebrando com `byLevel` nulo, comentário e README da telemetria |
+| E2E | Não rodado localmente (decisão do dono: E2E local só a pedido). Specs ajustadas: `death.spec` (milhar com ponto em "−N XP"). Resultado do CI da PR abaixo |
+
 ## Resultados — ciclo 14 (2026-10-25, correções de bugs e exploits)
 
 | Camada | Resultado |

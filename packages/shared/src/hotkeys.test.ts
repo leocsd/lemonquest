@@ -60,8 +60,9 @@ describe("atalhos de magia", () => {
       expect(sanitizeHotkeys(d, v), v).toEqual(d);
       sizes[v] = d.length;
     }
-    // A barra encolhe: menos teclas que magias em todas as vocações, e cabe no 1–0.
-    expect(sizes).toEqual({ knight: 9, paladin: 6, sorcerer: 8, druid: 10 });
+    // A barra encolhe: menos teclas que magias em todas as vocações. Cabe no 1–0, menos o druida desde o Escudo de Mana
+    // (ciclo 15): 14 magias em 11 teclas, a 11ª na C.
+    expect(sizes).toEqual({ knight: 9, paladin: 6, sorcerer: 8, druid: 11 });
     for (const n of Object.values(sizes)) expect(n).toBeLessThanOrEqual(HOTKEY_MAX);
     expect(SUGGESTED_KEYS.slice(10, 12)).toEqual(["KeyC", "KeyF"]); // A, B, D, E são do jogo
   });

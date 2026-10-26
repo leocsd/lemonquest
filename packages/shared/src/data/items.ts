@@ -474,7 +474,7 @@ mageSet3("mystic", 6, "mithril", ["Turbante Místico", "Manto Azul", "Calças Re
 mageSet3("ferumbras", 7, "arcane", ["Chapéu de Ferumbras", "Manto Celestial", "Calças Celestiais"], [3, 5, 3], [50000, 120000, 70000], [100, 200, 120], [3, 4, 2], "Dizem que pertenceu ao maior feiticeiro que já existiu.");
 // Livros de magia (pedido do dono): o escudo dos magos. A varinha/bastão usa uma mão só e o slot ficava com o Escudo de
 // Madeira. Menos armadura que o escudo do cavaleiro do mesmo tier, em troca de mana e, do tier 5 em diante, magia.
-// Valor igual ao do escudo do cavaleiro do tier (o simulador da arena escolhe por valor).
+// Valor igual ao do escudo do cavaleiro do tier (o modelo de balanço, balanceKit.ts, escolhe por valor).
 const spellbook = (id: string, name: string, tier: number, tint: number, armor: number, manaMax: number, magic: number, value: number, description: string): void =>
   add({ id, name, kind: "shield", slot: "shield", icon: img(W + "Book/Sprite.png", tint), vocations: MAGE, level: TIER_LEVEL[tier - 1],
     stats: { armor, manaMax, ...(magic ? { magic } : {}) }, value, description });
@@ -490,14 +490,15 @@ add({ id: "boots_haste", name: "Botas da Pressa", kind: "boots", slot: "boots", 
   description: "Quem calça não anda: voa. Caem de behemoths e demônios." });
 
 // Oficina dos Engenhos (ciclo 10): recompensas das missões Q3/Q5, todas as vocações, nunca em loja. Valor abaixo do
-// vizinho mais barato do slot de propósito: o simulador da arena (arena.test.ts) escolhe o melhor equipamento por valor.
+// vizinho mais barato do slot de propósito: o modelo de balanço (server/systems/balanceKit.ts) escolhe o melhor
+// equipamento por valor.
 add({ id: "botas_biqueira", name: "Botas Reforçadas", kind: "boots", slot: "boots", icon: gear("boots", "iron"), level: 12, stats: { armor: 1, speed: 3 }, value: 90,
   description: "Ponteira de ferro e sola dupla. Chutar baú trancado continua não sendo boa ideia." });
 add({ id: "capacete_obra", name: "Elmo de Ferro Pintado", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 20, stats: { armor: 2, hpMax: 20 }, value: 480,
   description: "Pintado de amarelo para ninguém confundir a sua cabeça com uma pedra." });
 // Malha da Ferrovia (ciclo 11): equipamento da via, todas as vocações, recompensas de missão e loot raro dos monstros da Malha.
 // Mesma regra das peças da Oficina: valor abaixo do vizinho mais barato do slot no mesmo level (sniper_armor 4800,
-// archmage_helmet 5500, archmage/master_archer_legs 9500, botas de tier 5 5000), para o simulador da arena não as escolher.
+// archmage_helmet 5500, archmage/master_archer_legs 9500, botas de tier 5 5000), para o modelo de balanço não as escolher.
 add({ id: "colete_refletivo", name: "Gibão Reforçado", kind: "armor", slot: "armor", icon: gear("armor_vest", "gold"), level: 30, stats: { armor: 2, hpMax: 60, speed: 2 }, value: 3600,
   description: "Couro grosso com rebites nas costas. Leve o bastante para correr de uma ratazana." });
 add({ id: "capacete_lanterna", name: "Elmo com Lampião", kind: "helmet", slot: "helmet", icon: gear("helmet_full", "gold"), level: 35, stats: { armor: 2, hpMax: 50 }, value: 4200,

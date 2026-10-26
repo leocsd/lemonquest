@@ -422,7 +422,14 @@ export interface ArenaResultMsg { wavesCleared: number; xp: number; gold: number
 export interface CombatMsg { events: CombatEvent[] }
 export interface XpGainMsg { amount: number; x: number; y: number }
 export interface LevelUpMsg { level: number; maxHp: number; maxMana: number }
-export interface DiedMsg { lostXp: number; killerName: string }
+export interface DiedMsg {
+  lostXp: number;
+  killerName: string;
+  /** A bênção foi gasta nesta morte (só acontece quando havia XP a perder). */
+  blessingUsed?: boolean;
+  /** XP que a bênção salvou (a perda que haveria sem ela). */
+  savedXp?: number;
+}
 export interface CreatureDiedMsg { id: string; x: number; y: number; defId: string }
 export interface ExploredMsg { width: number; height: number; bits: string /* base64 */ }
 export interface NoticeMsg {

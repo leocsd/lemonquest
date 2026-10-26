@@ -12,6 +12,22 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26d",
+    date: "25 de outubro (noite)",
+    title: "Vocações mais equilibradas e morte mais pesada no fim de jogo",
+    items: [
+      "Escudo de Mana: agora metade do dano sai da mana e metade da vida. Feiticeiros: usem a Cura junto com o escudo.",
+      "Druidas também têm o Escudo de Mana (utamo vita, lv 15). Já passou do 15? Abra os Atalhos (H) e ponha o escudo numa tecla.",
+      "Cavaleiro: magias de dano 40% mais fortes. Cavaleiro e paladino: as magias de dano crescem com o level e com a skill da arma.",
+      "Paladino: 13 de vida por level (era 10). Druida: a Chuva de Gelo recarrega em 4 s (era 6).",
+      "Fraquezas: mortos-vivos tomam +25% de dano sagrado; bichos de fogo, +15% de gelo; bichos de gelo, +15% de fogo. O Bestiário mostra.",
+      "Monstros que curam aliados só curam o mesmo aliado a cada 10 s. Chefes: raiz vira lentidão de 30% e lentidão vale metade.",
+      "Morte: do lv 60 em diante perde mais XP (20% de um level no 60, 25% no 80, 30% no 100), sem nunca perder level. A bênção salva tudo.",
+      "PvP: o dano entre jogadores caiu pela metade.",
+      "Coliseu: ondas 16–24 mais leves, a onda 30 é o muro de quem vai sozinho e as ondas 41–60 ficaram mais duras.",
+    ],
+  },
+  {
     id: "2026-10-26c",
     date: "25 de outubro (noite)",
     title: "Correções: monstros, portas, poções e recompensas",

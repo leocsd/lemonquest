@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   ARENA_BREAK_MS, ARENA_COUNTDOWN_MS, ARENA_MAX_WAVE, arenaWave, ARENA_INTRO_MS, ARENA_SHOP_PAUSE_MS, ARENA_SPAWN_DELAY_MS, S2C, arenaWaveGold,
-  ARENA_COMPLETE_GOLD, ITEMS, arenaWaveSpawns, autoAttackRange, baseStats, manaRegenAmount, mitigateSpell, monsterDef,
-  damageTakenMult, shieldArmorBonus, spellMana, spellsFor, type DamageKind, type ItemDef, type MonsterDef, type TiledMap, type Vocation,
+  ARENA_COMPLETE_GOLD, arenaWaveSpawns, monsterDef, type TiledMap, type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { ArenaSystem, parseArenas, type ArenaLayout } from "./arena.ts";
+import { arenaRun, fighterBuilds, type Fighter, type SimOptions } from "./balanceKit.ts";
 import { openGrid, player, world } from "./testkit.ts";
 import { loadMap } from "../world/map.ts";
 
@@ -421,143 +421,75 @@ describe("coliseu: partida", () => {
 });
 
 /**
- * Modelo de balanço do Coliseu (ciclo 8), com o poder REAL do jogador (o modelo antigo usava 6 + 1,6·L de dano e
- * subestimava o jogador ~4×: um mago completava o Coliseu sozinho):
- * - Jogador "bem equipado": melhor item da vocação até o level, skill da arma 10 + 0,6·L, magic level de
- *   `spells.test.ts` (mago 0,75·L) — um teto otimista; Fúria do cavaleiro contada como média.
- * - Dano: ataque automático + rotação de magias no cooldown global (as de área pegam até 4 monstros, as ondas 3),
- *   com a armadura do monstro em foco; mana: regeneração em combate + poções de mana (400).
- * - Cura: Poção de Vida Grande (450 a cada 2 s); o tempo gasto em poções de mana sai dela (o temporizador é um só).
- *   Sem exura, cura em grupo ou kiting.
- * - Grupo: vida e cura somadas; o grupo foca um monstro (as áreas acertam os outros); todos os vivos batem.
- * - Entre ondas +30% da vida (ARENA_PAUSE_HEAL); depois de onda-chefe (pausa de 45 s com loja), vida cheia.
- * Resultado: a onda em que o grupo cai (0 = completou).
+ * Balanço do Coliseu no modelo de `balanceKit.ts` (ciclo 15, 15-1): jogador bem equipado por level com as montagens de
+ * verdade (duas mãos sem escudo; o cavaleiro testa as duas), skills de `skillEstimate`, magias no tempo de recarga,
+ * Cura e Escudo de Mana (20 s de escudo, 30 s de recarga), poções no temporizador único e +30% de vida e mana entre
+ * ondas. Grupo: os golpes se espalham na proporção da vida máxima (a hipótese do modelo do ciclo 8; a tabela mostra
+ * também o caso em que o da frente — o cavaleiro — leva todos os golpes, como a IA faz com quem chega perto). O antigo
+ * (ciclo 8) não tinha Cura nem escudo, dava escudo ao paladino e ao cavaleiro de duas mãos e usava ML = 0,75 × level.
+ * Resultado: a onda em que o time cai (61 = completou).
  */
-const SLOTS = ["helmet", "amulet", "armor", "weapon", "shield", "legs", "ring", "boots"] as const;
-const AREA_CAP: Record<string, number> = { target: 1, area_target: 4, area_self: 4, wave: 3 };
-
-function fighter(v: Vocation, L: number) {
-  const gear: ItemDef[] = [];
-  for (const sl of SLOTS) {
-    let best: ItemDef | undefined;
-    for (const it of Object.values(ITEMS)) {
-      if (it.slot !== sl || (it.vocations && !it.vocations.includes(v)) || (it.level ?? 0) > L) continue;
-      if (!best || it.value > best.value) best = it;
-    }
-    if (best) gear.push(best);
-  }
-  const bonus = (st: string) => gear.reduce((s, it) => s + ((it.stats as Record<string, number> | undefined)?.[st] ?? 0), 0);
-  const mage = v === "sorcerer" || v === "druid";
-  const ml = (mage ? Math.floor(0.75 * L) : v === "paladin" ? Math.floor(L / 4) : Math.floor(L / 7)) + bonus("magic");
-  const wsk = Math.min(10 + Math.floor(0.6 * L), 80);
-  const skills = { melee: v === "knight" ? wsk : 10, distance: v === "paladin" ? wsk : 10, magic: ml };
-  const { maxHp, maxMana } = baseStats(v, L);
-  const weapon = gear.find((g) => g.slot === "weapon");
-  const r = autoAttackRange(v, L, skills, weapon, (st) => bonus(st));
-  const crit = (v === "knight" || v === "paladin" ? 0.07 : 0) + bonus("crit") / 100;
-  const mana = maxMana + bonus("manaMax");
-  return {
-    v, L, ml, hp: maxHp + bonus("hpMax"),
-    armor: bonus("armor") + (gear.some((g) => g.slot === "shield") ? shieldArmorBonus(v === "knight" ? wsk : 10) : 0),
-    auto: ((r[0] + r[1]) / 2) * (1 + 0.5 * crit) * 0.95,
-    autoKind: (weapon?.damageKind ?? "physical") as DamageKind,
-    regen: manaRegenAmount(mana, L, true, false) / 2,
-    spells: spellsFor(v).filter((s) => s.damage && s.level <= L),
-  };
-}
-type Fighter = ReturnType<typeof fighter>;
-
-/**
- * Dano por segundo no foco e em área (por alvo) contra `k` monstros como `foe` (armadura e resistência elemental);
- * cura de poção por segundo. A rotação prefere o que rende mais contra esse monstro (como o jogador com os grupos).
- */
-function rotation(f: Fighter, k: number, foe: MonsterDef) {
-  const arm = foe.armor;
-  const list = f.spells.map((s) => {
-    const raw = s.damage!.base + f.L * s.damage!.perLevel + f.ml * s.damage!.perMagic;
-    const cap = AREA_CAP[s.target] ?? 1;
-    const d = mitigateSpell(raw, arm, s.damage!.kind) * damageTakenMult(foe, s.damage!.kind);
-    return { d, t: Math.min(k, cap), area: cap > 1, cd: s.cooldownMs / 1000, mana: spellMana(s, f.L) };
-  }).sort((a, b) => b.d * b.t - a.d * a.t);
-  let gcd = 1, st = (Math.max(0, f.auto - arm) * damageTakenMult(foe, f.autoKind)) / 2, aoe = 0, manaPs = 0;
-  for (const x of list) {
-    const rate = Math.min(1 / x.cd, gcd);
-    if (rate <= 0) break;
-    gcd -= rate;
-    manaPs += x.mana * rate;
-    if (x.area) aoe += x.d * rate; else st += x.d * rate;
-  }
-  const potsMana = Math.max(0, manaPs - f.regen) / 900; // poções de mana (grande, 900 — ciclo 9) por segundo
-  const scale = potsMana > 1 ? 1 / potsMana : 1;
-  const fury = f.v === "knight" && f.L >= 50 ? 1 + 0.25 / 3 : 1; // Fúria: +25% por 10 s a cada 30 s
-  return { st: st * scale * fury, aoe: aoe * scale * fury, heal: (450 * (1 - Math.min(1, potsMana))) / 2 };
-}
-
-/** Dano por segundo de um monstro da onda contra a armadura `armor` (habilidades com aviso: 60% acertam). */
-function monsterDps(s: { defId: string; dmgMult: number }, armor: number): number {
-  const d = monsterDef(s.defId)!;
-  const avg = ((d.damage[0] + d.damage[1]) / 2) * s.dmgMult;
-  let dps = Math.max(0, avg - armor) / (d.attackMs / 1000);
-  for (const a of d.abilities ?? []) {
-    if (!a.damage) continue;
-    const ad = Math.max(0, ((a.damage.min + a.damage.max) / 2) * s.dmgMult - armor);
-    dps += (((ad - Math.max(0, avg - armor)) * (d.attackMs / a.cooldownMs)) / (d.attackMs / 1000)) * (a.windupMs ? 0.6 : 1);
-  }
-  return Math.max(0, dps);
-}
-
-/** Onda em que o grupo cai (0 = venceu as 60). */
-function arenaRun(vocs: Vocation[], L: number): number {
-  const fs = vocs.map((v) => fighter(v, L));
-  const n = fs.length, maxHp = fs.reduce((s, f) => s + f.hp, 0), armor = fs.reduce((s, f) => s + f.armor, 0) / n;
-  let hp = maxHp;
-  for (let w = 1; w <= ARENA_MAX_WAVE; w++) {
-    const mons = arenaWaveSpawns(w, n, L).map((s) => ({ def: monsterDef(s.defId)!, hp: monsterDef(s.defId)!.hp * s.hpMult, dps: monsterDps(s, armor) }));
-    for (let t = 0; mons.some((m) => m.hp > 0); t += 0.25) {
-      const alive = mons.filter((m) => m.hp > 0);
-      let st = 0, aoe = 0, heal = 0;
-      for (const f of fs) { const r = rotation(f, alive.length, alive[0]!.def); st += r.st; aoe += r.aoe; heal += r.heal; }
-      alive[0]!.hp -= st * 0.25;
-      for (const m of alive.slice(0, 4)) m.hp -= aoe * 0.25;
-      hp = Math.min(maxHp, hp + (heal - alive.reduce((s, m) => s + m.dps, 0)) * 0.25);
-      if (hp <= 0 || t > 600) return w;
-    }
-    hp = w % 5 === 0 ? maxHp : Math.min(maxHp, hp + maxHp * 0.3);
-  }
-  return 0;
-}
-
 const VOCS: Vocation[] = ["sorcerer", "druid", "knight", "paladin"];
 const GROUP: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
 const fell = (w: number) => (w === 0 ? ARENA_MAX_WAVE + 1 : w);
+const reached = new Map<string, number>();
+/** Onda em que o time cai (61 = completou), com a melhor montagem de cada um. */
+function reach(vocs: readonly Vocation[], L: number, o: SimOptions = {}): number {
+  const key = `${vocs.join()}@${L}:${JSON.stringify(o)}`;
+  let w = reached.get(key);
+  if (w === undefined) {
+    let teams: Fighter[][] = [[]];
+    for (const v of vocs) teams = teams.flatMap((t) => fighterBuilds(v, L).map((f) => [...t, f]));
+    w = Math.max(...teams.map((t) => fell(arenaRun(t, o))));
+    reached.set(key, w);
+  }
+  return w;
+}
 
-describe("coliseu: balanço (modelo com o poder real do jogador)", () => {
-  it("solo do mago (e de qualquer vocação) não passa da onda ~25, nem no level 120", () => {
-    // Modelo: lv 34 (justo da 25) cai na 22–23; lv 60 na 24–26; lv 120 na 27–30.
-    for (const v of VOCS) {
-      expect(fell(arenaRun([v], 34)), `${v} lv 34`).toBeGreaterThanOrEqual(20);
-      expect(fell(arenaRun([v], 34)), `${v} lv 34`).toBeLessThanOrEqual(25);
-      expect(fell(arenaRun([v], 60)), `${v} lv 60`).toBeLessThanOrEqual(28);
-      expect(fell(arenaRun([v], 120)), `${v} lv 120`).toBeLessThanOrEqual(32);
-    }
-    expect(fell(arenaRun(["sorcerer"], 120))).toBeLessThanOrEqual(30);
+describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
+  it("tabela: onda em que cada um cai sozinho e o grupo de 4 (console)", () => {
+    const solo = [34, 60, 120].map((L) => ({ level: L, ...Object.fromEntries(VOCS.map((v) => [v, reach([v], L)])) }));
+    console.table(solo);
+    const group = [...[40, 45, 50, 55, 60].map((x) => ({ grupo: `justo da ${x}`, level: arenaWave(x)!.level })), { grupo: "lv 100", level: 100 }, { grupo: "lv 120", level: 120 }]
+      .map((g) => ({ ...g, onda: reach(GROUP, g.level), "golpes no da frente": reach(GROUP, g.level, { targeting: "front" }) }));
+    console.table(group);
+    expect(solo.length).toBe(3);
   });
 
-  it("grupo de 4 no level justo da onda X cai perto de X (no justo da 45: entre 40 e 48)", () => {
-    // Modelo (justo da 40/45/50/55/60): 37, 44, 48, 54, 58 com poção de mana de 400; com a de 900 (ciclo 9) os
-    // magos sustentam a rotação e o grupo passa 1–3 ondas além do justo.
+  // Ciclo 15-14 (ARENA_DMG_POINTS em shared/data/arena.ts). Antes da recalibração, com as vocações do ciclo 15 e as
+  // skills da produção: solo lv 34 — magos 18; solo lv 120 — druida 34, cavaleiro de duas mãos 35; grupo no justo da
+  // 40/45/50/55/60 — 44/54/61/61/61 e o lv 100 completava. Depois: solo lv 34 22/22/23/23, lv 120 29/29/30/29; grupo
+  // 38/46/48/54/61, lv 100 cai na 54.
+  it("solo no level justo da 25 (lv 34) cai entre a onda 20 e a 25; no lv 60 não passa da 28", () => {
+    for (const v of VOCS) {
+      expect(reach([v], 34), `${v} lv 34`).toBeGreaterThanOrEqual(20);
+      expect(reach([v], 34), `${v} lv 34`).toBeLessThanOrEqual(25);
+      expect(reach([v], 60), `${v} lv 60`).toBeLessThanOrEqual(28);
+    }
+  });
+
+  it("solo: ninguém passa da onda 30, nem no level 120 (o muro da onda 30)", () => {
+    for (const v of VOCS) expect(reach([v], 120), `${v} lv 120`).toBeLessThanOrEqual(30);
+  });
+
+  it("feiticeiro solo lv 120 nem com o escudo de antes (tudo na mana) passa da 30: o buraco de 10 s do escudo derruba", () => {
+    // O plano (15-1) esperava 34–35 com o escudo de antes (modelo de planejamento, escudo sempre ativo). Com a recarga
+    // de verdade (20 s de escudo a cada 30 s) a onda 29 cai no buraco, e os espíritos de chama das ondas 26–30 resistem
+    // ao fogo.
+    expect(reach(["sorcerer"], 120, { absorb: 1 })).toBeLessThanOrEqual(30);
+  });
+
+  it("grupo de 4 no level justo da onda X cai entre X−5 e X+3", () => {
     for (const x of [40, 45, 50, 55, 60]) {
-      const w = fell(arenaRun(GROUP, arenaWave(x)!.level));
+      const w = reach(GROUP, arenaWave(x)!.level);
       expect(w, `justo da ${x}`).toBeGreaterThanOrEqual(x - 5);
       expect(w, `justo da ${x}`).toBeLessThanOrEqual(x + 3);
     }
-    expect(fell(arenaRun(GROUP, arenaWave(45)!.level))).toBeGreaterThanOrEqual(40);
   });
 
   it("completar as 60 pede grupo de level alto: lv 100 não completa, lv 120 completa", () => {
-    // Com a poção de mana de 900 o grupo no level justo da 60 (110) já completa no modelo; a barreira fica no lv 100.
-    expect(arenaRun(GROUP, 100)).toBeGreaterThan(0);
-    expect(arenaRun(GROUP, 120)).toBe(0);
+    expect(reach(GROUP, 100)).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+    expect(reach(GROUP, 120)).toBe(ARENA_MAX_WAVE + 1);
   });
 
   it("o golpe médio dos monstros cresce a cada bloco de 10 ondas", () => {

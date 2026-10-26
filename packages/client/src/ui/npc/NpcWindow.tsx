@@ -16,6 +16,7 @@ import { ItemSlot } from "../items/ItemSlot.tsx";
 import { itemTipStore, shopInstance } from "../items/tipStore.ts";
 import { buyBlessing, buyCasinoTicket, buyImbuement, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
 import { BountyBoard, MaterialRequestBoard, NpcQuestList } from "../quests/NpcQuests.tsx";
+import { blessingProtects } from "../combat/blessingText.ts";
 import { WorkTab } from "../work/WorkTab.tsx";
 import "./npc.css";
 
@@ -158,7 +159,9 @@ function BuyList({ m, gold, backpack }: { m: NpcOpenMsg; gold: number; backpack:
 }
 
 function BlessingBox({ npcId, blessing, gold }: { npcId: string; blessing: { price: number; active: boolean }; gold: number }) {
+  const me = useStore(meStore);
   const afford = gold >= blessing.price;
+  const protects = me ? blessingProtects(me.level, me.xp, me.skull) : "";
   return (
     <div class="shop-row blessing-row">
       <div class="shop-main">
@@ -168,6 +171,7 @@ function BlessingBox({ npcId, blessing, gold }: { npcId: string; blessing: { pri
             ? <span class="good">Ativa: sua próxima morte não custa XP.</span>
             : <><Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(blessing.price)}</span></>}
         </div>
+        {protects && <div class="blessing-protects">{protects}</div>}
       </div>
       {!blessing.active && (
         <button class="shop-btn" disabled={!afford} onClick={() => buyBlessing(npcId)} data-tip={afford ? undefined : "Ouro insuficiente"}>

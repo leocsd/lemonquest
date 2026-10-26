@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MONSTERS } from "@lemonquest/shared";
-import { bestiaryRows, chanceText, damageLabel, progressText } from "./bestiaryLogic.ts";
+import { MONSTERS, monsterResistances } from "@lemonquest/shared";
+import { bestiaryRows, chanceText, damageLabel, elementLines, progressText } from "./bestiaryLogic.ts";
 
 const defs = Object.values(MONSTERS);
 
@@ -22,6 +22,17 @@ describe("bestiaryRows", () => {
     expect(by("snake").kills).toBe(0);
     expect(by("slime")).toMatchObject({ known: true, kills: 1 });
     expect(progressText(rows)).toBe(`2 de ${rows.length} conhecidos`);
+  });
+});
+
+describe("elementLines (Resiste a / Fraco contra, ciclo 15)", () => {
+  it("separa resistências e fraquezas, cada uma da mais forte para a mais fraca", () => {
+    // Crânio Flamejante: morto-vivo e de fogo.
+    expect(elementLines(monsterResistances(MONSTERS.flame_skull!))).toEqual({ resists: "fogo: metade do dano", weak: "sagrado: +25% · gelo: +15%" });
+    expect(elementLines(monsterResistances(MONSTERS.skeleton!))).toEqual({ resists: "", weak: "sagrado: +25%" });
+    expect(elementLines(monsterResistances(MONSTERS.frost_dragon!))).toEqual({ resists: "gelo: metade do dano", weak: "fogo: +15%" });
+    expect(elementLines(monsterResistances(MONSTERS.rat!))).toEqual({ resists: "", weak: "" });
+    expect(elementLines([{ kind: "earth", mult: 0.8 }, { kind: "fire", mult: 0 }])).toEqual({ resists: "fogo: imune · terra: −20%", weak: "" });
   });
 });
 

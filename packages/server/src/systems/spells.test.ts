@@ -44,7 +44,7 @@ Object.assign(SP, {
 // Fixtures fora do cooldown global (exceto heal/bolt/big/free), para os testes de efeito.
 for (const s of Object.values(SP)) if (!["heal", "bolt", "big", "free", "light_heal"].includes(s.id)) s.global = false;
 
-interface SetupOpts { grid?: CollisionGrid; monsters?: { x: number; y: number; def?: Partial<MonsterDef> }[]; safeZones?: { x0: number; y0: number; x1: number; y1: number }[]; isAlly?: (a: PlayerState, b: PlayerState) => boolean }
+interface SetupOpts { grid?: CollisionGrid; monsters?: { x: number; y: number; def?: Partial<MonsterDef> }[]; safeZones?: { x0: number; y0: number; x1: number; y1: number }[]; isAlly?: (a: PlayerState, b: PlayerState) => boolean; weaponSkillBonus?: (p: PlayerState) => number }
 
 function setup(o: SetupOpts = {}) {
   const mons = o.monsters ?? [{ x: 10, y: 10 }];
@@ -64,7 +64,7 @@ function setup(o: SetupOpts = {}) {
     grid: o.grid ?? openGrid(40, 40), monsters: w.mm, combat: w.combat, conditions, summons, skills,
     players: () => w.players.values(), getPlayer: (id) => w.players.get(id),
     teleport: (p, x, y) => { p.x = x; p.y = y; }, send, broadcast: (type, msg) => send("*", type, msg),
-    now: w.now, rng: () => 0.5, spells: (id) => SP[id], isAlly: o.isAlly,
+    now: w.now, rng: () => 0.5, spells: (id) => SP[id], isAlly: o.isAlly, weaponSkillBonus: o.weaponSkillBonus,
   });
   w.combat.hooks = {
     damageTakenPct: (id) => conditions.damageTakenPct(id),
@@ -282,20 +282,31 @@ describe("conditions", () => {
     expect(w.sent.filter((s) => s.type === S2C.Conditions).at(-1)!.msg.list).toEqual([{ id: "combat" }]);
   });
 
-  it("manashield takes damage from mana first; protect reduces damage", () => {
+  it("manashield (ciclo 15): metade do dano na mana e metade na vida; sem mana, tudo na vida; protect reduz o dano", () => {
     const w = setup({ monsters: [{ x: 11, y: 10, def: { aggroRange: 5, damage: [20, 20], attackMs: 1000 } }] });
     const p = w.addP("p", 10, 10, { mana: 15, hp: 200 });
     w.spells.cast(p, "shield");
     w.run(600);
+    // 20 de dano: 10 da mana, 10 da vida.
+    expect(p.mana).toBe(5);
+    expect(p.hp).toBe(190);
+    let ev = w.events().filter((e: any) => e.targetId === "p");
+    expect(ev[0]).toMatchObject({ kind: "mana", amount: 10 });
+    expect(ev[1]).toMatchObject({ kind: "physical", amount: 10 });
+    // Só 5 de mana: a mana cobre 5, a vida leva 15.
+    w.run(1000);
     expect(p.mana).toBe(0);
-    expect(p.hp).toBe(195);
-    const ev = w.events().filter((e: any) => e.targetId === "p");
-    expect(ev[0]).toMatchObject({ kind: "mana", amount: 15 });
-    expect(ev[1]).toMatchObject({ kind: "physical", amount: 5 });
+    expect(p.hp).toBe(175);
+    // Mana zerada: tudo na vida, sem evento de mana.
+    w.sent.length = 0;
+    w.run(1000);
+    expect(p.hp).toBe(155);
+    ev = w.events().filter((e: any) => e.targetId === "p");
+    expect(ev.map((e: any) => e.kind)).toEqual(["physical"]);
     w.conditions.clear("p");
     w.spells.cast(p, "prot");
     w.run(1000);
-    expect(p.hp).toBe(185);
+    expect(p.hp).toBe(145);
   });
 
   it("regen heals every second", () => {
@@ -366,7 +377,7 @@ describe("dash", () => {
 });
 
 describe("summons", () => {
-  it("a invocação escala com o level do invocador: lv 20 = catálogo, lv 46 = vida 570 e dano ×1,75 (GD-05)", () => {
+  it("a invocação escala com o level do invocador: lv 20 = catálogo, lv 46 = vida 830 e dano ×2,5 (GD-05, ciclo 15)", () => {
     const w = setup();
     w.defs.wolf = { ...MONSTERS.summoned_wolf! };
     const spec = { monsterId: "wolf", count: 1, durationMs: 10_000 };
@@ -377,7 +388,8 @@ describe("summons", () => {
     const b = w.addP("b", 14, 14, { level: 46 });
     w.summons.summon(b, spec, w.now());
     const wolf46 = w.mm.get(w.summons.ownedBy("b")[0]!)!;
-    expect([wolf46.s.hp, wolf46.s.maxHp, wolf46.def.damage]).toEqual([570, 570, [25, 46]]);
+    // Ciclo 15: 25 de vida por level e bônus de dano 1,5 (era 570 e [25, 46] com 15/level e 0,75).
+    expect([wolf46.s.hp, wolf46.s.maxHp, wolf46.def.damage]).toEqual([830, 830, [35, 65]]);
     expect(w.defs.wolf).toMatchObject({ hp: 180, damage: [14, 26] }); // o catálogo não muda
   });
 
@@ -563,7 +575,9 @@ describe("magias de utilidade do lv 100 (ciclo 12)", () => {
     p.targetId = m.s.id;
     expect(w.spells.cast(p, "elemental_rupture")).toMatchObject({ ok: true });
     expect(w.combat.damageMonster(m, "p", 100, "fire", w.now())).toBe(115);
-    expect(w.combat.damageMonster(m, "p", 100, "ice", w.now())).toBe(115);
+    expect(w.combat.damageMonster(m, "p", 100, "energy", w.now())).toBe(115);
+    // Gelo num bicho de fogo: a fraqueza (×1,15, ciclo 15) fica e soma com a Ruptura: 100 × 1,15 × 1,15.
+    expect(w.combat.damageMonster(m, "p", 100, "ice", w.now())).toBe(132);
     expect(w.combat.damageMonster(m, "p", 100, "physical", w.now())).toBe(100);
     w.run(12_500); // passou o efeito
     expect(w.combat.damageMonster(m, "p", 100, "fire", w.now())).toBe(50);
@@ -595,5 +609,50 @@ describe("magias de utilidade do lv 100 (ciclo 12)", () => {
     const d = w.addP("d", 10, 10, { vocation: "druid", level: 100, mana: 5000, maxMana: 5000 });
     expect(w.spells.cast(d, "earth_roots")).toMatchObject({ ok: true });
     expect(w.ms.map((m) => w.conditions.has(m.s.id, "rooted"))).toEqual([true, true, false]);
+  });
+});
+
+describe("spellPower: dano de magia do cavaleiro/paladino pela skill da arma e pelo level (ciclo 15)", () => {
+  // Dano e cura = 10 × "magic level" efetivo: o número que sai é o ML usado na fórmula × 10.
+  SP.pw_hit = { id: "pw_hit", name: "ph", words: "exori pw", vocations: ["knight", "paladin", "druid"], level: 1, mana: 0, cooldownMs: 0, global: false, target: "target", range: 6, damage: { base: 0, perLevel: 0, perMagic: 10, variance: 0, kind: "energy" }, fx: "energy", description: "" };
+  SP.pw_heal = { id: "pw_heal", name: "pc", words: "exura pw", vocations: ["knight", "paladin", "druid"], level: 1, mana: 0, cooldownMs: 0, global: false, target: "self", heal: { base: 0, perLevel: 0, perMagic: 10, variance: 0 }, fx: "heal", description: "" };
+  // addP carrega as skills iniciais (SkillSystem.load): as do teste entram depois.
+  const hitOf = (w: ReturnType<typeof setup>, id: string) => w.events().filter((e: any) => e.sourceId === id && e.kind === "energy").at(-1)?.amount;
+
+  it("cavaleiro: max(ML, ⌊(melee + bônus + level − 10)/2⌋) no dano; a cura segue com o ML", () => {
+    const w = setup({ weaponSkillBonus: (p) => (p.vocation === "knight" ? 4 : 0) });
+    const k = w.addP("k", 11, 10, { vocation: "knight", level: 100, hp: 100, maxHp: 5000 });
+    Object.assign(k, { magicLevel: 10, skillMelee: 66, skillDistance: 10 });
+    expect(w.spells.cast(k, "pw_hit", w.ms[0]!.s.id)).toMatchObject({ ok: true });
+    expect(hitOf(w, "k")).toBe(800); // ⌊(66 + 4 + 100 − 10)/2⌋ = 80
+    expect(w.spells.cast(k, "pw_heal")).toMatchObject({ ok: true });
+    expect(k.hp).toBe(200); // ML 10
+  });
+
+  it("paladino usa distância; skill baixa não rebaixa o ML; magos ficam no ML", () => {
+    const w = setup();
+    const pal = w.addP("pal", 11, 10, { vocation: "paladin", level: 50 });
+    Object.assign(pal, { magicLevel: 5, skillMelee: 80, skillDistance: 30 });
+    expect(w.spells.cast(pal, "pw_hit", w.ms[0]!.s.id)).toMatchObject({ ok: true });
+    expect(hitOf(w, "pal")).toBe(350); // ⌊(30 + 50 − 10)/2⌋ = 35 (a melee 80 não conta para o paladino)
+    const low = w.addP("low", 9, 10, { vocation: "knight", level: 1 });
+    Object.assign(low, { magicLevel: 8, skillMelee: 10 });
+    expect(w.spells.cast(low, "pw_hit", w.ms[0]!.s.id)).toMatchObject({ ok: true });
+    expect(hitOf(w, "low")).toBe(80); // ⌊(10 + 1 − 10)/2⌋ = 0 < ML 8
+    const d = w.addP("d", 10, 11, { vocation: "druid", level: 50 });
+    Object.assign(d, { magicLevel: 6, skillMelee: 90, skillDistance: 90 });
+    expect(w.spells.cast(d, "pw_hit", w.ms[0]!.s.id)).toMatchObject({ ok: true });
+    expect(hitOf(w, "d")).toBe(60);
+  });
+
+  it("Golpe Aniquilador lv 100 (ML 10, machado 66 + 4): 952 só com o ML → 1.442 em média (15-13: +40% e level na potência)", () => {
+    const w = setup({ monsters: [{ x: 10, y: 10, def: { hp: 100_000 } }], weaponSkillBonus: () => 4 });
+    SP.annihilation_strike = SPELLS.annihilation_strike!;
+    const k = w.addP("k", 11, 10, { vocation: "knight", level: 100, mana: 5000, maxMana: 5000 });
+    Object.assign(k, { magicLevel: 10, skillMelee: 66 });
+    expect(w.spells.cast(k, "annihilation_strike", w.ms[0]!.s.id)).toMatchObject({ ok: true });
+    // rng 0,5 = valor médio da fórmula; armadura 0.
+    expect(w.events().filter((e: any) => e.sourceId === "k" && e.kind === "physical").at(-1)?.amount).toBe(1442);
+    expect(evalSpellFormula(SPELLS.annihilation_strike!.damage!, 100, 10, () => 0.5)).toBe(952);
   });
 });

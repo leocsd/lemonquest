@@ -15,6 +15,7 @@
 .shop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 6px 4px 4px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
 .shop-row:hover { border-color: var(--hud-line-hi); }
 .blessing-row { margin: 8px 0; }
+.blessing-protects { font-size: 11px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
 .shop-icon { flex: none; }
 .shop-main { flex: 1; min-width: 0; }
 .shop-name { font-size: 13px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; } /* nome longo quebra em 2 linhas ("Poção de Vida Média" ≠ "…de Mana Média") */

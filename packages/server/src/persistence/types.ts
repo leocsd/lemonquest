@@ -1,4 +1,5 @@
 import type { SpellGroup, Vocation } from "@lemonquest/shared";
+import type { PlayData } from "../systems/telemetry.ts";
 
 /** Dados flexíveis do personagem, guardados como JSON na coluna `data`. Cada marco acrescenta campos opcionais. */
 export interface CharacterData {
@@ -64,8 +65,8 @@ export interface CharacterData {
   };
   /** Roupas/addons/títulos liberados: "outfit:x", "addon:x:1|2", "title:x". */
   unlocks?: string[];
-  /** Telemetria de progressão (systems/telemetry.ts): tempo jogado, mortes e ouro por level. */
-  play?: { ms: number; byLevel: Record<string, { ms: number; deaths: number; goldIn: number; goldOut: number }> };
+  /** Telemetria de progressão (systems/telemetry.ts): tempo jogado, mortes (e causas), ouro, abates, XP e dano por level. */
+  play?: PlayData;
   /** Linha de base da semana (ranking e missões semanais): contadores no começo da semana ISO `id`. */
   week?: { id: string; xp: number; kills: number; fish: number; bosses: number };
   /** Desafios da semana: semana ISO, level no começo dela (meta de XP), desafios resgatados e bônus. */

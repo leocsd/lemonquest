@@ -4,11 +4,11 @@
 import {
   DEFAULT_SPELL_RANGE,
   DIR_DELTA, Dir, GLOBAL_SPELL_COOLDOWN_MS, S2C, canStepTerrain, dirFromDelta, evalSpellFormula, mitigateSpell,
-  spellByWords, spellDef, spellMana,
+  spellByWords, spellDef, spellMana, spellPower,
   type CastFailReason, type CastMsg, type CastResultMsg, type CollisionGrid, type SpellCastMsg, type SpellDef,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
-import type { CombatSystem } from "./combat.ts";
+import { attackSkillValue, type CombatSystem } from "./combat.ts";
 import type { ConditionSystem } from "./conditions.ts";
 import { cheb, type Monster, type MonsterManager } from "./monsters.ts";
 import type { Point } from "./pathfinding.ts";
@@ -97,6 +97,11 @@ export interface SpellSystemOptions {
   spells?: (id: string) => SpellDef | undefined;
   /** Bônus de magic level do equipamento (soma à skill treinada nas fórmulas). */
   magicBonus?: (p: PlayerState) => number;
+  /**
+   * Bônus do equipamento na skill da arma da vocação (melee do cavaleiro, distance do paladino): entra no `spellPower`
+   * das magias de dano deles. Ausente = 0.
+   */
+  weaponSkillBonus?: (p: PlayerState) => number;
   /** Multiplicador do dano causado (postura). */
   dealtMult?: (p: PlayerState) => number;
   /** Tile ocupado por algo além de monstros/jogadores (NPCs, portais) — a investida não para em cima. */
@@ -311,15 +316,17 @@ export class SpellSystem {
     const ml = (p.magicLevel ?? 0) + (this.o.magicBonus?.(p) ?? 0);
     const dealt = this.o.dealtMult?.(p) ?? 1;
     if (s.damage) {
+      // Dano: cavaleiro/paladino usam a skill da arma quando ela rende mais que o ML (spellPower). Cura: só o ML.
+      const power = spellPower(p.vocation, ml, attackSkillValue(p) ?? 10, this.o.weaponSkillBonus?.(p) ?? 0, p.level);
       for (const m of hitMonsters) {
-        const base = evalSpellFormula(s.damage, p.level, ml, this.rng);
+        const base = evalSpellFormula(s.damage, p.level, power, this.rng);
         const raw = dealt === 1 ? base : Math.round(base * dealt);
         const amount = mitigateSpell(raw, m.def.armor, s.damage.kind);
         this.o.combat.damageMonster(m, p.id, amount, s.damage.kind, now,
           { ranged: false }); // projétil da magia vem do SpellCast
       }
       for (const v of victims) {
-        const base = evalSpellFormula(s.damage, p.level, ml, this.rng);
+        const base = evalSpellFormula(s.damage, p.level, power, this.rng);
         const raw = dealt === 1 ? base : Math.round(base * dealt);
         this.o.combat.hitPlayer(p, v, mitigateSpell(raw, this.o.combat.armorOf(v), s.damage.kind), s.damage.kind, now);
       }

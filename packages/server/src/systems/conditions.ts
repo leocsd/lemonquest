@@ -2,7 +2,7 @@
 // Efeitos: haste/slow/rooted (velocidade), protect (−% dano), manashield, regen (cura/1 s),
 // burn/poison/energy/bleed/freeze (dano a cada 2 s), taunted (monstro forçado a atacar quem provocou).
 // O jogador recebe S2C.Conditions sempre que a lista dele muda (inclui "combat" e "pz", calculados aqui).
-import { S2C, type ConditionId, type ConditionsMsg, type DamageKind } from "@lemonquest/shared";
+import { S2C, bossCondition, type ConditionId, type ConditionsMsg, type DamageKind } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CombatSystem } from "./combat.ts";
 import type { MonsterManager } from "./monsters.ts";
@@ -29,6 +29,8 @@ interface Cond {
   value: number;
   sourceId: string;
   nextTickAt: number;
+  /** Dano contínuo: causa da morte para a telemetria ("burn@dragon", "pvp"), fixada ao aplicar (o dono pode sumir antes). */
+  cause?: string;
 }
 
 export interface ConditionOptions {
@@ -59,6 +61,8 @@ export class ConditionSystem {
   apply(targetId: string, id: ConditionId, durationMs: number, value: number | undefined, sourceId: string, now: number): void {
     if (!targetId || !(durationMs > 0)) return;
     if (!this.o.getPlayer(targetId) && !this.o.monsters.get(targetId)) return;
+    // Chefe (ciclo 15): raiz vira lentidão de 30% e lentidão vale metade (shared bossCondition).
+    if (this.o.monsters.get(targetId)?.def.boss) ({ id, value } = bossCondition(id, value));
     let map = this.byId.get(targetId);
     if (!map) { map = new Map(); this.byId.set(targetId, map); }
     const interval = id === "regen" ? REGEN_TICK_MS : DOT_KIND[id] ? DOT_INTERVAL_MS : 0;
@@ -70,8 +74,16 @@ export class ConditionSystem {
       id, until: now + durationMs, value: Math.max(0, value ?? 0), sourceId,
       // Renovar não reinicia o relógio dos tiques (evita tique duplo ou perdido).
       nextTickAt: prev && interval ? prev.nextTickAt : now + interval,
+      cause: DOT_KIND[id] ? this.causeOf(id, sourceId) : undefined,
     });
     this.refresh(targetId);
+  }
+
+  /** Causa da morte por dano contínuo: aplicado por jogador = "pvp"; por monstro = "condição@id do monstro". */
+  private causeOf(id: ConditionId, sourceId: string): string {
+    if (this.o.getPlayer(sourceId)) return "pvp";
+    const m = this.o.monsters.get(sourceId);
+    return m ? `${id}@${m.def.id}` : id;
   }
 
   remove(targetId: string, id: ConditionId): void {
@@ -120,7 +132,7 @@ export class ConditionSystem {
           if (c.value > 0) {
             if (c.id === "regen") { if (p) this.o.combat.healPlayer(p, c.sourceId || tid, c.value); }
             else if (m) this.o.combat.damageMonster(m, c.sourceId, c.value, kind!, now);
-            else if (p) this.o.combat.damagePlayer(p, c.sourceId, c.value, kind!, now, { killerName: DOT_LABEL[c.id] ?? c.id });
+            else if (p) this.o.combat.damagePlayer(p, c.sourceId, c.value, kind!, now, { killerName: DOT_LABEL[c.id] ?? c.id, killerKey: c.cause ?? c.id });
           }
           // O dano pode ter matado/limpado a criatura.
           if (this.byId.get(tid) !== map) break;

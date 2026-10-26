@@ -1,5 +1,54 @@
 # Changelog
 
+## [Não lançado] — 2026-10-25 · ciclo 15: balanço das vocações e morte mais pesada no 60+
+
+Segundo ciclo do plano 14–20. Dados de produção que motivaram: 7 dos 15 personagens eram feiticeiros (Escudo de Mana
+absorvendo tudo + Poção de Mana Grande) e o poder da vocação mais fraca era ~40–50% do da mais forte. Feito em quatro
+frentes (modelo, combate, monstros, telemetria) + revisão cruzada.
+
+**Modelo de balanço honesto (15-1)** — `server/systems/balanceKit.ts` (novo) substitui o simulador que morava em
+`arena.test.ts`: duas mãos sem escudo, Escudo de Mana pela função real, cura, poções, Pele de Ferro/Muralha, danos
+contínuos e habilidades dos monstros, simulação a 50 ms. `vocationBalance.test.ts` mede dano/s × "aguenta" (P) por
+vocação nos lv 30/60/100. `skillEstimate` (`shared/skills.ts`) segue a **produção** (16 personagens): ML de mago
+20/29/37 e skill da arma parada em 30–35 do lv 30 ao 100 (o plano supunha 22/36/48 e 28/46/66: corpo a corpo 60 pede
+~19 h de golpes e ninguém chega lá). Achado: o modelo não reproduz o "feiticeiro solo passa da onda 30" — com o
+escudo antigo ele também cai na 29; o que separava as vocações era o dano em área do mago e o dano baixo do cavaleiro.
+
+**Regras**
+- **Escudo de Mana pela metade (15-3)**: `MANA_SHIELD_ABSORB = 0,5`, `manaShieldSplit` — vida efetiva do feiticeiro
+  lv 100 com escudo cheio 5.124 → 2.288 (cavaleiro: 2.235). Descrição travada contra a constante por teste.
+- **Druida com o Escudo de Mana (15-4)** (lv 15; barra recomendada do druida 10 → 11 teclas; quem já passou do 15
+  põe numa tecla pelos Atalhos).
+- **Magias de cavaleiro e paladino (15-5, 15-13)**: `spellPower = max(ML, ⌊(skill da arma + bônus + level − 10)/2⌋)`,
+  só no dano (cura segue pelo ML) — com a skill real de ~30, sem o termo de level a potência quase não mudava. Lv 100:
+  cavaleiro 66, paladino 68 (magos ML ~55). Magias de dano do cavaleiro **+40%** (as seis). Golpe Aniquilador médio
+  lv 100 ~680 → ~1.350; Julgamento Divino ~460 → ~690.
+- **Fraquezas elementais (15-6)**: `ELEMENT_WEAKNESS` dentro de `damageTakenMult` — mortos-vivos (campo `undead`)
+  tomam sagrado ×1,25; bichos de fogo, gelo ×1,15; bichos de gelo, fogo ×1,15. Bestiário com "Resiste a" e "Fraco contra".
+- **Curandeiros (15-7)**: cada monstro recebe cura de aliado no máximo 1× a cada 10 s (`HEAL_ALLIES_LOCKOUT_MS`):
+  bando de 3 Necromantes 162 → ≤ 54 de vida/s.
+- **Chefes (15-8)**: raiz vira lentidão de 30% e lentidão vale metade (`bossCondition`).
+- **Paladino 13 de vida por level (15-9, 15-13)** (era 10; lv 100 sem itens 1.140 → 1.437), recalculado ao entrar.
+- **Chuva de Gelo** com recarga de 4 s (era 6) (15-13).
+- **Morte (15-10)**: perda de 10% de um level até o 59, **20%** do 60, **25%** do 80, **30%** do 100 (`DEATH_PENALTY_STAGES`,
+  `deathXpLoss`), nunca derruba level; lv 100: 6.443 → 19.328 XP. A bênção só é gasta com perda > 0 (ciclo 14).
+  Tela de morte "Sua bênção salvou N XP" (e milhar com ponto no "−N XP"); sacerdotisa mostra "Protege ~X XP agora"
+  (com a caveira vermelha).
+- **PvP pela metade (15-11)**: `PVP_DAMAGE_MULT = 0,5` em `hitPlayer` (todo dano jogador → jogador), mínimo 1.
+- **Lobo Espiritual** mais forte no fim de jogo e **Luz Restauradora** com recarga de 20 s (15-12).
+
+**Resultado (pior/melhor do P, tabela de produção)**: lv 30 0,52 → **0,74**; lv 60 0,39 → **0,66**; lv 100 0,49 →
+**0,86**. Com a skill da meta do plano: 0,74 / 0,73 / 0,83 (ninguém lidera com folga: cavaleiro +2% no lv 100). O
+feiticeiro não lidera dano e sobrevivência juntos em nenhum level (travado).
+
+**Coliseu (15-14)** — só a curva de dano das ondas (`ARENA_DMG_POINTS`): onda 20 2,5 → 1,9; 30 5 → 6,2; 50 3,3 → 4,3;
+60 1,7 → 2,4. Solo lv 34 cai na 22–23; solo lv 120 na 29–30 (a onda 30, Rei Goblin, é o muro de quem vai sozinho);
+grupo no level justo da 40/45/50/55/60 cai em 38/46/48/54/completa; grupo lv 100 cai na 54; lv 120 completa.
+
+**Telemetria (15-2)** — causa de cada morte por faixa (`deathsBy`: monstro, "monstro/habilidade", "condição@monstro",
+"pvp"), via `killerKey` do combate, habilidades e condições; `admin telemetria` ganhou "Skills treinadas por vocação e
+faixa" e "Causas de morte por faixa".
+
 ## [Não lançado] — 2026-10-25 · ciclo 14: correções de bugs e exploits
 
 Primeiro ciclo do plano 14–20 (`docs/PLANO_CICLOS_14-20.md`, aprovado pelo dono): 22 itens conferidos no código

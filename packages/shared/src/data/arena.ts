@@ -1,5 +1,5 @@
 // Coliseu: tabela de ondas, escalas (tamanho do grupo, level médio) e recompensas. Servidor (systems/arena.ts) e
-// cliente (textos/HUD) usam estas funções; o teste arena.test.ts estima dano × vida por onda (sanidade do balanço).
+// cliente (textos/HUD) usam estas funções; o modelo de server/systems/balanceKit.ts (metas em arena.test.ts) simula as ondas.
 import { monsterDef } from "./monsters.ts";
 
 /** Membros do lobby precisam ficar a até esta distância (Chebyshev) do NPC do coliseu, senão saem do lobby. */
@@ -148,20 +148,24 @@ export const arenaShopAfter = (wave: number): boolean => isBossWave(wave);
 export const arenaPauseMs = (wave: number): number => (arenaShopAfter(wave) ? ARENA_SHOP_PAUSE_MS : ARENA_BREAK_MS);
 
 /**
- * Dificuldade do Coliseu (ciclo 8). Os monstros já vêm com o dano por level dos dados (MONSTER_DAMAGE_TIERS) e a
- * arena soma um multiplicador próprio. Calibrado no modelo de `arena.test.ts` (poder real: equipamento, magias,
- * poções; ver "coliseu: balanço"): solo morre por volta da onda 20–25 em qualquer level e vocação; grupo de 4 no level
- * justo da onda X chega perto de X (~40–45 no level justo da 45); completar as 60 pede grupo acima do level justo.
- * Antes, o modelo antigo subestimava o jogador (~4× menos dano) e um mago completava o Coliseu sozinho.
+ * Dificuldade do Coliseu (ciclo 8; recalibrada no ciclo 15). Os monstros já vêm com o dano por level dos dados
+ * (MONSTER_DAMAGE_TIERS) e a arena soma um multiplicador próprio. Calibrado no modelo de server/systems/balanceKit.ts
+ * (metas em arena.test.ts, "coliseu: balanço"): solo no level justo da 25 cai entre a 20 e a 25 e ninguém passa da 30
+ * sozinho, nem no level 120; grupo de 4 no level justo da onda X cai entre X−5 e X+3; o lv 100 não completa e o lv 120
+ * completa. Antes do ciclo 8 o modelo subestimava o jogador (~4× menos dano) e um mago completava o Coliseu sozinho.
  */
 /** Vida das ondas: ×2,5. */
 export const ARENA_HP_MULT = 2.5;
 /**
  * Dano das ondas, pontos (onda, ×) com interpolação linear. O pico no meio (onda 30) é o muro do solo: lá a cura de
- * um jogador só (poção de vida 225/s) não segura o bando, mesmo no level 120. Depois cai, porque o poder do jogador
- * cresce mais que o dos monstros no fim de jogo (magias do lv 70–90, equipamento do lv 70).
+ * um jogador só não segura o bando, mesmo no level 120. Depois cai, porque o poder do jogador cresce mais que o dos
+ * monstros no fim de jogo (magias do lv 70–90, equipamento do lv 70).
+ * Ciclo 15 (era 1,5 / 2,5 / 5 / 3,5 / 3,3 / 1,7): com o modelo honesto (Cura, Escudo de Mana com o buraco de 10 s,
+ * duas mãos sem escudo, skills reais) e o pacote de vocações do ciclo 15, os magos lv 34 caíam na 18 → onda 20 a 1,9;
+ * o druida (Cura em Grupo) e o cavaleiro lv 120 passavam do muro → onda 30 a 6,2; o grupo de 4 completava do lv 82 em
+ * diante → onda 50 a 4,3 e 60 a 2,4.
  */
-export const ARENA_DMG_POINTS: readonly (readonly [number, number])[] = [[1, 1.5], [20, 2.5], [30, 5], [40, 3.5], [50, 3.3], [60, 1.7]];
+export const ARENA_DMG_POINTS: readonly (readonly [number, number])[] = [[1, 1.5], [20, 1.9], [30, 6.2], [40, 3.5], [50, 4.3], [60, 2.4]];
 /** Monstros comuns a mais por membro além do primeiro (antes 0,6: o solo enfrentava 1/2,8 do bando de 4 — desconto demais). */
 export const ARENA_COUNT_PER_MEMBER = 0.2;
 /** Quantidade por membro que conta para a XP das ondas (a de antes do ciclo 8: a XP por onda não mudou). */

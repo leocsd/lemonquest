@@ -187,7 +187,7 @@ chat: `/online`, `/kick <nome> [motivo]`, `/mute <nome> <minutos>`, `/unmute <no
 ```bash
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs deleted     # personagens excluídos
-docker compose exec -u node lemonquest node packages/server/dist/admin.mjs telemetria  # progressão por faixa e vocação (só leitura)
+docker compose exec -u node lemonquest node packages/server/dist/admin.mjs telemetria  # progressão por faixa e vocação, skills reais e causas de morte (só leitura)
 ```
 
 Conta com espaço no nome: use aspas (`reset-password "Time Azul"`). O `-u node` evita criar arquivos do banco como root.

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { PlayTelemetry, SUMMARY_MIN_MS, summarizePlay, vocationReport } from "./telemetry.ts";
+import type { MonsterAbility } from "@lemonquest/shared";
+import { ConditionSystem } from "./conditions.ts";
+import { MonsterAbilitySystem } from "./monsterAbilities.ts";
+import { PlayTelemetry, SUMMARY_MIN_MS, causeLabel, deathReport, skillReport, summarizePlay, vocationReport } from "./telemetry.ts";
+import { def, openGrid, player, world } from "./testkit.ts";
 
 const H = 3_600_000;
 
@@ -103,5 +107,143 @@ describe("telemetria do ciclo 12: abates, XP, dano e resistência", () => {
       expect(lines[0]).toContain(part);
     }
     expect(vocationReport([])).toEqual(["Ainda sem 10 min jogados com a telemetria nova em nenhuma vocação/faixa."]);
+  });
+});
+
+/**
+ * Mundo de teste com um monstro "dummy" em (10,10) e a vítima "v" (lv 5, 30 de vida) ao lado; o gancho de morte liga a
+ * telemetria como o WorldRoom deve ligar. `deaths()` = o `deathsBy` gravado no level 5.
+ */
+function deathWorld(over: Parameters<typeof def>[0] = {}) {
+  const w = world({
+    grid: openGrid(30, 30), spawns: [{ defId: "dummy", x: 10, y: 10, count: 1, radius: 0 }],
+    defs: () => def({ aggroRange: 5, ...over }), spawn: { x: 25, y: 25 },
+  });
+  w.mm.spawnAll();
+  const m = [...w.mm.all()][0]!;
+  const t = new PlayTelemetry(() => w.now());
+  w.combat.hooks = { onPlayerDied: (p, _name, key) => t.onDeath(p.id, key) };
+  const victim = w.add(player("v", 11, 10, { name: "Ana", level: 5, hp: 30, maxHp: 300 }));
+  t.onJoin("v", 5, undefined);
+  const deaths = () => t.serialize("v", 5)!.byLevel["5"]?.deathsBy;
+  return { ...w, m, victim, deaths };
+}
+
+function withConditions(w: ReturnType<typeof deathWorld>) {
+  const c = new ConditionSystem({ monsters: w.mm, combat: w.combat, getPlayer: (id) => w.players.get(id), players: () => w.players.values(), send: () => {} });
+  /** Avança em passos de 2 s (intervalo do dano contínuo) até a vítima morrer (voltar com a vida cheia). */
+  const tickUntilDeath = () => { for (let i = 0; i < 10 && w.victim.hp !== w.victim.maxHp; i++) { w.setClock(w.now() + 2000); c.tick(w.now()); } };
+  return { c, tickUntilDeath };
+}
+
+describe("causa da morte (ciclo 15): killerKey → deathsBy", () => {
+  it("golpe do monstro: id do monstro", () => {
+    const w = deathWorld({ damage: [40, 40] });
+    w.run(2500);
+    expect(w.deaths()).toEqual({ dummy: 1 });
+  });
+
+  it("habilidade do monstro: monstro/habilidade", () => {
+    const stomp: MonsterAbility = {
+      id: "stomp", name: "Pisão", shape: "area_self", radius: 1, cooldownMs: 5000, windupMs: 800,
+      damage: { min: 40, max: 40, kind: "physical" }, fx: "physical",
+    };
+    const w = deathWorld({ damage: [0, 0], abilities: [stomp] });
+    const abil = new MonsterAbilitySystem({
+      grid: openGrid(30, 30), monsters: w.mm, combat: w.combat, conditions: { apply: () => {} },
+      players: () => w.players.values(), broadcast: () => {}, rng: () => 0,
+    });
+    w.run(15_000, () => abil.tick(w.now()));
+    expect(w.deaths()).toEqual({ "dummy/stomp": 1 });
+  });
+
+  it("dano contínuo: condição@monstro (fixado ao aplicar, vale mesmo com o monstro já morto)", () => {
+    const w = deathWorld({ aggroRange: 0 });
+    const { c, tickUntilDeath } = withConditions(w);
+    c.apply("v", "burn", 20_000, 20, w.m.s.id, w.now());
+    w.combat.damageMonster(w.m, "", 1e6, "physical", w.now());
+    expect(w.mm.get(w.m.s.id)).toBeUndefined();
+    tickUntilDeath();
+    expect(w.deaths()).toEqual({ "burn@dummy": 1 });
+  });
+
+  it("condição aplicada por jogador conta como pvp; sem dono conhecido, só a condição", () => {
+    const a = deathWorld({ aggroRange: 0 });
+    a.add(player("k", 12, 10, { name: "Bia" }));
+    const ca = withConditions(a);
+    ca.c.apply("v", "poison", 20_000, 20, "k", a.now());
+    ca.tickUntilDeath();
+    expect(a.deaths()).toEqual({ pvp: 1 });
+
+    const b = deathWorld({ aggroRange: 0 });
+    const cb = withConditions(b);
+    cb.c.apply("v", "energy", 20_000, 20, "", b.now());
+    cb.tickUntilDeath();
+    expect(b.deaths()).toEqual({ energy: 1 });
+  });
+
+  it("golpe de jogador (ataque ou magia via hitPlayer) = pvp; dano sem causa informada = ?", () => {
+    const w = deathWorld({ aggroRange: 0 });
+    const k = w.add(player("k", 12, 10, { name: "Bia" }));
+    w.combat.hitPlayer(k, w.victim, 1000, "fire", w.now());
+    w.victim.hp = 30;
+    w.combat.damagePlayer(w.victim, "", 1000, "physical", w.now());
+    expect(w.deaths()).toEqual({ pvp: 1, "?": 1 });
+  });
+
+  it("deathsBy sobrevive ao save, é copiado (o salvo não muda) e save antigo sem o campo continua lendo", () => {
+    const t = new PlayTelemetry(() => 0);
+    const saved = { ms: 0, byLevel: { "70": { ms: 0, deaths: 3, goldIn: 0, goldOut: 0, deathsBy: { dragon: 1 } }, "69": { ms: 0, deaths: 2, goldIn: 0, goldOut: 0 } } };
+    t.onJoin("a", 70, saved);
+    t.onDeath("a", "dragon"); t.onDeath("a", "pvp"); t.onDeath("a");
+    const d = t.serialize("a", 70)!;
+    expect(d.byLevel["70"]).toMatchObject({ deaths: 6, deathsBy: { dragon: 2, pvp: 1 } });
+    expect(saved.byLevel["70"]!.deathsBy).toEqual({ dragon: 1 });
+    d.byLevel["70"]!.deathsBy!.dragon = 99;
+    expect(t.serialize("a", 70)!.byLevel["70"]!.deathsBy!.dragon).toBe(2);
+    expect(d.byLevel["69"]!.deathsBy).toBeUndefined();
+  });
+});
+
+describe("relatórios do admin telemetria (ciclo 15)", () => {
+  it("nome legível da causa: monstro, habilidade, condição e pvp", () => {
+    expect(causeLabel("goblin_king")).toBe("Rei Goblin");
+    expect(causeLabel("goblin_king/stomp")).toBe("Rei Goblin: Pisão do Rei");
+    expect(causeLabel("burn@goblin_king")).toBe("queimadura (Rei Goblin)");
+    expect(causeLabel("poison")).toBe("veneno");
+    expect(causeLabel("pvp")).toBe("PvP");
+    expect(causeLabel("?")).toBe("desconhecida");
+    expect(causeLabel("monstro_removido/x")).toBe("monstro_removido: x"); // id que saiu do jogo: mostra a chave
+  });
+
+  it("causas por faixa: soma os levels da faixa, top N, resto em \"outras\" e mortes antigas como \"sem causa\"", () => {
+    const lv = (deaths: number, deathsBy?: Record<string, number>) => ({ ms: 0, deaths, goldIn: 0, goldOut: 0, ...(deathsBy ? { deathsBy } : {}) });
+    const lines = deathReport([
+      { ms: 0, byLevel: { "62": lv(5, { goblin_king: 2, pvp: 1 }), "75": lv(4, { goblin_king: 1, "goblin_king/stomp": 2, "burn@goblin_king": 1 }) } },
+      { ms: 0, byLevel: { "10": lv(1) } },
+      undefined,
+    ], 2);
+    expect(lines).toEqual([
+      "1–19       1 mortes · sem causa 1",
+      "60–79      9 mortes · Rei Goblin 3 · Rei Goblin: Pisão do Rei 2 · outras 2 · sem causa 2",
+    ]);
+    expect(deathReport([])).toEqual(["Nenhuma morte registrada."]);
+  });
+
+  it("skills reais por vocação × faixa: média [mín–máx] de ML, arma (cavaleiro melee, paladino distância) e escudo", () => {
+    const lines = skillReport([
+      { vocation: "knight", level: 65, skills: { melee: { level: 60 }, shield: { level: 55 }, magic: { level: 4 } } },
+      { vocation: "knight", level: 70, skills: { melee: { level: 70 }, shield: { level: 61 }, magic: { level: 6 } } },
+      { vocation: "paladin", level: 30, skills: { distance: { level: 45 }, magic: { level: 12 } } },
+      { vocation: "sorcerer", level: 100, skills: { magic: { level: 48 }, shield: { level: 20 } } },
+      { vocation: "druid", level: 5 }, // nunca treinou: valores iniciais
+    ]);
+    expect(lines).toEqual([
+      "knight   60–79     2 pers. · ML 5.0 [4–6] · arma 65.0 [60–70] · escudo 58.0 [55–61]",
+      "paladin  20–39     1 pers. · ML 12.0 [12–12] · arma 45.0 [45–45] · escudo 10.0 [10–10]",
+      "sorcerer 100+      1 pers. · ML 48.0 [48–48] · escudo 20.0 [20–20]",
+      "druid    1–19      1 pers. · ML 0.0 [0–0] · escudo 10.0 [10–10]",
+    ]);
+    expect(skillReport([])).toEqual(["Nenhum personagem salvo."]);
   });
 });

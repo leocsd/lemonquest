@@ -228,16 +228,17 @@ describe("cura dos aliados (conjuradores)", () => {
 
 describe("Coliseu: dano novo + multiplicador próprio", () => {
   it("a onda usa o dano por level dos dados e soma o multiplicador da arena", () => {
-    // Onda 42 (cavaleiros negros, lv 65 → ×1,5 nos dados), solo: dano da arena interpolado entre 3,5 (onda 40) e 3,3 (50).
+    // Onda 42 (cavaleiros negros, lv 65 → ×1,5 nos dados), solo: dano da arena interpolado entre 3,5 (onda 40) e 4,3 (50)
+    // — ciclo 15-14; era 3,3 na onda 50 (3,46 aqui, golpe médio 597).
     const [bk] = arenaWaveSpawns(42, 1, 64);
     expect(bk!.defId).toBe("black_knight");
-    expect(arenaWaveMult(42)).toEqual({ hp: ARENA_HP_MULT, dmg: expect.closeTo(3.46, 6) });
-    expect(bk!.dmgMult).toBeCloseTo(3.46, 6);
+    expect(arenaWaveMult(42)).toEqual({ hp: ARENA_HP_MULT, dmg: expect.closeTo(3.66, 6) });
+    expect(bk!.dmgMult).toBeCloseTo(3.66, 6);
     expect(bk!.hpMult).toBe(2.5);
     expect(monsterDamageMult(monsterDef("black_knight")!)).toBe(1.5);
-    // Golpe médio no Coliseu: dados de antes [80, 150] × 1,5 × 3,46 ≈ 597 (era 115 no ciclo 7).
+    // Golpe médio no Coliseu: dados de antes [80, 150] × 1,5 × 3,66 ≈ 631 (era 115 no ciclo 7, 597 até o ciclo 15).
     const d = monsterDef("black_knight")!;
-    expect(Math.round(((d.damage[0] + d.damage[1]) / 2) * bk!.dmgMult)).toBe(597);
+    expect(Math.round(((d.damage[0] + d.damage[1]) / 2) * bk!.dmgMult)).toBe(631);
   });
 
   it("solo não tem mais desconto grande: Orshabaal com 80% da vida de grupo (antes 30%) × 2,5", () => {

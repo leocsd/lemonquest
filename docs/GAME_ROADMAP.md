@@ -9,9 +9,33 @@ Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 ## Plano dos ciclos 14–20 (aprovado em 2026-10-25)
 
 Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
-Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ⏳ → 16 fim de jogo (tier 8, encantamento com tiers,
+Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 16 fim de jogo (tier 8, encantamento com tiers,
 covis, refino, Coliseu 61–70) ⏳ → 17 descoberta e interface (+ bocas de caverna) ⏳ → 18 invasões da Vila e Mural de
 Excursões ⏳ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 15 (2026-10-25) — balanço das vocações e morte mais pesada no 60+
+
+Pior/melhor do poder (P = dano/s × aguenta, tabela com as skills da produção): 0,52/0,39/0,49 → **0,74/0,66/0,86**
+nos lv 30/60/100. Detalhes no CHANGELOG.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 15-1 | Modelo honesto (`balanceKit.ts`), `skillEstimate` pela produção | ✅ | `vocationBalance.test.ts`, `arena.test.ts`, `skills.test.ts` |
+| 15-2 | Telemetria: causa da morte (`deathsBy`) e skills reais no `admin telemetria` | ✅ | `telemetry.test.ts`, `admincli.test.ts` |
+| 15-3 | Escudo de Mana pela metade | ✅ | `combatFormulas`, `spells` (servidor), descrição travada |
+| 15-4 | Druida com Escudo de Mana | ✅ | `shared/data/spells.test.ts`, `hotkeys.test.ts` |
+| 15-5 | `spellPower` de cavaleiro/paladino (skill da arma + level) | ✅ | `combatFormulas.test.ts`, `spells.test.ts` |
+| 15-6 | Fraquezas elementais + Bestiário | ✅ | `shared/data/monsters.test.ts`, `bestiaryLogic.test.ts` |
+| 15-7 | Curandeiros 1×/10 s | ✅ | `monsterAbilities.test.ts` |
+| 15-8 | Raiz/lentidão em chefe | ✅ | `conditions.test.ts` |
+| 15-9 | Paladino 13 de vida/level | ✅ | `combatFormulas.test.ts` |
+| 15-10 | Morte 10/20/25/30%, tela de morte e sacerdotisa | ✅ | `combatFormulas`, `combat`, `blessingText.test.ts` |
+| 15-11 | PvP ×0,5 | ✅ | `pvp.test.ts` |
+| 15-12 | Lobo Espiritual e Luz Restauradora | ✅ | `shared/data/monsters`, `spells` |
+| 15-13 | Calibração ≥ 0,65 (cavaleiro +40%, Chuva de Gelo 4 s, termo de level) | ✅ | `vocationBalance.test.ts` (produção e plano) |
+| 15-14 | Coliseu recalibrado (curva de dano das ondas) | ✅ | `arena.test.ts` sem `it.fails` |
+| 15-15 | Revisar com 1 semana de telemetria: mortes/h do 60–80 < 6, skills reais por vocação, causas de morte | ⏳ | `admin.mjs telemetria` |
+| 15-16 | Skill de arma real parada em ~30–35 (corpo a corpo 60 ≈ 19 h de golpes): avaliar treino mais rápido | 🧭 | modelo: +12–21% de P no cavaleiro 60/100 |
 
 ## Ciclo 14 (2026-10-25) — correções de bugs e exploits
 
