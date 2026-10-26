@@ -11,7 +11,7 @@ frentes em paralelo + revisão cruzada.
 400×722 → **400×888**. `diff-world.mjs`: **0 tiles alterados**, 1120/1120 objetos antigos, 277 novos (43 spawns com 125
 monstros, 20 NPCs, 16 portais, 178 luzes); 15.059/15.059 tiles andáveis alcançáveis, 561 só pela alavanca, nenhum
 bolsão. Setores com portas de level 25/40/60/80/90/110 e saída sem level ao lado: Portaria (PZ), Pátio de Carros e
-Lava-Rápido, Estamparia, Funilaria, Cabines de Pintura e Estufa, Montagem Final e Sala de Descanso (PZ), Pista de Testes,
+Lava-Jato, Estamparia, Funilaria, Cabines de Pintura e Estufa, Montagem Final e Sala de Descanso (PZ), Pista de Testes,
 subsolo com a Galeria e a Sala dos Protótipos. A Galeria tem Colossos e só 3 "protótipos rubros" (Tengu e Samurai
 Rubro, a fonte comum do tier 8, do Fragmento Abissal e da Essência Demoníaca): no mundo eles passam de 12 para 15, não
 para 22 (revisão). **Arte** `L.factory()`: +622 tiles (carros vistos de cima em 5 cores,
@@ -19,7 +19,7 @@ cegonha, prensas, braços robóticos, cabines, a pista oval com zebra desenhada 
 tiles antigos idênticos. **Acesso**: caminhão-cegonha na Vila (91,100), destino novo no Cocheiro Dito da Oficina,
 Caminhão de Bobinas Siderúrgica ↔ Montadora, atalho do Pátio de Encomendas da Oficina (83,332, lv 10).
 
-**Monstros e itens** — 12 monstros + 3 chefes (Sapão do Lava-Rápido lv 26, Monstro da Estufa lv 74, O Protótipo lv 120 —
+**Monstros e itens** — 12 monstros + 3 chefes (Sapão do Lava-Jato lv 26, Monstro da Estufa lv 74, O Protótipo lv 120 —
 tier Abissal a 6% em `REGION_FINAL_BOSSES`), 5 trocas de paleta; 10 materiais (Cromo Puro), 3 troféus, 7 peças e 4
 anéis lv 95 por vocação (`trinket` com `vocations`), todos abaixo do melhor do slot (Coliseu inalterado). **Refino +4/+5**
 dos tiers 7–8 passa a pedir também Frasco de Aço Líquido (7) ou Cromo Puro (8) — os tiers 5–6 ficam sem extra, porque o

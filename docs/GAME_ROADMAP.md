@@ -27,7 +27,8 @@ Especificação: [regioes/montadora.md](regioes/montadora.md). Último ciclo do 
 | 20-6 | Alavanca Crash Test, dia por alavanca, texto por alavanca | ✅ | `questWorld.test.ts` (shared e servidor) |
 | 20-7 | Faixa 114 do Quadro | ✅ | `bounties.test.ts` (faixas antigas congeladas) |
 | 20-8 | Heap do cliente com o mapa 400×888 | ✅ | `tools/mapmem.mjs`: 84 MB (era 120 MB antes de tirar o vazio do Phaser; 88 MB no mapa de 560 sem a mitigação) |
-| 20-10 | Revisão: Galeria com Colosso (tier 8 comum +25%, não +83%), "Lava-Rápido", Rubi fora do refino 5–6, textos, mapa M fracionário | ✅ | `montadora.test.ts`, `refine`, `worldIndex` |
+| 20-12 | "Lava-Jato" mantido (dono, 2026-10-26: desfeita a troca para "Lava-Rápido"; o título "o Lava-Rápido" continua) | ✅ | `diff-world`: só o objeto da zona renomeado |
+| 20-10 | Revisão: Galeria com Colosso (tier 8 comum +25%, não +83%), Rubi fora do refino 5–6, textos, mapa M fracionário | ✅ | `montadora.test.ts`, `refine`, `worldIndex` |
 | 20-11 | % explorado das conquistas varre ~355 mil células por jogador a cada 5 s (cresceu com o mapa): guardar índices alcançáveis | ⏳ | otimização opcional |
 | 20-9 | Parar de gravar o `leverDay` antigo e o `imbuement` antigo (mantidos para rollback) | ⏳ | ciclo seguinte |
 
@@ -110,7 +111,7 @@ nos lv 30/60/100. Detalhes no CHANGELOG.
 | 15-13 | Calibração ≥ 0,65 (cavaleiro +40%, Chuva de Gelo 4 s, termo de level) | ✅ | `vocationBalance.test.ts` (produção e plano) |
 | 15-14 | Coliseu recalibrado (curva de dano das ondas) | ✅ | `arena.test.ts` sem `it.fails` |
 | 15-15 | Revisar com 1 semana de telemetria: mortes/h do 60–80 < 6, skills reais por vocação, causas de morte | ⏳ | `admin.mjs telemetria` |
-| 15-16 | Skill de arma real parada em ~30–35 (corpo a corpo 60 ≈ 19 h de golpes): avaliar treino mais rápido | 🧭 | modelo: +12–21% de P no cavaleiro 60/100 |
+| 15-16 | Skill de arma real parada em ~30–35 (corpo a corpo 60 ≈ 19 h de golpes): avaliar treino mais rápido | ⛔ | dono (2026-10-26): manter o treino; o balanço do ciclo 15 já usa as skills reais |
 
 ## Ciclo 14 (2026-10-25) — correções de bugs e exploits
 
@@ -141,7 +142,7 @@ Os 22 itens da tabela "Ciclo 14" do plano, cada um com teste unitário; revisão
 | 14-20 | Desafio semanal pelo level do começo da semana | ✅ | `challenges.test.ts` |
 | 14-21 | Faixa grampeada, teste religado | ✅ | `bounties.test.ts` |
 | 14-22 | Sprite do Samurai Rubro (6 × 96×48) | ✅ | `shared/data/monsters.test.ts` |
-| 14-23 | Acompanhar a renda do Baú de Recompensa no 70+ (tier 7 a partir do 82) antes do ciclo 16 | ⏳ | `admin.mjs telemetria` |
+| 14-23 | Acompanhar a renda do Baú de Recompensa no 70+ (tier 7 a partir do 82) | ⏳ | dono (2026-10-26): manter e medir 1 semana com `admin.mjs telemetria` (refino/encantamento gastando?) |
 | 14-24 | E2E só no CI: `spells.spec` "feiticeiro lv 90" (alvo sem linha de visão) e `/tp` de dev caindo no tile de monstro (`death.spec`) | ✅ | ciclo 18: `spells` refeito; `death.spec` escolhe tile sem monstro (o `/tp` de dev segue exato, como os helpers esperam) |
 
 ## Ciclo 13 (2026-10-25) — caves profundas

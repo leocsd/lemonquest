@@ -1786,7 +1786,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   // ===== Montadora (ciclo 20, tools/mapgen/expansion7.mjs): as máquinas da linha criaram vontade própria e tudo sai
   // amarelo-limão. Números de docs/regioes/montadora.md §3 (xp/vida a ±3% dos vizinhos de level, ouro por faixa e regra
   // dos chefes vizinhos conferidos com a Siderúrgica somada); dano no fonte ANTES de MONSTER_DAMAGE_TIERS (final no
-  // comentário). A Gosma Azul do Lava-Rápido é o `runaway_drum` da Oficina, sem mudança.
+  // comentário). A Gosma Azul do Lava-Jato é o `runaway_drum` da Oficina, sem mudança.
   // Pátio de Carros (lv 10–25)
   mt_calota: {
     id: "mt_calota", name: "Calota Rolante", level: 12, hp: 130, xp: 58, damage: [9, 20], damageKind: "physical", armor: 5,
@@ -1974,9 +1974,9 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(C + "Tengu2/SpriteSheet.png", { tint: 0xc8d8ff, scale: 1.1 }),
   },
-  // Chefe do Lava-Rápido (grupo de 2–3): só aceita lavagem completa.
+  // Chefe do Lava-Jato (grupo de 2–3): só aceita lavagem completa.
   mt_sapao: {
-    id: "mt_sapao", name: "Sapão do Lava-Rápido", level: 26, hp: 4200, xp: 3200, damage: [32, 70], damageKind: "ice", armor: 9, // final [45, 98]
+    id: "mt_sapao", name: "Sapão do Lava-Jato", level: 26, hp: 4200, xp: 3200, damage: [32, 70], damageKind: "ice", armor: 9, // final [45, 98]
     abilities: [
       ability.blast({ name: "Jato de Espuma", radius: 2, range: 4, min: 50, max: 100, kind: "ice", fx: "ice", cooldownMs: 10_000 }), // final 70–140
       ability.summon({ name: "Bolhas, ao ataque!", monsterId: "runaway_drum", count: 2, max: 4, cooldownMs: 25_000 }),

@@ -956,7 +956,7 @@ function ovenDoorCv() {
   cv.outline(); cv.glow(16, 11, 11, '#ff8a3c', 55);
   return cv;
 }
-/** piso molhado do Lava-Rápido: azulejo azulado com rejunte e o brilho da água; v 2 tem uma poça */
+/** piso molhado do Lava-Jato: azulejo azulado com rejunte e o brilho da água; v 2 tem uma poça */
 function wetFloorCv(v) {
   const cv = new Cv();
   for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) {

@@ -12,7 +12,7 @@
 // Bloco em (216,746); local (lx, ly) → global (216+lx, 746+ly). Superfície ly 0..99 (muro externo em lx 2, lx 177, ly 2,
 // ly 97; mata do lado de fora); subsolo ly 104..137:
 //   Portaria (PZ)                lx 3..30,   ly 3..32   cerca em lx 31 com a cancela aberta (ly 14..18), muro em ly 33
-//   Pátio de Carros (10–25)      lx 32..103, ly 3..45 + lx 3..31, ly 34..45; Lava-Rápido (galpão) em lx 80..103, ly 26..45
+//   Pátio de Carros (10–25)      lx 32..103, ly 3..45 + lx 3..31, ly 34..45; Lava-Jato (galpão) em lx 80..103, ly 26..45
 //   Estamparia (25–40)           lx 104..176, ly 3..45   galpão
 //   Funilaria e Armação (40–60)  lx 3..84,   ly 46..72  galpão
 //   Cabines de Pintura (60–80)   lx 85..176, ly 46..72  galpão; Estufa (chefe) em lx 150..176, ly 56..72
@@ -74,7 +74,7 @@ const SPAWNS_L = [
   // Pátio de Carros (10–25)
   ['mt_calota', 4, 4, 12, 45, 10], ['mt_calota', 3, 4, 12, 62, 22], ['mt_calota', 3, 3, 12, 14, 42], ['mt_calota', 3, 4, 12, 88, 10],
   ['mt_serpente_fiacao', 3, 4, 16, 50, 30], ['mt_serpente_fiacao', 3, 4, 16, 72, 12], ['mt_serpente_fiacao', 3, 4, 16, 66, 38],
-  // Lava-Rápido (Gosma Azul e o Sapão na baia do fundo)
+  // Lava-Jato (Gosma Azul e o Sapão na baia do fundo)
   ['runaway_drum', 4, 4, 10, 86, 38], ['runaway_drum', 3, 3, 10, 86, 30], ['mt_sapao', 1, 2, 26, 97, 36],
   // Estamparia (25–40)
   ['mt_polvo_graxa', 4, 4, 30, 118, 10], ['mt_polvo_graxa', 4, 4, 30, 140, 36], ['mt_polvo_graxa', 3, 4, 30, 165, 32],
@@ -99,14 +99,14 @@ const SPAWNS_L = [
 ];
 const BOSSES = ['mt_sapao', 'mt_monstro_estufa', 'mt_prototipo'];
 /** Faixa de level de cada setor de caça (o level do spawn comum fica dentro; chefes conferidos à parte). */
-const SECTOR_BAND = { patio: [10, 25], lavarapido: [10, 25], estamparia: [25, 40], funilaria: [40, 60], cabines: [60, 80], estufa: [60, 80], montagem: [80, 100], pista: [90, 110], prototipos: [110, 120] };
-// [nome, x, y, w, h (tiles globais), pz, faixa, música] — a zona menor vence (Lava-Rápido, Estufa e Sala de Descanso)
+const SECTOR_BAND = { patio: [10, 25], lavajato: [10, 25], estamparia: [25, 40], funilaria: [40, 60], cabines: [60, 80], estufa: [60, 80], montagem: [80, 100], pista: [90, 110], prototipos: [110, 120] };
+// [nome, x, y, w, h (tiles globais), pz, faixa, música] — a zona menor vence (Lava-Jato, Estufa e Sala de Descanso)
 const ZONES = [
   ['Montadora', 216, 746, 180, 140, false, null, '31 - Sunny.ogg'],
   ['Portaria da Montadora', 219, 749, 28, 30, true, null, '33 - Calm Village.ogg'],
   ['Pátio de Carros', 248, 749, 72, 43, false, '10-25', '20 - Good Time.ogg'],
   ['Pátio de Carros', 219, 780, 29, 12, false, '10-25', '20 - Good Time.ogg'],
-  ['Lava-Rápido', 296, 772, 24, 20, false, '10-25', '18 - Aquatic.ogg'],
+  ['Lava-Jato', 296, 772, 24, 20, false, '10-25', '18 - Aquatic.ogg'],
   ['Estamparia', 320, 749, 73, 43, false, '25-40', '3 - Revelation.ogg'],
   ['Funilaria e Armação', 219, 792, 82, 27, false, '40-60', '38 - Intro.ogg'],
   ['Cabines de Pintura', 301, 792, 92, 27, false, '60-80', '13 - Mystical.ogg'],
@@ -161,9 +161,9 @@ export function expand7({ old, ts, S, L, spawnTile }) {
   const NONE = 0, BORDER = 1, WALL = 2, CWALL = 3, FENCE = 4, GLASS = 5, GATE = 6, BARRIER = 7, DOORWAY = 8, PWALL = 9,
     PORTARIA = 10, PATIO = 11, LAVA = 12, ESTAMP = 13, FUNIL = 14, CABINES = 15, ESTUFA = 16, MONTAGEM = 17, DESCANSO = 18,
     PISTA = 19, PROTO = 20, ARENA = 21, TROFEUS = 22;
-  const SECTOR = { [PORTARIA]: 'portaria', [PATIO]: 'patio', [LAVA]: 'lavarapido', [ESTAMP]: 'estamparia', [FUNIL]: 'funilaria', [CABINES]: 'cabines', [ESTUFA]: 'estufa', [MONTAGEM]: 'montagem', [DESCANSO]: 'descanso', [PISTA]: 'pista', [PROTO]: 'prototipos', [ARENA]: 'arena', [TROFEUS]: 'trofeus' };
+  const SECTOR = { [PORTARIA]: 'portaria', [PATIO]: 'patio', [LAVA]: 'lavajato', [ESTAMP]: 'estamparia', [FUNIL]: 'funilaria', [CABINES]: 'cabines', [ESTUFA]: 'estufa', [MONTAGEM]: 'montagem', [DESCANSO]: 'descanso', [PISTA]: 'pista', [PROTO]: 'prototipos', [ARENA]: 'arena', [TROFEUS]: 'trofeus' };
   /** setores ligados a pé (sem portal); monstro não entra nos de PZ */
-  const GROUP = { portaria: 'entrada', patio: 'entrada', lavarapido: 'entrada', estamparia: 'estamparia', funilaria: 'funilaria', cabines: 'cabines', estufa: 'cabines', montagem: 'montagem', descanso: 'montagem', pista: 'pista', prototipos: 'prototipos', arena: 'arena', trofeus: 'trofeus' };
+  const GROUP = { portaria: 'entrada', patio: 'entrada', lavajato: 'entrada', estamparia: 'estamparia', funilaria: 'funilaria', cabines: 'cabines', estufa: 'cabines', montagem: 'montagem', descanso: 'montagem', pista: 'pista', prototipos: 'prototipos', arena: 'arena', trofeus: 'trofeus' };
   const kind = new Uint8Array(BW * BH);
   const li = (lx, ly) => ly * BW + lx;
   const inL = (lx, ly) => lx >= 0 && ly >= 0 && lx < BW && ly < BH;
@@ -176,7 +176,7 @@ export function expand7({ old, ts, S, L, spawnTile }) {
   fill(3, 3, 30, 32, PORTARIA);
   fill(31, 3, 31, 33, FENCE); fill(31, 14, 31, 18, PATIO); kind[li(31, 13)] = GATE; kind[li(31, 19)] = GATE;
   fill(3, 33, 30, 33, CWALL);
-  // Pátio (L em volta da Portaria) e o Lava-Rápido (galpão com a frente aberta a oeste e a divisória da baia do fundo)
+  // Pátio (L em volta da Portaria) e o Lava-Jato (galpão com a frente aberta a oeste e a divisória da baia do fundo)
   fill(32, 3, 103, 45, PATIO); fill(3, 34, 31, 45, PATIO);
   fill(80, 26, 103, 45, WALL); fill(81, 27, 102, 44, LAVA); fill(80, 33, 80, 37, LAVA); fill(91, 27, 91, 44, WALL); fill(91, 34, 91, 36, LAVA);
   // Estamparia
@@ -255,7 +255,7 @@ export function expand7({ old, ts, S, L, spawnTile }) {
   const ISLANDS = [[32, 3, 38, 12], [93, 3, 96, 12], [32, 36, 38, 40], [90, 19, 96, 24], [3, 39, 8, 41], [3, 20, 6, 25], [25, 22, 29, 25], [12, 26, 16, 30]];
   for (const [x0, y0, x1, y1] of ISLANDS) { box(grass, x0, y0, x1, y1); box(asph, x0, y0, x1, y1, 0); }
   const curbAt = (lx, ly) => { const k = K(lx, ly); if (!(k === PORTARIA || k === PATIO)) return false; return !asph[li(lx, ly)]; };
-  // eixo das ruas (faixa tracejada): rua principal ly 16, rua norte-sul lx 42, rua do Lava-Rápido ly 35
+  // eixo das ruas (faixa tracejada): rua principal ly 16, rua norte-sul lx 42, rua do Lava-Jato ly 35
   const roadLine = (lx, ly) => {
     if (ly === 16 && lx >= 33 && lx <= 95 && !(lx >= 39 && lx <= 45)) return 'h';
     if (lx === 42 && ly >= 20 && ly <= 44 && !(ly >= 32 && ly <= 38)) return 'v';
@@ -418,7 +418,7 @@ export function expand7({ old, ts, S, L, spawnTile }) {
     if (t < 0.012) decal(lx, ly, F.hubcap()); else if (t < 0.02) decal(lx, ly, F.oil(Math.floor(hv(lx, ly, 22) * 2)));
   }
 
-  // ---- Lava-Rápido: piso molhado com ralos, rolos de lavagem em pares, um carro na baia, a "piscina" de espuma do Sapão
+  // ---- Lava-Jato: piso molhado com ralos, rolos de lavagem em pares, um carro na baia, a "piscina" de espuma do Sapão
   for (let ly = 28; ly <= 43; ly += 5) for (const lx of [85, 96]) if (K(lx, ly) === LAVA && !keepNear.has(li(lx, ly))) map.set('ground', ...G(lx, ly), F.drain());
   for (const [lx, ly] of [[82, 27], [89, 27], [82, 42], [89, 42], [82, 33], [89, 33]]) tryTall(F.washRoller(), lx, ly, { baseRows: 2 });
   tryFlat(F.car('limao', 'v'), 85, 42);

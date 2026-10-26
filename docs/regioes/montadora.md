@@ -96,7 +96,7 @@ está "a confirmar"; em conflito futuro, vale o que estiver lá e este documento
 ### 2.2 Setores (zonas)
 
 Cada setor de caça é fechado por parede (galpão) ou muro; só portais ligam setores de faixa diferente. A zona menor
-vence (como no resto do mapa), então "Lava-Rápido", "Estufa" e "Sala de Descanso" ficam dentro de setores maiores.
+vence (como no resto do mapa), então "Lava-Jato", "Estufa" e "Sala de Descanso" ficam dentro de setores maiores.
 A faixa de level que o índice do mundo mostra sai dos spawns ("comuns" na tabela); a prop `faixa` é a faixa do setor
 no plano e precisa conter a dos comuns (mesma regra do `siderurgica.test.ts`).
 
@@ -105,7 +105,7 @@ no plano e precisa conter a dos comuns (mesma regra do `siderurgica.test.ts`).
 | Montadora (região inteira, fundo) | 0..179 × 0..139 | 216..395 × 746..885 | — | — | não | `31 - Sunny.ogg` | outdoor |
 | Portaria da Montadora | 3..30 × 3..32 | 219..246 × 749..778 | — | — | **sim** | `33 - Calm Village.ogg` | town |
 | Pátio de Carros (2 retângulos) | 32..103 × 3..45 e 3..31 × 34..45 | 248..319 × 749..791 e 219..247 × 780..791 | 12–16 | `10-25` | não | `20 - Good Time.ogg` | outdoor |
-| Lava-Rápido | 80..103 × 26..45 | 296..319 × 772..791 | 10 (+ chefe 26) | `10-25` | não | `18 - Aquatic.ogg` | lit |
+| Lava-Jato | 80..103 × 26..45 | 296..319 × 772..791 | 10 (+ chefe 26) | `10-25` | não | `18 - Aquatic.ogg` | lit |
 | Estamparia | 104..176 × 3..45 | 320..392 × 749..791 | 30–36 | `25-40` | não | `3 - Revelation.ogg` | lit |
 | Funilaria e Armação | 3..84 × 46..72 | 219..300 × 792..818 | 42–52 | `40-60` | não | `38 - Intro.ogg` | lit |
 | Cabines de Pintura | 85..176 × 46..72 | 301..392 × 792..818 | 64–70 | `60-80` | não | `13 - Mystical.ogg` | lit |
@@ -127,7 +127,7 @@ Planta da superfície (local; cada caractere ≈ 6×6 tiles):
 ly  0 ##############################
     #PPPPP|ppppppppppppp|EEEEEEEEEEE#   P Portaria (PZ)      p Pátio de Carros   E Estamparia (galpão)
     #PPPPP=ppppppppppppp>EEEEEEEEEEE#   = cancela aberta     > portas lv 25 (entra) e saída
-    #PPPPP|pppppppppLLLL|EEEEEEEEEEE#   L Lava-Rápido (chefe Sapão no fundo)
+    #PPPPP|pppppppppLLLL|EEEEEEEEEEE#   L Lava-Jato (chefe Sapão no fundo)
 ly 33 #-----pppppppppLLLL|EEEEEEEEEEE#
     #ppppppvpppppppLLLL|EEEEEEEEEEE#   v portas lv 40 (entra) e saída, parede norte da Funilaria
 ly 46 #FFFFFFFFFFFFFF>CCCCCCCCCKKKKK#   F Funilaria e Armação    > portas lv 60 / saída    C Cabines   K Estufa
@@ -157,10 +157,10 @@ luz (`radius 4, '#ffe066', flicker false`) no tile de dentro e uma placa-NPC do 
 | Pista → Sala dos Protótipos (rampa) | 171,94 → **387,840** | 160,109 → 376,855 | **110** | 160,106 → **376,852** | 169,94 → 385,840 |
 
 Sem porta: Portaria ↔ Pátio (cancela aberta na cerca lx 31, ly 14..18 → x 247, y 760..764) e as passagens internas
-(frente aberta do Lava-Rápido lx 80, ly 33..37; vão da Estufa lx 150, ly 63..65; vão da Sala de Descanso lx 20,
+(frente aberta do Lava-Jato lx 80, ly 33..37; vão da Estufa lx 150, ly 63..65; vão da Sala de Descanso lx 20,
 ly 78..79; corredores do subsolo). `minLevel` cresce ao longo da cadeia: 25 < 40 < 60 < 80 < 90 < 110.
 
-Paredes duplas entre galpões vizinhos (Lava-Rápido lx 103 | Estamparia lx 104; Funilaria lx 84 | Cabines lx 85;
+Paredes duplas entre galpões vizinhos (Lava-Jato lx 103 | Estamparia lx 104; Funilaria lx 84 | Cabines lx 85;
 Cabines ly 72 | Montagem ly 73): o portal fica na parede do lado de quem entra e a saída na do outro lado.
 
 ### 2.4 Acesso
@@ -238,7 +238,7 @@ informativo (o índice do mundo usa o `MonsterDef.level`).
 | Setor | Spawns |
 |---|---|
 | Pátio de Carros | `mt_calota` 4 r4 lv12 45,10 → 261,756 · `mt_calota` 3 r4 62,22 → 278,768 · `mt_calota` 3 r3 14,42 → 230,788 · `mt_calota` 3 r4 88,10 → 304,756 · `mt_serpente_fiacao` 3 r4 lv16 50,30 → 266,776 · `mt_serpente_fiacao` 3 r4 72,12 → 288,758 · `mt_serpente_fiacao` 3 r4 66,38 → 282,784 |
-| Lava-Rápido | `runaway_drum` 4 r4 lv10 86,38 → 302,784 · `runaway_drum` 3 r3 86,30 → 302,776 · **`mt_sapao` 1 r2 lv26 97,36 → 313,782** (baia do fundo) |
+| Lava-Jato | `runaway_drum` 4 r4 lv10 86,38 → 302,784 · `runaway_drum` 3 r3 86,30 → 302,776 · **`mt_sapao` 1 r2 lv26 97,36 → 313,782** (baia do fundo) |
 | Estamparia | `mt_polvo_graxa` 4 r4 lv30 118,10 → 334,756 · `mt_polvo_graxa` 4 r4 140,36 → 356,782 · `mt_polvo_graxa` 3 r4 165,32 → 381,778 · `mt_estampador` 3 r4 lv36 130,20 → 346,766 · `mt_estampador` 3 r4 158,12 → 374,758 · `mt_estampador` 2 r3 150,28 → 366,774 |
 | Funilaria e Armação | `mt_lagartixa_faisca` 5 r4 lv42 15,56 → 231,802 · `mt_lagartixa_faisca` 5 r4 60,64 → 276,810 · `mt_lagartixa_faisca` 3 r3 52,57 → 268,803 · `mt_robo_soldador` 3 r4 lv52 30,64 → 246,810 · `mt_robo_soldador` 3 r4 70,52 → 286,798 · `mt_robo_soldador` 2 r3 45,67 → 261,813 |
 | Cabines de Pintura | `mt_mariposa_tinta` 4 r4 lv64 104,60 → 320,806 · `mt_mariposa_tinta` 4 r4 128,62 → 344,808 · `mt_mariposa_tinta` 3 r3 145,66 → 361,812 · `mt_robo_pintor` 2 r4 lv70 115,66 → 331,812 · `mt_robo_pintor` 2 r4 140,51 → 356,797 |
@@ -267,7 +267,7 @@ do setor.
   em canteiros (árvores do pack com folha verde), bancos, postes (`S.lamp`).
 - **Pátio de Carros**: asfalto com vagas pintadas (linhas brancas e zebrado nos cantos); fileiras de carros vistos de cima
   (2×3, bloqueados), a maioria amarelo-limão e alguns nas outras 4 cores; calotas soltas no chão (decalque), cones,
-  pallets. A faixa sul (lx 3..31 × ly 34..45) é o estacionamento dos funcionários. Lava-Rápido: galpão lx 80..103 ×
+  pallets. A faixa sul (lx 3..31 × ly 34..45) é o estacionamento dos funcionários. Lava-Jato: galpão lx 80..103 ×
   ly 26..45 com frente aberta a oeste (ly 33..37), piso molhado com ralos, rolos de lavagem (pares 1×2), poças de espuma;
   divisória em lx 91 (vão ly 34..36) separa a baia do fundo (lx 92..102 × ly 27..44), o covil do Sapão, com uma "piscina"
   de espuma desenhada (decalque andável) e luz azul (`'#7fd4ff'`).
@@ -352,7 +352,7 @@ também) e o ×0,7 do respawn dos comuns. A coluna "efetivo" é o que o teste e 
 | `mt_duble` | Dublê de Crash Test | 92 | 4300 | 8800 | 120–230 → 192–368 | physical | 34 | 1900 / 1 | 300 | 6 | 125_000 | 360–720 | `grid4(C+"NinjaMasked/SpriteSheet.png", { tint: 0xfff070, scale: 1.15 })` |
 | `mt_tengu_cromado` | Tengu Cromado | 104 | 5600 | 12100 | 140–270 → 238–459 | energy | 32 | 2000 / 4 | 300 | 7 | 150_000 | 450–900 | `strip(B+"TenguBlue/Walk.png", 82, 10, { tint: 0xe4ecf4, scale: 0.38 })` |
 | `mt_piloto_fantasma` | Piloto Fantasma | 108 | 6000 | 13100 | 145–280 → 247–476 | death, `undead: true` | 28 | 1900 / 1 | 240 | 8 | 160_000 | 470–940 | `grid4(C+"Tengu2/SpriteSheet.png", { tint: 0xc8d8ff, scale: 1.1 })` |
-| **`mt_sapao`** | Sapão do Lava-Rápido | 26 | 4200 | 3200 | 32–70 → 45–98 | ice | 9 | 2000 / 1 | 420 | 6 | 7_200_000 | 1100–2000 | `strip(B+"GiantFrog/Idle40x40.png", 40, 5, { tint: 0xbfe6ff, scale: 1.2 })` |
+| **`mt_sapao`** | Sapão do Lava-Jato | 26 | 4200 | 3200 | 32–70 → 45–98 | ice | 9 | 2000 / 1 | 420 | 6 | 7_200_000 | 1100–2000 | `strip(B+"GiantFrog/Idle40x40.png", 40, 5, { tint: 0xbfe6ff, scale: 1.2 })` |
 | **`mt_monstro_estufa`** | Monstro da Estufa | 74 | 21000 | 23000 | 140–260 → 224–416 | fire | 28 | 2200 / 3 | 380 | 7 | 10_800_000 | 4500–8000 | `strip("monsters/MtPaintBlob.png", 52, 5, { frameWidth: 62, scale: 1.6 })` |
 | **`mt_prototipo`** | O Protótipo | 120 | 70000 | 92000 | 230–410 → 391–697 | energy | 46 | 2000 / 1 | 320 | 8 | 14_400_000 | 17000–27000 | `strip("monsters/MtPrototype.png", 48, 6, { frameWidth: 96, scale: 1.6 })` |
 
@@ -478,7 +478,7 @@ algum lugar importante. Ninguém sabe de onde."; Cromo Puro: "Reflete tanto que 
 
 | Id | Nome | Ícone | Descrição |
 |---|---|---|---|
-| `mt_coroa_espuma` | Coroa de Espuma | `img("Treasure/SilverCup.png", 0xbfe6ff)` | "Não desmancha nunca. Prova de que o Sapão do Lava-Rápido caiu." |
+| `mt_coroa_espuma` | Coroa de Espuma | `img("Treasure/SilverCup.png", 0xbfe6ff)` | "Não desmancha nunca. Prova de que o Sapão do Lava-Jato caiu." |
 | `mt_brasa_estufa` | Brasa da Estufa | `matIcon("ember", 0xff8a3c)` | "Ainda cheira a tinta fresca. Prova de que o Monstro da Estufa caiu." |
 | `mt_chave_prototipo` | Chave do Protótipo | `img("Treasure/GoldKey.png", 0xf2e14a)` | "Não liga nenhum carro conhecido. Prova de que O Protótipo caiu." |
 
@@ -601,8 +601,8 @@ lv 112 chefe final entre Orshabaal 180 mil e Ferumbras 200 mil).
 |---|---|---|---|---|---|---|---|
 | 1 | `mt_cracha` | Crachá de Visitante | `mt_porteiro` | 10 | — | talk `mt_cantineira` · talk `mt_enfermeira` · explore "Pátio de Carros" | 1500 xp, 400 ouro, `health_potion` ×5, `mana_potion` ×5 |
 | 2 | `mt_calotas` | Calotas Fujonas | `mt_lavador` | 12 | 1 | kill `mt_calota` 12 · deliver `mt_parafuso` 6 | 2200 xp, 600 ouro, `mt_bone_visitante` |
-| 3 | `mt_bolhas` | Bolhas no Lava-Rápido | `mt_lavador` | 15 | 1 | explore "Lava-Rápido" · kill `runaway_drum` 12 | 3000 xp, 900 ouro, `mt_calca_impermeavel` |
-| 4 | `mt_sapao_hunt` | O Sapão do Lava-Rápido | `mt_lavador` | 22 | 3 | boss `mt_sapao` 1 | 8000 xp, 3000 ouro, `health_potion_medium` ×10, `mana_potion_medium` ×10 |
+| 3 | `mt_bolhas` | Bolhas no Lava-Jato | `mt_lavador` | 15 | 1 | explore "Lava-Jato" · kill `runaway_drum` 12 | 3000 xp, 900 ouro, `mt_calca_impermeavel` |
+| 4 | `mt_sapao_hunt` | O Sapão do Lava-Jato | `mt_lavador` | 22 | 3 | boss `mt_sapao` 1 | 8000 xp, 3000 ouro, `health_potion_medium` ×10, `mana_potion_medium` ×10 |
 | 5 | `mt_prensa` | Prensa Desregulada | `mt_prensista` | 25 | 2 | explore "Estamparia" · kill `mt_estampador` 12 | 8000 xp, 2500 ouro, `health_potion_medium` ×10 |
 | 6 | `mt_chapa` | Chapa Torta | `mt_prensista` | 30 | 5 | kill `mt_polvo_graxa` 15 · deliver `mt_chapa_amassada` 6 | 10000 xp, 3000 ouro, `mana_potion_medium` ×15 |
 | 7 | `mt_solda` | Ponto de Solda | `mt_soldadora` | 40 | 5 | explore "Funilaria e Armação" · kill `mt_lagartixa_faisca` 20 · deliver `mt_faisca` 5 | 15000 xp, 3500 ouro, `mt_mascara_solda` |
@@ -615,7 +615,7 @@ lv 112 chefe final entre Orshabaal 180 mil e Ferumbras 200 mil).
 | 14 | `mt_prototipo_hunt` | O Protótipo | `mt_piloto` | 112 | 13 | explore "Sala dos Protótipos" · boss `mt_prototipo` 1 | 190000 xp, 45000 ouro, `health_potion_large` ×30, unlock `title:piloto_testes` |
 
 Regras dos testes que estas missões respeitam: todo `explore` sem área aponta para zona do mapa; missão com `explore` +
-`kill` tem o alvo nascendo na zona explorada (Lava-Rápido → `runaway_drum`; Estamparia → estampador; Funilaria →
+`kill` tem o alvo nascendo na zona explorada (Lava-Jato → `runaway_drum`; Estamparia → estampador; Funilaria →
 lagartixa; Cabines → mariposa e pintor; o Crash Test usa `area`, que o teste pula). As missões de chefe 4 e 10 pedem
 grupo no diálogo; a 14 pede "grupo de 5+", como no plano.
 
@@ -626,8 +626,8 @@ empresa, carro ou lugar real):
    a Enfermeira e dar uma volta no Pátio antes de liberar o crachá.
 2. **Calotas Fujonas** — as calotas aprenderam a rolar sozinhas e fugiram dos carros; o Lavador quer 12 de volta ao chão
    e 6 parafusos soltos para prender as que sobraram.
-3. **Bolhas no Lava-Rápido** — a espuma do Lava-Rápido criou vida e virou Gosma Azul; estoure 12.
-4. **O Sapão do Lava-Rápido** — no fundo do Lava-Rápido mora um sapo do tamanho de uma van, que só aceita lavagem completa.
+3. **Bolhas no Lava-Jato** — a espuma do Lava-Jato criou vida e virou Gosma Azul; estoure 12.
+4. **O Sapão do Lava-Jato** — no fundo do Lava-Jato mora um sapo do tamanho de uma van, que só aceita lavagem completa.
 5. **Prensa Desregulada** — a prensa vermelha da Estamparia carimba tudo o que passa, inclusive operários; derrube 12
    Estampadores Vermelhos.
 6. **Chapa Torta** — os Polvos de Graxa engraxam o chão e a chapa sai torta; 15 polvos e 6 chapas amassadas para análise.
@@ -664,7 +664,7 @@ LionBoy, Pig, GreenPig) não são usados por ninguém hoje (conferido com `git g
 | `mt_cantineira` | Cantineira | `Woman` | loja (§7.3) | "Prato do dia, poção e café. Compro o que você arrancar das máquinas." | "Hoje tem prato feito. Amanhã também. Sempre tem." · "Lata de tinta não é tempero. Já avisei o Pintor." |
 | `mt_depot` | Guarda-Volumes da Portaria | `OldMan2` | depósito | "O mesmo baú da Vila, aqui na portaria. Etiquete antes de entrar na fábrica." | "Peça sem etiqueta vira peça de reposição." · "Deixe o peso aqui antes da Estamparia." |
 | `mt_enfermeira` | Enfermeira do Ambulatório | `Lion` | bênção | "Curativo, termômetro e uma bênção para o próximo tombo. A linha não perdoa." | "Faísca no olho? Óculos, querido. Óculos." · "Quem volta do Crash Test volta mancando." |
-| `mt_lavador` | Lavador-Chefe | `NinjaLeaf` | missões 2–4 | "O Lava-Rápido está sem controle: espuma com vida, calota fugindo e um sapo enorme no fundo." | "Lavagem completa ou nada." · "Se a espuma piscar para você, corra." |
+| `mt_lavador` | Lavador-Chefe | `NinjaLeaf` | missões 2–4 | "O Lava-Jato está sem controle: espuma com vida, calota fugindo e um sapo enorme no fundo." | "Lavagem completa ou nada." · "Se a espuma piscar para você, corra." |
 | `mt_prensista` | Operadora da Prensa | `Pig` | missões 5–6 | "A prensa vermelha decidiu carimbar o que quiser. Inclusive a gente." | "Mão longe da prensa. A prensa não pensa." · "Chapa torta não vira carro. Vira escultura." |
 | `mt_soldadora` | Mestra Soldadora | `CaveLion` | missões 7–8 | "Os robôs aprenderam a soldar sozinhos. O problema é o que eles soldam." | "Ponto de solda bonito é ponto de solda frio." · "As lagartixas comem arame. Pelo menos não comem eletrodo. Ainda." |
 | `mt_pintor` | Pintor-Chefe | `LionBoy` | missões 9–10 | "Toda tinta aqui virou amarelo-limão, e a que sobrou criou asas." | "Primeira demão: primer. Segunda: limão. Terceira: limão de novo." · "A estufa ronca de noite. Ronca." |
@@ -730,7 +730,7 @@ Protótipo) se não houver um vivo.
   de qualquer chefe, `systems/achievements.ts`).
 - `TITLES`: `lava_rapido: "o Lava-Rápido"`, `piloto_testes: "Piloto de Testes"`.
 - Conquistas (bloco "Montadora (ciclo 20)"):
-  - `a("mt_lava_rapido", "Lava-Rápido", "Derrote o Sapão do Lava-Rápido", "\u{1FAE7}", 25, "boss:mt_sapao", 1, { rewards: ["title:lava_rapido"], rare: true })`
+  - `a("mt_lava_rapido", "Lava-Rápido", "Derrote o Sapão do Lava-Jato", "\u{1FAE7}", 25, "boss:mt_sapao", 1, { rewards: ["title:lava_rapido"], rare: true })`
   - `a("mt_secagem", "Secagem Rápida", "Derrote o Monstro da Estufa", "\u{1F3A8}", 35, "boss:mt_monstro_estufa", 1, { rare: true })`
   - `a("mt_fim_de_linha", "Fim de Linha", "Derrote O Protótipo", "\u{1F3CE}\u{FE0F}", 60, "boss:mt_prototipo", 1, { rare: true })`
 - O título "Piloto de Testes" vem da missão 14 (`unlock: "title:piloto_testes"`).
@@ -767,7 +767,7 @@ Estimativa ~170–200 tiles novos: atlas 560 → ~880 com a Siderúrgica (~320) 
 
 **Reaproveita (não gera):** de `I = L.industry()` (assinaturas do `siderurgica.md` §5.2) — `I.asphalt(v)` e
 `I.asphaltLine(dir)` (Pátio, Pista, frente da Portaria), `I.checker(v)` (galpões, arena), `I.concrete(v)` (Portaria,
-Lava-Rápido), `I.stripe(dir, part)` (corredores, limiar das portas, arena), `I.belt(dir, part)` (esteiras da Estamparia e
+Lava-Jato), `I.stripe(dir, part)` (corredores, limiar das portas, arena), `I.belt(dir, part)` (esteiras da Estamparia e
 linha da Montagem, andáveis, speed 70), `I.pipe(part)` (canos aéreos nos galpões), `I.metalWall(part)` (todas as
 paredes de galpão), `I.slidingDoor(dir)` (folhas abertas nas paredes ao lado de cada portal de porta da §2.3; o tile do
 portal fica com o limiar zebrado), `I.chainFence(part)` (cerca entre Portaria e Pátio, contorno da Pista),
@@ -791,7 +791,7 @@ Bobinas); do pack — postes `S.lamp`, barris/caixotes/balcão/prateleira/armár
 | Cabine de pintura: parede de vidro com quina (blob simples de 8–12 tiles) | ~10 | Cabines |
 | Respingo de tinta nas 5 cores (decalque) | 5 | Cabines |
 | Estufa: grelha quente, porta de forno 2×2 | ~6 | Estufa |
-| Lava-rápido: piso molhado (3 variações), ralo, espuma (3), rolo de lavagem 1×2 | ~9 | Lava-Rápido |
+| Lava-rápido: piso molhado (3 variações), ralo, espuma (3), rolo de lavagem 1×2 | ~9 | Lava-Jato |
 | Pista: zebrado vermelho/branco por pixel ao longo das duas elipses (chave por conteúdo), linha de chegada xadrez, semáforo de largada 1×2, pneus empilhados, cone | ~35 | Pista |
 | Boxes (prédio com portas de enrolar) 17×6 | 1 folha | Pista |
 | Prédio da rampa 5×3 | 1 folha | Pista |

@@ -26,7 +26,7 @@ const ZONES: [string, number, number, number, number, boolean, string | undefine
   ["Portaria da Montadora", 219, 749, 28, 30, true, undefined],
   ["Pátio de Carros", 248, 749, 72, 43, false, "10-25"],
   ["Pátio de Carros", 219, 780, 29, 12, false, "10-25"],
-  ["Lava-Rápido", 296, 772, 24, 20, false, "10-25"],
+  ["Lava-Jato", 296, 772, 24, 20, false, "10-25"],
   ["Estamparia", 320, 749, 73, 43, false, "25-40"],
   ["Funilaria e Armação", 219, 792, 82, 27, false, "40-60"],
   ["Cabines de Pintura", 301, 792, 92, 27, false, "60-80"],
@@ -55,7 +55,7 @@ const NPC_TILES: [string, number, number][] = [
   ["mt_pintor", 306, 801], ["mt_placa_montagem", 314, 815], ["mt_supervisora", 226, 824], ["mt_placa_pista", 313, 827], ["mt_piloto", 342, 836],
   ["mt_cegonha_vila", 91, 100], ["mt_bobinas_sid", 30, 605],
 ];
-const BOSSES: [string, string][] = [["mt_sapao", "Lava-Rápido"], ["mt_monstro_estufa", "Estufa"], ["mt_prototipo", "Sala dos Protótipos"]];
+const BOSSES: [string, string][] = [["mt_sapao", "Lava-Jato"], ["mt_monstro_estufa", "Estufa"], ["mt_prototipo", "Sala dos Protótipos"]];
 
 /**
  * Tiles que um personagem do level `level` alcança a partir do templo, sem missão feita: andando, pelos portais (porta de
@@ -139,14 +139,14 @@ describe("Montadora: geometria", () => {
     }
     expect(index.zoneAt(226, 824)).toBe("Sala de Descanso");
     expect(index.zoneAt(240, 826)).toBe("Montagem Final");
-    expect(index.zoneAt(302, 784)).toBe("Lava-Rápido");
+    expect(index.zoneAt(302, 784)).toBe("Lava-Jato");
     expect(index.zoneAt(380, 810)).toBe("Estufa");
     expect(index.zoneAt(224, 856)).toBe("Pista do Crash Test");
   });
 
   it("luz ambiente: Portaria como a Vila, galpões iluminados, Sala dos Protótipos escura, Pátio e Pista ao ar livre", () => {
     expect(zoneLightMode("Portaria da Montadora")).toBe("town");
-    for (const z of ["Lava-Rápido", "Estamparia", "Funilaria e Armação", "Cabines de Pintura", "Estufa", "Montagem Final", "Sala de Descanso", "Pista do Crash Test", "Boxe dos Troféus"]) expect(zoneLightMode(z), z).toBe("lit");
+    for (const z of ["Lava-Jato", "Estamparia", "Funilaria e Armação", "Cabines de Pintura", "Estufa", "Montagem Final", "Sala de Descanso", "Pista do Crash Test", "Boxe dos Troféus"]) expect(zoneLightMode(z), z).toBe("lit");
     expect(zoneLightMode("Sala dos Protótipos")).toBe("dark");
     for (const z of ["Montadora", "Pátio de Carros", "Pista de Testes"]) expect(zoneLightMode(z), z).toBe("outdoor");
   });

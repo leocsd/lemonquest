@@ -920,7 +920,7 @@ export const NPCS: Record<string, NpcDef> = {
   },
   mt_lavador: {
     id: "mt_lavador", name: "Lavador-Chefe", sprite: C + "NinjaLeaf/SpriteSheet.png",
-    greeting: "O Lava-Rápido está sem controle: espuma com vida, calota fugindo e um sapo enorme no fundo. Fica no fim do Pátio, de frente aberta. Ajuda aí?",
+    greeting: "O Lava-Jato está sem controle: espuma com vida, calota fugindo e um sapo enorme no fundo. Fica no fim do Pátio, de frente aberta. Ajuda aí?",
     idleLines: [
       "Lavagem completa ou nada.",
       "Se a espuma piscar para você, corra.",

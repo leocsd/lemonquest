@@ -112,7 +112,7 @@ const ZONE_MODES: Record<string, ZoneLightMode> = {
   // Montadora (ciclo 20): a Portaria é praça (como a Vila); os galpões, a Sala de Descanso e as duas salas da alavanca são
   // interiores iluminados; a Sala dos Protótipos (subsolo) é escura. Fundo da região, Pátio e Pista ficam ao ar livre.
   "Portaria da Montadora": "town",
-  "Lava-Rápido": "lit",
+  "Lava-Jato": "lit",
   "Estamparia": "lit",
   "Funilaria e Armação": "lit",
   "Cabines de Pintura": "lit",

@@ -208,7 +208,7 @@ describe("resistência elemental", () => {
       "swamp_lich",
     ]);
     // Fogo/gelo = o elemento do ataque (o mesmo critério da resistência). Ciclo 19: os 7 bichos de fogo da Siderúrgica.
-    // Ciclo 20 (Montadora): Robô Soldador e Monstro da Estufa (fogo), Sapão do Lava-Rápido (gelo).
+    // Ciclo 20 (Montadora): Robô Soldador e Monstro da Estufa (fogo), Sapão do Lava-Jato (gelo).
     expect(by("fire")).toEqual([
       "coracao_brasa", "demodras", "demon", "dragon", "dragon_lord", "flame_skull", "flame_spirit", "forjador_rubro", "fornalha_primordial",
       "golem_convertedor", "gosma_aco_liquido", "gosma_gusa", "hellhound", "iluminador_rebelde", "lair_flame", "magma_elemental",
@@ -471,7 +471,7 @@ describe("Montadora (ciclo 20)", () => {
     expect(damageTakenMult(MONSTERS.mt_robo_soldador!, "ice")).toBe(1.15);
   });
 
-  it("a Gosma Azul do Lava-Rápido é o runaway_drum da Oficina, sem mudança", () => {
+  it("a Gosma Azul do Lava-Jato é o runaway_drum da Oficina, sem mudança", () => {
     expect(MONSTERS.runaway_drum).toMatchObject({ name: "Gosma Azul", level: 10, hp: 120, xp: 52 });
   });
 });

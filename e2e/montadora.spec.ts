@@ -219,7 +219,7 @@ test("capturas dos setores da Montadora (E2E_SNAPS=1)", async ({ page }) => {
   await enterGame(page, "knight");
   await setLevel(page, 130);
   for (const [name, x, y, zone] of [
-    ["portaria", 232, 760, "Portaria da Montadora"], ["patio", 270, 770, "Pátio de Carros"], ["lava-rapido", 300, 780, "Lava-Rápido"],
+    ["portaria", 232, 760, "Portaria da Montadora"], ["patio", 270, 770, "Pátio de Carros"], ["lava-jato", 300, 780, "Lava-Jato"],
     ["estamparia", 340, 770, "Estamparia"], ["funilaria", 262, 800, "Funilaria e Armação"], ["cabines", 320, 800, "Cabines de Pintura"],
     ["estufa", 372, 810, "Estufa"], ["montagem", 262, 830, "Montagem Final"], ["descanso", 228, 826, "Sala de Descanso"],
     ["pista", 342, 832, "Pista de Testes"], ["prototipos", 300, 866, "Sala dos Protótipos"],

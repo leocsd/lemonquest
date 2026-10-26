@@ -673,7 +673,7 @@ mat("mt_motor", "Motor Elétrico", matIcon("ember", 0x70b0ff), 1500, "Ainda zumb
 mat("mt_airbag", "Airbag Murcho", img("Object/Bag.png", 0xf8f0e0), 2200, "Abriu uma vez e nunca mais fechou direito. Ótimo travesseiro.");
 mat("mt_cromo", "Cromo Puro", img("Resource/BarSilver.png", 0xf0f4ff), 3800, "Reflete tanto que dá para pentear o cabelo nele.");
 // Provas dos chefes: troféus (a missão usa passo "boss"; não abrem nada).
-add({ id: "mt_coroa_espuma", name: "Coroa de Espuma", kind: "quest", value: 0, icon: img("Treasure/SilverCup.png", 0xbfe6ff), description: "Não desmancha nunca. Prova de que o Sapão do Lava-Rápido caiu." });
+add({ id: "mt_coroa_espuma", name: "Coroa de Espuma", kind: "quest", value: 0, icon: img("Treasure/SilverCup.png", 0xbfe6ff), description: "Não desmancha nunca. Prova de que o Sapão do Lava-Jato caiu." });
 add({ id: "mt_brasa_estufa", name: "Brasa da Estufa", kind: "quest", value: 0, icon: matIcon("ember", 0xff8a3c), description: "Ainda cheira a tinta fresca. Prova de que o Monstro da Estufa caiu." });
 add({ id: "mt_chave_prototipo", name: "Chave do Protótipo", kind: "quest", value: 0, icon: img("Treasure/GoldKey.png", 0xf2e14a), description: "Não liga nenhum carro conhecido. Prova de que O Protótipo caiu." });
 // Equipamento de todas as vocações (o escudo, só do cavaleiro: o paladino só tem o Escudo de Madeira, e um escudo geral
