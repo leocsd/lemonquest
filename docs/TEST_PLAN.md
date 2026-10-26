@@ -141,6 +141,14 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 17 (2026-10-26, descoberta, missões e interface)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1415 passados (123 arquivos; eram 1333), 0 pulados; typecheck limpo. Novos: `worldIndex.test.ts` (mapa real: zonas, spawns, rótulo de porta de cave, `nextHop` da Vila até uma cave; montagem 5–22 ms), `questUnlocks.test.ts` (trava igual ao `questAvailable` do servidor em todo o catálogo), `guide.test.ts` (todo passo de toda missão tem destino alcançável do templo), `questInfo.test.ts` (todo monstro do Quadro e material da Encomenda têm onde caçar), `markers`, `portalInfo`, `travelInfo`, `damageText`, `agendaLogic`, `playerMenuLogic`, `depotSearch`, `welcome`; casos novos em `events`, `admin`, `inventory` (`organizeItems`), `newsLogic`, `combat` (`resisted`), `lookInfo`, `bestiaryLogic` |
+| Mapa | `diff-world.mjs --allow` (4 retângulos das bocas): 0 tiles fora, 58 dentro (22/14/11/11), 843/843 objetos antigos, 3 luzes novas; conjunto de tiles alcançáveis fora dos retângulos idêntico (67550); gerador determinístico |
+| E2E | Specs novas/ajustadas, não executadas localmente (máquina com pouca memória): `navigation.spec.ts`, `agenda.spec.ts`, `guide`, `quests`, `bestiary`, `depot`, `caves` (bocas de caverna com capturas), `malha` (nome elite). Resultado do CI da PR abaixo |
+
 ## Resultados — ciclo 16 (2026-10-26, fim de jogo)
 
 | Camada | Resultado |
@@ -149,7 +157,7 @@ reportou 0 erros isolados e heap de 32–43 MB.
 | Mapa | `diff-world.mjs` contra o ciclo 15: 0 tiles alterados, 826/826 objetos antigos, 17 novos (4 chefes, 12 baús, Mestre Brás); 67583/67596 tiles alcançáveis (13 baús/obstáculos) |
 | Balanço | `vocationBalance` e `arena` com o tier 8 completo: 48/48; Coliseu 61–70: grupo lv 110 cai na 61, lv 130 completa com qualquer modificador |
 | Revisão cruzada | Dois revisores: 5 achados corrigidos (cobrança dupla do encantamento no clique duplo; rollback de imagem zeraria encantamentos — o save grava também o campo antigo; ouro > 1 mi cortado no reinício do chão; venda avulsa de refinado sem confirmação; tempo do Coliseu na semana do fim) + a trava dos baús de covil trocada da prova (passável a alts) para o abate registrado; coroação do Coliseu isolada em `runSafe` |
-| E2E | Execução local completa interrompida pelo sistema por falta de memória na máquina (não foi falha de teste); não reiniciada. Specs ajustadas: `arena` (Onda N/70), `sinks` (encantamento), `caves` (baú de covil trancado), `refine.spec.ts` novo. Resultado do CI da PR abaixo |
+| E2E | Execução local completa interrompida pelo sistema por falta de memória na máquina (não foi falha de teste); não reiniciada. Specs ajustadas: `arena` (Onda N/70), `sinks` (encantamento), `caves` (baú de covil trancado), `refine.spec.ts` novo. CI da PR #22: 68 passados, `achievements` instável (passou no retry), `malha` "Cobra Listrada" falhou 2× porque a cobra nasceu elite ("Elite Cobra Listrada") e o teste comparava o nome exato — corrigido no ciclo 17 (`toMatch(/Cobra Listrada$/)`) |
 
 ## Resultados — ciclo 15 (2026-10-25, balanço das vocações e morte)
 

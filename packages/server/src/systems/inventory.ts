@@ -7,8 +7,8 @@ import {
   BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
   instanceStats, levelNeeded, pickQuickPotion, refineLevel,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
-  type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
-  type StatId, type Stats, type UseItemMsg, type Vocation,
+  type ItemKind, type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
+  type SortContainerMsg, type StatId, type Stats, type UseItemMsg, type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CharacterData } from "../persistence/types.ts";
@@ -107,6 +107,50 @@ export function fitBackpack(inv: Pick<Inventory, "backpack">, level: number): vo
   const cap = backpackCapacity(level);
   while (inv.backpack.length < cap) inv.backpack.push(null);
   while (inv.backpack.length > cap && inv.backpack[inv.backpack.length - 1] === null) inv.backpack.pop();
+}
+
+/** Ordem das categorias no "Organizar": equipamento na ordem do corpo, depois consumíveis, materiais e o resto. */
+const ORGANIZE_KIND_ORDER: readonly ItemKind[] = ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "potion", "food", "material", "key", "quest"];
+
+/** Mesma pilha para o "Organizar": mesmo item, raridade, refino e bônus (nada de raridade/refino se perde ao juntar). */
+const stackKey = (it: ItemInstance): string =>
+  `${it.defId}|${it.rarity}|${it.refine ?? 0}|${it.bonuses.map((b) => `${b.stat}:${b.value}`).join(",")}`;
+
+/**
+ * "Organizar" (C2S.SortContainer): junta as pilhas iguais até o máximo da pilha e ordena por categoria, nome, raridade
+ * (melhor primeiro), refino e quantidade; os vazios vão para o fim. Puro: devolve um array novo do mesmo tamanho com
+ * cópias; a pilha que sobra de cada junção guarda o uid, a raridade, os bônus e o refino dela.
+ */
+export function organizeItems(items: readonly (ItemInstance | null)[], defs: ItemDefs): (ItemInstance | null)[] {
+  const kept: ItemInstance[] = [];
+  const open = new Map<string, ItemInstance[]>(); // pilhas com espaço, por chave
+  for (const raw of items) {
+    if (!raw) continue;
+    const it: ItemInstance = { ...raw, bonuses: raw.bonuses.map((b) => ({ ...b })) };
+    const d = defs(it.defId);
+    if (d?.stackable) {
+      const max = maxStackOf(d);
+      const key = stackKey(it);
+      for (const s of open.get(key) ?? []) {
+        if (it.count <= 0) break;
+        const mv = Math.min(it.count, max - s.count);
+        s.count += mv;
+        it.count -= mv;
+      }
+      if (it.count <= 0) continue;
+      open.set(key, [...(open.get(key) ?? []), it].filter((s) => s.count < max));
+    }
+    kept.push(it);
+  }
+  const RANK = Object.fromEntries(RARITIES.map((r, i) => [r, i])) as Record<Rarity, number>;
+  const kindRank = (it: ItemInstance) => { const k = defs(it.defId)?.kind; const i = k ? ORGANIZE_KIND_ORDER.indexOf(k) : -1; return i < 0 ? ORGANIZE_KIND_ORDER.length : i; };
+  kept.sort((a, b) =>
+    kindRank(a) - kindRank(b)
+    || (defs(a.defId)?.name ?? a.defId).localeCompare(defs(b.defId)?.name ?? b.defId, "pt-BR")
+    || RANK[b.rarity] - RANK[a.rarity]
+    || (b.refine ?? 0) - (a.refine ?? 0)
+    || b.count - a.count);
+  return [...kept, ...Array<null>(Math.max(0, items.length - kept.length)).fill(null)];
 }
 
 /** Soma dos atributos dos itens equipados (cada um por instanceStats: definição + bônus + refino). */
@@ -481,6 +525,16 @@ export class InventorySystem {
     }
     if (to.where === "equip") return this.equip(p, inv, this.arr(inv, from.where), from.index, to.slot);
     this.moveContainer(p, inv, from, to, msg.count ?? undefined);
+  }
+
+  /** C2S.SortContainer: "Organizar" o depot aberto (junta pilhas iguais e ordena; nenhum item muda). */
+  onSortContainer(p: PlayerState, msg: SortContainerMsg): void {
+    const inv = this.inv.get(p.id);
+    if (!inv || !msg || typeof msg !== "object" || msg.where !== "depot" || p.hp <= 0) return;
+    if (!this.o.depotOpen?.(p.id)) return this.warn(p, MSG.depotClosed);
+    const sorted = organizeItems(inv.depot, this.defs);
+    for (let i = 0; i < inv.depot.length; i++) inv.depot[i] = sorted[i] ?? null;
+    this.touched(p, inv, inv.depot);
   }
 
   /** C2S.UseItem */

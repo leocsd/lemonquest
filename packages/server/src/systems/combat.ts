@@ -340,8 +340,11 @@ export class CombatSystem {
     // Resistência elemental: o próprio elemento entra pela metade (shared damageTakenMult). Ponto único: magia,
     // ataque automático, habilidade e invocação passam por aqui.
     const before = amount;
-    amount *= damageTakenMult(m.def, kind, this.hooks.exposedPct?.(m.s.id) ?? 0);
+    const mult = damageTakenMult(m.def, kind, this.hooks.exposedPct?.(m.s.id) ?? 0);
+    amount *= mult;
     const resisted = Math.max(0, before - amount);
+    // Ciclo 17: o cliente mostra ↓/↑ no número (e "resistiu" no lugar de "errou" quando a resistência zerou o golpe).
+    const resistedMark = mult !== 1 && before > 0 ? mult : undefined;
     if (m.def.invulnerable) {
       // Boneco de treino: mostra o dano (e marca combate), mas a vida não muda, ninguém ganha XP/loot nem ele revida.
       const shown = Math.max(0, Math.round(amount));
@@ -350,6 +353,7 @@ export class CombatSystem {
         crit: o.crit && shown > 0 ? true : undefined,
         miss: shown === 0 ? true : undefined,
         ranged: o.ranged ? true : undefined,
+        resisted: resistedMark,
       });
       this.markCombat(o.creditId ?? sourceId, now);
       // Dano "mostrado", não causado: quem chama (dreno de vida/mana do encantamento) não pode se curar com ele.
@@ -363,6 +367,7 @@ export class CombatSystem {
       crit: o.crit && dealt > 0 ? true : undefined,
       miss: dealt === 0 ? true : undefined,
       ranged: o.ranged ? true : undefined,
+      resisted: resistedMark,
     });
     this.markCombat(credit, now);
     if (credit && this.o.getPlayer(credit)) {

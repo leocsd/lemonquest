@@ -21,3 +21,7 @@
 .be-loot li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(0, 0, 0, 0.22); }
 .be-chance { color: #ffd447; font-variant-numeric: tabular-nums; }
 .be-empty, .be-unknown { color: #7d86a3; line-height: 1.5; }
+/* Filtros (ciclo 17): zona, faixa de level e conhecidos. */
+.be-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px 0; }
+.be-filters select { flex: 1 1 140px; min-width: 0; padding: 3px 6px; font: inherit; font-size: 12px; color: #e4e8f5; background: #1b2030; border: 1px solid #343b4e; border-radius: 4px; }
+.be-filters select:focus-visible { outline: 1px solid rgba(255, 212, 71, 0.6); }

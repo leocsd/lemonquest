@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { S2C } from "@lemonquest/shared";
-import { EventSystem } from "./events.ts";
+import { EventSystem, agendaLines } from "./events.ts";
 import { rollLoot } from "./loot.ts";
 import { itemsFx } from "./m4kit.ts";
 
@@ -68,11 +68,12 @@ describe("EventSystem", () => {
 
   it("quem entra no mundo recebe o evento em andamento; sem evento, nada", () => {
     const w = setup();
+    const sent = () => w.out.filter((o) => o.to === "p1" && o.type === S2C.Event);
     w.ev.sendTo("p1");
-    expect(w.out.filter((o) => o.to === "p1")).toHaveLength(0);
+    expect(sent()).toHaveLength(0);
     w.set(at(19, 5));
     w.ev.sendTo("p1");
-    expect(w.out.filter((o) => o.to === "p1")[0]!.msg.active.id).toBe("noite_de_cacada");
+    expect(sent()[0]!.msg.active.id).toBe("noite_de_cacada");
   });
 
   it("/evento sem argumentos mostra o andamento e o próximo agendado", () => {
@@ -81,6 +82,79 @@ describe("EventSystem", () => {
     expect(w.ev.statusLines(at(18, 0)).join(" ")).toContain("Próximo agendado: Noite de Caçada");
     w.set(at(19, 0));
     expect(w.ev.statusLines(at(19, 5))[0]).toContain("Em andamento: Noite de Caçada");
+  });
+});
+
+describe("EventSystem: agenda e aviso de 10 min (ciclo 17)", () => {
+  it("quem entra recebe a agenda da semana; o próximo evento vem em ordem", () => {
+    const w = setup();
+    w.ev.sendTo("p1");
+    const ag = w.out.filter((o) => o.to === "p1" && o.type === S2C.Agenda)[0]!.msg;
+    expect(ag.serverNow).toBe(at(18, 0));
+    expect(ag.events[0]).toMatchObject({ id: "noite_de_cacada", start: at(19, 0), end: at(20, 0), xpMult: 2 });
+    expect(ag.events.length).toBeGreaterThan(10);
+    expect(ag.events.find((e: any) => e.id === "furia_de_demodras").boss).toBe("demodras");
+    w.ev.sendAgenda("p2", at(19, 30)); // pedido com a janela aberta: a Noite está em andamento
+    expect(w.out.find((o) => o.to === "p2")!.msg.events[0]).toMatchObject({ id: "noite_de_cacada", start: at(19, 0) });
+  });
+
+  it("avisa uma vez 10 min antes (Feed + EventSoon), e a agenda é difundida no começo e no fim", () => {
+    const w = setup();
+    w.set(at(18, 49));
+    expect(w.of(S2C.EventSoon)).toHaveLength(0);
+    w.set(at(18, 50));
+    expect(w.of(S2C.EventSoon)).toHaveLength(1);
+    expect(w.of(S2C.EventSoon)[0]!.msg).toMatchObject({ id: "noite_de_cacada", start: at(19, 0) });
+    expect(w.of(S2C.Feed).at(-1)!.msg.text).toBe("⏰ Em 10 min: Noite de Caçada (19:00) — XP em dobro");
+    w.set(at(18, 55));
+    w.set(at(18, 59));
+    expect(w.of(S2C.EventSoon)).toHaveLength(1); // não repete
+    const agendas = () => w.of(S2C.Agenda).filter((o) => o.to === "*").length;
+    expect(agendas()).toBe(0);
+    w.set(at(19, 0));
+    expect(agendas()).toBe(1);
+    expect(w.of(S2C.Agenda).at(-1)!.msg.events[0].id).toBe("noite_de_cacada");
+    w.set(at(20, 0));
+    expect(agendas()).toBe(2);
+    expect(w.of(S2C.Agenda).at(-1)!.msg.events.some((e: any) => e.id === "noite_de_cacada" && e.start === at(19, 0))).toBe(false);
+  });
+
+  it("reiniciar dentro da janela de aviso não repete o aviso; antes dela, avisa normalmente", () => {
+    const mk = (t0: number) => {
+      const out: string[] = [];
+      let t = t0;
+      const ev = new EventSystem({ broadcast: (type) => out.push(type), send: () => {}, now: () => t });
+      return { out, set: (ms: number) => { t = ms; ev.tick(ms); } };
+    };
+    const late = mk(at(18, 53)); // subiu às 18h53: o aviso das 18h50 já tinha saído antes do reinício
+    late.set(at(18, 53)); late.set(at(18, 58));
+    expect(late.out.filter((x) => x === S2C.EventSoon)).toHaveLength(0);
+    const early = mk(at(18, 40));
+    early.set(at(18, 40)); early.set(at(18, 50) + 30_000); early.set(at(18, 51));
+    expect(early.out.filter((x) => x === S2C.EventSoon)).toHaveLength(1);
+  });
+
+  it("onEnd roda quando o evento base acaba (hora ou /evento parar) e o Feed diz o próximo", () => {
+    const ended: string[] = [];
+    let t = at(18, 0);
+    const feed: string[] = [];
+    const ev = new EventSystem({ broadcast: (type, m: any) => { if (type === S2C.Feed) feed.push(m.text); }, send: () => {}, now: () => t, onEnd: (e) => ended.push(e.id) });
+    ev.tick(t = at(19, 0));
+    ev.tick(t = at(20, 0));
+    expect(ended).toEqual(["noite_de_cacada"]);
+    expect(feed.at(-1)).toBe("Evento encerrado: Noite de Caçada. Próximo: Tarde de Sábado, amanhã às 14:00.");
+    ev.start("mare_de_tesouros", 30, t = at(20, 5));
+    ev.stop(t = at(20, 10));
+    expect(ended).toEqual(["noite_de_cacada", "mare_de_tesouros"]);
+  });
+
+  it("/agenda: um dia por linha, com o em andamento e o próximo marcados", () => {
+    const lines = agendaLines(at(19, 30)); // sexta 19h30, no meio da Noite de Caçada
+    expect(lines[0]).toMatch(/^Agenda da semana/);
+    expect(lines[1]).toBe("Hoje: 19:00 Noite de Caçada ▶ agora (até 20:00)");
+    expect(lines[2]).toBe("Amanhã: 14:00 Tarde de Sábado ← próximo · 21:00 Invasão de Orshabaal");
+    expect(lines.at(-1)).toMatch(/^Sex: 12:15 Fúria de Demodras · 17:00 Sextou!$/);
+    expect(lines.length).toBe(1 + 8); // hoje + 6 dias + a sexta seguinte (antes das 19h30)
   });
 });
 

@@ -1,17 +1,22 @@
 // Aba "Missões" da janela de NPC (oferta → Aceitar/Recusar, progresso, Entregar) e o Quadro de Recompensas.
 import {
-  BOUNTY_CHEST_ID, QUEST_LIST, bountyTitle, itemDef, questsForNpc, unlockText, type QuestDef, type QuestStatus,
+  BOUNTY_CHEST_ID, bountyTitle, itemDef, questsForNpc, unlockText, upcomingQuests, type QuestDef, type QuestStatus,
 } from "@lemonquest/shared";
 import { useEffect, useState } from "preact/hooks";
 import { useStore } from "../hud/store.ts";
 import { meStore } from "../hud/world.ts";
 import { inventoryStore } from "../items/inventory.ts";
 import { useTicker } from "../arena/useTicker.ts";
-import { inventoryCounter, questAction, questStore, rewardText, stepLines } from "./quests.ts";
+import { worldIndexStore } from "../../game/worldIndex.ts";
+import { guideRequestStore, isGuiding, toggleGuideBounty } from "../hud/guideState.ts";
+import { huntInfo, materialSources, materialSourcesText } from "./questInfo.ts";
+import { inventoryCounter, myLevelStore, questAction, questStore, rewardText, stepLines } from "./quests.ts";
 import { materialRequestAction, materialRequestStore } from "./materialRequest.ts";
 import "./quests.css";
 
 const STATUS_LABEL: Partial<Record<QuestStatus, string>> = { available: "Nova", active: "Em andamento", ready: "Pronta" };
+/** Quantas missões travadas o NPC lista embaixo das ofertas. */
+const LOCKED_SHOWN = 2;
 
 export function NpcQuestList({ npcId }: { npcId: string }) {
   const st = useStore(questStore);
@@ -22,29 +27,35 @@ export function NpcQuestList({ npcId }: { npcId: string }) {
   if (!st || !me) return <div class="hud-empty">Carregando missões…</div>;
   const count = inventoryCounter();
   const list = questsForNpc(npcId, st, me.level, count).filter((e) => !declined.includes(e.def.id));
-  // Próxima missão deste NPC bloqueada só por level (dica).
-  const next = QUEST_LIST.find((d) => d.giver === npcId && !st.done.includes(d.id) && !st.active.some((a) => a.id === d.id)
-    && me.level < d.minLevel && (d.requires ?? []).every((r) => st.done.includes(r)));
-  if (list.length === 0) {
-    return (
-      <div class="quest-empty">
-        {next ? `Volte quando for level ${next.minLevel}: tenho um trabalho para você.` : "Nenhuma missão por aqui no momento."}
-      </div>
-    );
-  }
+  // Missões deste NPC ainda travadas, da que abre antes: o NPC diz o que falta (level e/ou outra missão, com quem).
+  const locked = upcomingQuests({ level: me.level, done: st.done, active: st.active.map((a) => a.id) }, Infinity)
+    .filter((e) => e.def.giver === npcId).slice(0, LOCKED_SHOWN);
+  if (list.length === 0 && locked.length === 0) return <div class="quest-empty">Nenhuma missão por aqui no momento.</div>;
   return (
-    <ul class="quest-offers">
-      {list.map(({ def, status }) => (
-        <QuestCard
-          key={def.id} def={def} status={status} progress={st.active.find((a) => a.id === def.id)?.progress}
-          justAccepted={accepted.includes(def.id)}
-          onAccept={() => { setAccepted((l) => [...l, def.id]); questAction({ action: "accept", questId: def.id }); }}
-          onDecline={() => setDeclined((l) => [...l, def.id])}
-          onTurnIn={() => questAction({ action: "turnIn", questId: def.id })}
-          count={count}
-        />
-      ))}
-    </ul>
+    <>
+      {list.length === 0 && <div class="quest-empty">Ainda não tenho trabalho para você, mas logo terei.</div>}
+      {list.length > 0 && (
+        <ul class="quest-offers">
+          {list.map(({ def, status }) => (
+            <QuestCard
+              key={def.id} def={def} status={status} progress={st.active.find((a) => a.id === def.id)?.progress}
+              justAccepted={accepted.includes(def.id)}
+              onAccept={() => { setAccepted((l) => [...l, def.id]); questAction({ action: "accept", questId: def.id }); }}
+              onDecline={() => setDeclined((l) => [...l, def.id])}
+              onTurnIn={() => questAction({ action: "turnIn", questId: def.id })}
+              count={count}
+            />
+          ))}
+        </ul>
+      )}
+      {locked.length > 0 && (
+        <ul class="quest-locked" aria-label="Missões bloqueadas">
+          {locked.map(({ def, reason }) => (
+            <li key={def.id} data-quest={def.id}><b>{def.name}</b> <span>{reason}</span></li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
@@ -92,6 +103,9 @@ export function fmtUntil(ms: number): string {
 
 export function BountyBoard() {
   const st = useStore(questStore);
+  const level = useStore(myLevelStore);
+  const idx = useStore(worldIndexStore);
+  const guide = useStore(guideRequestStore);
   useTicker(30_000);
   if (!st) return <div class="hud-empty">Carregando recompensas…</div>;
   const chest = itemDef(BOUNTY_CHEST_ID)?.name ?? "Baú";
@@ -114,8 +128,10 @@ export function BountyBoard() {
                   <em>{Math.min(b.progress, b.count)}/{b.count}</em>
                 </div>
               )}
+              {b.status !== "done" && <div class="bounty-where"><b>Onde:</b> {huntInfo(idx, b.monster, level)}</div>}
               <div class="quest-reward"><b>Recompensa:</b> {rewardText({ xp: b.xp, gold: b.gold, items: [] })} · {chest}</div>
               <div class="quest-actions">
+                {b.status !== "done" && <BountyGuideBtn on={isGuiding(guide, "bounty", b.monster)} monster={b.monster} />}
                 {b.status === "open" && <button class="quest-btn primary" onClick={() => questAction({ action: "bountyAccept", index: i })}>Aceitar</button>}
                 {ready && <button class="quest-btn primary" onClick={() => questAction({ action: "bountyTurnIn", index: i })}>Entregar</button>}
               </div>
@@ -128,15 +144,26 @@ export function BountyBoard() {
   );
 }
 
+/** "Guiar" até o spawn mais perto do monstro da recompensa (ui/hud/guideState.ts). */
+function BountyGuideBtn({ on, monster }: { on: boolean; monster: string }) {
+  return (
+    <button class={`quest-btn${on ? " on" : ""}`} aria-pressed={on} onClick={() => toggleGuideBounty(monster)}
+      data-tip={on ? "Parar de guiar" : "Mostrar onde caçar"}>{on ? "Guiando" : "Guiar"}</button>
+  );
+}
+
 /** Encomenda semanal de material: pede N de um material específico, paga ouro, uma vez por semana. */
 export function MaterialRequestBoard() {
   const req = useStore(materialRequestStore);
+  const idx = useStore(worldIndexStore);
   useStore(inventoryStore); // "have" muda com a mochila
   useTicker(30_000);
   useEffect(() => { materialRequestAction({ action: "list" }); }, []);
   if (!req) return <div class="hud-empty">Carregando encomenda…</div>;
   const def = itemDef(req.materialId);
   const ready = !req.claimed && req.have >= req.count;
+  // Onde o material cai (ciclo 17): os monstros comuns mais fracos que o soltam, com a zona de cada um.
+  const sources = materialSourcesText(materialSources(idx, req.materialId));
   return (
     <div class="bounty-board">
       <ul class="quest-offers">
@@ -150,6 +177,7 @@ export function MaterialRequestBoard() {
             <span style={{ width: `${Math.round((Math.min(req.have, req.count) / req.count) * 100)}%` }} />
             <em>{Math.min(req.have, req.count)}/{req.count}</em>
           </div>
+          {!req.claimed && sources && <div class="bounty-where"><b>Cai de:</b> {sources}</div>}
           <div class="quest-reward"><b>Recompensa:</b> {rewardText({ xp: 0, gold: req.gold, items: [] })}</div>
           <div class="quest-actions">
             {ready && <button class="quest-btn primary" onClick={() => materialRequestAction({ action: "turnIn" })}>Entregar</button>}

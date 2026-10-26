@@ -138,6 +138,6 @@ test("Cobra Listrada aparece no Pátio de Manobra", async ({ page }) => {
   await teleport(page, spot.x, spot.y);
   await expect.poll(async () => (await monsters(page)).map((m) => m.defId), { timeout: 30_000 }).toContain("engate_solto");
   const m = (await monsters(page)).find((x) => x.defId === "engate_solto")!;
-  expect(m.name).toBe("Cobra Listrada");
+  expect(m.name).toMatch(/Cobra Listrada$/); // pode nascer elite ("Elite Cobra Listrada")
   await expect.poll(() => zoneFooter(page)).toBe("Pátio de Manobra");
 });

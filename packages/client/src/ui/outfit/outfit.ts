@@ -9,7 +9,8 @@ export const outfitOpen = createStore(false);
 export const outfitTonesStore = createStore<string[]>([]);
 export function handleOutfitTones(m: OutfitTonesMsg): void { outfitTonesStore.set(m.unlocked ?? []); }
 
-export interface CtxMenuItem { label: string; run: () => void }
+/** `danger`: ação séria (atacar jogador): em vermelho e separada das outras. */
+export interface CtxMenuItem { label: string; run: () => void; danger?: boolean }
 /** Menu de contexto simples (posição em px da janela). */
 export const ctxMenuStore = createStore<{ x: number; y: number; items: CtxMenuItem[] } | null>(null);
 

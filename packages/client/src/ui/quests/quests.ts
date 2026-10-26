@@ -5,7 +5,8 @@ import {
   type ItemCounter, type QuestActionMsg, type QuestCompleteMsg, type QuestDef, type QuestReward, type QuestsMsg,
 } from "@lemonquest/shared";
 import { session } from "../../session.ts";
-import { createStore, persistedBool } from "../hud/store.ts";
+import { createStore, persistedBool, selectStore } from "../hud/store.ts";
+import { meStore } from "../hud/world.ts";
 import { send } from "../items/net.ts";
 import { inventoryStore } from "../items/inventory.ts";
 
@@ -15,6 +16,8 @@ export const questDoneStore = createStore<(QuestCompleteMsg & { id: number }) | 
 export const questLogOpen = createStore(false);
 /** Rastreador recolhido (lembrado). */
 export const trackerCollapsed = persistedBool("questTracker.collapsed", false);
+/** Só o level do jogador (o snapshot muda a cada passo; diário, rastreador e cartão não redesenham por isso). */
+export const myLevelStore = selectStore(meStore, (m) => m?.level ?? 0);
 
 const DONE_MS = 5500;
 let doneSeq = 0;

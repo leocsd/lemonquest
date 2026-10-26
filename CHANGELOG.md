@@ -1,5 +1,43 @@
 # Changelog
 
+## [Não lançado] — 2026-10-26 · ciclo 17: descoberta, missões e interface
+
+Quarto ciclo do plano 14–20. Achados da análise que motivaram: ninguém sabia da agenda de eventos (0 abates de
+Ferumbras/Orshabaal até o ciclo 12), o novato não sabia o que fazer depois da 1ª missão, portais sem nome, resistência
+invisível e Novidades "manual" com 25 entradas. Quatro frentes (índice e navegação, missões, agenda e interface, bocas
+de caverna) + revisão cruzada.
+
+**Índice do mundo** (`shared/src/worldIndex.ts`, puro, montado em 5–22 ms no mapa real): zonas, faixa de level por
+zona, spawns por monstro, NPCs, portais com rótulo calculado, componentes a pé (portal conta como parede) e `nextHop`
+pelo grafo de portais e viagens. Ponto único no cliente (`game/worldIndex.ts`). Alimenta todo o resto.
+- **Rótulos de portal** ("Minas Abandonadas · lv 10+", vermelho pela mesma regra da porta do servidor) e "olhar" no
+  portal com o que tem do outro lado.
+- **Marcadores** no minimapa e no mapa-múndi (serviços e portais só no explorado; "!"/"?", guia e marcador pessoal com
+  clique direito, até 20, no navegador); grupo no mapa-múndi.
+- **Guia** geral (NPC, zona, spawn mais perto, quem solta o item ou a loja que vende; outra região → portal/viagem),
+  botão Guiar no rastreador, diário, Quadro e chefes da Agenda. Teste: todo passo de toda missão tem destino alcançável.
+- **Viagem** mostra o level dos monstros do destino e "perigoso para o seu level".
+
+**Missões e informação** — `shared/data/questUnlocks.ts` (`questLockReason`, `availableQuests`, `upcomingQuests`,
+`nextQuestsAfter`, `unlocksBetween`; a trava bate com o `questAvailable` do servidor em todo o catálogo). Diário com
+"Disponíveis (N)" e "Em breve"; NPC explica a trava; cartão de missão concluída e banner de level mostram o que abriu
+(`QuestCompleteMsg.questId`). Recompensas aceitas no rastreador com zona e dificuldade; Quadro e Encomenda dizem onde
+caçar; Bestiário com "Onde vive" e filtros. **Resistência visível**: `CombatEvent.resisted`, dano com ↓/↑ e "resistiu".
+
+**Agenda e interface** — `upcomingEvents`; `S2C.Agenda` (join, reconexão, pedido 2/s, começo/fim) e `S2C.EventSoon` 10
+min antes pelo relógio (reinício não repete); janela Agenda no trilho, selo "Próximo: X às HH:MM", aviso no chat e no
+título da aba; `/agenda` e `/evento` de leitura para todos. Boas-vindas no Feed ao personagem novo. "Olhar" de NPC lista
+os serviços. Novidades com só o não visto aberto e o resto em "Histórico". Menu do jogador com "Atacar" por último e em
+vermelho (o mesmo no mundo e na Batalha). Bênção na faixa de condições. Saudação do NPC não redigitada. "Trocar
+personagem" no botão direito em você. Depot com **Organizar** (`C2S.SortContainer`, 1/s; junta pilhas iguais
+respeitando raridade, refino e bônus) e busca.
+
+**Bocas de caverna (17-12, exceção autorizada pelo dono)** — etapa `tools/mapgen/entrances14.mjs` depois de tudo o que
+estava publicado: boca de caverna nas Minas (marrom) e nas Grutas (cinza), cripta com porta-caveira e estandarte nas
+Catacumbas, fenda de lava no salão do Abismo. `diff-world.mjs --allow x0,y0,x1,y1`: 58 tiles mudaram, todos dentro dos 4
+retângulos; 0 fora; 843/843 objetos antigos; o conjunto de tiles alcançáveis fora dos retângulos é idêntico; portas e
+retornos andáveis e alcançáveis.
+
 ## [Não lançado] — 2026-10-26 · ciclo 16: fim de jogo (tier Abissal, covis, refino, encantamento e Coliseu 61–70)
 
 Terceiro ciclo do plano 14–20. Dados que motivaram: topo com 1,2 mi e 739 mil de ouro parados, gasto de 23% do ganho

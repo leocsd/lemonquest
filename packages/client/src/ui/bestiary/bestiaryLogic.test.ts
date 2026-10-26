@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MONSTERS, monsterResistances } from "@lemonquest/shared";
-import { bestiaryRows, chanceText, damageLabel, elementLines, progressText } from "./bestiaryLogic.ts";
+import {
+  BESTIARY_BANDS, NO_FILTER, bestiaryRows, bestiaryZones, chanceText, damageLabel, elementLines, filterBestiary, progressText, whereText,
+} from "./bestiaryLogic.ts";
 
 const defs = Object.values(MONSTERS);
 
@@ -44,5 +46,38 @@ describe("chanceText / damageLabel", () => {
     expect(chanceText(0.01)).toBe("1%");
     expect(damageLabel("fire")).toBe("fogo");
     expect(damageLabel("novo")).toBe("novo");
+  });
+});
+
+describe("onde vive e filtros (ciclo 17)", () => {
+  const zonesOf = (id: string) => (({ rat: ["Floresta Sussurrante"], wolf: ["Floresta Sussurrante", "Estrada"], dragon: ["Vale dos Dragões"] }) as Record<string, string[]>)[id] ?? [];
+  const rows = bestiaryRows(defs, { rat: 3, dragon: 1 }, zonesOf);
+  const ids = (l: { id: string }[]) => l.map((r) => r.id);
+
+  it("cada linha leva as zonas; sem índice, nenhuma", () => {
+    expect(rows.find((r) => r.id === "wolf")!.zones).toEqual(["Floresta Sussurrante", "Estrada"]);
+    expect(bestiaryRows(defs, undefined).every((r) => r.zones.length === 0)).toBe(true);
+  });
+
+  it("filtra por zona, faixa de level e conhecidos (combinados)", () => {
+    expect(filterBestiary(rows, NO_FILTER)).toHaveLength(rows.length);
+    expect(ids(filterBestiary(rows, { ...NO_FILTER, zone: "Floresta Sussurrante" }))).toEqual(["rat", "wolf"]);
+    expect(ids(filterBestiary(rows, { ...NO_FILTER, zone: "Floresta Sussurrante", seen: "known" }))).toEqual(["rat"]);
+    expect(ids(filterBestiary(rows, { ...NO_FILTER, zone: "Floresta Sussurrante", seen: "unknown" }))).toEqual(["wolf"]);
+    const band = BESTIARY_BANDS.findIndex((b) => MONSTERS.dragon!.level >= b.min && MONSTERS.dragon!.level <= b.max);
+    const inBand = filterBestiary(rows, { ...NO_FILTER, band });
+    expect(ids(inBand)).toContain("dragon");
+    expect(inBand.every((r) => r.level >= BESTIARY_BANDS[band]!.min && r.level <= BESTIARY_BANDS[band]!.max)).toBe(true);
+    expect(filterBestiary(rows, { zone: "Vale dos Dragões", band: 0, seen: "all" })).toEqual([]);
+  });
+
+  it("faixas cobrem todo level sem buraco; zonas do filtro da mais fácil para a mais difícil", () => {
+    for (let lv = 1; lv <= 200; lv++) expect(BESTIARY_BANDS.filter((b) => lv >= b.min && lv <= b.max), `lv ${lv}`).toHaveLength(1);
+    expect(bestiaryZones(rows)).toEqual(["Floresta Sussurrante", "Estrada", "Vale dos Dragões"]);
+  });
+
+  it("whereText: lista as zonas ou diz que não nasce solto", () => {
+    expect(whereText(["A", "B"])).toBe("A, B");
+    expect(whereText([])).toMatch(/não nasce solto/);
   });
 });

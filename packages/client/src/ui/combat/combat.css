@@ -21,7 +21,12 @@
   opacity: 0; animation: lvl-spell 420ms cubic-bezier(0.2, 0.9, 0.2, 1.2) forwards;
 }
 .level-banner-spell b { color: #fff3c4; font-style: normal; font-weight: 600; }
-@keyframes lvl-spell { from { opacity: 0; transform: translateY(8px) scale(0.9); } to { opacity: 1; transform: none; } }
+/* O que o level abriu (ciclo 17): missões, portas e baús de quest. */
+.level-banner-unlock {
+  margin-top: 6px; padding: 2px 12px; font-size: 15px; color: #d8f5a2; letter-spacing: 0.5px; text-shadow: 0 2px 0 #000;
+  background: rgba(17, 20, 28, 0.7); border: 1px solid rgba(190, 230, 120, 0.45); border-radius: 999px;
+  opacity: 0; animation: lvl-spell 420ms cubic-bezier(0.2, 0.9, 0.2, 1.2) forwards;
+}@keyframes lvl-spell { from { opacity: 0; transform: translateY(8px) scale(0.9); } to { opacity: 1; transform: none; } }
 @keyframes lvl-life-long { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes lvl-life { 0%, 78% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes lvl-pop {

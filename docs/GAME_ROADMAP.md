@@ -10,8 +10,27 @@ Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
 Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
 Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 16 fim de jogo (tier 8, encantamento com tiers,
-covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ⏳ → 18 invasões da Vila e Mural de
+covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ⏳ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 17 (2026-10-26) — descoberta, missões e interface
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 17-0 | Índice do mundo (`worldIndex.ts`) | ✅ | `worldIndex.test.ts` (mapa real e sintético) |
+| 17-1 | Agenda de eventos, aviso 10 min antes, `/agenda` e `/evento` para todos | ✅ | `events.test.ts` (shared e servidor), `admin.test.ts`, `agendaLogic.test.ts` |
+| 17-2 | Rótulos de portal e "olhar" no portal | ✅ | `portalInfo.test.ts` |
+| 17-3 | Marcadores no minimapa e no mapa-múndi | ✅ | `markers.test.ts` |
+| 17-4 | Diário com Disponíveis/Em breve; NPC explica a trava | ✅ | `questUnlocks.test.ts` |
+| 17-5 | Guia para a missão rastreada (e Quadro, diário, Agenda) | ✅ | `guide.test.ts` (todo passo de missão alcançável) |
+| 17-6 | Próximo passo no cartão de missão e no banner de level | ✅ | `questInfo.test.ts`, `quests.test.ts` |
+| 17-7 | Onde caçar (recompensas, Encomenda, Bestiário) | ✅ | `questInfo.test.ts`, `bestiaryLogic.test.ts` |
+| 17-8 | Viagem com level do destino, olhar de NPC, Novidades só o não visto, boas-vindas | ✅ | `travelInfo`, `lookInfo`, `newsLogic`, `welcome` |
+| 17-9 | Resistência visível | ✅ | `combat.test.ts`, `damageText.test.ts`, `lookInfo.test.ts` |
+| 17-10 | Menu do jogador, bênção nas condições, saudação, Trocar personagem | ✅ | `playerMenuLogic.test.ts` |
+| 17-11 | Depot: Organizar e busca | ✅ | `inventory.test.ts` (`organizeItems`), `depotSearch.test.ts` |
+| 17-12 | Bocas de caverna desenhadas (exceção autorizada) | ✅ | `diff-world.mjs --allow` (58 tiles dentro, 0 fora); validação de alcance no gerador |
+| C13-4 | (do ciclo 13) bocas de caverna | ✅ | ver 17-12 |
 
 ## Ciclo 16 (2026-10-26) — fim de jogo
 
@@ -92,7 +111,7 @@ Pedido do dono: "mais caves", nas quatro faixas, com monstros existentes + algun
 | C13-1 | Quatro caves (`expansion5.mjs`, mapa 400×560), entradas só-objeto com level mínimo | ✅ 2026-10-25 | `diff-world.mjs` 0 tiles, 699/699; 9160/9160 alcançáveis; E2E `caves.spec.ts` 6/6 (`--repeat-each=3`) |
 | C13-2 | Oito monstros novos (sprites do pack sem uso) e faixa 106+ no Quadro de Recompensas | ✅ 2026-10-25 | `monsters`, `bounties`, `lookInfo` |
 | C13-3 | Revisar com a telemetria (C12-5) se as caves novas tiram a parede do 60–80 e se o 100+ ganha variedade | ⏳ | `admin.mjs telemetria` |
-| C13-4 | Arte: bocas de caverna de verdade na superfície | ⏳ | dono autorizou mudar tiles só nos retângulos das entradas: ciclo 17-12 do plano |
+| C13-4 | Arte: bocas de caverna de verdade na superfície | ✅ 2026-10-26 | ciclo 17-12 (`entrances14.mjs`) |
 | C13-5 | Missões/conquistas próprias das caves novas | ⏳ | opcional |
 
 ## Ciclo 12 (2026-10-25) — fim de jogo 90–120 e medição

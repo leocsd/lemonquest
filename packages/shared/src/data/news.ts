@@ -12,6 +12,22 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26f",
+    date: "26 de outubro",
+    title: "Descobrir o mundo: agenda, guia, marcadores e bocas de caverna",
+    items: [
+      "Agenda de eventos: botão de calendário no trilho (ou o selo \"Próximo\" no topo). Aviso 10 min antes no chat e na aba. /agenda e /evento valem para todos.",
+      "Botão Guiar no rastreador, no diário, no Quadro e nos chefes da Agenda: a seta leva ao NPC, ao monstro ou ao portal certo, mesmo em outra região.",
+      "Portais com nome e level (\"Minas Abandonadas · lv 10+\"), vermelho se você ainda não passa. Olhar um portal mostra o que tem do outro lado.",
+      "Minimapa e mapa-múndi com marcadores: templo, depósito, lojas, viagem, missões, portais explorados e o seu marcador (clique direito no mapa).",
+      "Diário com \"Disponíveis\" e \"Em breve\"; o NPC explica por que uma missão está fechada. Ao concluir missão ou subir de level, veja o que abriu.",
+      "Recompensas e Encomenda dizem onde caçar; o Bestiário mostra onde cada monstro vive e tem filtros. A viagem mostra o level dos monstros do destino.",
+      "Dano com ↓ quando o monstro resiste e ↑ quando é fraco; olhar um monstro mostra a que ele resiste. Bênção ativa aparece na faixa de condições.",
+      "Depot com Organizar e busca. Menu do jogador com \"Atacar\" por último, em vermelho. Botão direito em você → Trocar personagem.",
+      "As quatro caves profundas ganharam entrada desenhada na superfície.",
+    ],
+  },
+  {
     id: "2026-10-26e",
     date: "26 de outubro (madrugada)",
     title: "Fim de jogo: tier Abissal, covis, refino e Coliseu até a onda 70",

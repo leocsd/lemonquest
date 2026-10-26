@@ -1,9 +1,10 @@
-// Lista de criaturas/jogadores próximos. Clique seleciona o alvo (target.ts); botão direito num jogador: atacar/seguir.
+// Lista de criaturas/jogadores próximos. Clique seleciona o alvo (target.ts); botão direito num jogador: o mesmo menu do
+// mundo (ui/social/playerMenu.ts: seguir, grupo, troca e, por último, atacar).
 import { useEffect, useMemo } from "preact/hooks";
 import { session } from "../../session.ts";
-import { openCtxMenu } from "../outfit/outfit.ts";
+import { openPlayerMenu } from "../social/playerMenu.ts";
 import { battleSourcesStore, buildBattleList, BATTLE_RANGE, type BattleEntry } from "./battle.ts";
-import { FightModeControls, followPlayer } from "./FightMode.tsx";
+import { FightModeControls } from "./FightMode.tsx";
 import { Section } from "./Section.tsx";
 import { useStore } from "./store.ts";
 import { clearTarget, targetStore, toggleTarget } from "./target.ts";
@@ -19,12 +20,7 @@ export function BattleRows({ entries }: { entries: BattleEntry[] }) {
   const menu = (ev: MouseEvent, e: BattleEntry) => {
     ev.preventDefault();
     if (e.kind !== "player") { toggleTarget({ id: e.id, kind: e.kind }); return; }
-    const attacking = target?.id === e.id;
-    const following = followId === e.id;
-    openCtxMenu(ev.clientX, ev.clientY, [
-      { label: attacking ? "Parar de atacar" : "Atacar", run: () => toggleTarget({ id: e.id, kind: "player" }) },
-      { label: following ? "Parar de seguir" : "Seguir", run: () => followPlayer(following ? null : e.id) },
-    ]);
+    openPlayerMenu(e.id, ev.clientX, ev.clientY);
   };
   if (entries.length === 0) {
     return (
@@ -47,7 +43,7 @@ export function BattleRows({ entries }: { entries: BattleEntry[] }) {
               onClick={() => toggleTarget({ id: e.id, kind: e.kind })}
               onContextMenu={(ev) => menu(ev as MouseEvent, e)}
               data-tip={e.name}
-              data-tip-sub={`${e.kind === "player" ? `Jogador${fol ? " (seguindo)" : ""} · botão direito: atacar/seguir` : `Criatura${e.elite ? " elite" : ""}${e.difficulty ? ` ${e.difficulty}` : ""}${e.pack ? " · chama o bando" : ""}`} · ${e.distance} sqm · ${e.hpPct}% HP`}
+              data-tip-sub={`${e.kind === "player" ? `Jogador${fol ? " (seguindo)" : ""} · botão direito: seguir, grupo, troca, atacar` : `Criatura${e.elite ? " elite" : ""}${e.difficulty ? ` ${e.difficulty}` : ""}${e.pack ? " · chama o bando" : ""}`} · ${e.distance} sqm · ${e.hpPct}% HP`}
             >
               <span class="battle-mark" aria-hidden="true" />
               <span class="battle-main">

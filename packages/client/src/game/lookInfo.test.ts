@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ELITE_COLOR, MONSTERS, QUEST_CHESTS } from "@lemonquest/shared";
+import { ELITE_COLOR, MONSTERS, NPCS, QUEST_CHESTS } from "@lemonquest/shared";
 import { chestClass, chestLookLines } from "./chestInfo.ts";
 import { levelColor } from "./creatures.ts";
-import { lookCreature, lookNpc, lookPlayer, lookQuestObject, packFamilyLabel } from "./lookInfo.ts";
+import { lookCreature, lookNpc, lookPlayer, lookQuestObject, npcServices, packFamilyLabel } from "./lookInfo.ts";
 
 describe("classe dos baús de quest", () => {
   it("baús de arma da escolha mostram a vocação; anel/amuleto/ouro mostram Todas", () => {
@@ -64,6 +64,17 @@ describe("olhar criaturas, jogadores e NPCs", () => {
     for (const def of Object.values(MONSTERS)) if (def.pack) expect(packFamilyLabel(def.pack.family), def.pack.family).not.toBe(def.pack.family);
   });
 
+  it("olhar monstro mostra Resiste a / Fraco contra (ciclo 17); quem toma dano normal de tudo não ganha a linha", () => {
+    const skull = lookCreature({ defId: "flame_skull", name: "Crânio Flamejante", level: 62, boss: false, hp: 1, maxHp: 1 }, 62).lines;
+    expect(skull).toContain("Resiste a: fogo: metade do dano");
+    expect(skull).toContain("Fraco contra: sagrado: +25% · gelo: +15%");
+    const skeleton = lookCreature({ defId: "skeleton", name: "Esqueleto", level: 20, boss: false, hp: 1, maxHp: 1 }, 20).lines;
+    expect(skeleton.some((l) => l.startsWith("Resiste a"))).toBe(false);
+    expect(skeleton).toContain("Fraco contra: sagrado: +25%");
+    const rat = lookCreature({ defId: "rat", name: "Rato", level: 1, boss: false, hp: 1, maxHp: 1 }, 1).lines;
+    expect(rat.some((l) => /^(Resiste a|Fraco contra)/.test(l))).toBe(false);
+  });
+
   it("jogador: level e vocação, título, caveira, grupo; você", () => {
     const p = lookPlayer({ name: "Ana", level: 42, vocation: "druid", title: "gladiador", skull: "white" }, { me: false, party: true });
     expect(p.lines).toEqual(["Level 42 · Druida", "Título: o Gladiador", "Caveira branca", "Do seu grupo"]);
@@ -72,5 +83,23 @@ describe("olhar criaturas, jogadores e NPCs", () => {
 
   it("NPC: nome e papel; desconhecido não mostra nada", () => {
     expect(lookNpc("nao_existe")).toBeNull();
+  });
+
+  it("NPC: o olhar lista os serviços (ciclo 17)", () => {
+    const svc = (id: string) => lookNpc(id)!.lines[0]!;
+    expect(svc("shop")).toBe("Serviços: loja, compra itens");
+    expect(svc("depot")).toBe("Serviços: depósito");
+    expect(svc("guard_captain")).toContain("missões");
+    expect(svc("blacksmith")).toContain("refino");
+    expect(svc("bounty_board")).toBe("Serviços: recompensas diárias, encomenda da semana");
+    expect(svc("arena_master")).toContain("Coliseu");
+    expect(lookNpc("depot")!.lines.at(-1)).toBe("Clique para conversar.");
+    // Todo NPC com bênção, encantamento ou viagem diz isso no olhar.
+    for (const d of Object.values(NPCS)) {
+      const s = npcServices(d);
+      if (d.blessing) expect(s, d.id).toContain("bênção");
+      if (d.imbuement) expect(s, d.id).toContain("encantamento");
+      if (d.travel?.length) expect(s.some((x) => x.startsWith("viagem (")), d.id).toBe(true);
+    }
   });
 });

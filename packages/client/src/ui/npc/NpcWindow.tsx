@@ -1,5 +1,5 @@
 // Janela de NPC: fala com digitação, abas Na obra / Missões / Refinar / Encantar / Viagem / Comprar / Vender / Depot.
-import { CASINO_TICKET_PRICE, DEPOT_SIZE, backpackRoom, itemDef, keptBySellAll, refinedName, shopBuyMax, type NpcOpenMsg } from "@lemonquest/shared";
+import { C2S, CASINO_TICKET_PRICE, DEPOT_SIZE, RARITY_LABEL, backpackRoom, itemDef, keptBySellAll, refinedName, shopBuyMax, type NpcOpenMsg, type SortContainerMsg } from "@lemonquest/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { sectionsStore } from "../hud/Section.tsx";
 import { persistedBool, useStore } from "../hud/store.ts";
@@ -21,6 +21,10 @@ import { blessingProtects } from "../combat/blessingText.ts";
 import { WorkTab } from "../work/WorkTab.tsx";
 import { RefineTab } from "../refine/RefineTab.tsx";
 import { ImbuementTab } from "../imbue/ImbuementTab.tsx";
+import { send } from "../items/net.ts";
+import { depotMatches } from "./depotSearch.ts";
+import { travelInfo } from "./travelInfo.ts";
+import { worldIndexStore } from "../../game/worldIndex.ts";
 import "./npc.css";
 
 const TAB_LABEL: Record<NpcTab, string> = { work: "Na obra", quests: "Missões", bounties: "Recompensas", request: "Encomenda", refine: "Refinar", imbue: "Encantar", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
@@ -43,7 +47,7 @@ export function NpcWindow() {
         <button class="win-close" onClick={closeNpc} data-tip="Fechar" data-tip-sub="Esc" aria-label="Fechar">×</button>
       </div>
       <div class="npc-body">
-        <Typewriter text={m.greeting} nonce={st.nonce} />
+        <Typewriter npcId={m.npcId} text={m.greeting} nonce={st.nonce} />
         {m.blessing && <BlessingBox npcId={m.npcId} blessing={m.blessing} gold={inv?.gold ?? 0} />}
         {m.casino && <CasinoBox npcId={m.npcId} gold={inv?.gold ?? 0} />}
         {tabs.length > 0 && (
@@ -70,9 +74,15 @@ export function NpcWindow() {
   );
 }
 
-function Typewriter({ text, nonce }: { text: string; nonce: number }) {
-  const [n, setN] = useState(0);
+/** Saudações já digitadas nesta sessão (NPC + texto): reabrir o mesmo NPC mostra a fala inteira na hora (ciclo 17). */
+const greeted = new Set<string>();
+
+function Typewriter({ npcId, text, nonce }: { npcId: string; text: string; nonce: number }) {
+  const key = `${npcId}\n${text}`;
+  const [n, setN] = useState(() => (greeted.has(key) ? text.length : 0));
   useEffect(() => {
+    if (greeted.has(key)) { setN(text.length); return; }
+    greeted.add(key);
     setN(0);
     const t = window.setInterval(() => {
       setN((v) => {
@@ -202,14 +212,23 @@ function CasinoBox({ npcId, gold }: { npcId: string; gold: number }) {
 }
 
 function TravelList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
+  const idx = useStore(worldIndexStore);
+  const level = useStore(meStore)?.level ?? 1;
   return (
     <ul class="shop-list">
       {m.travel!.map((t) => {
         const afford = gold >= t.price;
+        // Ciclo 17: o que vive em volta do destino, e o aviso quando é forte demais para o seu level.
+        const info = travelInfo(idx, m.npcId, t.id, level);
         return (
           <li key={t.id} class="shop-row">
             <div class="shop-main">
               <div class="shop-name">{t.label}</div>
+              {info && (
+                <div class={`travel-levels${info.danger ? " danger" : ""}`} data-testid="travel-levels">
+                  {info.text}{info.danger && " · perigoso para o seu level"}
+                </div>
+              )}
               <div class="shop-price">
                 {t.price > 0 ? <><Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(t.price)}</span></> : <span>Grátis (até o level 8)</span>}
               </div>
@@ -342,14 +361,28 @@ function DepotGrid() {
       if (!hadSide) sidebarOpen.set(false);
     };
   }, []);
+  // Busca (ciclo 17): mostra só os espaços com o que foi digitado, cada um no seu lugar real (arrastar continua certo).
+  const [query, setQuery] = useState("");
+  const shown = depotMatches(depot ?? [], query, (it) => `${refinedName(itemDef(it.defId), it)} ${RARITY_LABEL[it.rarity] ?? ""}`);
+  const slots = shown ?? Array.from({ length: DEPOT_SIZE }, (_, i) => i);
   return (
     <div class="depot">
+      <div class="depot-tools">
+        <input
+          class="depot-search" type="search" placeholder="Buscar no depot…" aria-label="Buscar no depot" data-testid="depot-search"
+          value={query} onInput={(e) => setQuery((e.currentTarget as HTMLInputElement).value)}
+        />
+        <button class="shop-btn" onClick={() => send(C2S.SortContainer, { where: "depot" } satisfies SortContainerMsg)} data-testid="depot-sort" data-tip="Organizar" data-tip-sub="Junta as pilhas iguais e ordena por tipo e nome">
+          Organizar
+        </button>
+      </div>
       <div class="depot-hint">Arraste ou dê clique direito para guardar e retirar · Shift para dividir pilhas</div>
       <div class="depot-grid">
-        {Array.from({ length: DEPOT_SIZE }, (_, i) => (
+        {slots.map((i) => (
           <ItemSlot key={i} loc={{ where: "depot", index: i }} inst={depot?.[i]} size={40} class="depot-slot" />
         ))}
       </div>
+      {shown && shown.length === 0 && <div class="depot-empty">Nada com "{query.trim()}" no depot.</div>}
     </div>
   );
 }

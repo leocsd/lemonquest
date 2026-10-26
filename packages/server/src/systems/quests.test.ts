@@ -98,7 +98,8 @@ describe("quests: aceitar, progredir, entregar", () => {
     expect(w.xp).toEqual([{ id: "p1", n: QUESTS.rats_barn!.rewards.xp }]);
     expect(w.inv.countItem("p1", "health_potion")).toBe(5);
     const done = w.sent.find((s) => s.type === S2C.QuestComplete)!;
-    expect(done.msg).toMatchObject({ name: "Ratos no Celeiro", xp: 100, gold: 30 });
+    // questId: o cartão do cliente mostra o que a missão abriu (ciclo 17).
+    expect(done.msg).toMatchObject({ name: "Ratos no Celeiro", xp: 100, gold: 30, questId: "rats_barn" });
     // Não repete.
     w.qs.onAction(p, { action: "accept", questId: "rats_barn" });
     expect(w.state().active).toEqual([]);

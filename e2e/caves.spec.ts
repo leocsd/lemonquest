@@ -130,3 +130,21 @@ test("Covil das Minas (ciclo 16): o Rei Toupeira mora no covil; o baú desenhado
   expect(await countOf(page, "ring_furia")).toBe(0);
   expect(errors).toEqual([]);
 });
+
+test("Bocas de caverna (ciclo 17): as quatro entradas desenhadas deixam porta e retorno andáveis", async ({ page }) => {
+  // tools/mapgen/entrances14.mjs: boca marrom (Minas), boca cinza (Grutas), cripta (Catacumbas) e fenda (Abismo Profundo).
+  const ENTRADAS = [
+    ["minas", MINAS.door, MINAS.ret],
+    ["grutas", { x: 283, y: 116 }, { x: 284, y: 116 }],
+    ["catacumbas", { x: 163, y: 54 }, { x: 164, y: 54 }],
+    ["profundo", PROFUNDO.door, PROFUNDO.ret],
+  ] as const;
+  await enterGame(page, "knight");
+  await setLevel(page, 120); // o salão do Abismo e a Selva têm monstros que matariam um lv 1 parado no retorno
+  for (const [nome, door, ret] of ENTRADAS) {
+    await teleport(page, ret.x, ret.y);
+    await waitSettled(page);
+    expect(await page.evaluate(([x, y]) => (window as any).__lq.walkable(x, y), [door.x, door.y] as const)).toBe(true);
+    await snap(page, `caves-entrada-${nome}`);
+  }
+});

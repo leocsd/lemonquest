@@ -4,9 +4,11 @@ import { createStore, type Unsubscribe } from "./store.ts";
 export type ConditionId =
   | "combat" | "poison" | "burn" | "energy" | "bleed" | "freeze"
   | "protect" | "haste" | "slow" | "drunk" | "regen" | "pz"
-  | "manashield" | "rooted" | "taunted" | "fed" | "berserk" | "exposed" | "imbued";
+  | "manashield" | "rooted" | "taunted" | "fed" | "berserk" | "exposed" | "imbued"
+  /** Só no cliente (ciclo 17): a bênção vem do estado do jogador (blessed), não da lista de condições do servidor. */
+  | "blessed";
 
-export type ConditionGlyph = "swords" | "drop" | "flame" | "bolt" | "flake" | "shield" | "wing" | "snail" | "swirl" | "plus" | "home" | "bubble" | "vine" | "target" | "drumstick" | "gem";
+export type ConditionGlyph = "swords" | "drop" | "flame" | "bolt" | "flake" | "shield" | "wing" | "snail" | "swirl" | "plus" | "home" | "bubble" | "vine" | "target" | "drumstick" | "gem" | "ankh";
 
 export interface ConditionDef { label: string; color: string; glyph: ConditionGlyph }
 
@@ -33,6 +35,8 @@ export const CONDITION_DEFS: Record<ConditionId, ConditionDef> = {
   exposed: { label: "Exposto (sem resistência)", color: "#b48cf2", glyph: "bolt" },
   // Encantamento da Dona Marta: o tempo é de combate PvE, então vem como selo fixo (label), sem contagem local.
   imbued: { label: "Encantado", color: "#c080ff", glyph: "gem" },
+  // Bênção da Liora (templo): fica até a próxima morte com XP a perder; só exibição (ConditionsStrip lê o meStore).
+  blessed: { label: "Abençoado", color: "#ffe9a8", glyph: "ankh" },
 };
 
 export interface Condition {

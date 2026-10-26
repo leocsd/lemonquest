@@ -5,11 +5,13 @@
 //   /online · /resetsenha <conta> · /tp <nome> · /desbloquear <nome> <roupa|addon|título>
 //   /vincular <personagem> <apelido|id do ClickUp|nenhum> (conquistas de tarefas do ClickUp; sem argumentos lista)
 // Toda ação é logada no console com o prefixo [admin].
+// Exceção de leitura (ciclo 17): /agenda e /evento sem poder de admin respondem a qualquer jogador (só leem a agenda).
 import { S2C, WORK_NICKS, resolveUnlockArg, unlockText, workUserByNick, type AnnounceMsg, type FeedMsg, type NoticeMsg } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CharacterRecord } from "../persistence/types.ts";
 import { nameKey } from "../persistence/db.ts";
 import { devAdmins } from "./devcommands.ts";
+import { agendaLines } from "./events.ts";
 
 type Env = Record<string, string | undefined>;
 
@@ -97,21 +99,31 @@ export function helpLines(name: string, env: Env = process.env): string[] {
     "Grupo: /convidar <nome> · /aceitar [nome] · /recusar [nome] · /sair · /expulsar <nome> · /lider <nome> · /desfazer",
     "Social: /w <nome> <mensagem> sussurra · /r <mensagem> responde · /amigo <nome> adiciona ou remove · /amigos lista · /quem mostra quem está online, onde e quem pode caçar em grupo com você · /e <emote> (botão ☺ no chat).",
     "Magias: digite as palavras (ex.: exura) ou use as teclas 1–0 (H configura a barra). Todos os atalhos de teclado: F1.",
+    "Eventos: /agenda mostra os eventos da semana · /evento diz o que está valendo agora e o próximo.",
   ];
   if (isAdmin(name, env)) lines.push(`Admin: ${ADMIN_COMMANDS.join(" ")}`);
   return lines;
 }
 
+/** Leitura da agenda para todos: /agenda (a semana) e /evento sem poder de admin (agora e o próximo). */
+export const EVENT_READ_COMMANDS = ["/agenda", "/eventos", "/evento"] as const;
+
 /** Trata um comando de admin. true = era um comando de admin (tratado); false = não é admin/não é comando de admin. */
 export function handleAdminCommand(p: PlayerState, text: string, ctx: AdminContext): boolean {
   const env = ctx.env ?? process.env;
-  if (!isAdmin(p.name, env)) return false;
   const words = text.trim().split(/\s+/);
   const cmd = (words.shift() ?? "").toLowerCase();
-  if (!(ADMIN_COMMANDS as readonly string[]).includes(cmd)) return false;
   const now = (ctx.now ?? Date.now)();
-  const log = ctx.log ?? ((l: string) => console.log(l));
   const reply = (t: string, kind: NoticeMsg["kind"] = "info") => ctx.send(p.id, S2C.Notice, { text: t, kind, log: true } satisfies NoticeMsg);
+  // Leitura vem antes do teste de admin; o /evento de admin (com argumentos ou a lista de uso) segue abaixo.
+  if ((EVENT_READ_COMMANDS as readonly string[]).includes(cmd) && (cmd !== "/evento" || !isAdmin(p.name, env))) {
+    if (cmd === "/agenda") for (const l of agendaLines(now)) reply(l);
+    else for (const l of [...(ctx.events?.status() ?? ["Eventos indisponíveis."]), "A semana inteira: /agenda (ou o botão Agenda, no trilho à direita)."]) reply(l);
+    return true;
+  }
+  if (!isAdmin(p.name, env)) return false;
+  if (!(ADMIN_COMMANDS as readonly string[]).includes(cmd)) return false;
+  const log = ctx.log ?? ((l: string) => console.log(l));
   const audit = (what: string) => log(`[admin] ${p.name}: ${what}`);
   const online = [...ctx.players()];
   const byName = (name: string) => online.find((o) => nameKey(o.name) === nameKey(name));

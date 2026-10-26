@@ -332,7 +332,7 @@ export class QuestSystem {
     const items = this.grant(p, d.rewards);
     if (d.rewards.unlock) this.o.onUnlock?.(p.id, d.rewards.unlock);
     this.o.onComplete?.(p.id, d.id, false);
-    this.o.send(p.id, S2C.QuestComplete, { name: d.name, xp: d.rewards.xp, gold: d.rewards.gold, items } satisfies QuestCompleteMsg);
+    this.o.send(p.id, S2C.QuestComplete, { name: d.name, xp: d.rewards.xp, gold: d.rewards.gold, items, questId: d.id } satisfies QuestCompleteMsg);
     if (d.rewards.unlock || d.steps.some((s) => s.kind === "boss")) {
       this.o.broadcast?.(S2C.Feed, { text: `📜 ${p.name} concluiu a missão "${d.name}"!`, kind: "info" } satisfies FeedMsg);
     }

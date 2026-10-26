@@ -1,0 +1,26 @@
+/* Janela da Agenda (mesmo molde dos Desafios da semana). */
+.agenda-window { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 32; width: min(460px, calc(100vw - 24px)); max-height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: rgba(16, 19, 28, 0.97); }
+.ag-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: #ffe066; }
+.ag-x { width: 26px; height: 26px; padding: 0; font-size: 18px; line-height: 1; }
+/* Corpo rolável (o "Texto maior" escala só ele; o título com o × fica fixo). */
+.ag-body { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+.ag-empty { font-size: 12px; color: #7d86a3; padding: 8px 0; }
+.ag-card { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); font-size: 13px; color: #e4e8f5; }
+.ag-card.live { border-color: rgba(127, 216, 143, 0.6); background: rgba(127, 216, 143, 0.08); }
+.ag-card.next { border-color: rgba(255, 212, 71, 0.7); background: rgba(255, 212, 71, 0.07); }
+.ag-card-k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #b9a56a; }
+.ag-card.live .ag-card-k { color: #8fe08f; }
+.ag-day h3 { margin: 0 0 4px; font-size: 12px; color: #9aa6c8; }
+.ag-day ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ag-row { display: flex; gap: 10px; padding: 5px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.03); border: 1px solid transparent; }
+.ag-row.next { border-color: rgba(255, 212, 71, 0.55); }
+.ag-row.live { border-color: rgba(127, 216, 143, 0.5); }
+.ag-time { flex: none; width: 74px; font-variant-numeric: tabular-nums; font-size: 13px; color: #ffe9a8; }
+.ag-time small { color: #7d86a3; font-size: 11px; }
+.ag-main { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; font-size: 12.5px; color: #e4e8f5; }
+.ag-desc { flex-basis: 100%; font-size: 12px; color: #9aa6c8; }
+.ag-meta { flex-basis: 100%; font-size: 11.5px; color: #8fe08f; }
+.ag-tag { font-size: 10.5px; padding: 0 6px; border-radius: 999px; color: #2a1f05; background: #ffd447; }
+.ag-tag.live { background: #7fd88f; }
+.ag-guide { flex: none; align-self: center; margin-left: auto; }
+.ag-foot { font-size: 11px; color: #7d86a3; }

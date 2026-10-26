@@ -1,13 +1,19 @@
-// Bestiário (tecla B): monstros que você já derrotou, com vida, XP, dano e o que podem soltar. Os que ainda não foram
-// derrotados aparecem como "???" (o level fica visível para dar uma ideia de onde procurar).
+// Bestiário (tecla B): monstros que você já derrotou, com vida, XP, dano, onde vivem e o que podem soltar. Os que ainda
+// não foram derrotados aparecem como "???" (o level e a zona ficam visíveis para dar uma ideia de onde procurar).
+// Filtros por zona, faixa de level e conhecidos (ciclo 17).
 import { MONSTERS, itemDef, monsterResistances } from "@lemonquest/shared";
-import { useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
+import { worldIndexStore } from "../../game/worldIndex.ts";
 import { createStore, useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { useWindowDrag } from "../hud/useWindowDrag.ts";
 import { achievementsStore, requestAchievements } from "../achievements/achievements.ts";
 import { bindOverlay } from "../overlays.ts";
-import { bestiaryRows, chanceText, damageLabel, elementLines, progressText } from "./bestiaryLogic.ts";
+import { monsterZones } from "../quests/questInfo.ts";
+import {
+  BESTIARY_BANDS, NO_FILTER, bestiaryRows, bestiaryZones, chanceText, damageLabel, elementLines, filterBestiary, progressText,
+  whereText, type BestiaryFilter,
+} from "./bestiaryLogic.ts";
 import "./bestiary.css";
 
 export const bestiaryOpen = createStore(false);
@@ -29,11 +35,16 @@ export function BestiaryWindow() {
 
 function BestiaryDialog() {
   const ach = useStore(achievementsStore);
-  const rows = bestiaryRows(DEFS, ach?.bestiary);
+  const idx = useStore(worldIndexStore);
+  const rows = useMemo(() => bestiaryRows(DEFS, ach?.bestiary, (id) => monsterZones(idx, id)), [ach, idx]);
+  const zones = useMemo(() => bestiaryZones(rows), [rows]);
+  const [filter, setFilter] = useState<BestiaryFilter>(NO_FILTER);
+  const shown = filterBestiary(rows, filter);
   const [sel, setSel] = useState<string>("");
   const drag = useWindowDrag("bestiary");
   useDialogFocus(drag.ref);
-  const row = rows.find((r) => r.id === sel) ?? rows.find((r) => r.known) ?? rows[0];
+  const set = (p: Partial<BestiaryFilter>) => setFilter((f) => ({ ...f, ...p }));
+  const row = shown.find((r) => r.id === sel) ?? shown.find((r) => r.known) ?? shown[0];
   const def = row ? MONSTERS[row.id] : undefined;
   const el = def ? elementLines(monsterResistances(def)) : null;
   return (
@@ -43,9 +54,25 @@ function BestiaryDialog() {
         <span>Bestiário <span class="be-progress">{progressText(rows)}</span></span>
         <button class="win-close" onClick={() => bestiaryOpen.set(false)} data-tip="Fechar" data-tip-sub="B ou Esc" aria-label="Fechar">×</button>
       </div>
+      <div class="be-filters" role="group" aria-label="Filtros do bestiário">
+        <select value={filter.zone} onChange={(e) => set({ zone: (e.target as HTMLSelectElement).value })} aria-label="Zona">
+          <option value="">Todas as zonas</option>
+          {zones.map((z) => <option key={z} value={z}>{z}</option>)}
+        </select>
+        <select value={String(filter.band)} onChange={(e) => set({ band: Number((e.target as HTMLSelectElement).value) })} aria-label="Faixa de level">
+          <option value="-1">Todos os levels</option>
+          {BESTIARY_BANDS.map((b, i) => <option key={b.label} value={String(i)}>Lv {b.label}</option>)}
+        </select>
+        <select value={filter.seen} onChange={(e) => set({ seen: (e.target as HTMLSelectElement).value as BestiaryFilter["seen"] })} aria-label="Conhecidos">
+          <option value="all">Todos</option>
+          <option value="known">Conhecidos</option>
+          <option value="unknown">Ainda não derrotados</option>
+        </select>
+      </div>
       <div class="be-body">
         <ul class="be-list">
-          {rows.map((r) => (
+          {shown.length === 0 && <li class="be-empty">Nenhum monstro com esses filtros.</li>}
+          {shown.map((r) => (
             <li key={r.id}>
               <button class={`be-item${row?.id === r.id ? " sel" : ""}${r.known ? "" : " unknown"}`} onClick={() => setSel(r.id)} data-monster={r.id}>
                 <span class="be-name">{r.boss ? "☠ " : ""}{r.known ? r.name : "???"}</span>
@@ -56,12 +83,16 @@ function BestiaryDialog() {
         </ul>
         <div class="be-detail">
           {!row || !def ? null : !row.known ? (
-            <div class="be-unknown">Você ainda não derrotou este monstro (level {row.level}).<br />Derrote-o para registrar o que ele faz e o que solta.</div>
+            <div class="be-unknown">
+              Você ainda não derrotou este monstro (level {row.level}).<br />Derrote-o para registrar o que ele faz e o que solta.
+              {idx && <><br /><br />Onde procurar: {whereText(row.zones)}.</>}
+            </div>
           ) : (
             <>
               <h3>{row.boss ? "☠ " : ""}{def.name} <span class="be-lv">Lv {def.level}</span></h3>
               <div class="be-kills">Abates: <b>{row.kills.toLocaleString("pt-BR")}</b></div>
               <dl class="be-stats">
+                {idx && <><dt>Onde vive</dt><dd>{whereText(row.zones)}</dd></>}
                 <dt>Vida</dt><dd>{def.hp.toLocaleString("pt-BR")}</dd>
                 <dt>XP</dt><dd>{def.xp.toLocaleString("pt-BR")}</dd>
                 <dt>Dano</dt><dd>{def.damage[0]}–{def.damage[1]} ({damageLabel(def.damageKind)}){def.attackRange > 1 ? ` · alcance ${def.attackRange}` : ""}</dd>

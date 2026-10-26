@@ -31,20 +31,22 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Montar os seus grupos de magia | `H` → **◆ Grupos**: até 8 grupos com as magias e a ordem que você quiser (arrastar, ↑↓, copiar uma família pronta como modelo); a tecla solta a primeira da lista que estiver pronta. "Pôr na barra" põe o grupo numa tecla livre |
 | Poção de vida / mana | `Q` / `E` (a que mais recupera entre as que o seu level permite) |
 | Guardar / retirar no depot | com o depot aberto, clique direito ou duplo clique no item (junta na pilha igual que tiver espaço) |
+| Organizar / buscar no depot | botão **Organizar** (junta as pilhas iguais e ordena por tipo e nome, sem mexer em raridade nem refino) e o campo de busca (sem acento, filtra pelo nome) |
 | Seguir o alvo (gruda no monstro, qualquer vocação) | `F8` |
 | Ataque automático (escolhe sozinho o monstro mais próximo) | `F9` |
 | Seguir um jogador | clique direito no jogador (no mundo ou na Batalha) → *Seguir*; quadrado verde marca quem você segue (andar, atacar ou `Esc` cancela) |
-| Atacar um jogador (PvP, fora da zona de proteção) | clique direito no jogador → *Atacar*, ou clique nele na Batalha |
+| Atacar um jogador (PvP, fora da zona de proteção) | clique direito no jogador (mundo ou Batalha; o mesmo menu) → *Atacar*, o último item, em vermelho; ou clique nele na Batalha |
 | Viajar Vila ↔ Posto da Fronteira ↔ Porto Esperança | fale com o cocheiro (portão leste da Vila / sul do Posto) ou com a Capitã Marina (barco, no Porto) |
 | Abrir baú de quest / puxar alavanca | clique no baú ou na alavanca (o personagem anda até o lado) |
 | Chat | `Enter` · comandos do chat (grupo etc.): `/ajuda` |
+| Eventos da semana | botão **Agenda** (calendário) no trilho à direita, ou o selo "Próximo: …" no topo; no chat (todos): `/agenda` (a semana, um dia por linha) e `/evento` (o que vale agora e o próximo). Aviso no chat e no título da aba 10 min antes de cada evento |
 | Modo de luta | `F2` ofensivo, `F3` equilibrado, `F4` defensivo (`F5` continua sendo o "atualizar" do navegador) |
 | Mapa | `M` |
 | Janelas | `I` equipamento/mochila · `K` habilidades · `O` roupas · `L` missões · `J` conquistas · `R` ranking · `B` bestiário |
 | Volume / mudo | botão ♪ na barra de botões à direita |
 | Painéis da barra lateral | arraste o cabeçalho para reordenar; 📌 fixa o painel (fica visível com a barra recolhida); a borda de baixo de Batalha/Mochila muda a altura (duplo clique: padrão) |
 | Minimapa | roda do mouse: zoom; clique no relógio: efeitos de luz (dia/noite) |
-| Botão direito em você | trocar roupa · pegar item do chão · sair do grupo |
+| Botão direito em você | trocar roupa · pegar item do chão · sair do grupo · trocar personagem (volta à lista de personagens da conta) |
 | Ajuda com todos os atalhos | `F1` ou `?` |
 
 Na lista de batalha e no "olhar": `★` antes do nome é criatura **elite** (a cor do nome continua dizendo a dificuldade
@@ -67,7 +69,8 @@ Admin = personagem listado em `LEMONQUEST_ADMINS` (vírgulas, sem diferença de 
 Esses nomes ficam **reservados**: só as contas listadas em `LEMONQUEST_ADMIN_ACCOUNTS` (login, vírgulas) conseguem criar um
 personagem com eles (inclusive variantes com/sem acento). Um personagem admin que já existe não é afetado.
 Os comandos de admin funcionam **também em produção** (os de dev — `/level`, `/item`... — continuam só com
-`LEMONQUEST_DEV_COMMANDS=1` e nunca em produção). Para quem não é admin, todos respondem "Comando desconhecido.".
+`LEMONQUEST_DEV_COMMANDS=1` e nunca em produção). Para quem não é admin, todos respondem "Comando desconhecido.", exceto
+o `/evento`, que para qualquer jogador só mostra o que vale agora e o próximo (como o `/agenda`).
 As respostas aparecem só para o admin (aviso + linha no chat). Toda ação fica no log do servidor com `[admin]`.
 
 | Comando | O que faz |
@@ -80,7 +83,7 @@ As respostas aparecem só para o admin (aviso + linha no chat). Toda ação fica
 | `/tp <nome>` | Leva você para perto do jogador. |
 | `/resetsenha <conta>` | Gera um **código de recuperação** (8 caracteres, vale 24 h, uso único) — só você vê. Passe para o dono da conta, que usa em "Esqueci minha senha" na tela de login. |
 | `/status` | Fotografia do servidor: online, monstros, tick, memória, autosave e a progressão medida (horas por level, mortes e ouro por faixa). |
-| `/evento <nome> [minutos]` · `/evento parar` | Liga um evento semanal fora do horário (sem argumentos lista os eventos e o estado). |
+| `/evento <nome> [minutos]` · `/evento parar` | Liga um evento semanal fora do horário (sem argumentos lista os eventos e o estado). Quem não é admin só lê o estado. |
 | `/desbloquear <nome> <roupa\|addon\|título>` | Libera uma roupa, addon ou título para um personagem (ex.: `pirata`, `pirata_chapeu`, `title:persistente`). |
 | `/vincular <personagem> <apelido\|id do ClickUp>` · `/vincular <personagem> nenhum` | Liga o personagem a um usuário do ClickUp (apelido da equipe, ex.: `pedrao`, `Lucas P.`, ou o id numérico): tarefas que ele fechar **a partir de agora** contam nas conquistas de tarefas. Sem argumentos lista os vínculos. Funciona com o personagem offline. |
 

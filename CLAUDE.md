@@ -15,6 +15,8 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
 - Mapa: `tools/mapgen/generate.mjs` (+ `expansion*.mjs`) gera `assets/maps/world.json`, lido pelo servidor e pelo
   cliente. Expansão nunca altera tiles antigos (meta "0 tiles alterados"); spawn/NPC novo entra como objeto no fim.
   Área nova cresce para baixo (`expansion3.mjs` … `expansion5.mjs`, mapa 400×560) e nunca acrescenta tileset; provar com `node tools/mapgen/diff-world.mjs <world-antigo.json>`.
+  Única exceção autorizada pelo dono: as bocas das 4 caves (`entrances14.mjs`, ciclo 17); provar com
+  `diff-world.mjs <antigo> --allow 87,71,92,75 --allow 282,113,285,116 --allow 162,52,164,55 --allow 254,134,256,138`.
 - Testes unitários ao lado do código (`x.ts` + `x.test.ts`, vitest; kits em `systems/testkit.ts` e `m4kit.ts`);
   E2E em `e2e/*.spec.ts` (Playwright, helpers em `e2e/helpers.ts`, sonda `window.__lq` com `?e2e`).
 

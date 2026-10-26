@@ -1,7 +1,10 @@
 // Overlays de combate: banner de level-up e tela de morte.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { worldIndexStore } from "../../game/worldIndex.ts";
 import { useStore } from "../hud/store.ts";
 import { meStore } from "../hud/world.ts";
+import { levelUnlockLines } from "../quests/questInfo.ts";
+import { questStore } from "../quests/quests.ts";
 import { blessingLine } from "./blessingText.ts";
 import { deathStore, hideDeath, levelBannerStore } from "./combatUi.ts";
 import "./combat.css";
@@ -33,20 +36,29 @@ export function CombatOverlays() {
 function LevelBannerView() {
   const b = useStore(levelBannerStore);
   const [shown, setShown] = useState(false);
+  // O que o level abriu (ciclo 17): portas, baús de quest e missões. Calculado uma vez por banner (o estado das missões
+  // e o índice do mundo são lidos na hora em que ele aparece).
+  const [unlocks, setUnlocks] = useState<string[]>([]);
   useEffect(() => {
     if (!b) return;
+    const st = questStore.get();
+    const lines = levelUnlockLines(worldIndexStore.get(), b.from, b.level, { level: b.level, done: st?.done ?? [], active: st?.active.map((a) => a.id) ?? [] });
+    setUnlocks(lines);
     setShown(true);
-    const t = setTimeout(() => setShown(false), b.spells.length ? BANNER_MS + 1400 : BANNER_MS);
+    const t = setTimeout(() => setShown(false), b.spells.length || lines.length ? BANNER_MS + 1400 : BANNER_MS);
     return () => clearTimeout(t);
   }, [b]);
   if (!b || !shown) return null;
   return (
-    <div class={`level-banner${b.spells.length ? " long" : ""}`} key={b.n} aria-live="polite">
+    <div class={`level-banner${b.spells.length || unlocks.length ? " long" : ""}`} key={b.n} aria-live="polite">
       <div class="level-banner-glow" />
       <div class="level-banner-text">Level {b.level}!</div>
       <div class="level-banner-sub">Você ficou mais forte</div>
       {b.spells.map((s, i) => (
         <div key={s} class="level-banner-spell" style={{ animationDelay: `${500 + i * 250}ms` }}>Nova magia: <b>{s}</b></div>
+      ))}
+      {unlocks.map((u, i) => (
+        <div key={u} class="level-banner-unlock" style={{ animationDelay: `${500 + (b.spells.length + i) * 250}ms` }}>{u}</div>
       ))}
     </div>
   );

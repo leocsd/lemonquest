@@ -95,6 +95,46 @@ export function nextScheduled(now: Date, defs: readonly GameEventDef[] = WEEKLY_
   return best;
 }
 
+/** Ocorrência de um evento agendado (ms epoch). `live` = já começou e ainda não acabou. */
+export interface UpcomingEvent { def: GameEventDef; start: number; end: number; live: boolean }
+
+/**
+ * Agenda: as próximas `n` ocorrências (a em andamento primeiro), em ordem de início. O padrão (uma por evento) é a
+ * semana inteira a partir de agora: cada evento se repete a cada 7 dias. Mesmo fuso do agendador (horário local da
+ * máquina, como `scheduledEvent`/`nextScheduled`); a janela de ontem que atravessa a meia-noite também conta.
+ */
+export function upcomingEvents(now: Date, n: number = WEEKLY_EVENTS.length, defs: readonly GameEventDef[] = WEEKLY_EVENTS): UpcomingEvent[] {
+  const t = now.getTime();
+  const out: UpcomingEvent[] = [];
+  for (const def of defs) {
+    for (let ahead = -1; ahead <= 7; ahead++) {
+      const s = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ahead, def.hour, def.minute ?? 0, 0, 0);
+      if (s.getDay() !== def.day) continue;
+      const start = s.getTime(), end = start + def.durationMin * 60_000;
+      if (end > t) out.push({ def, start, end, live: start <= t });
+    }
+  }
+  return out.sort((a, b) => a.start - b.start || a.def.id.localeCompare(b.def.id)).slice(0, Math.max(0, n));
+}
+
+/** Aviso de "evento começando": quanto antes do início (S2C.EventSoon, Feed e título da aba). */
+export const EVENT_SOON_MS = 10 * 60_000;
+
+const WEEKDAY_SHORT = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"] as const;
+/** "12:15" no fuso local (o do servidor, para o /agenda; o do navegador, na janela). */
+export function clockText(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+/** "hoje", "amanhã" ou o dia da semana ("qui"), em dias de calendário no fuso local. */
+export function eventDayText(start: number, now: number): string {
+  const day = (ms: number) => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  const diff = Math.round((day(start) - day(now)) / 86_400_000);
+  return diff === 0 ? "hoje" : diff === 1 ? "amanhã" : WEEKDAY_SHORT[new Date(start).getDay()]!;
+}
+/** "hoje às 12:15", "amanhã às 09:00", "qui às 17:00". */
+export const eventWhenText = (start: number, now: number): string => `${eventDayText(start, now)} às ${clockText(start)}`;
+
 /** "XP ×2 · loot ×1,5" (só o que está acima de 1, vírgula decimal). */
 export function eventBonusText(e: Pick<ActiveEvent, "xpMult" | "lootMult">): string {
   const fmt = (n: number) => String(n).replace(".", ",");

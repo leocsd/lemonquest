@@ -30,12 +30,20 @@
 .quest-btn { padding: 3px 12px; height: 26px; }
 .quest-btn.primary { color: #11141c !important; background: #d9a441 !important; border-color: #d9a441 !important; font-weight: 600; }
 .quest-btn.primary:hover { background: #ebb551 !important; }
+/* Botão ligado ("Guiando"): contorno dourado, sem competir com o botão principal (Aceitar/Entregar). */
+.quest-btn.on { color: #ffd447 !important; border-color: #ffd447; }
 .quest-empty { padding: 10px 4px; text-align: center; font-size: 12px; color: var(--hud-faint); }
+/* Missões do NPC ainda travadas (ciclo 17): o que falta para abrir. */
+.quest-locked { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 11px; line-height: 1.4; color: var(--hud-faint); }
+.quest-locked li { padding: 4px 8px; border: 1px dashed var(--hud-line-soft); border-radius: 5px; }
+.quest-locked b { color: var(--hud-muted); font-weight: 600; }
 
 .bounty-bar { position: relative; height: 14px; background: rgba(0, 0, 0, 0.45); border: 1px solid var(--hud-line); border-radius: 3px; overflow: hidden; }
 .bounty-bar > span { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#d9a441, #a4761f); }
 .bounty-bar > em { position: relative; display: block; text-align: center; font-style: normal; font-size: 10px; line-height: 14px; color: #fff; text-shadow: 0 1px 0 #000; font-variant-numeric: tabular-nums; }
 .bounty-reset { margin-top: 6px; font-size: 11px; color: var(--hud-faint); text-align: center; }
+.bounty-where { font-size: 11px; line-height: 1.4; color: #cfccbf; }
+.bounty-where b { color: var(--hud-muted); font-weight: 500; }
 
 /* Rastreador (canto superior esquerdo) */
 .quest-tracker {
@@ -53,6 +61,10 @@
 .qt-step.done { color: #8fd18f; }
 .qt-hint { padding-left: 6px; color: #ffd447; font-size: 11px; text-shadow: 0 1px 0 #000; }
 .qt-step > span:last-child { font-variant-numeric: tabular-nums; }
+/* Recompensa diária no rastreador (ciclo 17): onde caçar e quão difícil, com o progresso ao lado. */
+.qt-bstep { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; padding-left: 6px; color: #d9d7cc; text-shadow: 0 1px 0 #000; }
+.qt-bstep > span:last-child { flex: none; font-variant-numeric: tabular-nums; }
+.qt-where { font-size: 11px; line-height: 1.35; color: var(--hud-muted); }
 .qt-step.bump > span:last-child { animation: qt-bump 450ms ease-out; }
 @keyframes qt-bump { 0% { color: #fff; transform: scale(1.25); } 100% { transform: scale(1); } }
 
@@ -68,6 +80,11 @@
 .ql-item.sel { border-color: rgba(217, 164, 65, 0.5) !important; background: rgba(217, 164, 65, 0.1) !important; color: var(--hud-gold) !important; }
 .ql-item.done { color: var(--hud-muted) !important; }
 .ql-item .quest-mark { font-size: 12px; width: 12px; }
+.ql-item.soon { color: var(--hud-faint) !important; }
+.ql-item.soon .quest-mark { color: var(--hud-faint); }
+.ql-lv { margin-left: auto; flex: none; font-size: 10px; color: var(--hud-faint); font-variant-numeric: tabular-nums; }
+.ql-lock { font-size: 12px; line-height: 1.45; color: #ff9a6b; }
+.ql-hint { font-size: 12px; line-height: 1.45; color: #ffd447; }
 .ql-detail { overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .ql-detail h3 { margin: 0; font-size: 15px; color: var(--hud-text); }
 .ql-meta { font-size: 11px; color: var(--hud-muted); }
@@ -85,6 +102,13 @@
 .quest-done-kicker { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #ffd447; }
 .quest-done-name { margin-top: 2px; font-size: 18px; font-weight: 700; color: #fff3c4; text-shadow: 0 2px 0 #000; }
 .quest-done-reward { margin-top: 6px; font-size: 13px; color: var(--hud-gold); }
+.quest-done-next { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 212, 71, 0.25); display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 1.4; color: #fff3c4; }
 @keyframes quest-done-in { from { opacity: 0; transform: translate(-50%, -12px) scale(0.92); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 @keyframes quest-done-out { to { opacity: 0; transform: translate(-50%, -8px); } }
 @media (prefers-reduced-motion: reduce) { .quest-done, .qt-step.bump > span:last-child { animation: none; } }
+/* Botão "Guiar" do rastreador (ciclo 17): seta-guia até o próximo passo. */
+.qt-head { display: flex; align-items: center; gap: 6px; }
+.qt-head > .qt-name { flex: 1; min-width: 0; }
+.qt-guide { flex: none; height: 16px; padding: 0 5px; font: inherit; font-size: 10px; line-height: 14px; color: var(--hud-muted); background: #1a1f2e; border: 1px solid var(--hud-line); border-radius: 3px; cursor: pointer; }
+.qt-guide:hover { color: #ffd447; border-color: var(--hud-line-hi); }
+.qt-guide.on { color: #10131c; background: #ffd447; border-color: #ffd447; }

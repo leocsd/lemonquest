@@ -4,7 +4,9 @@
 // Quinta expansão, de novo PARA BAIXO: o mapa anterior (400×472) é copiado tile a tile para um mapa mais alto e as quatro
 // caves são escavadas nas linhas y >= 498, com 26+ linhas de vazio sólido entre elas e o Túnel da Serra (y 469). Nenhum
 // tile antigo muda: a entrada de cada cave é só um OBJETO portal (com level mínimo) num recanto andável da região de
-// origem — o cliente já desenha o brilho roxo de todo portal (lightSources.ts). Os objetos novos entram DEPOIS dos
+// origem — o cliente já desenha o brilho roxo de todo portal (lightSources.ts). Ciclo 17: o desenho dessas entradas
+// (bocas de caverna, cripta e fenda) veio depois, em tools/mapgen/entrances14.mjs, como exceção controlada que muda
+// tiles só nos retângulos das entradas; esta etapa continua sem mudar tile antigo. Os objetos novos entram DEPOIS dos
 // antigos (ids estáveis). Determinístico: gerador aleatório com semente própria; nenhum tileset novo (só tiles do
 // TilesetInterior/Relief/Cave já usados pelas masmorras e decorações Lemon já existentes).
 //

@@ -10,6 +10,15 @@ test("bestiário: desconhecidos como ???, e o rato aparece depois do primeiro ab
   await expect(win).toBeVisible();
   await expect(win).toContainText("0 de");
   await expect(win.locator('[data-monster="rat"]')).toContainText("???");
+  // Filtros e "onde procurar" (ciclo 17): a zona filtra a lista; mesmo sem conhecer, o rato diz onde vive.
+  await win.getByRole("combobox", { name: "Zona" }).selectOption("Floresta Sussurrante");
+  await expect(win.locator('[data-monster="rat"]')).toBeVisible();
+  await expect(win.locator('[data-monster="dragon"]')).toHaveCount(0);
+  await win.locator('[data-monster="rat"]').click();
+  await expect(win.locator(".be-unknown")).toContainText("Onde procurar: Floresta Sussurrante");
+  await win.getByRole("combobox", { name: "Zona" }).selectOption("");
+  await expect(win.locator('[data-monster="dragon"]')).toBeVisible();
+  await win.getByRole("button", { name: "Fechar" }).focus(); // o Esc não depende do select focado
   await page.keyboard.press("Escape");
   await expect(win).toHaveCount(0);
 

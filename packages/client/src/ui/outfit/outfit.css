@@ -98,3 +98,7 @@
 .hud-card.ctx-menu { background: rgba(17, 20, 28, 0.97); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
 .ctx-item { text-align: left; padding: 6px 10px; cursor: pointer; font-size: 13px; background: none; border: 0; border-radius: 4px; color: var(--hud-text) !important; }
 .ctx-item:hover, .ctx-item:focus-visible { background: rgba(217, 164, 65, 0.16); color: #ffe2a3 !important; outline: none; }
+/* Atacar jogador (ciclo 17): por último, separado e em vermelho. */
+.ctx-item.danger { margin-top: 4px; position: relative; color: #ff7b6e !important; }
+.ctx-item.danger::before { content: ""; position: absolute; left: 6px; right: 6px; top: -3px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.ctx-item.danger:hover, .ctx-item.danger:focus-visible { background: rgba(217, 83, 79, 0.2); color: #ffb3aa !important; }

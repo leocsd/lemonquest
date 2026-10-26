@@ -515,6 +515,23 @@ describe("resistência elemental", () => {
     expect(w.combat.damageMonster(w.m, "p", 100, "fire", w.now())).toBe(100);
     expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(125);
   });
+
+  it("o evento leva o multiplicador (resisted) só quando ≠ 1 e houve golpe; zerado pela resistência vem como miss", () => {
+    const w = setup({ hp: 10_000, armor: 0, damageKind: "fire" });
+    w.combat.damageMonster(w.m, "p", 100, "fire", w.now());
+    w.combat.damageMonster(w.m, "p", 100, "ice", w.now());
+    w.combat.damageMonster(w.m, "p", 100, "energy", w.now());
+    w.combat.damageMonster(w.m, "p", 0, "fire", w.now()); // errou de verdade: nada a marcar
+    expect(w.combat.pending.map((e) => [e.amount, e.resisted])).toEqual([[50, 0.5], [115, 1.15], [100, undefined], [0, undefined]]);
+    // Imune ao fogo: o golpe zera e sai como miss com resisted 0 (o cliente escreve "resistiu", não "errou").
+    w.m.def = { ...w.m.def, resist: { fire: 0 } };
+    w.combat.damageMonster(w.m, "p", 100, "fire", w.now());
+    expect(w.combat.pending.at(-1)).toMatchObject({ amount: 0, miss: true, resisted: 0 });
+    // Boneco de treino também mostra.
+    const d = setup({ hp: 10_000, armor: 0, invulnerable: true, damageKind: "ice" });
+    d.combat.damageMonster(d.m, "q", 100, "ice", d.now());
+    expect(d.combat.pending[0]).toMatchObject({ amount: 50, resisted: 0.5 });
+  });
 });
 
 describe("telemetria de dano (ciclo 12)", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WEEKLY_EVENTS, eventBonusText, eventDef, nextScheduled, scheduledEvent, type GameEventDef } from "./events.ts";
+import { EVENT_SOON_MS, WEEKLY_EVENTS, clockText, eventBonusText, eventDef, eventWhenText, nextScheduled, scheduledEvent, upcomingEvents, type GameEventDef } from "./events.ts";
 import { MONSTERS } from "./monsters.ts";
 
 // 2026-10-14 é uma quarta-feira (dia 3); 2026-10-16, sexta (5); 2026-10-17, sábado (6); 2026-10-19, segunda (1).
@@ -94,6 +94,43 @@ describe("eventos semanais", () => {
       expect(start + e.durationMin, e.id).toBeLessThanOrEqual(13 * 60);
     }
     expect(withBoss.filter((e) => e.hour >= 18).map((e) => e.id)).toEqual(["invasao_de_orshabaal"]);
+  });
+
+  it("agenda: a semana inteira a partir de agora, em ordem, com o evento em andamento primeiro", () => {
+    const now = at(2026, 10, 14, 12, 30); // quarta, no meio da Maré de Tesouros (12h–13h)
+    const week = upcomingEvents(now);
+    expect(week).toHaveLength(WEEKLY_EVENTS.length);
+    expect(new Set(week.map((e) => e.def.id)).size).toBe(WEEKLY_EVENTS.length); // uma ocorrência de cada
+    expect(week[0]).toMatchObject({ live: true, start: at(2026, 10, 14, 12, 0).getTime(), end: at(2026, 10, 14, 13, 0).getTime() });
+    expect(week[0]!.def.id).toBe("mare_de_tesouros");
+    expect(week.slice(1).every((e) => !e.live)).toBe(true);
+    for (let i = 1; i < week.length; i++) expect(week[i]!.start).toBeGreaterThan(week[i - 1]!.start);
+    // O próximo depois do em andamento é o mesmo do agendador (nextScheduled): mesmo fuso, mesma conta.
+    expect(week[1]!.def.id).toBe(nextScheduled(now)!.def.id);
+    expect(week[1]!.start).toBe(nextScheduled(now)!.at);
+    expect(week.at(-1)!.start).toBeLessThan(now.getTime() + 7 * 86_400_000);
+    // Fim exclusivo: às 13h a Maré já saiu da lista e volta só na quarta seguinte (o último da semana).
+    const after = upcomingEvents(at(2026, 10, 14, 13, 0));
+    expect(after[0]!.live).toBe(false);
+    expect(after.at(-1)).toMatchObject({ start: at(2026, 10, 21, 12, 0).getTime() });
+    expect(upcomingEvents(now, 3).map((e) => e.def.id)).toEqual(["mare_de_tesouros", "apito_da_locomotiva", "rugido_do_yeti"]);
+    expect(upcomingEvents(now, 0)).toEqual([]);
+  });
+
+  it("agenda: a janela de ontem que atravessa a meia-noite aparece como em andamento", () => {
+    const late: GameEventDef = { id: "tarde", name: "T", desc: "", xpMult: 2, lootMult: 1, day: 5, hour: 23, durationMin: 120 };
+    const [e] = upcomingEvents(at(2026, 10, 17, 0, 30), 1, [late]); // sábado 0h30, começou sexta 23h
+    expect(e).toMatchObject({ live: true, start: at(2026, 10, 16, 23, 0).getTime(), end: at(2026, 10, 17, 1, 0).getTime() });
+  });
+
+  it("textos de horário: hoje, amanhã e o dia da semana", () => {
+    const now = at(2026, 10, 14, 18, 0).getTime(); // quarta
+    expect(clockText(at(2026, 10, 15, 9, 5).getTime())).toBe("09:05");
+    expect(eventWhenText(at(2026, 10, 14, 19, 0).getTime(), now)).toBe("hoje às 19:00");
+    expect(eventWhenText(at(2026, 10, 15, 12, 15).getTime(), now)).toBe("amanhã às 12:15");
+    expect(eventWhenText(at(2026, 10, 16, 17, 0).getTime(), now)).toBe("sex às 17:00");
+    expect(eventWhenText(at(2026, 10, 18, 15, 0).getTime(), now)).toBe("dom às 15:00");
+    expect(EVENT_SOON_MS).toBe(10 * 60_000);
   });
 
   it("texto do bônus: só o que passa de 1, com vírgula decimal", () => {

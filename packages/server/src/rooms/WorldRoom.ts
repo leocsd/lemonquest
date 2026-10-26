@@ -7,7 +7,7 @@ import {
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
-  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg,
+  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -31,6 +31,7 @@ import { RefineSystem } from "../systems/refine.ts";
 import { FishingSystem } from "../systems/fishing.ts";
 import { FoodSystem } from "../systems/food.ts";
 import { ImbuementSystem } from "../systems/imbuement.ts";
+import { isFirstLogin, welcomeFeed } from "../systems/welcome.ts";
 import { ConditionSystem } from "../systems/conditions.ts";
 import { SkillSystem } from "../systems/skills.ts";
 import { TrainingSystem, parseStatues } from "../systems/training.ts";
@@ -82,7 +83,7 @@ export const KICK_DEFAULT_REASON = "Expulso por um administrador";
 export const MAX_MESSAGES_PER_SECOND = 60;
 /** Limites por tipo de mensagem (excesso descartado em silêncio). */
 export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
-  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4,
+  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1,
   // Chat inclui comandos (/convidar...) e palavras mágicas, que não passam pelo limite de fala do chat.ts.
   [C2S.Chat]: 6,
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
@@ -618,6 +619,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<ChallengeActionMsg>(C2S.Challenge, (p, m) => this.challenges.onMessage(p, m));
     this.on<MaterialRequestActionMsg>(C2S.MaterialRequest, (p, m) => this.materialRequest.onMessage(p, m));
     this.on<RefineMsg>(C2S.Refine, (p, m) => this.refine.onRefine(p, m));
+    this.on(C2S.AgendaRequest, (p) => this.events.sendAgenda(p.id));
+    this.on<SortContainerMsg>(C2S.SortContainer, (p, m) => this.inventory.onSortContainer(p, m));
     this.on<SetOutfitMsg>(C2S.SetOutfit, (p, m) => {
       const rec = this.records.get(p.id);
       applySetOutfit(p, rec, m, rec ? getAccountTones(rec.accountId) : []);
@@ -842,6 +845,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (prev) this.replaceSession(prev);
     const rec = getCharacterByName(auth.name); // lido DEPOIS de salvar a sessão antiga
     if (!rec) throw new ServerError(ErrorCode.AUTH_FAILED, "Personagem não encontrado");
+    // Personagem criado agora (nunca entrou: x/y nulos até a 1ª gravação). Lido antes de qualquer save, que grava x/y.
+    const firstLogin = isFirstLogin(rec);
 
     const p = new PlayerState();
     p.id = sid;
@@ -907,6 +912,11 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       const pl = this.state.players.get(sid);
       if (!pl) return;
       this.social.onJoin(pl);
+      if (firstLogin) {
+        const w = welcomeFeed(pl.name, pl.vocation);
+        this.broadcast(S2C.Feed, w.all);
+        this.clients.getById(sid)?.send(S2C.Feed, w.you); // linha pessoal: Capitão Rodrigo (!) e a Agenda no trilho
+      }
       if (barRebuilt) {
         this.clients.getById(sid)?.send(S2C.Notice, {
           text: "Sua barra de magias foi reorganizada com as famílias ◆ (uma tecla para magias parecidas). Ajuste no H.",

@@ -1,15 +1,21 @@
-// Ícones de condição (canto superior esquerdo), estilo Tibia.
+// Ícones de condição (canto superior esquerdo), estilo Tibia. O encantamento vem do servidor como condição (imbued); a
+// bênção (ciclo 17) é só de exibição, lida do estado do jogador.
 import { useEffect, useState } from "preact/hooks";
-import { CONDITION_DEFS, conditionsStore } from "./conditions.ts";
+import { CONDITION_DEFS, conditionsStore, type Condition } from "./conditions.ts";
 import { PixelIcon } from "./icons.tsx";
 import { useStore } from "./store.ts";
+import { meStore } from "./world.ts";
 
 /** 45s / 12:05 */
 const fmtLeft = (s: number): string => (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `${s}s`);
 
+const BLESSED: Condition = { id: "blessed", detail: "A próxima morte não tira XP" };
+
 export function ConditionsStrip() {
-  const list = useStore(conditionsStore);
-  const timed = list.some((c) => c.until);
+  const conds = useStore(conditionsStore);
+  const blessed = !!useStore(meStore)?.blessed;
+  const list = blessed ? [...conds, BLESSED] : conds;
+  const timed = conds.some((c) => c.until);
   const [, setTick] = useState(0);
 
   // Atualiza o contador e remove expiradas.

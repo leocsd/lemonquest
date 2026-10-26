@@ -83,7 +83,14 @@ export const C2S = {
   WorkUnlink: "workUnlink",
   /** Refinar no Ferreiro aberto um item da mochila ou do equipamento (RefineMsg). */
   Refine: "refine",
+  /** Pedir a agenda de eventos da semana (janela Agenda): o servidor responde S2C.Agenda. */
+  AgendaRequest: "agendaRequest",
+  /** Organizar o depot aberto (SortContainerMsg): junta pilhas iguais e ordena por categoria e nome. */
+  SortContainer: "sortContainer",
 } as const;
+
+/** C2S.SortContainer: só o depot (aberto e perto do guarda-volumes). */
+export interface SortContainerMsg { where: "depot" }
 
 /** C2S.WorkLink: token pessoal do ClickUp (pk_…). Nunca é guardado nem devolvido. */
 export interface WorkLinkMsg { token: string }
@@ -264,7 +271,22 @@ export const S2C = {
   PartyInvite: "partyInvite",
   /** Quadro da obra (ClickUp, ciclo 11): barras de sprint e tarefas "Na obra"; enviado ao abrir um NPC com workBoard. */
   Work: "work",
+  /** Agenda de eventos da semana (AgendaMsg): ao entrar, sob pedido (C2S.AgendaRequest) e quando um evento começa/acaba. */
+  Agenda: "agenda",
+  /** Um evento agendado começa daqui a EVENT_SOON_MS (EventSoonMsg): o cliente chama a atenção na aba. */
+  EventSoon: "eventSoon",
 } as const;
+
+/** Ocorrência da agenda. Horários em ms epoch, calculados no fuso do servidor (o mesmo do agendador). */
+export interface AgendaEntry {
+  id: string; name: string; desc: string; xpMult: number; lootMult: number;
+  /** Chefe convocado no começo (id em MONSTERS). */
+  boss?: string;
+  start: number; end: number;
+}
+/** A semana a partir de agora (uma ocorrência de cada evento, a em andamento primeiro). */
+export interface AgendaMsg { events: AgendaEntry[]; serverNow: number }
+export interface EventSoonMsg { id: string; name: string; desc: string; start: number }
 
 /** Barra coletiva de um projeto na semana ISO: tarefas fechadas e meta (média das 4 semanas anteriores). */
 export interface WorkSprintBar { id: string; name: string; done: number; goal: number }
@@ -298,6 +320,8 @@ export interface QuestCompleteMsg {
   gold: number;
   items: { itemId: string; count: number }[];
   bounty?: boolean;
+  /** Missão do catálogo (não vem em recompensa nem baú): o cartão mostra o que ela abriu (ciclo 17). */
+  questId?: string;
 }
 
 export interface PartyMemberInfo {

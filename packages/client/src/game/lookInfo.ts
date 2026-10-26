@@ -1,5 +1,7 @@
 // Conteúdo do "olhar" (puro: recebe os dados, devolve título/cor/linhas). A cena decide o que está sob o mouse.
-import { ELITE, SKULL_LABEL, TITLES, monsterDef, npcDef, questLeverDef } from "@lemonquest/shared";
+import { ELITE, SKULL_LABEL, TITLES, monsterDef, monsterResistances, npcDef, questLeverDef } from "@lemonquest/shared";
+import { BOUNTY_NPC, QUEST_LIST, REFINE_NPC, REQUEST_NPC, type NpcDef } from "@lemonquest/shared";
+import { elementLines } from "../ui/bestiary/bestiaryLogic.ts";
 import { DAMAGE_LABEL, VOCATION_LABEL } from "../ui/items/itemInfo.ts";
 import { chestLookLines } from "./chestInfo.ts";
 import { creatureColor, ELITE_GLYPH, levelDifficulty } from "./creatures.ts";
@@ -20,6 +22,10 @@ export function lookCreature(c: { defId: string; name: string; level: number; bo
     const dmg = `${Math.round(def.damage[0] * k)}–${Math.round(def.damage[1] * k)}`;
     lines.push(`Ataque: ${def.attackRange > 1 ? `à distância (${def.attackRange} sqm)` : "corpo a corpo"}, ${DAMAGE_LABEL[def.damageKind]}, ${dmg}`);
     if (def.abilities?.length) lines.push(`Habilidades: ${def.abilities.map((a) => a.name).join(", ")}`);
+    // Ciclo 17: o mesmo "Resiste a / Fraco contra" do Bestiário, sem precisar ter derrotado o monstro antes.
+    const el = elementLines(monsterResistances(def));
+    if (el.resists) lines.push(`Resiste a: ${el.resists}`);
+    if (el.weak) lines.push(`Fraco contra: ${el.weak}`);
     // Bando e fuga (GD-15): quem vai puxar precisa saber antes que o monstro grita por reforço ou some com pouca vida.
     if (def.pack) lines.push(`Chama o bando quando atacado (família: ${packFamilyLabel(def.pack.family)})`);
     if (def.fleeAtHpPct > 0) lines.push(`Foge com pouca vida (abaixo de ${Math.round(def.fleeAtHpPct * 100)}%)`);
@@ -44,11 +50,30 @@ export function lookPlayer(p: { name: string; level: number; vocation: string; t
   return { title: o.me ? `${p.name} (você)` : p.name, color: "#9fdcab", lines };
 }
 
+/** Serviços de um NPC, na ordem das abas da janela (ciclo 17: o "olhar" diz o que ele faz antes de abrir). */
+export function npcServices(d: NpcDef): string[] {
+  const out: string[] = [];
+  if (d.workBoard) out.push("quadro da obra");
+  if (d.id === BOUNTY_NPC) out.push("recompensas diárias");
+  if (d.id === REQUEST_NPC) out.push("encomenda da semana");
+  if (d.id === REFINE_NPC) out.push("refino");
+  if (QUEST_LIST.some((q) => q.giver === d.id)) out.push("missões");
+  if (d.imbuement) out.push("encantamento");
+  if (d.blessing) out.push("bênção");
+  if (d.casino) out.push("ficha de cassino");
+  if (d.id === "arena_master") out.push("Coliseu");
+  if (d.travel?.length) out.push(`viagem (${d.travel.map((t) => t.label).join(", ")})`);
+  if (d.shop?.sells.length) out.push("loja");
+  if (d.shop?.buys?.length) out.push("compra itens");
+  if (d.depot) out.push("depósito");
+  return out;
+}
+
 export function lookNpc(id: string): LookContent | null {
   const d = npcDef(id);
   if (!d) return null;
-  const roles = [d.shop ? "loja" : "", d.depot ? "depósito" : "", d.travel?.length ? "viagens" : ""].filter(Boolean);
-  return { title: d.name, color: "#ffe066", lines: [roles.length ? `NPC · ${roles.join(", ")}` : "NPC", "Clique para conversar."] };
+  const services = npcServices(d);
+  return { title: d.name, color: "#ffe066", lines: [services.length ? `Serviços: ${services.join(", ")}` : "NPC", "Clique para conversar."] };
 }
 
 export function lookQuestObject(kind: "chest" | "lever", id: string): LookContent {

@@ -1,5 +1,7 @@
 // Missões: aceitar "Ratos no Celeiro" com o Capitão, matar os ratos (level 30 + seguir), entregar e ver a recompensa.
 // Quadro de Recompensas: as 3 recompensas do dia aparecem e dá para aceitar uma.
+// Ciclo 17: o cartão de concluída diz o que abriu, o diário tem "Disponíveis" e "Em breve", o NPC explica a trava e a
+// recompensa aceita aparece no rastreador com onde caçar.
 import { expect, test, type Page } from "@playwright/test";
 import { clickTile, enterGame, inventory, me, monsters, say, setChase, setLevel, snap, targetNearest, teleport, walkableNear } from "./helpers.ts";
 
@@ -81,6 +83,8 @@ test("missão de matar: aceitar no NPC, matar, entregar e receber a recompensa",
   await expect(done).toContainText("Missão concluída");
   await expect(done).toContainText("Ratos no Celeiro");
   await expect(done).toContainText("+30 de ouro");
+  // Próximo passo: os Lobos da Floresta pedem os Ratos no Celeiro (e lv 6, que ele já tem).
+  await expect(done.locator(".quest-done-next")).toContainText("Nova missão: Os Lobos da Floresta");
   await snap(page, "quest-done");
   await expect.poll(async () => (await inventory(page))!.gold).toBeGreaterThanOrEqual(gold0 + 30);
   await expect.poll(potions).toBe(potions0 + 5);
@@ -94,8 +98,25 @@ test("missão de matar: aceitar no NPC, matar, entregar e receber a recompensa",
   const log = page.getByRole("dialog", { name: "Diário de missões" });
   await expect(log).toBeVisible();
   await expect(log.locator(".ql-item.done", { hasText: "Ratos no Celeiro" })).toBeVisible();
+  // Disponíveis: o que dá para pegar agora, com quem e onde.
+  await expect(log.locator(".ql-group", { hasText: /^Disponíveis \(\d+\)$/ })).toBeVisible();
+  await log.locator(".ql-item.avail", { hasText: "Os Lobos da Floresta" }).click();
+  await expect(log.locator(".ql-hint")).toContainText("Capitão Rodrigo");
+  // Em breve: travadas, com o que falta ("git caiu?" pede "Chegou!").
+  await log.locator(".ql-item.soon", { hasText: "git caiu?" }).click();
+  await expect(log.locator(".ql-lock")).toContainText("Requer concluir “Chegou!”");
   // O listener de Esc do diário é registrado num efeito (próximo frame): um Esc que chega antes se perde. Repete.
   await expect.poll(async () => { await page.keyboard.press("Escape"); return log.isVisible(); }, { timeout: 10_000, intervals: [200] }).toBe(false);
+});
+
+test("NPC explica a missão travada: level e missão que faltam", async ({ page }) => {
+  await enterGame(page, "druid");
+  const win = await talkTo(page, "guard_captain", "Capitão Rodrigo");
+  await win.getByRole("tab", { name: "Missões" }).click();
+  await expect(win.locator('.quest-card[data-quest="rats_barn"]')).toContainText("Nova");
+  const locked = win.locator(".quest-locked");
+  await expect(locked.locator('[data-quest="pesquisa_de_clima"]')).toContainText("Requer level 3.");
+  await expect(locked.locator('[data-quest="forest_wolves"]')).toContainText("Requer level 6 e concluir “Ratos no Celeiro”");
 });
 
 test("quadro de recompensas: 3 recompensas do dia e aceitar uma", async ({ page }) => {
@@ -106,9 +127,14 @@ test("quadro de recompensas: 3 recompensas do dia e aceitar uma", async ({ page 
   const cards = win.locator(".quest-card.bounty");
   await expect(cards).toHaveCount(3);
   await expect(cards.first()).toContainText(/Mate \d+ /);
+  // Onde caçar e quão difícil (ciclo 17).
+  await expect(cards.first().locator(".bounty-where")).toContainText(/lv \d+, /);
   await expect(win.locator(".bounty-reset")).toContainText("Novas recompensas em");
   await cards.first().getByRole("button", { name: "Aceitar" }).click();
   await expect(cards.first()).toContainText("Em andamento");
   await expect(cards.first().locator(".bounty-bar")).toContainText("0/");
+  // A recompensa aceita vai para o rastreador, com onde caçar.
+  await expect(page.locator(".quest-tracker .qt-bounty")).toContainText(/Mate \d+ /);
+  await expect(page.locator(".quest-tracker .qt-bounty .qt-where")).toContainText(/lv \d+, /);
   await snap(page, "bounty-board");
 });

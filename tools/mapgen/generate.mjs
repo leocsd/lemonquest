@@ -11,6 +11,7 @@ import { expand2 } from './expansion2.mjs';
 import { expand3 } from './expansion3.mjs';
 import { expand4 } from './expansion4.mjs';
 import { expand5 } from './expansion5.mjs';
+import { drawEntrances14 } from './entrances14.mjs';
 import { PNG } from 'pngjs';
 
 const SEED = 20260611;
@@ -904,7 +905,8 @@ const lateNpcs11 = [['agente_parada', 154, 404]];
 
 // ===================================================================== CAVES PROFUNDAS (ciclo 13: tools/mapgen/expansion5.mjs)
 // Terceira expansão para baixo: o mapa acima (400×472) fica intacto e quatro caves (12–28, 35–55, 60–85, 100–130) entram
-// nas linhas 498..559. Entradas só-objeto: um portal com level mínimo num recanto andável de cada região de origem.
+// nas linhas 498..559. Entradas só-objeto: um portal com level mínimo num recanto andável de cada região de origem
+// (o desenho delas vem no fim, em BOCAS DE CAVERNA).
 const { map: world5, reach: reach5, portalMap: portals5, caves: caves5 } = expand5({ old: world4, L: LEMON, spawnTile: SPAWN });
 
 // ===================================================================== COVIS E FERREIRO (ciclo 16: só objetos)
@@ -986,6 +988,11 @@ const lateObjects14 = {
   for (const [type, x, y, props, name] of lairObjs) world5.tileObj(type, x, y, props, name);
   console.log(`lateObjects14: ${lateObjects14.lairs.length} chefes de covil, ${solid.length - lateObjects14.npcs.length} baús desenhados, ${lateObjects14.npcs.length} NPC; ${after}/${before} tiles alcançáveis com os obstáculos`);
 }
+
+// ===================================================================== BOCAS DE CAVERNA (ciclo 17: tools/mapgen/entrances14.mjs)
+// Exceção controlada ao "0 tiles alterados" (autorizada pelo dono): desenha as entradas das caves do ciclo 13 mudando
+// tiles só nos retângulos de ENTRANCE_RECTS. Vem depois de todas as etapas já publicadas; etapas futuras entram depois.
+drawEntrances14({ map: world5, S, L: LEMON, spawnTile: SPAWN, portalMap: portals5, caves: caves5 });
 
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });

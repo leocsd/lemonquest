@@ -328,6 +328,36 @@ describe("/status", () => {
   });
 });
 
+describe("/agenda e /evento de leitura (todos)", () => {
+  const events = { ids: () => ["mare_de_tesouros"], start: vi.fn(() => "ok"), stop: vi.fn(() => true), status: () => ["Nenhum evento em andamento.", "Próximo agendado: X."] };
+
+  it("jogador comum lê a agenda e o estado; /evento com argumentos não liga nem para nada", () => {
+    const t = fakeCtx();
+    t.ctx.events = events;
+    const bia = t.ps[1];
+    const bia_ = () => t.sent.filter(([id, ty]) => id === "b" && ty === S2C.Notice).map(([, , m]) => m.text as string);
+    expect(handleAdminCommand(bia, "/agenda", t.ctx)).toBe(true);
+    expect(bia_()[0]).toMatch(/^Agenda da semana/);
+    expect(bia_().length).toBeGreaterThan(3);
+    t.sent.length = 0;
+    expect(handleAdminCommand(bia, "/evento mare_de_tesouros 60", t.ctx)).toBe(true);
+    expect(bia_()).toEqual(["Nenhum evento em andamento.", "Próximo agendado: X.", "A semana inteira: /agenda (ou o botão Agenda, no trilho à direita)."]);
+    expect(handleAdminCommand(bia, "/evento parar", t.ctx)).toBe(true);
+    expect(events.start).not.toHaveBeenCalled();
+    expect(events.stop).not.toHaveBeenCalled();
+    expect(t.sent.every(([, , m]) => m.log === true)).toBe(true); // vai para o chat (copiável), não só toast
+  });
+
+  it("admin continua com o /evento de poder; /agenda vale para ele também", () => {
+    const t = fakeCtx();
+    t.ctx.events = events;
+    expect(handleAdminCommand(t.ps[0], "/evento mare_de_tesouros 30", t.ctx)).toBe(true);
+    expect(events.start).toHaveBeenCalledWith("mare_de_tesouros", 30);
+    expect(handleAdminCommand(t.ps[0], "/agenda", t.ctx)).toBe(true);
+    expect(t.replies().some((l) => l.startsWith("Agenda da semana"))).toBe(true);
+  });
+});
+
 describe("/ajuda", () => {
   it("jogador vê os comandos de grupo e o F1; só admin vê a lista de admin", () => {
     const player = helpLines("Bia", PROD), admin = helpLines("Leo", PROD);
@@ -337,6 +367,7 @@ describe("/ajuda", () => {
     expect(player.join(" ")).toContain("1–0");
     expect(player.join(" ")).not.toContain("1–8");
     expect(player.join(" ")).not.toContain("/kick");
+    expect(player.join(" ")).toContain("/agenda");
     for (const c of ADMIN_COMMANDS) expect(admin.join(" ")).toContain(c);
   });
 });

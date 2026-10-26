@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BACKPACK_MAX, BACKPACK_SIZE, S2C, backpackCapacity, baseStats, weaponDamageRange, playerDamageRange } from "@lemonquest/shared";
-import { MSG, fitBackpack, makeItem, sanitizeItem } from "./inventory.ts";
+import { MSG, fitBackpack, makeItem, organizeItems, sanitizeItem } from "./inventory.ts";
 import { attackProfile } from "./combat.ts";
 import { invWorld, itemsFx } from "./m4kit.ts";
 
@@ -254,6 +254,54 @@ describe("inventory: potions", () => {
     w.inv.addItem(p, makeItem("sword"));
     w.inv.onDiscard(p, { index: 0 });
     expect(bp(w)[0]).toBeNull();
+  });
+});
+
+describe("inventory: organizar o depot (ciclo 17)", () => {
+  const ids = (a: (ReturnType<typeof makeItem> | null)[]) => a.map((x) => (x ? `${x.defId}×${x.count}` : "-"));
+
+  it("junta pilhas iguais até o máximo e ordena por categoria e nome; vazios no fim, mesmo tamanho", () => {
+    const src = [null, makeItem("bone", 3), makeItem("mana_pot", 8), makeItem("sword"), null, makeItem("mana_pot", 7), makeItem("bone", 4), makeItem("shield"), makeItem("hp_pot", 2)];
+    const out = organizeItems(src, itemsFx);
+    expect(out).toHaveLength(src.length);
+    // Arma, escudo, poções (Poção de Mana 10 + 5; Poção de Vida), material (Osso 7).
+    expect(ids(out)).toEqual(["sword×1", "shield×1", "mana_pot×10", "mana_pot×5", "hp_pot×2", "bone×7", "-", "-", "-"]);
+    // Puro: a entrada não mudou e a saída são cópias; a pilha que recebeu guarda o uid dela.
+    expect(src[2]!.count).toBe(8);
+    expect(out[2]).not.toBe(src[2]);
+    expect(out[2]!.uid).toBe(src[2]!.uid);
+    const total = (a: typeof src, id: string) => a.reduce((n, x) => n + (x?.defId === id ? x.count : 0), 0);
+    for (const id of ["bone", "mana_pot", "hp_pot", "sword"]) expect(total(out, id)).toBe(total(src, id));
+  });
+
+  it("não junta raridade, refino ou bônus diferentes; dentro do mesmo item, o melhor primeiro", () => {
+    const rare = { ...makeItem("katana", 1, "rare", [{ stat: "crit", value: 2 }]), refine: 3 };
+    const common = makeItem("katana");
+    const plusFive = { ...makeItem("katana"), refine: 5 };
+    const goldBone = makeItem("bone", 2, "uncommon"), bone = makeItem("bone", 2);
+    const out = organizeItems([common, bone, rare, goldBone, plusFive], itemsFx);
+    expect(out.map((x) => [x?.defId, x?.rarity, x?.refine ?? 0, x?.count])).toEqual([
+      ["katana", "rare", 3, 1], ["katana", "common", 5, 1], ["katana", "common", 0, 1], ["bone", "uncommon", 0, 2], ["bone", "common", 0, 2],
+    ]);
+    expect(out[0]!.bonuses).toEqual([{ stat: "crit", value: 2 }]);
+  });
+
+  it("C2S.SortContainer: só com o depot aberto; organiza e reenvia o depot", () => {
+    let open = false;
+    const w = invWorld({ depotOpen: () => open });
+    const p = w.mk();
+    const dp = w.inv.get("p1")!.depot;
+    dp[5] = makeItem("bone", 2); dp[9] = makeItem("sword"); dp[11] = makeItem("bone", 3);
+    w.inv.onSortContainer(p, { where: "depot" });
+    expect(w.notices().at(-1)).toBe(MSG.depotClosed);
+    expect(dp[5]?.count).toBe(2);
+    open = true;
+    w.inv.onSortContainer(p, { where: "backpack" } as any);
+    expect(dp[0]).toBeNull();
+    w.inv.onSortContainer(p, { where: "depot" });
+    expect(ids(dp.slice(0, 3))).toEqual(["sword×1", "bone×5", "-"]);
+    w.inv.flush();
+    expect(w.sent.some((s) => s.type === S2C.Depot && s.msg.items[1]?.count === 5)).toBe(true);
   });
 });
 

@@ -138,6 +138,11 @@ export interface CombatEvent {
   miss?: boolean;
   /** Ataque à distância: o cliente desenha um projétil de source → target. */
   ranged?: boolean;
+  /**
+   * Multiplicador elemental aplicado no monstro quando ≠ 1 (ciclo 17): < 1 resistiu (número com ↓, "resistiu" se
+   * zerou), > 1 era fraco (número com ↑). Ausente = dano normal.
+   */
+  resisted?: number;
 }
 
 export interface WorldView {

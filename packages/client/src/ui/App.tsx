@@ -12,6 +12,7 @@ import { FeedTicker } from "./items/LootToasts.tsx";
 import { LookCardView } from "./look/LookCard.tsx";
 import { NewsWindow } from "./news/NewsWindow.tsx";
 import { ChallengesWindow } from "./challenges/ChallengesWindow.tsx";
+import { AgendaWindow } from "./agenda/AgendaWindow.tsx";
 import { BestiaryWindow } from "./bestiary/Bestiary.tsx";
 import { Hud } from "./hud/Hud.tsx";
 import { TeleportFade } from "./fx/TeleportFade.tsx";
@@ -48,6 +49,7 @@ export function App() {
       <TradeWindow />
       <NewsWindow />
       <ChallengesWindow />
+      <AgendaWindow />
       <BestiaryWindow />
       <Chat />
       <WorldMapOverlay />

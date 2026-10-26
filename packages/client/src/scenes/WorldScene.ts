@@ -9,6 +9,7 @@ import {
 import { session } from "../session.ts";
 import { Actor, createCharacterAnims, SPEECH_COLOR_PARTY, type ActorDeps } from "../game/actor.ts";
 import { CombatFx, KIND_COLOR } from "../game/combatFx.ts";
+import { damageText } from "../game/damageText.ts";
 import { allCreatureSheets, creatureColor, creatureVisual, ELITE_GLYPH, levelDifficulty, sheetTrim } from "../game/creatures.ts";
 import { Butterflies } from "../game/ambient.ts";
 import { FXTEST, startFxTest } from "../game/fxtest.ts";
@@ -22,6 +23,8 @@ import { NpcManager, allNpcSheets } from "../game/npcs.ts";
 import { STATUE_RANGE, StatueIndex } from "../game/statues.ts";
 import { QUEST_OBJECT_RANGE, QuestObjectIndex, useQuestObject } from "../game/questObjects.ts";
 import { ChestLabels } from "../game/chestLabels.ts";
+import { PortalLabels } from "../game/portalLabels.ts";
+import { ensureWorldIndex } from "../game/worldIndex.ts";
 import { drawDrawnChests, preloadDrawnChests } from "../game/drawnChests.ts";
 import { onTabReturn, settleActors } from "../game/tabReturn.ts";
 import { KeyboardInput } from "../game/input.ts";
@@ -31,10 +34,11 @@ import { Predictor } from "../game/predictor.ts";
 import { sfx, type SfxName } from "../game/sfx.ts";
 import { SpellEffects } from "../game/spellFx.ts";
 import { ADDON_SHEET_LIST, ALL_SHEETS, outfitLook } from "../game/sprites.ts";
-import { closeCtxMenu, openCtxMenu, openOutfit, type CtxMenuItem } from "../ui/outfit/outfit.ts";
+import { closeCtxMenu, openCtxMenu } from "../ui/outfit/outfit.ts";
+import { openPlayerMenu, openSelfMenu } from "../ui/social/playerMenu.ts";
 import { lookCreature, lookNpc, lookPlayer, lookQuestObject, type LookContent } from "../game/lookInfo.ts";
 import { expectLookItem, showLook } from "../ui/look/look.ts";
-import { amLeader, isPartyMember, partyAction, partyStore } from "../ui/party/party.ts";
+import { isPartyMember, partyStore } from "../ui/party/party.ts";
 import { TEX, createFxTextures } from "../game/textures.ts";
 import { MAP_KEY, buildWorldMap, preloadWorldMap, type WorldMap } from "../game/worldMap.ts";
 import { loading } from "../ui/loading.ts";
@@ -46,14 +50,11 @@ import { setConditions } from "../ui/hud/conditions.ts";
 import { SKILL_LABELS } from "../ui/hud/SkillsWindow.tsx";
 import { pushToast } from "../ui/toasts.ts";
 import { playersStore, selectMe } from "../ui/hud/world.ts";
-import { followPlayer } from "../ui/hud/FightMode.tsx";
 import { inventoryStore } from "../ui/items/inventory.ts";
-import { inventoryCounter, questStore } from "../ui/quests/quests.ts";
-import { guideTarget } from "../ui/hud/guide.ts";
+import { currentGuide } from "../ui/hud/guideState.ts";
 import { getHudInsets } from "../ui/hud/layout.ts";
 import { GuideArrow } from "../game/guide.ts";
 import { FishBobbers } from "../game/fishing.ts";
-import { requestTrade } from "../ui/trade/trade.ts";
 import { reducedMotion } from "../ui/a11y/a11y.ts";
 import { spellCooldownLeft } from "../ui/hud/castbar.ts";
 import { BATTLE_RANGE, chebyshev, hpPct, setBattleEntries, clearBattleEntries, type BattleEntry } from "../ui/hud/battle.ts";
@@ -120,6 +121,7 @@ export class WorldScene extends Phaser.Scene {
   private spells!: SpellEffects;
   private npcs!: NpcManager;
   private chestLabels!: ChestLabels;
+  private portalLabels!: PortalLabels;
   private loot!: LootFx;
   private ground!: GroundItems;
   /** Item do chão clicado de longe: pega ao chegar ao lado (cancelado por movimento manual). */
@@ -248,6 +250,7 @@ export class WorldScene extends Phaser.Scene {
     this.statues = new StatueIndex(this.world.tiled);
     this.questObjs = new QuestObjectIndex(this.world.tiled);
     this.chestLabels = new ChestLabels(this, this.uiLayer, this.questObjs.list);
+    this.portalLabels = new PortalLabels(this, this.uiLayer, ensureWorldIndex(this.world.tiled));
     drawDrawnChests(this, this.worldLayer, this.questObjs.list);
     this.loot = new LootFx(this, this.worldLayer, this.uiLayer, this.fx, () => {
       const me = this.actors.get(this.myId);
@@ -654,30 +657,19 @@ export class WorldScene extends Phaser.Scene {
       if (!this.room && !FXTEST) return;
       const t = this.pointerTile(ptr);
       if (!t) return;
-      // Botão direito no próprio personagem: menu (Trocar roupa / pegar item do chão / sair do grupo).
+      // Botão direito no próprio personagem: menu (roupa / item do chão / sair do grupo / trocar personagem).
       const me = this.actors.get(this.myId);
       if (right && me && t.x === me.tileX && t.y === me.tileY) {
         const ev = ptr.event as MouseEvent;
         const gidHere = this.ground?.topAt(t.x, t.y);
-        openCtxMenu(ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y, [
-          { label: "Trocar roupa", run: openOutfit },
-          ...(gidHere ? [{ label: "Pegar item do chão", run: () => this.pickupGround(gidHere) }] : []),
-          ...(partyStore.get() ? [{ label: "Sair do grupo", run: () => partyAction({ action: "leave" }) }] : []),
-        ]);
+        openSelfMenu(ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y, gidHere ? () => this.pickupGround(gidHere) : null);
         return;
       }
-      // Botão direito em outro jogador: grupo (convidar / expulsar / passar liderança) e troca de itens.
+      // Botão direito em outro jogador: o mesmo menu da Batalha (ui/social/playerMenu.ts; Atacar por último).
       const other = right ? this.playerAtTile(t.x, t.y) : null;
       if (other) {
         const ev = ptr.event as MouseEvent;
-        const following = selectMe(playersStore.get())?.followId === other;
-        const attacking = getTarget()?.id === other;
-        const items = [
-          { label: attacking ? "Parar de atacar" : "Atacar", run: () => toggleTarget({ id: other, kind: "player" }) },
-          { label: following ? "Parar de seguir" : "Seguir", run: () => followPlayer(following ? null : other) },
-          ...this.partyMenu(other), { label: "Trocar itens", run: () => requestTrade(other) },
-        ];
-        if (items.length) openCtxMenu(ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y, items);
+        openPlayerMenu(other, ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y);
         return;
       }
       // Botão direito na água: pescar (precisa da Vara de Pesca; o servidor avisa se faltar algo).
@@ -760,6 +752,8 @@ export class WorldScene extends Phaser.Scene {
     const pid = me && t.x === me.tileX && t.y === me.tileY ? this.myId : this.playerAtTile(t.x, t.y);
     const snap = pid ? playersStore.get().get(pid) : undefined;
     if (pid && snap) return show(lookPlayer(snap, { me: pid === this.myId, party: pid !== this.myId && isPartyMember(pid) }));
+    const portal = this.portalLabels.lookAt(t.x, t.y, this.myLevel);
+    if (portal) return show(portal);
     const gid = this.ground?.topAt(t.x, t.y);
     if (gid && this.room) {
       expectLookItem(gid, x, y);
@@ -771,20 +765,6 @@ export class WorldScene extends Phaser.Scene {
   private playerAtTile(x: number, y: number): string | null {
     for (const [id, a] of this.actors) if (id !== this.myId && a.tileX === x && a.tileY === y) return id;
     return null;
-  }
-
-  /** Itens do menu de contexto de outro jogador (grupo). */
-  private partyMenu(id: string): CtxMenuItem[] {
-    const inParty = !!partyStore.get();
-    const leader = amLeader();
-    if (isPartyMember(id, true)) {
-      return leader ? [
-        { label: "Passar liderança", run: () => partyAction({ action: "lead", targetId: id }) },
-        { label: "Expulsar do grupo", run: () => partyAction({ action: "kick", targetId: id }) },
-      ] : [];
-    }
-    if (inParty && !leader) return [];
-    return [{ label: "Convidar para o grupo", run: () => partyAction({ action: "invite", targetId: id }) }];
   }
 
   /** Escudinho/nome verde nos membros do meu grupo. */
@@ -1018,6 +998,8 @@ export class WorldScene extends Phaser.Scene {
       ground: () => this.ground?.all() ?? [],
       /** Seta-guia do novato (null = escondida). */
       guide: () => this.guide?.shown ?? null,
+      /** Rótulos de portal na tela ("Minas Abandonadas · lv 10+"), com a cor (vermelho = não passa). */
+      portalLabels: () => this.portalLabels?.shown() ?? [],
       /** Água (pesca) e quantas boias estão na tela. */
       isWater: (x: number, y: number) => this.world.water.isWater(x, y),
       bobbers: () => this.bobbers?.count ?? 0,
@@ -1077,6 +1059,7 @@ export class WorldScene extends Phaser.Scene {
     this.npcs.update(dt, me);
     this.npcs.placeUi(zoom, dt, (wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.chestLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height);
+    this.portalLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height, this.myLevel);
     this.updateGuide(me, dt);
     this.bobbers.update((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.checkPendingNpc();
@@ -1101,18 +1084,17 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Seta-guia da primeira missão (só personagem novo): aponta o Capitão ou a floresta, conforme o andamento. */
+  /** Seta-guia: a missão/recompensa em "Guiar" (ou a primeira missão do novato), com o portal/viagem do caminho. */
   private updateGuide(me: Actor | undefined, dt: number) {
     const inset = getHudInsets();
     const area = { w: this.scale.width, h: this.scale.height, right: inset.right, bottom: inset.bottom };
     const st = selectMe(playersStore.get());
-    const target = me && st ? guideTarget(st.level, questStore.get(), inventoryCounter()) : null;
-    const tile = target ? (target.kind === "npc" ? this.npcs.tileOf(target.id) : target) : null;
-    if (!me || !target || !tile) { this.guide.update(dt, null, area); return; }
+    const tile = me && st ? currentGuide({ x: me.tileX, y: me.tileY }, st.level) : null;
+    if (!me || !tile) { this.guide.update(dt, null, area); return; }
     const dist = Math.max(Math.abs(me.tileX - tile.x), Math.abs(me.tileY - tile.y));
     // Perto do destino a seta já cumpriu o papel (e o "!" do NPC aparece sobre ele).
     if (dist <= 2) { this.guide.update(dt, null, area); return; }
-    this.guide.update(dt, { sx: this.pcam.toScreenX((tile.x + 0.5) * TILE_SIZE), sy: this.pcam.toScreenY(tile.y * TILE_SIZE), dist, label: target.label }, area);
+    this.guide.update(dt, { sx: this.pcam.toScreenX((tile.x + 0.5) * TILE_SIZE), sy: this.pcam.toScreenY(tile.y * TILE_SIZE), dist, label: tile.label }, area);
   }
 
   /** Avança a predição local (pode iniciar um passo). */
@@ -1191,7 +1173,7 @@ export class WorldScene extends Phaser.Scene {
     if (!r.show) return;
 
     if (ev.miss) {
-      this.fx.floatText(wx, textY, "errou", 0xb5b9c6, { size: 11, life: 650, rise: 8 });
+      this.fx.floatText(wx, textY, damageText(ev), 0xb5b9c6, { size: 11, life: 650, rise: 8 });
       this.fx.puff(wx, wy + 2);
       this.sfxAt("miss", r.gain, { volume: 0.6 });
       return;
@@ -1216,7 +1198,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     const color = ev.kind === "physical" && toMe ? 0xff6b5e : KIND_COLOR[ev.kind];
-    this.fx.floatText(wx, textY, ev.crit ? `${ev.amount}!` : `${ev.amount}`, color, { crit: !!ev.crit });
+    this.fx.floatText(wx, textY, damageText(ev), color, { crit: !!ev.crit });
 
     let ang = 0;
     if (tgt) {
@@ -1273,7 +1255,7 @@ export class WorldScene extends Phaser.Scene {
     const fresh = this.myVocation
       ? spellsFor(this.myVocation as never).filter((s) => s.level > from && s.level <= level).map((s) => s.name)
       : [];
-    showLevelBanner(level, fresh);
+    showLevelBanner(level, fresh, from);
     sfx.play("levelup", { volume: 1 });
   }
 
