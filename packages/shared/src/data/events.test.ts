@@ -61,14 +61,17 @@ describe("eventos semanais", () => {
     expect(nextScheduled(at(2026, 10, 17, 23, 0))!.def.id).toBe("retorno_de_ferumbras"); // sábado à noite: domingo 15h
     expect(nextScheduled(at(2026, 10, 18, 17, 0))!.def.id).toBe("reuniao_geral"); // domingo depois de Ferumbras: segunda 9h
     expect(nextScheduled(at(2026, 10, 19, 10, 0))!.def.id).toBe("despertar_do_lich"); // segunda depois da Reunião: 12h15
-    expect(nextScheduled(at(2026, 10, 19, 13, 0))!.def.id).toBe("cacada_ao_rei"); // segunda depois do Lich: terça 12h15
+    // Ciclo 19: a segunda às 17h é da Sangria do Alto-Forno; depois dela, o Rei Goblin na terça 12h15.
+    expect(nextScheduled(at(2026, 10, 19, 13, 0))!.def.id).toBe("sangria_do_alto_forno"); // segunda depois do Lich: 17h
+    expect(nextScheduled(at(2026, 10, 19, 13, 0))!.at).toBe(at(2026, 10, 19, 17, 0).getTime());
+    expect(nextScheduled(at(2026, 10, 19, 18, 0))!.def.id).toBe("cacada_ao_rei"); // segunda depois da Sangria: terça 12h15
     expect(nextScheduled(at(2026, 10, 20, 13, 0))!.def.id).toBe("ferumbras_no_expediente"); // terça depois do Rei: Ferumbras 17h
     expect(nextScheduled(at(2026, 10, 20, 18, 0))!.def.id).toBe("invasao_da_vila"); // terça depois de Ferumbras: quarta 12h15
   });
 
   it("eventos de chefe: o chefe existe no catálogo e as janelas não se sobrepõem", () => {
     const withBoss = WEEKLY_EVENTS.filter((e) => e.boss);
-    expect(withBoss.map((e) => e.boss).sort()).toEqual(["demodras", "ferumbras", "ferumbras", "goblin_king", "locomotiva_fantasma", "orshabaal", "orshabaal", "swamp_lich", "yeti"]);
+    expect(withBoss.map((e) => e.boss).sort()).toEqual(["demodras", "ferumbras", "ferumbras", "goblin_king", "golem_convertedor", "locomotiva_fantasma", "orshabaal", "orshabaal", "swamp_lich", "yeti"]);
     for (const e of withBoss) expect(MONSTERS[e.boss!]?.boss, e.boss).toBe(true);
     // Nenhuma janela começa dentro de outra no mesmo dia (scheduledEvent devolve só uma).
     for (const a of WEEKLY_EVENTS) for (const b of WEEKLY_EVENTS) {
@@ -79,18 +82,22 @@ describe("eventos semanais", () => {
     expect(scheduledEvent(at(2026, 10, 19, 12, 30))).toMatchObject({ id: "despertar_do_lich", boss: "swamp_lich" }); // segunda
     expect(scheduledEvent(at(2026, 10, 19, 12, 14))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 19, 13, 0))).toBeNull();
+    expect(scheduledEvent(at(2026, 10, 19, 17, 30))).toMatchObject({ id: "sangria_do_alto_forno", boss: "golem_convertedor" }); // segunda 17h–18h
+    expect(scheduledEvent(at(2026, 10, 19, 18, 0))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 18, 15, 30))).toMatchObject({ id: "retorno_de_ferumbras", boss: "ferumbras" }); // domingo
   });
 
   it("chefes no horário do almoço: dias úteis entre 12h e 13h, e só um chefe à noite", () => {
     const withBoss = WEEKLY_EVENTS.filter((e) => e.boss);
-    // Fora do almoço, só no fim do expediente (17h–18h): o Apito (ciclo 11) e, desde o ciclo 12, Ferumbras na terça e
-    // Orshabaal na quinta (antes só no fim de semana, quando ninguém do escritório está online).
+    // Fora do almoço, só no fim do expediente (17h–18h): o Apito (ciclo 11), desde o ciclo 12 Ferumbras na terça e
+    // Orshabaal na quinta (antes só no fim de semana, quando ninguém do escritório está online) e, desde o ciclo 19, a
+    // Sangria do Alto-Forno na segunda.
     const weekday = withBoss.filter((e) => e.day >= 1 && e.day <= 5);
-    expect(weekday.filter((e) => e.hour >= 13).map((e) => e.id)).toEqual(["apito_da_locomotiva", "ferumbras_no_expediente", "orshabaal_no_expediente"]);
+    expect(weekday.filter((e) => e.hour >= 13).map((e) => e.id)).toEqual(["apito_da_locomotiva", "ferumbras_no_expediente", "orshabaal_no_expediente", "sangria_do_alto_forno"]);
     expect(eventDef("apito_da_locomotiva")).toMatchObject({ day: 3, hour: 17, durationMin: 60, boss: "locomotiva_fantasma" });
     expect(eventDef("ferumbras_no_expediente")).toMatchObject({ day: 2, hour: 17, durationMin: 60, boss: "ferumbras" });
     expect(eventDef("orshabaal_no_expediente")).toMatchObject({ day: 4, hour: 17, durationMin: 60, boss: "orshabaal" });
+    expect(eventDef("sangria_do_alto_forno")).toMatchObject({ day: 1, hour: 17, durationMin: 60, boss: "golem_convertedor", lootMult: 1.5 });
     const lunch = weekday.filter((e) => e.hour < 13);
     expect(lunch.length).toBe(4);
     for (const e of lunch) {

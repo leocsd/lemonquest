@@ -608,6 +608,51 @@ trinket("anel_trilho_din", "Anel de Ferro Batido", "ring", "iron", 16, { hpRegen
 // abaixo do Anel da Força (lv 50, 40000), pelo mesmo motivo das peças da Oficina.
 trinket("anel_do_rodeiro", "Anel das Engrenagens", "ring", "steel", 50, { hpRegen: 3, manaRegen: 3, speed: 2 }, 26000, "Engrenagens minúsculas que giram no dedo sem nunca parar. Ninguém sabe dar corda.");
 
+// ---------------------------------------------------------------------------
+// Siderúrgica (ciclo 19, lv 10–120): materiais da usina, Rubi, comida do turno, provas dos três chefes e 8 peças que
+// fecham buracos de slot (botas 50/70, calças 60, anel 60, amuleto 70, armadura 80, elmos 40/85). Equipamento: valor
+// ABAIXO do melhor item do slot no mesmo level para toda vocação que o usa (balanceKit.ts escolhe por valor; o Coliseu
+// segue calibrado), todas as vocações.
+// ---------------------------------------------------------------------------
+mat("lasca_ferrugem", "Lasca de Ferrugem", img("Resource/Rock.png", 0xb8643a), 20, "Descascou do caracol e mancha tudo o que encosta. O ferro-velho aceita.");
+mat("pedra_carvao", "Pedra de Carvão", img("Resource/Rock.png", 0x3a3a44), 45, "Os guaxinins juram que acharam no chão. O chão era a pilha.");
+mat("fuligem", "Punhado de Fuligem", matIcon("slime_goo", 0x4a4a52), 75, "Preta, fina e teimosa: só sai da roupa na terceira lavada.");
+mat("tira_correia", "Tira de Correia", img("Resource/Branch.png", 0x3a3a42), 240, "Borracha grossa de esteira. A serpente usava como casca.");
+mat("gota_gusa", "Gota de Gusa", matIcon("ember", 0xff7a30), 300, "Ferro derretido que esfriou por fora. Por dentro, ainda não.");
+mat("pena_fuligem", "Pena de Fuligem", img("Resource/feather.png", 0x5a5a64), 380, "Cai preta e deixa rastro. A coruja nem sentiu falta.");
+mat("escama_salamandra", "Escama de Salamandra", matIcon("lizard_scale", 0xff8a40), 560, "Morna mesmo depois de uma semana na mochila.");
+mat("bloco_escoria", "Bloco de Escória", img("Resource/Rock.png", 0x5a4038), 720, "O resto do ferro, com orgulho de sobra. Vira estrada.");
+mat("placa_aco_fundido", "Placa de Aço Fundido", img("Resource/BarSilver.png", 0xffb080), 1300, "Ainda tem o brilho alaranjado de quem saiu do convertedor.");
+mat("gem_red", "Rubi", img("Resource/GemRed.png"), 1500, "Gema vermelha lapidada. Os forneiros juram que nasce no calor do Alto-Forno.", 50);
+mat("frasco_aco_liquido", "Frasco de Aço Líquido", img("Potion/EmptyPot.png", 0xffd070), 4200, "Brilha como o sol do meio-dia. Não abra dentro de casa.");
+// Comida do turno (vendida pelo Almoxarife). Limonada: mana, como o Macarrão (lv 10); Prato Feito: equilibrado, entre o
+// Banquete de Sushi (lv 20) e o Presunto de Dragão (lv 30).
+food("limonada_turno", "Limonada do Turno", img("Potion/WaterPot.png", 0xf4e04a), 40, 10, 1, 4, 6, "Limão, gelo e açúcar de sobra. Segura o turno inteiro, ou quase.");
+food("prato_feito", "Prato Feito", img("Food/Beaf.png", 0xe8c890), 160, 25, 9, 5, 10, "Arroz, feijão, bife e salada. O almoço oficial de quem pega no pesado.");
+// Provas dos chefes: troféus (a missão usa passo "boss", o abate conclui para o grupo; não abrem nada).
+add({ id: "apito_contramestre", name: "Apito do Contramestre", kind: "quest", value: 0, icon: img("Object/PanFlute.png", 0x707078), description: "Ainda cheira a fuligem e a café requentado. Lembrança de quem mandou o Contramestre Fuligem para casa mais cedo." });
+add({ id: "nucleo_convertedor", name: "Núcleo do Convertedor", kind: "quest", value: 0, icon: matIcon("ember", 0xffc060), description: "Um caroço de aço que ainda pulsa. Lembrança de quem desligou o Golem do Convertedor." });
+add({ id: "coracao_fornalha", name: "Coração da Fornalha", kind: "quest", value: 0, icon: matIcon("ember", 0xfff0a0), description: "Uma brasa branca do tamanho de um punho. Lembrança de quem apagou A Fornalha Primordial." });
+// Equipamento: abaixo do melhor do slot no level para toda vocação (archmage_helmet 5.500, Botas da Pressa 60 mil,
+// mystic_legs 28 mil, frost_ring 60 mil, amulet_dragon 45 mil, ferumbras_armor 120 mil, ferumbras_helmet 50 mil; o
+// items.test.ts calcula). As que caem de monstro comum (capacete, calças, botas térmicas) entram no Baú de Recompensa;
+// as só de missão/chefe, não. Avental e Elmo do Laminador ficam só na Fornalha e em missão: armadura lv 80 de todas as
+// vocações vinda de monstro comum subiria o piso do baú (chestGearPool) acima do tier 7 do lv 83 em diante.
+add({ id: "capacete_fundidor", name: "Capacete de Fundidor", kind: "helmet", slot: "helmet", icon: { ...gear("helmet_full", "iron"), tint: 0xffb060 }, level: 40, stats: { armor: 2, hpMax: 70 }, value: 5200,
+  description: "Aba larga e viseira contra respingo. Gusa no capacete é sinal de experiência." });
+add({ id: "botas_fundidor", name: "Botas de Fundidor", kind: "boots", slot: "boots", icon: { ...gear("boots", "steel"), tint: 0xff9a50 }, level: 50, stats: { armor: 2, hpMax: 50, speed: 8 }, value: 22000,
+  description: "Biqueira de aço e sola que não derrete. Golem nenhum pisa no seu pé." });
+add({ id: "calca_antichama", name: "Calças Antichama", kind: "legs", slot: "legs", icon: { ...gear("legs_pants", "steel"), tint: 0xffc080 }, level: 60, stats: { armor: 4, hpMax: 90 }, value: 26000,
+  description: "Tecido grosso que não pega fogo. Pega fuligem, mas fogo, não." });
+add({ id: "botas_termicas", name: "Botas Térmicas", kind: "boots", slot: "boots", icon: { ...gear("boots", "steel"), tint: 0xff7050 }, level: 70, stats: { armor: 2, hpMax: 80, manaMax: 40, speed: 9 }, value: 45000,
+  description: "Quentes no pé e frias na sola. Ninguém na usina entende como." });
+add({ id: "avental_forjador", name: "Avental do Forjador", kind: "armor", slot: "armor", icon: { ...gear("armor_vest", "bronze"), tint: 0xd08050 }, level: 80, stats: { armor: 6, hpMax: 160, manaMax: 80 }, value: 110000,
+  description: "Couro curtido na fagulha. Pesa como armadura e protege como armadura." });
+add({ id: "elmo_laminador", name: "Elmo do Laminador", kind: "helmet", slot: "helmet", icon: { ...gear("helmet_horned", "steel"), tint: 0xffa070 }, level: 85, stats: { armor: 4, hpMax: 120 }, value: 48000,
+  description: "Saiu inteiro do laminador novo. A chapa era fina; o elmo, nem tanto." });
+trinket("anel_alto_forno", "Anel do Alto-Forno", "ring", "gold", 60, { crit: 3, hpRegen: 4, manaRegen: 2, speed: 2 }, 48000, "Forjado na boca do Alto-Forno. Segura o calor por você.");
+trinket("amuleto_rubi", "Amuleto de Rubi", "amulet", "dragon", 70, { armor: 4, hpMax: 240, manaMax: 60 }, 42000, "Um rubi do fundo da panela de aço, preso numa corrente que nunca esfria.");
+
 /** Catálogo (derivado das listas acima). */
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(ITEM_LIST.map((d) => [d.id, d]));
 

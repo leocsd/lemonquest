@@ -68,6 +68,51 @@ describe("NPCS", () => {
     }
   });
 
+  it("Siderúrgica (ciclo 19): trem da Vila e da Malha até a Estação do Minério; quem viaja de lá volta à Vila", () => {
+    const to = (npc: string, id: string) => NPCS[npc]!.travel!.find((d) => d.id === id);
+    expect(to("chefe_estacao_vila", "minerio")).toEqual({ id: "minerio", label: "Estação do Minério", x: 24, y: 594, price: 250 });
+    expect(to("chefe_estacao_malha", "minerio")).toEqual({ id: "minerio", label: "Estação do Minério", x: 24, y: 594, price: 200 });
+    expect(to("supervisora_controle", "minerio")?.price).toBe(100);
+    // A Malha continua com a viagem de antes (a E2E da Malha procura a linha pelo nome).
+    expect(to("chefe_estacao_vila", "malha")?.price).toBe(200);
+    expect(to("chefe_estacao_malha", "village")?.price).toBe(200);
+    for (const id of ["chefe_estacao_minerio", "supervisora_controle"]) {
+      expect(to(id, "village"), id).toMatchObject({ x: 97, y: 98, price: 250 });
+      expect(to(id, "malha"), id).toMatchObject({ x: 60, y: 374, price: 200 });
+    }
+    // Sem TravelDest.minLevel (C7), ninguém viaja PARA DENTRO da Sala de Controle (x 7–23, y 628–643): pularia as portas.
+    const dests = Object.values(NPCS).flatMap((n) => n.travel ?? []);
+    expect(dests.filter((d) => d.x >= 7 && d.x <= 23 && d.y >= 628 && d.y <= 643)).toEqual([]);
+  });
+
+  it("Siderúrgica: 12 NPCs e 5 placas, com os papéis do posto avançado e da Estação do Minério", () => {
+    const ids = [
+      "chefe_estacao_minerio", "almoxarife", "depot_minerio", "capela_epi", "mestre_turno", "operadora_correia",
+      "encarregada_coqueria", "forneiro_chefe", "mestre_aciaria", "operador_laminador", "supervisora_controle", "espirito_fundidor",
+      "placa_correias", "placa_area_quente", "placa_epi", "placa_carga_suspensa", "placa_forno_acordado",
+    ];
+    for (const id of ids) expect(NPCS[id], id).toBeDefined();
+    expect(NPCS.depot_minerio!.depot).toBe(true);
+    expect(NPCS.supervisora_controle!.depot).toBe(true);
+    expect(NPCS.capela_epi!.blessing).toBe(true);
+    expect(NPCS.almoxarife!.shop!.buys).toContain("material");
+    expect(NPCS.almoxarife!.shop!.sells.map((e) => e.itemId)).toEqual(expect.arrayContaining(["limonada_turno", "prato_feito"]));
+    // Placas: sprite dos quadros, sem loja, viagem nem depósito.
+    for (const id of ids.filter((x) => x.startsWith("placa_"))) {
+      const n = NPCS[id]!;
+      expect(n.sprite, id).toContain("Inspector/");
+      expect([n.shop, n.travel, n.depot], id).toEqual([undefined, undefined, undefined]);
+    }
+  });
+
+  it("Siderúrgica: a chegada do trem (24,594) cai na zona protegida \"Estação do Minério\"", () => {
+    const layer = world.layers.find((l: any) => l.name === "objects");
+    const pzAt = (x: number, y: number) => layer.objects.filter((o: any) => (o.type ?? o.class) === "zone"
+      && x * 16 >= o.x && x * 16 < o.x + o.width && y * 16 >= o.y && y * 16 < o.y + o.height
+      && (o.properties ?? []).some((p: any) => p.name === "pz" && p.value === true)).map((o: any) => o.name);
+    expect(pzAt(24, 594)).toEqual(["Estação do Minério"]);
+  });
+
   it("loja principal cobre todas as vocações com arma de level 1 e ~8", () => {
     const items = NPCS.shop!.shop!.sells.map((e) => ITEMS[e.itemId]!);
     for (const voc of ["knight", "paladin", "sorcerer", "druid"] as const) {

@@ -205,10 +205,11 @@ describe("resistência elemental", () => {
     expect(by("undead")).toEqual([
       "bonelord", "flame_skull", "frame_descartado", "ghost", "iluminador_rebelde", "red_lantern", "skeleton", "swamp_lich",
     ]);
-    // Fogo/gelo = o elemento do ataque (o mesmo critério da resistência).
+    // Fogo/gelo = o elemento do ataque (o mesmo critério da resistência). Ciclo 19: os 7 bichos de fogo da Siderúrgica.
     expect(by("fire")).toEqual([
-      "demodras", "demon", "dragon", "dragon_lord", "flame_skull", "flame_spirit", "hellhound", "iluminador_rebelde", "lair_flame",
-      "magma_elemental", "minotaur_mage", "orshabaal", "slag_slime",
+      "coracao_brasa", "demodras", "demon", "dragon", "dragon_lord", "flame_skull", "flame_spirit", "forjador_rubro", "fornalha_primordial",
+      "golem_convertedor", "gosma_aco_liquido", "gosma_gusa", "hellhound", "iluminador_rebelde", "lair_flame", "magma_elemental",
+      "minotaur_mage", "orshabaal", "salamandra_cadinho", "slag_slime",
     ]);
     expect(by("ice")).toEqual(["frost_dragon", "ice_witch", "kappa", "lair_kraken", "winter_wolf", "yeti"]);
     expect(MONSTERS.necromancer!.undead).toBeUndefined();
@@ -283,5 +284,89 @@ describe("chefes de covil (ciclo 16)", () => {
       within((m) => m.damage[1], "dano máximo");
       within((m) => m.gold![1] / m.hp, "ouro/vida");
     }
+  });
+});
+
+describe("Siderúrgica (ciclo 19)", () => {
+  // [id, level, vida, XP, chefe, trecho do sprite, dano final (depois de MONSTER_DAMAGE_TIERS)]: docs/regioes/siderurgica.md §3.1–3.2.
+  const SID = [
+    ["caracol_ferrugem", 12, 160, 70, false, "Monster/Mollusc/Mollusc.png", [8, 18]],
+    ["guaxinim_carvao", 15, 165, 90, false, "Monster/GoldRacoon/", [10, 22]],
+    ["morcego_chamine", 19, 190, 116, false, "Monster/YellowsBat/", [13, 28]],
+    ["serpente_correia", 27, 330, 275, false, "Monster/Snake2/", [31, 64]],
+    ["gosma_gusa", 31, 400, 380, false, "monsters/GusaSlime.png", [35, 70]],
+    ["coruja_fuligem", 35, 430, 460, false, "Monster/Owl2/", [39, 78]],
+    ["contramestre_fuligem", 36, 6500, 6500, true, "Character/NinjaBomb/", [90, 168]],
+    ["salamandra_cadinho", 43, 680, 900, false, "Monster/Axolot/", [60, 120]],
+    ["golem_escoria", 53, 1150, 1650, false, "monsters/SlagGolem.png", [93, 177]],
+    ["cavaleiro_aco_fundido", 64, 1700, 2800, false, "Character/KnightGold/", [117, 222]],
+    ["coracao_brasa", 67, 1300, 2200, false, "Monster/HeartRed/", [93, 180]],
+    ["golem_convertedor", 76, 21000, 24000, true, "monsters/ConverterGolem.png", [224, 416]],
+    ["rex_ferro", 88, 3600, 7000, false, "Monster/Grey Trex/SpriteSheet.png", [173, 328]],
+    ["forjador_rubro", 104, 5200, 11200, false, "Character/NinjaFire/", [230, 434]],
+    ["gosma_aco_liquido", 114, 7000, 15800, false, "monsters/SteelSlime.png", [255, 493]],
+    ["fornalha_primordial", 118, 55000, 72000, true, "Boss/GiantBamboo2/Walk.png", [366, 680]],
+  ] as const;
+  // [chefe, prova, ajudante invocado, respawn]
+  const BOSSES = [
+    ["contramestre_fuligem", "apito_contramestre", "guaxinim_carvao", 7_200_000],
+    ["golem_convertedor", "nucleo_convertedor", "golem_escoria", 10_800_000],
+    ["fornalha_primordial", "coracao_fornalha", "gosma_aco_liquido", 14_400_000],
+  ] as const;
+
+  it("tabela travada: level, vida, XP, chefe, sprite e dano final", () => {
+    for (const [id, level, hp, xp, boss, sprite, damage] of SID) {
+      const d = MONSTERS[id]!;
+      expect(d, id).toBeDefined();
+      expect([d.level, d.hp, d.xp, !!d.boss], id).toEqual([level, hp, xp, boss]);
+      expect(d.sprite.url, id).toContain(sprite);
+      expect(d.damage, id).toEqual(damage);
+    }
+    // Tiras de chefe 744x62 = 12 frames de 62x62; o resto é grid4 de 16x16 (inclusive os personagens 64x112).
+    for (const id of ["golem_convertedor", "fornalha_primordial"]) {
+      const s = MONSTERS[id]!.sprite;
+      expect([s.layout, s.frameWidth, s.frameHeight, s.walk!.down.length], id).toEqual(["custom", 62, 62, 12]);
+    }
+    // Recolors de tools/monsters/recolor.mjs: sprite próprio, sem tinta por cima.
+    for (const id of ["gosma_gusa", "golem_escoria", "golem_convertedor", "gosma_aco_liquido"]) expect(MONSTERS[id]!.sprite.tint, id).toBeUndefined();
+  });
+
+  it("chefes: prova a 100%, invocam um monstro da região, respawn de 2 a 4 h", () => {
+    for (const [id, proof, helper, respawn] of BOSSES) {
+      const d = MONSTERS[id]!;
+      expect(d.loot!.find((l) => l.itemId === proof)?.chance, id).toBe(1);
+      expect(d.abilities!.find((a) => a.summon)?.summon?.monsterId, id).toBe(helper);
+      expect(d.respawnMs, id).toBe(respawn);
+    }
+    // A Fornalha se cura a 30% da vida (Reacender).
+    expect(MONSTERS.fornalha_primordial!.abilities!.find((a) => a.heal)?.heal).toEqual({ pct: 0.05, belowHpPct: 0.3 });
+  });
+
+  it("chefes: XP por vida, dano máximo e ouro por vida entre os chefes vizinhos de level (±10%, regra dos covis)", () => {
+    for (const [id] of BOSSES) {
+      const d = MONSTERS[id]!;
+      const others = Object.values(MONSTERS).filter((m) => m.boss && m.id !== id);
+      const below = others.filter((m) => m.level <= d.level).sort((a, b) => b.level - a.level)[0]!;
+      const above = others.filter((m) => m.level >= d.level).sort((a, b) => a.level - b.level)[0]!;
+      const within = (f: (m: typeof d) => number, what: string) => {
+        const lo = Math.min(f(below), f(above)) * 0.9, hi = Math.max(f(below), f(above)) * 1.1;
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeGreaterThanOrEqual(lo);
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeLessThanOrEqual(hi);
+      };
+      within((m) => m.xp / m.hp, "xp/vida");
+      within((m) => m.damage[1], "dano máximo");
+      within((m) => m.gold![1] / m.hp, "ouro/vida");
+    }
+  });
+
+  it("bandos, fuga e cura: guaxinins fogem a 20%, gosmas de gusa em bando, Coração de Brasa cura primeiro", () => {
+    expect(MONSTERS.guaxinim_carvao!.pack?.family).toBe("guaxinim");
+    expect(MONSTERS.guaxinim_carvao!.fleeAtHpPct).toBe(0.2);
+    expect(MONSTERS.gosma_gusa!.pack?.family).toBe("gusa");
+    const heal = MONSTERS.coracao_brasa!.abilities![0]!;
+    expect(heal.id).toBe("heal_allies");
+    expect(heal.healAllies!.pct).toBeGreaterThan(0);
+    // Bicho de fogo da usina: resiste a fogo e é fraco a gelo ("choque térmico").
+    expect([damageTakenMult(MONSTERS.gosma_gusa!, "fire"), damageTakenMult(MONSTERS.gosma_gusa!, "ice")]).toEqual([0.5, 1.15]);
   });
 });

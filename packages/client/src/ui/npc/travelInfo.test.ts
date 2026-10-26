@@ -16,6 +16,12 @@ describe("viagem: faixa de level do destino", () => {
     expect(travelInfo(index, "coach_frontier", "village", 1)).toMatchObject({ danger: false, text: expect.stringMatching(/lv 1–/) });
   });
 
+  it("Estação do Minério (cercada, saída por portal): vale o Pátio logo depois do portão", () => {
+    const info = travelInfo(index, "chefe_estacao_vila", "minerio", 5)!;
+    expect(info.text).toMatch(/^Monstros em volta: lv \d+–\d+$/);
+    expect(info.danger).toBe(true); // lv 5 abaixo do Pátio de Minério
+  });
+
   it("destino sem monstro (Oficina), destino desconhecido e índice ainda carregando", () => {
     expect(travelInfo(index, "coach_village", "oficina", 1)).toEqual({ text: "Sem monstros por perto", danger: false });
     expect(travelInfo(index, "coach_village", "nao_existe", 1)).toBeNull();

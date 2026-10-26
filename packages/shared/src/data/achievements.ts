@@ -18,7 +18,9 @@ export type AchMetric =
   // Ciclo 18: excursões do Mural que saíram (o líder juntou no grupo 2+ inscritos; server/systems/excursions.ts).
   | "excursions"
   // Ciclo 18: invasões da Vila defendidas com o prêmio (contribuição mínima; server/systems/invasion.ts).
-  | "invasions";
+  | "invasions"
+  // Ciclo 19: chefes da Siderúrgica (o servidor já conta `boss:<id>` de qualquer chefe).
+  | "boss:contramestre_fuligem" | "boss:golem_convertedor" | "boss:fornalha_primordial";
 
 export interface AchievementDef {
   id: string;
@@ -96,6 +98,10 @@ export const TITLES: Record<string, string> = {
   guia_excursao: "Guia de Excursão",
   // Ciclo 18: Invasão da Vila.
   defensor_vila: "Defensor da Vila",
+  // Ciclo 19: Siderúrgica ("coracao_de_aco" vem da missão final, A Fornalha Primordial).
+  contramestre: "o Contramestre",
+  mestre_convertedor: "Mestre do Convertedor",
+  coracao_de_aco: "Coração de Aço",
 };
 export const MAX_TITLE_LEN = 24;
 
@@ -228,6 +234,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("excursion_3", "Guia de Excursão", "Lidere 3 excursões do Mural que saíram (marcadas com 15+ min de antecedência, 2+ inscritos no seu grupo; uma por dia)", "🧭", 20, "excursions", 3, { rewards: ["title:guia_excursao"] }),
   // Invasão da Vila (ciclo 18): ganhar o prêmio (10+ pontos de contribuição) numa invasão em que a Vila resistiu.
   a("defensor_da_vila", "Defensor da Vila", "Ajude a Vila a resistir a uma invasão (10+ pontos de contribuição)", "🛡️", 20, "invasions", 1, { rewards: ["title:defensor_vila"] }),
+  // Siderúrgica (ciclo 19): os três chefes da usina. "Coração de Aço" vem da missão final (A Fornalha Primordial).
+  a("hora_extra_paga", "Hora Extra Paga", "Derrote o Contramestre Fuligem", "⏰", 30, "boss:contramestre_fuligem", 1, { rewards: ["title:contramestre"], rare: true }),
+  a("convertedor_desligado", "Convertedor Desligado", "Derrote o Golem do Convertedor", "🔥", 40, "boss:golem_convertedor", 1, { rare: true }),
+  a("mestre_do_convertedor", "Mestre do Convertedor", "Derrote o Golem do Convertedor 5 vezes", "⚙️", 40, "boss:golem_convertedor", 5, { rewards: ["title:mestre_convertedor"], rare: true }),
+  a("fornalha_apagada", "Fornalha Apagada", "Derrote A Fornalha Primordial", "🧯", 60, "boss:fornalha_primordial", 1, { rare: true }),
 ];
 
 export const ACHIEVEMENTS_BY_ID: Record<string, AchievementDef> = Object.fromEntries(ACHIEVEMENTS.map((x) => [x.id, x]));

@@ -11,7 +11,20 @@ Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
 Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 16 fim de jogo (tier 8, encantamento com tiers,
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
-Excursões ✅ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 19 (2026-10-26) — região Siderúrgica
+
+Especificação: [regioes/siderurgica.md](regioes/siderurgica.md).
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 19-1 | Mapa 400×722 com 7 setores, portas de level e saídas sem level, Estação do Minério e Coração do Forno | ✅ | `diff-world` 0 tiles, 851/851; validações do `expansion6.mjs`; `siderurgica.test.ts` |
+| 19-2 | Arte industrial (+429 tiles) sem mudar id antigo do atlas | ✅ | `diff-atlas.mjs` 555/555 |
+| 19-3 | 13 monstros + 3 chefes, materiais, comidas, 8 peças (Coliseu inalterado) | ✅ | `monsters.test.ts`, `items.test.ts`, `arena`/`vocationBalance` |
+| 19-4 | 15 missões, 12 NPCs + 5 placas, trem e atalho, evento de segunda 17h, conquistas | ✅ | `quests`, `npcs`, `events`, `achievements`, `worldIndex`, `guide` |
+| 19-5 | Medir heap e tempo de carga do cliente com o mapa 400×722 (risco do ciclo 20: 400×888) | ⏳ | não medido localmente (memória da máquina); acompanhar no uso |
+| 19-6 | Encher setores amplos com mais detalhes (Correias, Lingotamento) numa 2ª rodada de objetos | ⏳ | opcional |
 
 ## Ciclo 18 (2026-10-26) — social e retenção
 

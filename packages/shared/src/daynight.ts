@@ -103,6 +103,12 @@ const ZONE_MODES: Record<string, ZoneLightMode> = {
   // portal, oficina de vagões e via ficam ao ar livre (modo padrão).
   "Estação Central da Malha": "lit",
   "Túnel da Serra": "dark",
+  // Siderúrgica (ciclo 19): a Estação, a Sala de Controle e o galpão da Aciaria são interiores iluminados; o Coração do
+  // Forno é escuro (só a gusa e os braseiros clareiam); pátio, correias, alto-forno e laminação ficam ao ar livre.
+  "Estação do Minério": "lit",
+  "Sala de Controle": "lit",
+  "Aciaria": "lit",
+  "Coração do Forno": "dark",
   "Centro de Treinamento": "town",
   "Vila de Pedra Clara": "town",
 };

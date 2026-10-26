@@ -902,6 +902,240 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 40000, gold: 12000, items: [{ itemId: "anel_do_rodeiro", count: 1 }], unlock: "title:maquinista" },
   }),
+  // --- Siderúrgica (ciclo 19, lv 10–112): o Alto-Forno acordou. Mestre de Turno (Pátio → Hora Extra), Correia e
+  // Coqueria, Alto-Forno, Aciaria, Laminador e o Espírito do Primeiro Fundidor (Coração do Forno). ---
+  q({
+    id: "primeiro_turno", name: "Primeiro Turno", giver: "mestre_turno", minLevel: 10,
+    summary: "O Mestre de Turno quer que você bata o ponto com o Almoxarife e conheça o Pátio de Minério, onde os Caracóis de Ferrugem tomaram conta das pilhas.",
+    steps: [
+      { kind: "talk", target: "almoxarife", count: 1, label: "Bater o ponto com o Almoxarife" },
+      { kind: "explore", target: "Pátio de Minério", count: 1, label: "Conhecer o Pátio de Minério" },
+      { kind: "kill", target: "caracol_ferrugem", count: 6, label: "Caracóis de Ferrugem" },
+    ],
+    dialog: {
+      offer: "Novato? Ótimo, a usina acordou e precisa de braço. Bata o ponto com o Almoxarife, passe pelo portão sul e tire seis Caracóis de Ferrugem de cima das pilhas de minério. Topa o primeiro turno?",
+      accept: "O Almoxarife fica na plataforma. O portão sul abre para quem é level 10 ou mais. Caracol é devagar, mas a casca é dura: bata sem dó.",
+      progress: "Ponto batido, pátio visto e seis caracóis a menos. Ainda falta alguma coisa aí.",
+      complete: "Primeiro turno fechado! Tem cara de quem vai ficar. Tome uma limonada, que o calor só aumenta daqui pra frente.",
+    },
+    rewards: { xp: 1200, gold: 300, items: [{ itemId: "limonada_turno", count: 5 }, { itemId: "health_potion", count: 10 }] },
+  }),
+  q({
+    id: "ferrugem_no_patio", name: "Ferrugem no Pátio", giver: "mestre_turno", minLevel: 12, requires: ["primeiro_turno"],
+    summary: "Os Caracóis de Ferrugem estão comendo o minério do Pátio. O Mestre de Turno quer quinze a menos e oito lascas de ferrugem como prova.",
+    steps: [
+      { kind: "kill", target: "caracol_ferrugem", count: 15, label: "Caracóis de Ferrugem" },
+      { kind: "deliver", target: "lasca_ferrugem", count: 8, label: "Lascas de Ferrugem" },
+    ],
+    dialog: {
+      offer: "Esses caracóis comem minério e soltam ferrugem por onde passam. O pátio está virando ferro-velho. Quinze deles, e me traga oito lascas para eu mostrar para a chefia.",
+      accept: "Eles ficam perto das pilhas de minério. Se a casca brilhar dourada, é elite: chame alguém.",
+      progress: "Ainda tem caracol enferrujando o meu pátio. Quinze, e oito lascas.",
+      complete: "Oito lascas! A chefia vai achar que é a ferrugem do pátio inteiro. E é. Tome, poções para o próximo turno.",
+    },
+    rewards: { xp: 1800, gold: 450, items: [{ itemId: "health_potion_medium", count: 5 }] },
+  }),
+  q({
+    id: "turno_da_noite", name: "Turno da Noite", giver: "mestre_turno", minLevel: 15, requires: ["ferrugem_no_patio"],
+    summary: "Toda noite um bando de Guaxinins do Carvão rouba a pilha do Pátio. O Mestre de Turno quer o bando espantado e as pedras de volta.",
+    steps: [
+      { kind: "kill", target: "guaxinim_carvao", count: 15, label: "Guaxinins do Carvão" },
+      { kind: "deliver", target: "pedra_carvao", count: 10, label: "Pedras de Carvão" },
+    ],
+    dialog: {
+      offer: "Some carvão da pilha toda noite. Pensei que fosse o turno da noite, mas é um bando de Guaxinins do Carvão. Mate quinze e me devolva dez pedras de carvão.",
+      accept: "Eles andam em bando: bateu em um, vem todo mundo. E quando apanham, fogem com o carvão. Não deixe.",
+      progress: "Os guaxinins continuam fazendo turno extra na minha pilha. Quinze, e dez pedras.",
+      complete: "Dez pedras de carvão, todas mordidas. Serve. Tome um prato feito, que turno da noite dá fome.",
+    },
+    rewards: { xp: 2600, gold: 700, items: [{ itemId: "prato_feito", count: 5 }, { itemId: "mana_potion_medium", count: 5 }] },
+  }),
+  q({
+    id: "limpa_chamine", name: "Limpa-Chaminé", giver: "mestre_turno", minLevel: 19, requires: ["turno_da_noite"],
+    summary: "Os Morcegos da Chaminé entopem as chaminés do Pátio e as Gosmas Cinzentas escorrem das pilhas de escória. Hora de limpar.",
+    steps: [
+      { kind: "kill", target: "morcego_chamine", count: 12, label: "Morcegos da Chaminé" },
+      { kind: "kill", target: "slag_slime", count: 10, label: "Gosmas Cinzentas" },
+      { kind: "deliver", target: "fuligem", count: 6, label: "Punhados de Fuligem" },
+    ],
+    dialog: {
+      offer: "As chaminés do pátio entupiram de morcego e as gosmas cinzentas escorrem de tudo que é pilha. Doze morcegos, dez gosmas e seis punhados de fuligem para eu provar que alguém limpou.",
+      accept: "Morcego de chaminé vem numa nuvem de fuligem. Feche a boca e bata.",
+      progress: "Ainda tem fuligem demais no meu céu. Doze morcegos, dez gosmas, seis punhados.",
+      complete: "Chaminé limpa, céu quase azul! Você está pronto para a hora extra, mas antes conheça a Coqueria.",
+    },
+    rewards: { xp: 3800, gold: 1100, items: [{ itemId: "health_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "hora_extra", name: "Hora Extra", giver: "mestre_turno", minLevel: 34, requires: ["limpa_chamine", "bateria_coqueria"],
+    summary: "O Contramestre Fuligem tomou o pátio da Coqueria e não deixa ninguém bater o ponto de saída. O Mestre de Turno pede que você chame a turma e acabe com a hora extra.",
+    steps: [{ kind: "boss", target: "contramestre_fuligem", count: 1, label: "Contramestre Fuligem" }],
+    dialog: {
+      offer: "Tem um Contramestre Fuligem no pátio da Coqueria segurando todo mundo depois do expediente. Grita, chama os guaxinins e não paga a hora extra. Junte a turma, porque sozinho ninguém sai de lá. Encara?",
+      accept: "Ele fica no canto leste da Coqueria. Vá em grupo: quando ele apita, vem guaxinim de tudo que é lado.",
+      progress: "O Contramestre ainda está apitando. Ninguém bate o ponto enquanto ele estiver de pé.",
+      complete: "Silêncio no pátio! Pela primeira vez em anos o turno acabou na hora. Isso é seu, e não precisa nem assinar.",
+    },
+    rewards: { xp: 18000, gold: 9000, items: [{ itemId: "health_potion_large", count: 10 }] },
+  }),
+  q({
+    id: "correia_nunca_para", name: "A Correia que Nunca Para", giver: "operadora_correia", minLevel: 25, requires: ["primeiro_turno"],
+    summary: "Serpentes da Correia fizeram ninho nas esteiras. A Operadora não pode parar a correia, então alguém vai ter que tirar as serpentes com ela andando.",
+    steps: [
+      { kind: "explore", target: "Correias e Coqueria", count: 1, label: "Chegar às Correias e Coqueria" },
+      { kind: "kill", target: "serpente_correia", count: 15, label: "Serpentes da Correia" },
+      { kind: "deliver", target: "tira_correia", count: 6, label: "Tiras de Correia" },
+    ],
+    dialog: {
+      offer: "A correia não para. Nunca. Nem para tirar as Serpentes da Correia que se enrolaram nela. Quinze serpentes e seis tiras de borracha para eu remendar a esteira. Com ela andando.",
+      accept: "Pise na esteira: ela te leva mais rápido. As serpentes também sabem disso.",
+      progress: "Ainda tem serpente pegando carona. Quinze, e seis tiras.",
+      complete: "Seis tiras! Remendo garantido por mais um mês, ou até a próxima serpente. Tome, para os ferimentos de esteira.",
+    },
+    rewards: { xp: 6000, gold: 1600, items: [{ itemId: "health_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "bateria_coqueria", name: "Bateria da Coqueria", giver: "encarregada_coqueria", minLevel: 29, requires: ["correia_nunca_para"],
+    summary: "As Gosmas de Gusa escaparam do cadinho e se esconderam entre os fornos da Coqueria. A Encarregada quer a bateria limpa.",
+    steps: [
+      { kind: "kill", target: "gosma_gusa", count: 15, label: "Gosmas de Gusa" },
+      { kind: "deliver", target: "gota_gusa", count: 6, label: "Gotas de Gusa" },
+    ],
+    dialog: {
+      offer: "Sessenta fornos, sessenta portas e uma infestação de Gosmas de Gusa entre elas. Quinze gosmas, e seis gotas de gusa: preciso medir a temperatura delas. De longe.",
+      accept: "Gosma de gusa queima. Gelo apaga, fogo nem faz cócegas. Leve poção.",
+      progress: "Ainda vejo gosma brilhando entre os fornos. Quinze, e seis gotas.",
+      complete: "Seis gotas, ainda mornas. Medido! Leve isso e um prato feito: coqueria sem almoço não anda.",
+    },
+    rewards: { xp: 8000, gold: 2200, items: [{ itemId: "mana_potion_medium", count: 10 }, { itemId: "prato_feito", count: 5 }] },
+  }),
+  q({
+    id: "olhos_na_fumaca", name: "Olhos na Fumaça", giver: "encarregada_coqueria", minLevel: 33, requires: ["bateria_coqueria"],
+    summary: "Corujas da Fuligem vigiam a Coqueria do alto da fumaça e contam tudo ao Contramestre. A Encarregada quer as corujas fora e a Operadora da Correia avisada.",
+    steps: [
+      { kind: "kill", target: "coruja_fuligem", count: 12, label: "Corujas da Fuligem" },
+      { kind: "deliver", target: "pena_fuligem", count: 5, label: "Penas de Fuligem" },
+      { kind: "talk", target: "operadora_correia", count: 1, label: "Avisar a Operadora da Correia" },
+    ],
+    dialog: {
+      offer: "Tem coruja na fumaça olhando tudo e dedurando para o Contramestre. Doze Corujas da Fuligem, cinco penas, e avise a Operadora da Correia que o céu está limpo.",
+      accept: "Elas atacam de longe e jogam fuligem no olho. Chegue perto rápido.",
+      progress: "Ainda tem olho na fumaça. Doze corujas, cinco penas e um recado para a Operadora.",
+      complete: "Agora o Contramestre está cego e surdo. Ótima hora para uma hora extra, se é que você me entende.",
+    },
+    rewards: { xp: 10000, gold: 3000, items: [{ itemId: "health_potion_large", count: 5 }] },
+  }),
+  // "Canal Entupido" e não "Sangria do Alto-Forno": esse é o nome do evento de segunda (Golem do Convertedor).
+  q({
+    id: "sangria_alto_forno", name: "Canal Entupido", giver: "forneiro_chefe", minLevel: 42, requires: ["olhos_na_fumaca"],
+    summary: "As Salamandras do Cadinho se instalaram nos canais de gusa do Alto-Forno. O Forneiro-Chefe precisa dos canais livres para a sangria.",
+    steps: [
+      { kind: "explore", target: "Alto-Forno", count: 1, label: "Chegar ao Alto-Forno" },
+      { kind: "kill", target: "salamandra_cadinho", count: 15, label: "Salamandras do Cadinho" },
+      { kind: "deliver", target: "escama_salamandra", count: 5, label: "Escamas de Salamandra" },
+    ],
+    dialog: {
+      offer: "Sangria é quando a gente abre o furo do forno e a gusa corre pelos canais. Só que as Salamandras do Cadinho acham que o canal é piscina. Quinze salamandras e cinco escamas.",
+      accept: "Gelo é o melhor amigo de quem trabalha aqui: choque térmico. Fogo nelas é perda de tempo.",
+      progress: "Canal entupido de salamandra não corre. Quinze, e cinco escamas.",
+      complete: "Canal livre, gusa correndo! Tome um capacete de fundidor: o seu está derretendo.",
+    },
+    rewards: { xp: 15000, gold: 4000, items: [{ itemId: "capacete_fundidor", count: 1 }] },
+  }),
+  q({
+    id: "escoria_viva", name: "Escória Viva", giver: "forneiro_chefe", minLevel: 50, requires: ["sangria_alto_forno"],
+    summary: "A escória do Alto-Forno criou vida e virou Golem. Junto com as Feras das Brasas, eles tomaram o pátio de escória.",
+    steps: [
+      { kind: "kill", target: "golem_escoria", count: 15, label: "Golens de Escória" },
+      { kind: "kill", target: "truque_desalinhado", count: 10, label: "Feras das Brasas" },
+      { kind: "deliver", target: "bloco_escoria", count: 6, label: "Blocos de Escória" },
+    ],
+    dialog: {
+      offer: "Escória é o resto do ferro. Pois o resto acordou, levantou e anda pelo pátio como Golem de Escória, com Feras das Brasas atrás. Quinze golens, dez feras e seis blocos.",
+      accept: "Golem é lento e bate como uma ponte rolante. Não fique parado na frente dele.",
+      progress: "Ainda tem escória andando por aí. Quinze golens, dez feras, seis blocos.",
+      complete: "Seis blocos inteirinhos. Vão virar estrada. Calce estas botas: com biqueira de aço, golem nenhum pisa no seu pé.",
+    },
+    rewards: { xp: 22000, gold: 6000, items: [{ itemId: "botas_fundidor", count: 1 }] },
+  }),
+  q({
+    id: "sopro_convertedor", name: "Sopro do Convertedor", giver: "mestre_aciaria", minLevel: 62, requires: ["escoria_viva"],
+    summary: "Na Aciaria, o convertedor deu vida a Cavaleiros de Aço Fundido, e os Corações de Brasa curam todos eles. O Mestre da Aciaria quer o galpão de volta.",
+    steps: [
+      { kind: "explore", target: "Aciaria", count: 1, label: "Entrar na Aciaria" },
+      { kind: "kill", target: "cavaleiro_aco_fundido", count: 15, label: "Cavaleiros de Aço Fundido" },
+      { kind: "kill", target: "coracao_brasa", count: 10, label: "Corações de Brasa" },
+      { kind: "deliver", target: "placa_aco_fundido", count: 5, label: "Placas de Aço Fundido" },
+    ],
+    dialog: {
+      offer: "O convertedor sopra oxigênio na gusa e sai aço. Desde que acordou, sai cavaleiro. Quinze Cavaleiros de Aço Fundido, dez Corações de Brasa e cinco placas de aço para a gente estudar.",
+      accept: "Mate os Corações primeiro: eles curam os cavaleiros. E não fique embaixo da ponte rolante.",
+      progress: "O galpão ainda está cheio de cavaleiro. Quinze, dez Corações e cinco placas.",
+      complete: "Cinco placas, e uma ainda quente. Tome este anel, forjado aqui mesmo: ele segura o calor por você.",
+    },
+    rewards: { xp: 34000, gold: 8000, items: [{ itemId: "anel_alto_forno", count: 1 }] },
+  }),
+  q({
+    id: "golem_convertedor", name: "O Golem do Convertedor", giver: "mestre_aciaria", minLevel: 72, requires: ["sopro_convertedor"],
+    summary: "O próprio convertedor levantou e virou o Golem do Convertedor. O Mestre da Aciaria pede um grupo para desligá-lo; o Forneiro-Chefe quer saber quando acabar.",
+    steps: [
+      { kind: "boss", target: "golem_convertedor", count: 1, label: "Golem do Convertedor" },
+      { kind: "talk", target: "forneiro_chefe", count: 1, label: "Avisar o Forneiro-Chefe" },
+    ],
+    dialog: {
+      offer: "O convertedor levantou do berço e anda pela Aciaria soprando oxigênio em brasa. Chame um grupo e desligue o Golem do Convertedor. Depois avise o Forneiro-Chefe, que ele vai querer comemorar.",
+      accept: "Ele sopra em cone: fique de lado. Quando chamar a escória, mate os golens pequenos antes que cerquem você. Toda segunda às cinco ele acorda sozinho.",
+      progress: "O Golem ainda sopra. Desligue o convertedor e avise o Forneiro-Chefe.",
+      complete: "Convertedor desligado e o Forneiro já sabe! Este amuleto tem um rubi do fundo da panela. Use com orgulho.",
+    },
+    rewards: { xp: 70000, gold: 15000, items: [{ itemId: "amuleto_rubi", count: 1 }] },
+  }),
+  q({
+    id: "chapa_fina", name: "Chapa Fina", giver: "operador_laminador", minLevel: 86, requires: ["golem_convertedor"],
+    summary: "Rexes de Ferro deitaram na mesa de rolos do Laminador e os Elementais de Magma tomaram o lingotamento. O Operador quer a linha andando.",
+    steps: [
+      { kind: "explore", target: "Lingotamento e Laminação", count: 1, label: "Chegar ao Lingotamento" },
+      { kind: "kill", target: "rex_ferro", count: 20, label: "Rexes de Ferro" },
+      { kind: "kill", target: "magma_elemental", count: 10, label: "Elementais de Magma" },
+      { kind: "deliver", target: "placa_aco_fundido", count: 6, label: "Placas de Aço Fundido" },
+    ],
+    dialog: {
+      offer: "Laminador é simples: placa grossa entra, chapa fina sai. Só que agora tem Rex de Ferro deitado na mesa de rolos e Elemental de Magma no lingotamento. Vinte rexes, dez elementais e seis placas de aço para testar a linha.",
+      accept: "O Rex pisa forte: quando ele levantar a pata, saia de perto. O resto é martelo e paciência.",
+      progress: "A linha continua parada. Vinte rexes, dez elementais, seis placas.",
+      complete: "Linha andando e chapa saindo fina como papel! Este elmo foi o primeiro que saiu do laminador novo.",
+    },
+    rewards: { xp: 60000, gold: 14000, items: [{ itemId: "elmo_laminador", count: 1 }] },
+  }),
+  q({
+    id: "poco_do_cadinho", name: "O Poço do Cadinho", giver: "espirito_fundidor", minLevel: 100, requires: ["chapa_fina"],
+    summary: "Abaixo da escotilha do Lingotamento fica o Coração do Forno, onde Forjadores Rubros e Gosmas de Aço Líquido servem à Fornalha Primordial. O Espírito do Primeiro Fundidor quer saber até onde a coisa foi.",
+    steps: [
+      { kind: "explore", target: "Coração do Forno", count: 1, label: "Descer ao Coração do Forno" },
+      { kind: "kill", target: "forjador_rubro", count: 15, label: "Forjadores Rubros" },
+      { kind: "kill", target: "gosma_aco_liquido", count: 10, label: "Gosmas de Aço Líquido" },
+      { kind: "deliver", target: "frasco_aco_liquido", count: 2, label: "Frascos de Aço Líquido" },
+    ],
+    dialog: {
+      offer: "Desça pela escotilha do Lingotamento até o Coração do Forno. Lá embaixo os Forjadores Rubros batem aço para a Fornalha, e o aço líquido anda sozinho. Quinze forjadores, dez gosmas e dois frascos de aço líquido. Preciso ver com estes olhos que não tenho mais.",
+      accept: "Leve gelo, leve poção e leve gente. O calor lá embaixo derrete até coragem.",
+      progress: "Ainda ouço os martelos lá embaixo. Quinze forjadores, dez gosmas, dois frascos.",
+      complete: "Dois frascos... brilham como a primeira corrida. Então é verdade: a Fornalha acordou de vez. Descanse, porque o próximo passo é ela.",
+    },
+    rewards: { xp: 110000, gold: 25000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }, { itemId: "gem_red", count: 3 }] },
+  }),
+  q({
+    id: "fornalha_primordial", name: "A Fornalha Primordial", giver: "espirito_fundidor", minLevel: 112, requires: ["poco_do_cadinho"],
+    summary: "A Fornalha Primordial, a faísca que acendeu a usina, acordou no Cadinho Primordial. O Espírito do Primeiro Fundidor pede um grupo de cinco ou mais para apagá-la.",
+    steps: [{ kind: "boss", target: "fornalha_primordial", count: 1, label: "A Fornalha Primordial" }],
+    dialog: {
+      offer: "No fundo do Coração do Forno, no Cadinho Primordial, mora a Fornalha que eu acendi. Ela acordou e quer a usina inteira. Junte cinco, seis, quantos couberem, e apague A Fornalha Primordial. Eu não consigo mais. Você consegue?",
+      accept: "Ela cospe aço líquido em área e chama as gosmas. Espalhem-se, curem-se e não parem de bater.",
+      progress: "A Fornalha ainda queima. Eu sinto daqui.",
+      complete: "Apagada... depois de tanto tempo. Você tem um coração de aço, e agora todo mundo vai saber. Obrigado. Posso descansar.",
+    },
+    rewards: { xp: 180000, gold: 45000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:coracao_de_aco" },
+  }),
 ];
 
 export const QUESTS: Record<string, QuestDef> = Object.fromEntries(QUEST_LIST.map((d) => [d.id, d]));
@@ -1068,7 +1302,8 @@ export function bountyTitle(d: { monster: string; count: number }): string {
 }
 
 /** Plurais que a regra não acerta (palavra inteira). */
-const PLURAL_IRREGULAR: Record<string, string> = { "Cão": "Cães", "Capitão": "Capitães" };
+// Ciclo 19 (Siderúrgica): "Caracol" pela regra do -l daria "Caracois" (sem acento) e "Rex" daria "Rexs".
+const PLURAL_IRREGULAR: Record<string, string> = { "Cão": "Cães", "Capitão": "Capitães", "Caracol": "Caracóis", "Rex": "Rexes" };
 
 function pluralWord(w: string): string {
   if (Object.hasOwn(PLURAL_IRREGULAR, w)) return PLURAL_IRREGULAR[w]!;

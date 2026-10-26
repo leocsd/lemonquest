@@ -1479,6 +1479,310 @@ export const MONSTERS: Record<string, MonsterDef> = {
     // Walk.png 576x48 = 6 frames de 96x48, como o Samurai Rubro, só que em tamanho de chefe.
     sprite: strip(B + "GiantBlueSamurai/Walk.png", 48, 6, { frameWidth: 96, scale: 1.5 }),
   },
+  // ===== Siderúrgica (ciclo 19, tools/mapgen/expansion6.mjs): o Alto-Forno acordou. Atributos interpolados dos vizinhos
+  // de level (xp/vida, ouro e chefes conferidos nos testes); dano no fonte ANTES de MONSTER_DAMAGE_TIERS (final no
+  // comentário). Bicho de fogo: resiste a fogo e é fraco a gelo ("choque térmico").
+  // Pátio de Minério (lv 10–25)
+  caracol_ferrugem: {
+    id: "caracol_ferrugem", name: "Caracol de Ferrugem", level: 12, hp: 160, xp: 70, damage: [8, 18], damageKind: "physical", armor: 6,
+    abilities: [
+      ability.bolt({ name: "Cuspe de Ferrugem", range: 3, min: 10, max: 20, kind: "earth", fx: "earth", cooldownMs: 10_000, condition: { id: "slow", durationMs: 2500, value: 20 } }),
+    ],
+    attackMs: 2200, attackRange: 1, stepMs: 560, aggroRange: 4, fleeAtHpPct: 0, respawnMs: 45_000,
+    gold: [12, 28],
+    loot: [
+      { itemId: "lasca_ferrugem", chance: 0.55, min: 1, max: 2 },
+      { itemId: "health_potion", chance: 0.1 },
+      { itemId: "mana_potion", chance: 0.06 },
+      { itemId: "iron_bar", chance: 0.03 },
+      { itemId: "iron_boots", chance: 0.015 },
+    ],
+    sprite: grid4(M + "Mollusc/Mollusc.png"),
+  },
+  guaxinim_carvao: {
+    id: "guaxinim_carvao", name: "Guaxinim do Carvão", level: 15, hp: 165, xp: 90, damage: [10, 22], damageKind: "physical", armor: 3,
+    attackMs: 1700, attackRange: 1, stepMs: 270, aggroRange: 6, fleeAtHpPct: 0.2, respawnMs: 45_000,
+    pack: { family: "guaxinim", shout: "Ei! O carvão é nosso!" },
+    gold: [18, 42],
+    loot: [
+      { itemId: "pedra_carvao", chance: 0.5, min: 1, max: 3 },
+      { itemId: "lasca_ferrugem", chance: 0.15 },
+      { itemId: "cheese", chance: 0.2, min: 1, max: 2 },
+      { itemId: "health_potion", chance: 0.1 },
+      { itemId: "ring_vigor", chance: 0.01 },
+    ],
+    sprite: grid4(M + "GoldRacoon/SpriteSheet.png", { tint: 0x8c8c98 }),
+  },
+  morcego_chamine: {
+    id: "morcego_chamine", name: "Morcego da Chaminé", level: 19, hp: 190, xp: 116, damage: [13, 28], damageKind: "physical", armor: 2,
+    abilities: [
+      ability.bolt({ name: "Nuvem de Fuligem", range: 3, min: 12, max: 24, kind: "earth", fx: "earth", cooldownMs: 9000, condition: { id: "poison", durationMs: 5000, value: 3 } }),
+    ],
+    attackMs: 1700, attackRange: 1, stepMs: 230, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 45_000,
+    gold: [20, 46],
+    loot: [
+      { itemId: "fuligem", chance: 0.5, min: 1, max: 2 },
+      { itemId: "bat_wing", chance: 0.15 },
+      { itemId: "mana_potion", chance: 0.08 },
+      { itemId: "health_potion_medium", chance: 0.04 },
+      { itemId: "amulet_arcano", chance: 0.008 },
+    ],
+    sprite: grid4(M + "YellowsBat/SpriteSheet.png", { tint: 0xb0a49c }),
+  },
+  // Correias e Coqueria (lv 25–40)
+  serpente_correia: {
+    id: "serpente_correia", name: "Serpente da Correia", level: 27, hp: 330, xp: 275, damage: [22, 46], damageKind: "physical", armor: 8, // final [31, 64]
+    abilities: [
+      ability.stomp({ name: "Chicote de Borracha", radius: 1, min: 24, max: 44, cooldownMs: 11_000 }), // final 34–62
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 260, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [60, 140],
+    loot: [
+      { itemId: "tira_correia", chance: 0.45, min: 1, max: 2 },
+      { itemId: "snake_skin", chance: 0.15 },
+      { itemId: "health_potion_medium", chance: 0.08 },
+      { itemId: "steel_boots", chance: 0.006 },
+      { itemId: "ring_furia", chance: 0.004 },
+    ],
+    sprite: grid4(M + "Snake2/Snake2.png", { tint: 0x8a8a96 }),
+  },
+  gosma_gusa: {
+    id: "gosma_gusa", name: "Gosma de Gusa", level: 31, hp: 400, xp: 380, damage: [25, 50], damageKind: "fire", armor: 6, // final [35, 70]
+    abilities: [
+      ability.stomp({ name: "Respingo de Gusa", radius: 1, min: 28, max: 50, kind: "fire", fx: "fire", cooldownMs: 11_000, condition: { id: "burn", durationMs: 4000, value: 6 } }), // final 39–70
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 400, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 60_000,
+    pack: { family: "gusa", shout: "Blorp! Tá quente, hein?" },
+    gold: [60, 130],
+    loot: [
+      { itemId: "gota_gusa", chance: 0.45, min: 1, max: 2 },
+      { itemId: "escoria_quente", chance: 0.2 },
+      { itemId: "iron_bar", chance: 0.06 },
+      { itemId: "health_potion_medium", chance: 0.08 },
+      { itemId: "mana_potion_medium", chance: 0.06 },
+    ],
+    sprite: grid4("monsters/GusaSlime.png"),
+  },
+  coruja_fuligem: {
+    id: "coruja_fuligem", name: "Coruja da Fuligem", level: 35, hp: 430, xp: 460, damage: [28, 56], damageKind: "physical", armor: 6, // final [39, 78]
+    abilities: [
+      ability.blast({ name: "Chuva de Fuligem", radius: 1, range: 4, min: 30, max: 56, kind: "earth", fx: "earth", cooldownMs: 10_000, condition: { id: "slow", durationMs: 3000, value: 30 } }), // final 42–78
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 320, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [80, 175],
+    loot: [
+      { itemId: "pena_fuligem", chance: 0.4, min: 1, max: 2 },
+      { itemId: "fuligem", chance: 0.3, min: 1, max: 3 },
+      { itemId: "mana_potion_medium", chance: 0.12 },
+      { itemId: "lente_trincada", chance: 0.05 },
+      { itemId: "archmage_boots", chance: 0.005 },
+    ],
+    sprite: grid4(M + "Owl2/Owl2.png"),
+  },
+  // Chefe das Correias e Coqueria: grita, chama a turma de guaxinins e não paga a hora extra.
+  contramestre_fuligem: {
+    id: "contramestre_fuligem", name: "Contramestre Fuligem", level: 36, hp: 6500, xp: 6500, damage: [64, 120], damageKind: "physical", armor: 14, // final [90, 168]
+    abilities: [
+      ability.stomp({ name: "Bronca do Contramestre", radius: 2, min: 70, max: 125, windupMs: 900, cooldownMs: 11_000 }), // final 98–175
+      ability.summon({ name: "Turma, pro pátio!", monsterId: "guaxinim_carvao", count: 2, max: 3, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 360, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [1600, 2800],
+    loot: [
+      { itemId: "apito_contramestre", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 2, max: 3 },
+      { itemId: "pedra_carvao", chance: 1, min: 4, max: 8 },
+      { itemId: "fuligem", chance: 1, min: 3, max: 6 },
+      { itemId: "gem_green", chance: 0.8, min: 1, max: 2 },
+      { itemId: "mithril_bar", chance: 0.3 },
+      { itemId: "gem_red", chance: 0.15 },
+      { itemId: "ring_furia", chance: 0.2 },
+      { itemId: "amulet_lich", chance: 0.15 },
+      { itemId: "capacete_fundidor", chance: 0.2 },
+    ],
+    sprite: grid4(C + "NinjaBomb/SpriteSheet.png", { scale: 1.6 }),
+  },
+  // Alto-Forno (lv 40–60)
+  salamandra_cadinho: {
+    id: "salamandra_cadinho", name: "Salamandra do Cadinho", level: 43, hp: 680, xp: 900, damage: [40, 80], damageKind: "fire", armor: 10, // final [60, 120]
+    abilities: [
+      ability.bolt({ name: "Cuspe de Gusa", range: 4, min: 45, max: 85, kind: "fire", fx: "fire", cooldownMs: 9000, condition: { id: "burn", durationMs: 5000, value: 8 } }), // final 68–128
+    ],
+    attackMs: 2000, attackRange: 3, stepMs: 340, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 75_000,
+    gold: [110, 215],
+    loot: [
+      { itemId: "escama_salamandra", chance: 0.35 },
+      { itemId: "gota_gusa", chance: 0.25 },
+      { itemId: "ember", chance: 0.04 },
+      { itemId: "mana_potion_medium", chance: 0.12 },
+      { itemId: "health_potion_large", chance: 0.06 },
+      { itemId: "ember_wand", chance: 0.006 },
+    ],
+    sprite: grid4(M + "Axolot/SpriteSheet.png", { scale: 1.15 }),
+  },
+  golem_escoria: {
+    id: "golem_escoria", name: "Golem de Escória", level: 53, hp: 1150, xp: 1650, damage: [62, 118], damageKind: "physical", armor: 20, // final [93, 177]
+    abilities: [
+      ability.stomp({ name: "Desabamento de Escória", radius: 1, min: 65, max: 120, cooldownMs: 11_000 }), // final 98–180
+    ],
+    attackMs: 2100, attackRange: 1, stepMs: 460, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 85_000,
+    gold: [150, 290],
+    loot: [
+      { itemId: "bloco_escoria", chance: 0.4, min: 1, max: 2 },
+      { itemId: "escoria_quente", chance: 0.3, min: 1, max: 2 },
+      { itemId: "iron_bar", chance: 0.12 },
+      { itemId: "health_potion_large", chance: 0.08 },
+      { itemId: "capacete_fundidor", chance: 0.004 },
+      { itemId: "mithril_legs", chance: 0.004 },
+    ],
+    sprite: grid4("monsters/SlagGolem.png", { scale: 1.2 }),
+  },
+  // Aciaria (lv 60–80)
+  cavaleiro_aco_fundido: {
+    id: "cavaleiro_aco_fundido", name: "Cavaleiro de Aço Fundido", level: 64, hp: 1700, xp: 2800, damage: [78, 148], damageKind: "physical", armor: 26, // final [117, 222]
+    abilities: [
+      ability.stomp({ name: "Golpe Rubro", radius: 1, min: 85, max: 150, kind: "fire", fx: "fire", windupMs: 800, cooldownMs: 10_000, condition: { id: "burn", durationMs: 5000, value: 12 } }), // final 128–225
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 340, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 95_000,
+    gold: [200, 390],
+    loot: [
+      { itemId: "placa_aco_fundido", chance: 0.35 },
+      { itemId: "iron_bar", chance: 0.15 },
+      { itemId: "gem_red", chance: 0.02 },
+      { itemId: "health_potion_large", chance: 0.12, min: 1, max: 2 },
+      { itemId: "calca_antichama", chance: 0.004 },
+      { itemId: "crown_legs", chance: 0.004 },
+    ],
+    // Tingido de brasa: o KnightGold puro é o Mestre Brás (Ferreiro) e a roupa "Senhor da Guerra".
+    sprite: grid4(C + "KnightGold/SpriteSheet.png", { tint: 0xff9a6a, scale: 1.1 }),
+  },
+  coracao_brasa: {
+    id: "coracao_brasa", name: "Coração de Brasa", level: 67, hp: 1300, xp: 2200, damage: [62, 120], damageKind: "fire", armor: 12, // final [93, 180]
+    abilities: [
+      ability.healAllies({ name: "Pulso Quente", pct: 0.12, radius: 4, belowHpPct: 0.7, cooldownMs: 10_000 }),
+      ability.bolt({ name: "Chama Pulsante", range: 4, min: 70, max: 125, kind: "fire", fx: "fire", cooldownMs: 9000 }), // final 105–188
+    ],
+    attackMs: 2200, attackRange: 4, stepMs: 380, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 95_000,
+    gold: [190, 380],
+    loot: [
+      { itemId: "ember", chance: 0.3, min: 1, max: 2 },
+      { itemId: "gota_gusa", chance: 0.25, min: 1, max: 2 },
+      { itemId: "gem_red", chance: 0.04 },
+      { itemId: "mana_potion_large", chance: 0.12 },
+      { itemId: "botas_termicas", chance: 0.003 },
+      { itemId: "spellbook_mystic", chance: 0.003 },
+    ],
+    sprite: grid4(M + "HeartRed/SpriteSheet.png", { scale: 1.1 }),
+  },
+  // Chefe da Aciaria e do evento "Sangria do Alto-Forno" (segunda 17h): o convertedor levantou do berço.
+  golem_convertedor: {
+    id: "golem_convertedor", name: "Golem do Convertedor", level: 76, hp: 21000, xp: 24000, damage: [140, 260], damageKind: "fire", armor: 28, // final [224, 416]
+    abilities: [
+      ability.breath({ name: "Sopro de Oxigênio", length: 4, width: 3, min: 150, max: 270, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 10_000, condition: { id: "burn", durationMs: 6000, value: 20 } }), // final 240–432
+      ability.summon({ name: "Escória, de pé!", monsterId: "golem_escoria", count: 1, max: 2, cooldownMs: 30_000 }),
+    ],
+    attackMs: 2200, attackRange: 1, stepMs: 420, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 10_800_000, boss: true,
+    gold: [4800, 8500],
+    loot: [
+      { itemId: "nucleo_convertedor", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
+      { itemId: "placa_aco_fundido", chance: 1, min: 3, max: 6 },
+      { itemId: "gem_red", chance: 0.6, min: 1, max: 2 },
+      { itemId: "gem_purple", chance: 0.5 },
+      { itemId: "calca_antichama", chance: 0.15 },
+      { itemId: "botas_termicas", chance: 0.15 },
+      { itemId: "anel_alto_forno", chance: 0.1 },
+      { itemId: "amuleto_rubi", chance: 0.1 },
+      { itemId: "ring_demodras", chance: 0.05 },
+    ],
+    // Walk.png 744x62 = 12 frames de 62x62 (GiantBamboo recolorido em aço: tools/monsters/recolor.mjs).
+    sprite: strip("monsters/ConverterGolem.png", 62, 12, { scale: 1.5 }),
+  },
+  // Lingotamento e Laminação (lv 80–100)
+  rex_ferro: {
+    id: "rex_ferro", name: "Rex de Ferro", level: 88, hp: 3600, xp: 7000, damage: [108, 205], damageKind: "physical", armor: 34, // final [173, 328]
+    abilities: [
+      ability.stomp({ name: "Pisada do Laminador", radius: 2, min: 115, max: 210, windupMs: 900, cooldownMs: 12_000 }), // final 184–336
+    ],
+    attackMs: 2100, attackRange: 1, stepMs: 330, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 120_000,
+    gold: [330, 660],
+    loot: [
+      { itemId: "placa_aco_fundido", chance: 0.25, min: 1, max: 2 },
+      { itemId: "mithril_bar", chance: 0.06 },
+      { itemId: "gem_red", chance: 0.05 },
+      { itemId: "health_potion_large", chance: 0.2, min: 1, max: 2 },
+      // Sem Avental do Forjador e Elmo do Laminador (só Fornalha e missão): peça lv 80+ de todas as vocações derrubada por
+      // monstro comum entra no Baú de Recompensa e sobe o piso dele acima do tier 7 (chestGearPool, servidor).
+      { itemId: "demon_legs", chance: 0.003 },
+    ],
+    // A pasta do pack tem espaço no nome ("Grey Trex"): o express.static decodifica %20 e o teste de disco usa o caminho.
+    sprite: grid4(M + "Grey Trex/SpriteSheet.png", { scale: 1.5 }),
+  },
+  // Coração do Forno (lv 100–120)
+  forjador_rubro: {
+    id: "forjador_rubro", name: "Forjador Rubro", level: 104, hp: 5200, xp: 11200, damage: [135, 255], damageKind: "fire", armor: 32, // final [230, 434]
+    abilities: [
+      ability.blast({ name: "Chuva de Fagulhas", radius: 2, range: 4, min: 150, max: 270, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 11_000, condition: { id: "burn", durationMs: 6000, value: 15 } }), // final 255–459
+      ability.bolt({ name: "Martelada em Brasa", range: 4, min: 140, max: 250, kind: "fire", fx: "fire", cooldownMs: 8000 }), // final 238–425
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 320, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 140_000,
+    gold: [440, 880],
+    loot: [
+      { itemId: "magma_core", chance: 0.2 },
+      { itemId: "frasco_aco_liquido", chance: 0.05 },
+      { itemId: "gem_red", chance: 0.08 },
+      { itemId: "mana_potion_large", chance: 0.25, min: 1, max: 3 },
+      { itemId: "health_potion_large", chance: 0.2, min: 1, max: 2 },
+      { itemId: "ferumbras_boots", chance: 0.004 },
+    ],
+    sprite: grid4(C + "NinjaFire/SpriteSheet.png", { scale: 1.15 }),
+  },
+  gosma_aco_liquido: {
+    id: "gosma_aco_liquido", name: "Gosma de Aço Líquido", level: 114, hp: 7000, xp: 15800, damage: [150, 290], damageKind: "fire", armor: 38, // final [255, 493]
+    abilities: [
+      ability.stomp({ name: "Respingo de Aço", radius: 2, min: 170, max: 300, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 11_000, condition: { id: "burn", durationMs: 6000, value: 18 } }), // final 289–510
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 160_000,
+    gold: [520, 1050],
+    loot: [
+      { itemId: "frasco_aco_liquido", chance: 0.12 },
+      { itemId: "gota_gusa", chance: 0.4, min: 2, max: 4 },
+      { itemId: "gem_red", chance: 0.1 },
+      { itemId: "health_potion_large", chance: 0.25, min: 2, max: 3 },
+      { itemId: "demon_armor", chance: 0.003 },
+      { itemId: "boots_haste", chance: 0.004 },
+    ],
+    sprite: grid4("monsters/SteelSlime.png", { scale: 1.3 }),
+  },
+  // Chefe final (grupo de 5+): a faísca que acendeu a usina. Tier 8 a 6% (plano: 5–8% nos chefes finais das regiões).
+  fornalha_primordial: {
+    id: "fornalha_primordial", name: "A Fornalha Primordial", level: 118, hp: 55000, xp: 72000, damage: [215, 400], damageKind: "fire", armor: 46, // final [366, 680]
+    abilities: [
+      ability.blast({ name: "Sangria Primordial", radius: 2, range: 5, min: 230, max: 400, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 9000, condition: { id: "burn", durationMs: 6000, value: 25 } }), // final 391–680
+      ability.breath({ name: "Bafo da Fornalha", length: 5, width: 3, min: 220, max: 380, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 12_000 }), // final 374–646
+      ability.summon({ name: "Filhas do aço, a mim!", monsterId: "gosma_aco_liquido", count: 1, max: 2, cooldownMs: 30_000 }),
+      ability.heal({ name: "Reacender", pct: 0.05, belowHpPct: 0.3, cooldownMs: 30_000 }),
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 400, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 14_400_000, boss: true,
+    gold: [14000, 24000],
+    loot: [
+      { itemId: "coracao_fornalha", chance: 1 },
+      { itemId: "frasco_aco_liquido", chance: 1, min: 1, max: 2 },
+      { itemId: "gem_red", chance: 1, min: 2, max: 3 },
+      { itemId: "health_potion_large", chance: 1, min: 4, max: 6 },
+      { itemId: "abyss_shard", chance: 1, min: 2, max: 3 },
+      { itemId: "abyss_armor", chance: 0.06 },
+      { itemId: "abyss_archer_armor", chance: 0.06 },
+      { itemId: "abyss_mage_armor", chance: 0.06 },
+      { itemId: "abyss_shield", chance: 0.06 }, // a Montadora (ciclo 20) completa com elmos e grimório no Protótipo
+      { itemId: "avental_forjador", chance: 0.15 },
+      { itemId: "elmo_laminador", chance: 0.15 },
+      { itemId: "boots_haste", chance: 0.12 },
+      { itemId: "amulet_orshabaal", chance: 0.05 },
+    ],
+    // Walk.png 744x62 = 12 frames de 62x62: a "chaminé viva" laranja do pack, sem recolorir.
+    sprite: strip(B + "GiantBamboo2/Walk.png", 62, 12, { scale: 2 }),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -1738,5 +2042,22 @@ export function monsterAbilitySpell(spellId: string): SpellDef | undefined {
  * lair_kraken*       54 11000 11000   115 (dist 3, gelo) "Kraken das Grutas"; grupo de 3+, respawn 2 h
  * lair_flame*        82 22000 26000   200 (dist 4, fogo) "Chama Ancestral" (Catacumbas); grupo de 4+, respawn 3 h
  * lair_shogun*      125 45000 60000   300          "Shogun Abissal" (Abismo Profundo); grupo de 5+, respawn 4 h
+ * --- Siderúrgica (ciclo 19: região nova abaixo das caves, lv 10–120, setores com porta de level)
+ * caracol_ferrugem   12   160    70    13          (lento; cuspe de lentidão)
+ * guaxinim_carvao    15   165    90    16          (bando "guaxinim", foge a 20%)
+ * morcego_chamine    19   190   116    20.5        (nuvem de veneno)
+ * serpente_correia   27   330   275    34
+ * gosma_gusa         31   400   380    37.5 (fogo, bando "gusa")
+ * coruja_fuligem     35   430   460    42 (dist 4; área de lentidão)
+ * salamandra_cad.    43   680   900    60 (dist 3, fogo)
+ * golem_escoria      53  1150  1650    90
+ * cavaleiro_aco_f.   64  1700  2800   113          (golpe de fogo)
+ * coracao_brasa      67  1300  2200    91 (dist 4, fogo; cura os aliados)
+ * rex_ferro          88  3600  7000   156.5
+ * forjador_rubro    104  5200 11200   195 (dist 4, fogo)
+ * gosma_aco_liq.    114  7000 15800   220 (fogo)
+ * contramestre_f.*   36  6500  6500    92          grupo de 3-4, respawn 2 h (chama guaxinins)
+ * golem_convert.*    76 21000 24000   200 (fogo)   grupo de 4+, respawn 3 h (evento segunda 17h; chama Golem de Escória)
+ * fornalha_prim.*   118 55000 72000   307.5 (dist 4, fogo) chefe final, grupo de 5+, respawn 4 h
  * (*boss). Magos causam ~30% menos por acerto: 4+1.1*lvl.
  */

@@ -5,7 +5,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CollisionGrid, canStepTerrain, findObjects, mapSpawn, objectTile, type TiledMap, type TiledObject } from "../map.ts";
-import { TITLES, isValidUnlockId } from "./achievements.ts";
+import { ACHIEVEMENTS, TITLES, isValidUnlockId } from "./achievements.ts";
+import { eventDef } from "./events.ts";
 import { ITEMS } from "./items.ts";
 import { REQUEST_BANDS } from "./materialRequest.ts";
 import { MONSTERS } from "./monsters.ts";
@@ -121,6 +122,9 @@ describe("plural dos títulos do Quadro", () => {
       "Lobo": "Lobos", "Homem-Lagarto": "Homens-Lagarto", "Espírito de Chama": "Espíritos de Chama",
       "Senhor dos Dragões": "Senhores dos Dragões", "Elemental de Magma": "Elementais de Magma", "Dragão de Gelo": "Dragões de Gelo",
       "Herói": "Heróis", "Behemoth": "Behemoths", "Larva das Minas": "Larvas das Minas",
+      // Ciclo 19 (Siderúrgica): a regra daria "Caracois" e "Rexs".
+      "Caracol de Ferrugem": "Caracóis de Ferrugem", "Rex de Ferro": "Rexes de Ferro",
+      "Guaxinim do Carvão": "Guaxinins do Carvão", "Golem de Escória": "Golens de Escória", "Coração de Brasa": "Corações de Brasa",
     };
     for (const [one, many] of Object.entries(cases)) expect(pluralPt(one), one).toBe(many);
     expect(bountyTitle({ monster: "hellhound", count: 10 })).toBe("Mate 10 Cães Infernais");
@@ -247,5 +251,62 @@ describe("covis das caves profundas (ciclo 16)", () => {
     expect(NPCS.blacksmith!.name).toBe("Mestre Brás, o Ferreiro");
     expect(cheb(b.x, b.y, shop.x, shop.y)).toBeLessThanOrEqual(4);
     expect(reachAt(1)[b.y * map.width + b.x]).toBe(1);
+  });
+});
+
+describe("Siderúrgica (ciclo 19)", () => {
+  // [id, quem dá, level mínimo], na ordem do catálogo (docs/regioes/siderurgica.md §4.1).
+  const CHAIN: [string, string, number][] = [
+    ["primeiro_turno", "mestre_turno", 10], ["ferrugem_no_patio", "mestre_turno", 12], ["turno_da_noite", "mestre_turno", 15],
+    ["limpa_chamine", "mestre_turno", 19], ["hora_extra", "mestre_turno", 34], ["correia_nunca_para", "operadora_correia", 25],
+    ["bateria_coqueria", "encarregada_coqueria", 29], ["olhos_na_fumaca", "encarregada_coqueria", 33],
+    ["sangria_alto_forno", "forneiro_chefe", 42], ["escoria_viva", "forneiro_chefe", 50], ["sopro_convertedor", "mestre_aciaria", 62],
+    ["golem_convertedor", "mestre_aciaria", 72], ["chapa_fina", "operador_laminador", 86], ["poco_do_cadinho", "espirito_fundidor", 100],
+    ["fornalha_primordial", "espirito_fundidor", 112],
+  ];
+  const first = QUEST_LIST.findIndex((d) => d.id === "primeiro_turno");
+  const region = QUEST_LIST.slice(first, first + CHAIN.length);
+
+  it("as 15 missões em ordem, com quem dá e level mínimo; do 10 ao 112 sem buraco maior que 15", () => {
+    expect(first).toBeGreaterThan(0);
+    expect(region.map((d) => [d.id, d.giver, d.minLevel])).toEqual(CHAIN);
+    const lv = CHAIN.map(([, , l]) => l).sort((a, b) => a - b);
+    expect([lv[0], lv.at(-1)]).toEqual([10, 112]);
+    for (let i = 1; i < lv.length; i++) expect(lv[i]! - lv[i - 1]!, `${lv[i - 1]} → ${lv[i]}`).toBeLessThanOrEqual(15);
+    // Só a primeira abre sem pré-requisito; a Hora Extra fecha o Pátio e a Coqueria.
+    expect(region.filter((d) => !d.requires?.length).map((d) => d.id)).toEqual(["primeiro_turno"]);
+    expect(QUESTS.hora_extra!.requires).toEqual(["limpa_chamine", "bateria_coqueria"]);
+  });
+
+  it("chefes como passo \"boss\"; a missão final dá o título Coração de Aço", () => {
+    const bossSteps = region.flatMap((d) => d.steps.filter((s) => s.kind === "boss").map((s) => [d.id, s.target]));
+    expect(bossSteps).toEqual([
+      ["hora_extra", "contramestre_fuligem"], ["golem_convertedor", "golem_convertedor"], ["fornalha_primordial", "fornalha_primordial"],
+    ]);
+    for (const [, boss] of bossSteps) expect(MONSTERS[boss!]?.boss, boss).toBe(true);
+    expect(QUESTS.fornalha_primordial!.rewards.unlock).toBe("title:coracao_de_aco");
+    expect(isValidUnlockId("title:coracao_de_aco")).toBe(true);
+    // O Golem do Convertedor é o chefe da Sangria do Alto-Forno (segunda 17h), que o diálogo promete.
+    expect(eventDef("sangria_do_alto_forno")?.boss).toBe("golem_convertedor");
+    expect(QUESTS.golem_convertedor!.dialog.accept).toMatch(/segunda às cinco/);
+  });
+
+  it("todo alvo de \"kill\"/\"boss\" é caçável no level mínimo da missão (portas de level da região)", () => {
+    for (const d of region) {
+      for (const s of d.steps) {
+        if (s.kind === "kill" || s.kind === "boss") expect(huntable(s.target, d.minLevel), `${d.id}: ${s.target} no lv ${d.minLevel}`).toBe(true);
+      }
+    }
+  });
+
+  it("conquistas e títulos dos três chefes (pares métrica/alvo inéditos; título só de uma conquista)", () => {
+    const by = (id: string) => ACHIEVEMENTS.find((x) => x.id === id);
+    expect(by("hora_extra_paga")).toMatchObject({ metric: "boss:contramestre_fuligem", target: 1, rewards: ["title:contramestre"] });
+    expect(by("convertedor_desligado")).toMatchObject({ metric: "boss:golem_convertedor", target: 1 });
+    expect(by("mestre_do_convertedor")).toMatchObject({ metric: "boss:golem_convertedor", target: 5, rewards: ["title:mestre_convertedor"] });
+    expect(by("fornalha_apagada")).toMatchObject({ metric: "boss:fornalha_primordial", target: 1 });
+    expect([TITLES.contramestre, TITLES.mestre_convertedor, TITLES.coracao_de_aco]).toEqual(["o Contramestre", "Mestre do Convertedor", "Coração de Aço"]);
+    // "Coração de Aço" é da missão: nenhuma conquista o dá.
+    expect(ACHIEVEMENTS.filter((x) => x.rewards?.includes("title:coracao_de_aco"))).toEqual([]);
   });
 });

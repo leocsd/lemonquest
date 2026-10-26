@@ -59,7 +59,16 @@ describe("portal: quem ganha rótulo no mapa", () => {
   it("no mapa real só a saída do Goroma (374,96) fica sem rótulo; a porta lv 80 ao lado mantém o dela", () => {
     const root = fileURLToPath(new URL("../../../../", import.meta.url));
     const idx = buildWorldIndex(JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8")) as TiledMap);
-    expect(idx.portals.filter((p) => !portalHasLabel(p)).map((p) => `${p.x},${p.y}`)).toEqual(["374,96"]);
+    // Sem rótulo só as saídas sem requisito coladas numa porta (destino a ≤ 3 tiles): a do Goroma e as da Siderúrgica.
+    const hidden = idx.portals.filter((p) => !portalHasLabel(p));
+    expect(hidden.map((p) => `${p.x},${p.y}`)).toContain("374,96");
+    for (const p of hidden) {
+      expect(p.minLevel ?? 0, `${p.x},${p.y}`).toBe(0);
+      expect(p.quest, `${p.x},${p.y}`).toBeUndefined();
+      expect(Math.max(Math.abs(p.toX - p.x), Math.abs(p.toY - p.y)), `${p.x},${p.y}`).toBeLessThanOrEqual(3);
+    }
     expect(portalHasLabel(idx.portalAt(372, 96)!)).toBe(true);
+    // Toda porta com level mantém o rótulo.
+    for (const p of idx.portals) if ((p.minLevel ?? 0) > 0) expect(portalHasLabel(p), `${p.x},${p.y}`).toBe(true);
   });
 });

@@ -15,6 +15,23 @@ const VARIANTS = {
     src: "ninja/Actor/Monster/Dragon/SpriteSheet.png",
     map: { adbc3a: "86c4ec", "74a334": "4f8ccc", "56864c": "2c4f8e", ffffff: "f4fdff" },
   },
+  // Siderúrgica (ciclo 19): gusa incandescente, aço líquido branco-amarelo, escória com olhos em brasa, convertedor de aço.
+  GusaSlime: {
+    src: "ninja/Actor/Monster/Slime4/Slime4.png",
+    map: { adbc3a: "e66a3a", "74a334": "d14b34", "56864c": "8a1c24", f2eaf1: "ffe9a0", e0394c: "ffad5d" },
+  },
+  SteelSlime: {
+    src: "ninja/Actor/Monster/Slime3/Slime3.png",
+    map: { "79b8ce": "ffe9a0", "548789": "ffad5d", "4a5270": "e66a3a", f2eaf1: "ffffff" },
+  },
+  SlagGolem: {
+    src: "ninja/Actor/Character/Statue/SpriteSheet.png",
+    map: { "5f7160": "5d4a42", "4e484a": "3a2e2c", fce2ca: "ffad5d" },
+  },
+  ConverterGolem: {
+    src: "ninja/Actor/Boss/GiantBamboo/Walk.png",
+    map: { adbc3a: "c3ccd2", "74a334": "93a0aa", "56864c": "66737d", "5f7160": "454f57", "4e484a": "2a2629", "8f3e56": "e66a3a", e0394c: "ffe9a0" },
+  },
 };
 
 const rgb = (h) => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];

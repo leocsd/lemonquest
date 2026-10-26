@@ -56,6 +56,11 @@ const VILLAGE_ARRIVAL = { x: 97, y: 98 } as const;
  * que é andável).
  */
 const MALHA_ARRIVAL: TravelDest = { id: "malha", label: "Estação Central da Malha", x: 60, y: 374, price: 200 };
+/**
+ * Chegada de trem na Estação do Minério (Siderúrgica, ciclo 19, tools/mapgen/expansion6.mjs): plataforma 1, a mesma
+ * planta da Estação Central. O preço depende de quem vende (Vila 250, Malha 200, Sala de Controle 100).
+ */
+const MINERIO_ARRIVAL = { id: "minerio", label: "Estação do Minério", x: 24, y: 594 } as const;
 const sells = (...ids: string[]): NpcShopEntry[] => ids.map((itemId) => ({ itemId }));
 /** Tier 6-7: preço = valor de loot × 1,5 (sink pra ouro acumulado), 1 por semana por personagem. */
 const limited = (...entries: [string, number][]): NpcShopEntry[] =>
@@ -547,18 +552,24 @@ export const NPCS: Record<string, NpcDef> = {
   // inspeção ferroviária (sem nome próprio), cliente disfarçado de "a Ferrovia", pátios inventados; ids do contrato com o mapa.
   chefe_estacao_vila: {
     id: "chefe_estacao_vila", name: "Chefe da Estação de Pedra Clara", sprite: C + "Villager4/SpriteSheet.png",
-    greeting: "Trem para a Malha da Ferrovia! Pórtico, rodeiro, truque e muita roda para inspecionar. Até o level 8 a passagem é por conta da casa.",
-    travel: [MALHA_ARRIVAL],
+    greeting: "Trem para a Malha da Ferrovia e para a Estação do Minério, na Siderúrgica! Na Malha, pórtico, rodeiro, truque e muita roda para inspecionar; na usina, o Alto-Forno acordou. Até o level 8 a passagem é por conta da casa.",
+    // Ciclo 19: a Estação do Minério (Siderúrgica) é o destino mais longe, por isso mais cara que a Malha.
+    travel: [MALHA_ARRIVAL, { ...MINERIO_ARRIVAL, price: 250 }],
     idleLines: [
       "Próxima partida: quando o maquinista terminar o café.",
       "Passagem só de ida? Não, aqui toda passagem tem volta. E às vezes duplica.",
       "Embarque pela plataforma 1. A plataforma 2 é imaginária.",
+      "Trem do minério saindo! Leve capacete: dizem que lá o forno ronca.",
     ],
   },
   chefe_estacao_malha: {
     id: "chefe_estacao_malha", name: "Chefe da Estação Central", sprite: C + "Sultan2/SpriteSheet.png",
-    greeting: "Bem-vindo à Estação Central da Malha. Trem para a Vila de Pedra Clara aqui, quando você quiser. Daqui saem o Pátio de Manobra, o Portal de Inspeção e a Oficina de Vagões; o trem também para com o Maquinista, na entrada do Túnel, e com o Agente da Parada, perto do Portal e da Oficina.",
-    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 }],
+    greeting: "Bem-vindo à Estação Central da Malha. Trem para a Vila de Pedra Clara e para a Estação do Minério, na Siderúrgica, aqui, quando você quiser. Daqui saem o Pátio de Manobra, o Portal de Inspeção e a Oficina de Vagões; o trem também para com o Maquinista, na entrada do Túnel, e com o Agente da Parada, perto do Portal e da Oficina.",
+    travel: [
+      { id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 },
+      // Ciclo 19: a linha do minério sai daqui também (mesmo preço da Vila).
+      { ...MINERIO_ARRIVAL, price: 200 },
+    ],
     idleLines: [
       "Trem para a Vila aqui! Embarque pela plataforma 1.",
       "Composição de 1.124 eixos! Recorde. Ninguém contou a mão.",
@@ -659,6 +670,155 @@ export const NPCS: Record<string, NpcDef> = {
       "Garra de toupeira gigante? Já usei de martelo. Não recomendo.",
       "Quem bate no Shogun volta com a espada torta. Quando volta.",
     ],
+  },
+
+  // ===== Siderúrgica (ciclo 19): fantasia industrial, NPCs só por papel (tools/mapgen/expansion6.mjs). Trem pela
+  // Estação do Minério e pela Sala de Controle (posto avançado); placas com o sprite dos quadros.
+  chefe_estacao_minerio: {
+    id: "chefe_estacao_minerio", name: "Chefe da Estação do Minério", sprite: C + "NinjaWater/SpriteSheet.png",
+    greeting: "Estação do Minério, ponto final! Trem para a Vila de Pedra Clara ou para a Estação Central da Malha, e até o level 8 a passagem é por conta da casa. Para a usina, é pelo portão sul, a partir do level 10.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 250 }, MALHA_ARRIVAL],
+    idleLines: [
+      "Placa da estação: 'Estamos há 0 dias sem acidente. Recorde: 3.'",
+      "O trem do minério chega carregado e volta vazio. O passageiro, ao contrário.",
+      "Crachá na mão, por favor. Brincadeira: aqui ninguém tem crachá.",
+    ],
+  },
+  almoxarife: {
+    id: "almoxarife", name: "Almoxarife do Minério", sprite: C + "EggBoy/SpriteSheet.png",
+    greeting: "Almoxarifado aberto! Poção, limonada e prato feito. Compro tudo o que você arrancar dos bichos da usina: lasca, carvão, fuligem, escória, até gota de gusa (de luva, por favor).",
+    shop: {
+      sells: sells(
+        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "limonada_turno", "prato_feito", "beaf", "yakitori",
+      ),
+      buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
+    },
+    idleLines: [
+      "Requisição em três vias. A terceira é para o arquivo morto.",
+      "Prato feito saindo! Ovo só às sextas.",
+      "Lasca de ferrugem? Compro. Não pergunte para quê.",
+    ],
+  },
+  depot_minerio: {
+    id: "depot_minerio", name: "Guarda-Volumes do Minério", sprite: C + "LionYellow/SpriteSheet.png", depot: true,
+    greeting: "O mesmo baú da Vila, aqui na plataforma. Deixe o peso antes de descer para o calor.",
+    idleLines: [
+      "Volume sem etiqueta vai para o alto-forno. Mentira. Ou não.",
+      "Tudo guardado, tudo seco, tudo frio. O resto da usina não pode dizer o mesmo.",
+    ],
+  },
+  capela_epi: {
+    id: "capela_epi", name: "Capelã do EPI Espiritual", sprite: C + "NinjaMageOrange/SpriteSheet.png", blessing: true,
+    greeting: "Capacete, luva, bota e bênção: o EPI completo. A bênção protege do que o capacete não protege.",
+    idleLines: [
+      "EPI espiritual: não substitui o capacete, mas ajuda.",
+      "Quem entra no Alto-Forno sem bênção sai mais leve. De XP.",
+      "Rezo por todos que descem ao Coração do Forno. Volte, viu?",
+    ],
+  },
+  mestre_turno: {
+    id: "mestre_turno", name: "Mestre de Turno", sprite: C + "CamouflageGreen/SpriteSheet.png",
+    greeting: "Turno novo, gente nova! O Pátio de Minério fica depois do portão sul, a partir do level 10. Bata o ponto com o Almoxarife antes de sair, que a usina acordou com fome.",
+    idleLines: [
+      "Sirene das seis! Quem chegou, chegou.",
+      "Hora extra só com autorização. Do Contramestre, não: dele eu quero distância.",
+      "O Alto-Forno acordou de mau humor. Acontece.",
+    ],
+  },
+  operadora_correia: {
+    id: "operadora_correia", name: "Operadora da Correia", sprite: C + "NinjaThunder/SpriteSheet.png",
+    greeting: "Esta correia nunca para. Nunca. Nem quando as serpentes resolveram morar nela.",
+    idleLines: [
+      "Correia parada é prejuízo; correia andando sozinha é pior.",
+      "Pise na esteira e corra junto: é mais rápido que andar.",
+      "Viu uma tira de borracha solta? É serpente. Ou era.",
+    ],
+  },
+  encarregada_coqueria: {
+    id: "encarregada_coqueria", name: "Encarregada da Coqueria", sprite: C + "Cavegirl2/SpriteSheet.png",
+    greeting: "Bem-vindo à Coqueria: aqui o carvão vira coque e o coque vira problema. As gosmas de gusa escaparam do cadinho e as corujas fizeram ninho na fumaça.",
+    idleLines: [
+      "Bateria de fornos: sessenta portas, sessenta brasas, nenhum descanso.",
+      "Fumaça preta é coruja. Fumaça branca é vapor. Fumaça laranja é para correr.",
+      "O Contramestre Fuligem anda pelo pátio leste. Grita mais do que trabalha.",
+    ],
+  },
+  forneiro_chefe: {
+    id: "forneiro_chefe", name: "Forneiro-Chefe", sprite: C + "Flam/SpriteSheet.png",
+    greeting: "O Alto-Forno acordou. Ronca, cospe gusa e não deixa ninguém dormir. Toda segunda, às cinco, tem sangria, e o Golem do Convertedor sobe junto na Aciaria.",
+    idleLines: [
+      "Sangria toda segunda, às cinco. Traga a turma e a marmita.",
+      "Gusa no canal, escória na panela, salamandra no meio do caminho.",
+      "Choque térmico: gelo contra bicho de fogo. Lição número um.",
+    ],
+  },
+  mestre_aciaria: {
+    id: "mestre_aciaria", name: "Mestre da Aciaria", sprite: C + "NinjaRed/SpriteSheet.png",
+    greeting: "Aciaria: onde a gusa vira aço e o aço vira cavaleiro. Não pergunte como. O convertedor criou vontade própria, e o Golem que mora nele não gosta de visita.",
+    idleLines: [
+      "Sopro de oxigênio: de longe, por favor.",
+      "Panela cheia é panela perigosa. Panela vazia também.",
+      "Ponte rolante passando! Ninguém embaixo da carga.",
+    ],
+  },
+  operador_laminador: {
+    id: "operador_laminador", name: "Operador do Laminador", sprite: C + "MaskGoldRacoon/SpriteSheet.png",
+    greeting: "Chapa grossa entra, chapa fina sai. No meio do caminho tem um Rex de Ferro deitado na mesa de rolos.",
+    idleLines: [
+      "Bobina pronta é bobina embalada. Bobina solta é bobina rolando atrás de você.",
+      "Velocidade de laminação: rápida. Paciência do operador: lenta.",
+      "Chapa fina, conversa curta.",
+    ],
+  },
+  // Posto avançado: só viagem para FORA da Sala (dentro dela, a viagem pularia as portas de level do caminho).
+  supervisora_controle: {
+    id: "supervisora_controle", name: "Supervisora da Sala de Controle", sprite: C + "NinjaGreen/SpriteSheet.png", depot: true,
+    greeting: "Sala de Controle, posto avançado. Daqui sai trem para a Vila, para a Estação do Minério e para a Malha, e o baú é o mesmo de sempre. Lá embaixo, depois da escotilha, fica o Coração do Forno. Não recomendo.",
+    travel: [
+      { id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 250 },
+      { ...MINERIO_ARRIVAL, price: 100 },
+      MALHA_ARRIVAL,
+    ],
+    idleLines: [
+      "Painel verde: tudo bem. Painel vermelho: corre.",
+      "Café da garrafa térmica, frio desde o turno passado. Ou do retrasado.",
+      "Escotilha fechada, forno acordado. Escotilha aberta, forno mais acordado ainda.",
+    ],
+  },
+  espirito_fundidor: {
+    id: "espirito_fundidor", name: "Espírito do Primeiro Fundidor", sprite: C + "Spirit/SpriteSheet.png",
+    greeting: "Eu acendi a primeira corrida desta usina, muito antes de você nascer. A Fornalha Primordial era só uma faísca. Agora acordou, e lá embaixo ela não está sozinha.",
+    idleLines: [
+      "A primeira gusa a gente nunca esquece.",
+      "O Coração do Forno não esfria. Nem deveria.",
+      "Desça em grupo. Grupo grande. Cinco, no mínimo.",
+    ],
+  },
+  placa_correias: {
+    id: "placa_correias", name: "Placa: Correias e Coqueria", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "CORREIAS E COQUERIA — lv 25+. Não pise na esteira parada: ela pode voltar a andar.",
+    idleLines: ["Correias e Coqueria — lv 25+.", "Esteira em movimento. Serpentes também."],
+  },
+  placa_area_quente: {
+    id: "placa_area_quente", name: "Placa: Área Quente", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "ÁREA QUENTE — ALTO-FORNO — lv 40+. Gelo contra bicho de fogo: choque térmico.",
+    idleLines: ["ÁREA QUENTE — lv 40+.", "Gusa no canal. Não é sopa."],
+  },
+  placa_epi: {
+    id: "placa_epi", name: "Placa: Uso Obrigatório de EPI", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "USO OBRIGATÓRIO DE EPI — ACIARIA — lv 60+. Capacete, luva, bota e coragem.",
+    idleLines: ["Aciaria — lv 60+.", "Proibido ficar embaixo da carga suspensa."],
+  },
+  placa_carga_suspensa: {
+    id: "placa_carga_suspensa", name: "Placa: Carga Suspensa", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "CUIDADO: CARGA SUSPENSA — LINGOTAMENTO E LAMINAÇÃO — lv 80+. A Sala de Controle fica no canto noroeste.",
+    idleLines: ["Lingotamento e Laminação — lv 80+.", "Ponte rolante passando!"],
+  },
+  placa_forno_acordado: {
+    id: "placa_forno_acordado", name: "Placa: O Forno Está Acordado", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "NÃO ENTRE: O FORNO ESTÁ ACORDADO — CORAÇÃO DO FORNO — lv 100+. Desça em grupo de cinco ou mais.",
+    idleLines: ["Coração do Forno — lv 100+.", "Escotilha quente. Não sente."],
   },
 };
 

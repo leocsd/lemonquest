@@ -1,5 +1,37 @@
 # Changelog
 
+## [Não lançado] — 2026-10-26 · ciclo 19: região Siderúrgica
+
+Sexto ciclo do plano 14–20: a primeira das duas regiões grandes, para todos os levels (setores de 10 a 120). Tema
+só de fantasia industrial (o Alto-Forno "acordou"). Especificação executável em `docs/regioes/siderurgica.md`
+(geometria, ids, números conferidos por script contra as regras dos testes, arte, divisão em frentes); três frentes em
+paralelo sem arquivo em comum (A mapa/arte, B monstros/itens, C missões/NPCs/evento) + revisão cruzada.
+
+**Mapa** (`tools/mapgen/expansion6.mjs`, etapa depois de `lateObjects18`): bloco 180×140 em (4,580), mapa 400×560 →
+**400×722**, 30 linhas de vazio. `diff-world.mjs`: **0 tiles alterados**, 851/851 objetos antigos, 269 novos (36 spawns
+com 113 monstros, NPCs, placas, portais, 193 luzes, 9 zonas). Sete setores selados que só se ligam por pares de portais
+na mesma parede: porta com `minLevel` (10 → 25 → 40 → 60 → 80 → 100) e, ao lado, a saída sem level (quem perde level não
+fica preso). Estação do Minério (PZ) copia a planta da Estação Central da Malha; Sala de Controle (PZ, posto avançado
+com viagem só de saída); Coração do Forno escuro embaixo (9 salas).
+**Arte** (`tools/mapgen/industry.mjs`, `L.industry()`/`L.steel()` com alocação adiada): +429 tiles desenhados em código
+(asfalto, chapa xadrez, faixa zebrada, esteiras, canos do `Pipes.png`, paredes metálicas, gusa por troca de cor da água
+do pântano — fora do `WaterGrid`, alto-forno, convertedores, carros-torpedo, pontes rolantes, laminador, leiras,
+gasômetro); atlas 560 → 992 tiles; `diff-atlas.mjs` novo: 555/555 tiles antigos idênticos.
+**Acesso**: trem da Vila (250) e da Estação Central (200) até (24,594); atalho oculto da casinha de cargas da Malha
+(46,384, lv 10) ↔ (8,591).
+
+**Monstros e itens** — 13 monstros + 3 chefes (Contramestre Fuligem lv 36, Golem do Convertedor lv 76, A Fornalha
+Primordial lv 118) com sprites do pack sem uso e 4 trocas de paleta (`tools/monsters/recolor.mjs`); a Fornalha deixa o
+tier Abissal a 6% (`REGION_FINAL_BOSSES`). 11 materiais (Rubi `gem_red`), 3 provas, 2 comidas e 8 peças, cada uma
+abaixo do melhor item do slot no level (o modelo do Coliseu nunca escolhe peça da Siderúrgica, lv 1–150: Coliseu
+inalterado). Avental e Elmo do Forjador só da Fornalha e de missão (como drop comum, subiam o piso do Baú de Recompensa
+e tiravam o tier 7 dele no 83+).
+
+**Missões, NPCs e evento** — 15 missões do lv 10 ao 112 (Primeiro Turno → A Fornalha Primordial; maior buraco 14
+levels), 12 NPCs + 5 placas, viagens de volta da Estação e da Sala de Controle, evento **Sangria do Alto-Forno** segunda
+17h–18h (Golem do Convertedor, loot +50%), conquistas e títulos "o Contramestre", "Mestre do Convertedor" e "Coração de
+Aço". Plural do Quadro: "Caracóis", "Rexes".
+
 ## [Não lançado] — 2026-10-26 · ciclo 18: social e retenção
 
 Quinto ciclo do plano 14–20. Dados que motivaram: dois blocos de jogadores (lv 35–102 e lv ≤ 16) quase sem jogo

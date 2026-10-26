@@ -292,8 +292,15 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
     levelsNear(x, y, radius = LEVELS_NEAR_RADIUS, minCount = LEVELS_NEAR_MIN) {
       const c = componentAt(x, y);
       if (!c) return undefined;
-      const near = leveled.flatMap((s, i) => (leveledComp[i] === c ? [{ lv: s.lv, d: cheb(s.x, s.y, x, y) }] : []))
+      const inComps = (cs: Set<number>) => leveled.flatMap((s, i) => (cs.has(leveledComp[i]!) ? [{ lv: s.lv, d: cheb(s.x, s.y, x, y) }] : []))
         .sort((a, b) => a.d - b.d);
+      let near = inComps(new Set([c]));
+      // Lugar fechado sem monstro cuja saída é uma porta de level (Estação do Minério → Pátio, lv 10): vale o que está
+      // do outro lado da porta. Portal comum não conta (a Oficina continua "sem monstros por perto").
+      if (!near.length) {
+        const doors = (edgesFrom.get(c) ?? []).filter((i) => edges[i]!.kind === "portal" && (edges[i]!.portal?.minLevel ?? 0) > 0);
+        near = inComps(new Set(doors.map((i) => edges[i]!.to)));
+      }
       let min = Infinity, max = -Infinity;
       near.forEach((s, i) => {
         if (s.d > radius && i >= minCount) return;

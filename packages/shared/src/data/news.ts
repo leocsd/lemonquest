@@ -12,6 +12,20 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26h",
+    date: "26 de outubro",
+    title: "Região nova: a Siderúrgica",
+    items: [
+      "O Alto-Forno acordou! Pegue o trem na Vila (250) ou na Estação Central da Malha (200) até a Estação do Minério. Tem lugar para todos os levels, do 10 ao 120.",
+      "Setores com porta de level: Pátio de Minério (10+), Correias e Coqueria (25+), Alto-Forno (40+), Aciaria (60+), Lingotamento e Laminação (80+) e o Coração do Forno (100+).",
+      "13 criaturas novas e 3 chefes: Contramestre Fuligem, Golem do Convertedor e A Fornalha Primordial, que pode deixar peças do tier Abissal.",
+      "15 missões do lv 10 ao 112, do Primeiro Turno à Fornalha Primordial, com títulos novos: o Contramestre, Mestre do Convertedor e Coração de Aço.",
+      "Sangria do Alto-Forno toda segunda, 17h–18h: o Golem do Convertedor acorda na Aciaria, loot +50%.",
+      "Materiais novos (Rubi, Frasco de Aço Líquido…), comida de turno (Limonada do Turno, Prato Feito) e 8 peças de equipamento.",
+      "Dizem que a casinha de cargas da Malha esconde um atalho para a Estação do Minério…",
+    ],
+  },
+  {
     id: "2026-10-26g",
     date: "26 de outubro",
     title: "Invasão da Vila, Mural de Excursões e desafios da semana",

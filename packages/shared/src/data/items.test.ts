@@ -333,6 +333,9 @@ describe("ciclo 16: tier 8 \"Abissal\"", () => {
   const COMMON = new Set(["abyss_tengu", "abyss_samurai"]);
   // O Shogun Abissal (`lair_shogun`) é criado pela frente dos covis: se ainda não existir, o teste segue sem ele.
   const BOSSES = new Set(["orshabaal", "ferumbras", "lair_shogun"]);
+  // Ciclo 19: chefes finais das regiões (Siderúrgica; a Montadora entra no ciclo 20 com `mt_prototipo`) dão o tier 8 a
+  // 5–8% por peça (plano), abaixo dos 10–12% dos chefes do Profundo. O teste não exige que existam.
+  const REGION_FINAL_BOSSES = new Set(["fornalha_primordial", "mt_prototipo"]);
 
   it("13 peças de lv 100, ícone com o tint abissal, 110–300 mil", () => {
     expect(TIER_LEVEL).toEqual([1, 8, 15, 25, 35, 50, 70, 100]);
@@ -377,14 +380,15 @@ describe("ciclo 16: tier 8 \"Abissal\"", () => {
     }
   });
 
-  it("só cai do Profundo (0,15–0,3%) e dos chefes listados (10–12%); toda peça tem fonte comum", () => {
+  it("só cai do Profundo (0,15–0,3%), dos chefes listados (10–12%) e dos chefes finais de região (5–8%); toda peça tem fonte comum", () => {
     const ids = new Set(ABYSS_ITEM_IDS);
     for (const m of Object.values(MONSTERS)) {
       for (const e of m.loot ?? []) {
         if (!ids.has(e.itemId)) continue;
-        expect(COMMON.has(m.id) || BOSSES.has(m.id), `${m.id} -> ${e.itemId}`).toBe(true);
-        expect(!!m.boss, m.id).toBe(BOSSES.has(m.id));
-        const [lo, hi] = m.boss ? [0.1, 0.12] : [0.0015, 0.003];
+        const regionFinal = REGION_FINAL_BOSSES.has(m.id);
+        expect(COMMON.has(m.id) || BOSSES.has(m.id) || regionFinal, `${m.id} -> ${e.itemId}`).toBe(true);
+        expect(!!m.boss, m.id).toBe(BOSSES.has(m.id) || regionFinal);
+        const [lo, hi] = regionFinal ? [0.05, 0.08] : m.boss ? [0.1, 0.12] : [0.0015, 0.003];
         expect(e.chance, `${m.id} -> ${e.itemId}`).toBeGreaterThanOrEqual(lo);
         expect(e.chance, `${m.id} -> ${e.itemId}`).toBeLessThanOrEqual(hi);
       }
@@ -392,6 +396,7 @@ describe("ciclo 16: tier 8 \"Abissal\"", () => {
     for (const d of t8) expect(dropsOf(d.id).some((m) => COMMON.has(m.id)), d.id).toBe(true);
     for (const b of ["orshabaal", "ferumbras"]) expect(MONSTERS[b]!.loot!.some((e) => ids.has(e.itemId)), b).toBe(true);
     if (MONSTERS.lair_shogun) expect(MONSTERS.lair_shogun.loot!.some((e) => ids.has(e.itemId)), "lair_shogun").toBe(true);
+    for (const b of REGION_FINAL_BOSSES) if (MONSTERS[b]) expect(MONSTERS[b].loot!.some((e) => ids.has(e.itemId)), b).toBe(true);
   });
 
   it("Fragmento Abissal: Tengu 25%, Samurai 30%, Orshabaal, Ferumbras e Shogun sempre", () => {
@@ -405,5 +410,93 @@ describe("ciclo 16: tier 8 \"Abissal\"", () => {
     for (const n of Object.values(NPCS)) {
       for (const e of n.shop?.sells ?? []) expect(isExclusiveItem(ITEMS[e.itemId]!), `${n.id} -> ${e.itemId}`).toBe(false);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ciclo 19: Siderúrgica (docs/regioes/siderurgica.md §3.3–3.4)
+// ---------------------------------------------------------------------------
+describe("ciclo 19: Siderúrgica", () => {
+  const MATS: [string, number][] = [
+    ["lasca_ferrugem", 20], ["pedra_carvao", 45], ["fuligem", 75], ["tira_correia", 240], ["gota_gusa", 300], ["pena_fuligem", 380],
+    ["escama_salamandra", 560], ["bloco_escoria", 720], ["placa_aco_fundido", 1300], ["gem_red", 1500], ["frasco_aco_liquido", 4200],
+  ];
+  // [id, slot, level, valor, cai de monstro comum (entra no Baú de Recompensa)]. Avental e Elmo do Laminador: só Fornalha
+  // e missão (peça lv 80+ de comum subiria o piso do baú acima do tier 7; server/systems/quests.test.ts, lv 100).
+  const GEAR: [string, ItemDef["slot"], number, number, boolean][] = [
+    ["capacete_fundidor", "helmet", 40, 5200, true], ["botas_fundidor", "boots", 50, 22000, false],
+    ["calca_antichama", "legs", 60, 26000, true], ["anel_alto_forno", "ring", 60, 48000, false],
+    ["botas_termicas", "boots", 70, 45000, true], ["amuleto_rubi", "amulet", 70, 42000, false],
+    ["avental_forjador", "armor", 80, 110000, false], ["elmo_laminador", "helmet", 85, 48000, false],
+  ];
+  const SID_GEAR = new Set(GEAR.map(([id]) => id));
+
+  it("11 materiais com o valor da tabela, todos com monstro que derruba; Rubi empilha 50", () => {
+    for (const [id, value] of MATS) {
+      const d = ITEMS[id]!;
+      expect(d, id).toBeDefined();
+      expect([d.kind, d.stackable, d.value], id).toEqual(["material", true, value]);
+      expect(dropsOf(id).length, id).toBeGreaterThan(0);
+    }
+    expect(ITEMS.gem_red).toMatchObject({ name: "Rubi", maxStack: 50, icon: { url: "ninja/Items/Resource/GemRed.png" } });
+  });
+
+  it("provas dos três chefes: troféus (quest, valor 0) que não prometem abrir nada", () => {
+    for (const id of ["apito_contramestre", "nucleo_convertedor", "coracao_fornalha"]) {
+      const d = ITEMS[id]!;
+      expect([d.kind, d.value, d.stackable], id).toEqual(["quest", 0, undefined]);
+      expect(d.description, id).not.toMatch(/abre/i);
+    }
+  });
+
+  it("comida do turno: Limonada (mana, lv 10) e Prato Feito (equilibrado, lv 25)", () => {
+    expect(ITEMS.limonada_turno).toMatchObject({ kind: "food", level: 10, value: 40, use: { food: { hpPerTick: 1, manaPerTick: 4, durationMs: 6 * 60_000 } } }); // mana 4: com 5 batia o Macarrão (2/4, 60) pela metade do preço
+    expect(ITEMS.prato_feito).toMatchObject({ kind: "food", level: 25, value: 160, use: { food: { hpPerTick: 9, manaPerTick: 5, durationMs: 10 * 60_000 } } });
+  });
+
+  it("8 peças para todas as vocações, cada uma abaixo do melhor item do slot no level dela (calculado por vocação)", () => {
+    for (const [id, slot, level, value] of GEAR) {
+      const d = ITEMS[id]!;
+      expect([d.slot, d.level, d.value, d.vocations, d.unique], id).toEqual([slot, level, value, undefined, undefined]);
+      expect(isExclusiveItem(d), id).toBe(false);
+      for (const v of VOCATIONS) {
+        const ref = all.filter((x) => x.slot === slot && !SID_GEAR.has(x.id) && fits(x, v) && (x.level ?? 1) <= level)
+          .reduce<ItemDef | undefined>((b, x) => (!b || x.value > b.value ? x : b), undefined)!;
+        expect(ref, `${id} ${v}`).toBeDefined();
+        expect(d.value, `${id} ${v}: referência ${ref.id} (${ref.value})`).toBeLessThan(ref.value);
+      }
+    }
+  });
+
+  it("o modelo de balanço (balanceKit.ts: o mais caro do slot) nunca escolhe uma peça da Siderúrgica, do lv 1 ao 150", () => {
+    const equip = all.filter((d) => d.slot);
+    for (const v of VOCATIONS) {
+      for (let L = 1; L <= 150; L++) {
+        const best = new Map<string, ItemDef>();
+        for (const d of equip) {
+          if (!fits(d, v) || (d.level ?? 0) > L) continue;
+          const b = best.get(d.slot!);
+          if (!b || d.value > b.value) best.set(d.slot!, d);
+        }
+        for (const d of best.values()) expect(SID_GEAR.has(d.id), `${v} lv ${L}: ${d.id}`).toBe(false);
+      }
+    }
+  });
+
+  it("fontes: capacete, calças e botas térmicas caem de comum (Baú); o resto só de missão ou chefe (nem loja)", () => {
+    for (const [id, , , , common] of GEAR) {
+      expect(dropsOf(id).some((m) => !m.boss), id).toBe(common);
+      if (!common) expect(sold.has(id), id).toBe(false);
+    }
+    expect([chance("fornalha_primordial", "avental_forjador"), chance("fornalha_primordial", "elmo_laminador")]).toEqual([0.15, 0.15]);
+    expect([chance("golem_convertedor", "anel_alto_forno"), chance("golem_convertedor", "amuleto_rubi")]).toEqual([0.1, 0.1]);
+  });
+
+  it("Fornalha Primordial: Fragmento Abissal sempre e 4 peças do tier 8 a 6% (os elmos e o grimório ficam para o ciclo 20)", () => {
+    expect(chance("fornalha_primordial", "abyss_shard")).toBe(1);
+    const t8 = MONSTERS.fornalha_primordial!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard");
+    expect(t8.map((e) => [e.itemId, e.chance])).toEqual([
+      ["abyss_armor", 0.06], ["abyss_archer_armor", 0.06], ["abyss_mage_armor", 0.06], ["abyss_shield", 0.06],
+    ]);
   });
 });

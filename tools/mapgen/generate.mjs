@@ -11,6 +11,7 @@ import { expand2 } from './expansion2.mjs';
 import { expand3 } from './expansion3.mjs';
 import { expand4 } from './expansion4.mjs';
 import { expand5 } from './expansion5.mjs';
+import { expand6 } from './expansion6.mjs';
 import { drawEntrances14 } from './entrances14.mjs';
 import { PNG } from 'pngjs';
 
@@ -1070,14 +1071,20 @@ const lateObjects18 = {
   console.log(`lateObjects18: ${lateObjects18.points.length} pontos de invasão (${late.filter(([t]) => t === 'invasion_point').map(([, x, y, p]) => `${x},${y}→${p.goalX},${p.goalY}`).join(' ')}), ${lateObjects18.npcs.length} NPC`);
 }
 
+// ===================================================================== SIDERÚRGICA (ciclo 19: tools/mapgen/expansion6.mjs)
+// Sexta expansão para baixo: o mapa acima (400×560) fica intacto e a região entra nas linhas 580..719, ligada à Vila e à
+// Malha de trem (TravelDest) e à Malha por um portal oculto na casinha de cargas. Roda por último: é a única etapa que
+// aloca L.industry()/L.steel() (os tiles Lemon antigos mantêm o id).
+const { map: world6 } = expand6({ old: world5, ts, S, L: LEMON, spawnTile: SPAWN });
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
-fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world5.toTiled()));
+fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world6.toTiled()));
 { const cp = LEMON.set.croppedPng(); const out = new PNG({ width: cp.width, height: cp.height }); out.data = Buffer.from(cp.data); const dir = path.join(MAPS_DIR, '../tiles'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'lemon-terrain.png'), PNG.sync.write(out)); }
 // Os previews ficam só no disco (assets/maps/preview*.png está no .gitignore): são regenerados aqui a cada rodada.
-const a = renderPreview(world5, path.join(MAPS_DIR, 'preview.png'));
-const b = renderPreview(world5, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
+const a = renderPreview(world6, path.join(MAPS_DIR, 'preview.png'));
+const b = renderPreview(world6, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
 if (process.argv.includes('--debug')) {
-  renderPreview(world5, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
+  renderPreview(world6, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
 }
-console.log(`world.json ${world5.w}x${world5.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world5.objects.length}`);
+console.log(`world.json ${world6.w}x${world6.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world6.objects.length}`);

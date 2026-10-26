@@ -53,6 +53,9 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   // online). Ganham também uma edição no fim do expediente, nos dias livres às 17h (como o Apito da Locomotiva).
   { id: "ferumbras_no_expediente", name: "Ferumbras na Cidadela", desc: "Ferumbras voltou à Cidadela! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 2, hour: 17, durationMin: 60, boss: "ferumbras" },
   { id: "orshabaal_no_expediente", name: "Cerco de Orshabaal", desc: "Orshabaal subiu do Abismo! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 4, hour: 17, durationMin: 60, boss: "orshabaal" },
+  // Siderúrgica (ciclo 19): a sangria das cinco de segunda, fim do expediente, como as outras edições das 17h (terça
+  // Ferumbras, quarta Apito, quinta Orshabaal); a segunda às 17h estava livre.
+  { id: "sangria_do_alto_forno", name: "Sangria do Alto-Forno", desc: "A corrida de gusa acordou o Golem do Convertedor na Aciaria! Loot +50%", xpMult: 1, lootMult: 1.5, day: 1, hour: 17, durationMin: 60, boss: "golem_convertedor" },
 ];
 
 /** Evento em andamento (agendado ou disparado por admin). */
