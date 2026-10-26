@@ -561,9 +561,9 @@ describe("WorldRoom: robustez (morte, caveira vermelha, recompensas, permanênci
     const r = makeRoom();
     const p = join(r, "Lia", "l1");
     for (let i = 0; i < backpackCapacity(p.level); i++) r.inventory.addItem(p, makeItem("fire_sword"));
-    expect(r.inventory.roomFor("l1", "demon_armor")).toBe(0);
+    expect(r.inventory.roomFor("l1", "stonecutter_axe")).toBe(0);
     r.quests.claimChest(p, questChestDef("anni_armor")!);
-    const fell = [...r.ground.all()].filter((e: any) => e.item.defId === "demon_armor");
+    const fell = [...r.ground.all()].filter((e: any) => e.item.defId === "stonecutter_axe");
     expect(fell).toHaveLength(1);
     expect(r.transferred.has("l1")).toBe(true);
   });

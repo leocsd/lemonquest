@@ -5,7 +5,7 @@
 import { randomBytes } from "node:crypto";
 import {
   BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
-  levelNeeded, pickQuickPotion,
+  instanceStats, levelNeeded, pickQuickPotion, refineLevel,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
   type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
   type StatId, type Stats, type UseItemMsg, type Vocation,
@@ -69,21 +69,27 @@ export function emptyInventory(): Inventory {
   return { equipment: {}, backpack: Array(BACKPACK_SIZE).fill(null), depot: Array(DEPOT_SIZE).fill(null), gold: 0 };
 }
 
-/** Valida/normaliza um item vindo do banco. undefined = descartar. */
-export function sanitizeItem(raw: unknown, defs: ItemDefs): ItemInstance | undefined {
+/**
+ * Valida/normaliza um item vindo do banco. undefined = descartar. `clampStack: false` (chão) não corta a pilha no
+ * maxStack: o ouro da caveira vermelha cai como uma pilha só, que pode passar de 1 milhão.
+ */
+export function sanitizeItem(raw: unknown, defs: ItemDefs, o: { clampStack?: boolean } = {}): ItemInstance | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const r = raw as Record<string, unknown>;
   if (typeof r.defId !== "string") return undefined;
   const d = defs(r.defId);
   if (!d) return undefined;
-  const count = Number.isFinite(r.count) ? Math.max(1, Math.min(maxStackOf(d), Math.floor(r.count as number))) : 1;
+  const max = o.clampStack === false ? Number.MAX_SAFE_INTEGER : maxStackOf(d);
+  const count = Number.isFinite(r.count) ? Math.max(1, Math.min(max, Math.floor(r.count as number))) : 1;
   const rarity = RARITIES.includes(r.rarity as Rarity) ? (r.rarity as Rarity) : "common";
   const bonuses = Array.isArray(r.bonuses)
     ? (r.bonuses as { stat: unknown; value: unknown }[])
       .filter((b) => b && STAT_IDS.includes(b.stat as StatId) && Number.isFinite(b.value))
       .slice(0, 3).map((b) => ({ stat: b.stat as StatId, value: Math.round(b.value as number) }))
     : [];
-  return { uid: typeof r.uid === "string" && r.uid ? r.uid : newUid(), defId: d.id, count, rarity, bonuses };
+  // Refino (ciclo 16): só 1..5 em item refinável; qualquer outra coisa vira +0 (o campo nem aparece).
+  const refine = refineLevel(d, r.refine);
+  return { uid: typeof r.uid === "string" && r.uid ? r.uid : newUid(), defId: d.id, count, rarity, bonuses, ...(refine ? { refine } : {}) };
 }
 
 function loadArray(raw: unknown, size: number, defs: ItemDefs): (ItemInstance | null)[] {
@@ -103,14 +109,12 @@ export function fitBackpack(inv: Pick<Inventory, "backpack">, level: number): vo
   while (inv.backpack.length > cap && inv.backpack[inv.backpack.length - 1] === null) inv.backpack.pop();
 }
 
-/** Soma dos atributos (definição + bônus) dos itens equipados. */
+/** Soma dos atributos dos itens equipados (cada um por instanceStats: definição + bônus + refino). */
 export function totalStats(inv: Inventory, defs: ItemDefs): Stats {
   const out: Stats = {};
   for (const it of Object.values(inv.equipment)) {
     if (!it) continue;
-    const d = defs(it.defId);
-    for (const [k, v] of Object.entries(d?.stats ?? {})) if (Number.isFinite(v)) out[k as StatId] = (out[k as StatId] ?? 0) + (v as number);
-    for (const b of it.bonuses) out[b.stat] = (out[b.stat] ?? 0) + b.value;
+    for (const [k, v] of Object.entries(instanceStats(defs(it.defId), it))) out[k as StatId] = (out[k as StatId] ?? 0) + (v as number);
   }
   return out;
 }
@@ -395,6 +399,12 @@ export class InventorySystem {
     if (from.where === "backpack") return isInt(from.index) && from.index >= 0 && from.index < inv.backpack.length ? inv.backpack[from.index] ?? undefined : undefined;
     if (from.where === "equip") return EQUIP_SLOTS.includes(from.slot) ? inv.equipment[from.slot] : undefined;
     return undefined;
+  }
+
+  /** O item em `at` mudou no lugar (refino, systems/refine.ts): reenvia o inventário e, se equipado, recalcula os atributos. */
+  itemChanged(p: PlayerState, at: DropFrom): void {
+    this.dirty.add(p.id);
+    if (at.where === "equip") this.equipmentChanged(p);
   }
 
   /**

@@ -405,9 +405,12 @@ export function npcBuyPrice(value: number, rarity: Rarity = "common"): number {
 /** "Vender tudo" no NPC deixa na mochila os itens desta raridade ou melhor (vender um épico sem querer não tem volta). */
 export const SELL_ALL_KEEPS_FROM: Rarity = "rare";
 
-/** O "Vender tudo" deixa este item na mochila? (só a venda item a item vende). Regra única de servidor e cliente. */
-export function keptBySellAll(rarity: Rarity): boolean {
-  return RARITIES.indexOf(rarity) >= RARITIES.indexOf(SELL_ALL_KEEPS_FROM);
+/**
+ * O "Vender tudo" deixa este item na mochila? (só a venda item a item vende). Regra única de servidor e cliente.
+ * Item refinado também fica (ciclo 16): o NPC paga só o valor base, e o refino custou dezenas de milhares de ouro.
+ */
+export function keptBySellAll(rarity: Rarity, refine = 0): boolean {
+  return refine > 0 || RARITIES.indexOf(rarity) >= RARITIES.indexOf(SELL_ALL_KEEPS_FROM);
 }
 
 // ---------------------------------------------------------------------------

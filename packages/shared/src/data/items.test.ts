@@ -2,8 +2,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BOW_ATTACK_MULT, GEAR_SHAPES, GEAR_TIERS, HEALTH_POTION_CD_MS, MANA_POTION_CD_MS, MATERIAL_ICONS, ITEMS, gearFrame, isEquipable, type ItemDef } from "./items.ts";
+import {
+  ABYSS_ITEM_IDS, ABYSS_TINT, BOW_ATTACK_MULT, GEAR_SHAPES, GEAR_TIERS, HEALTH_POTION_CD_MS, MANA_POTION_CD_MS, MATERIAL_ICONS, ITEMS, TIER_LEVEL,
+  gearFrame, isEquipable, isExclusiveItem, type ItemDef,
+} from "./items.ts";
 import { MONSTERS } from "./monsters.ts";
+import { NPCS } from "./npcs.ts";
+import { QUEST_CHESTS } from "./questWorld.ts";
 import { playerDamageRange } from "../formulas.ts";
 import { VOCATIONS, type Vocation } from "../types.ts";
 
@@ -215,10 +220,10 @@ describe("cobertura de armaduras", () => {
 });
 
 describe("livros de magia (escudo dos magos)", () => {
-  it("um por tier 2-7, só magos; menos armadura que o escudo do cavaleiro, mais mana a cada tier, mesmo valor", () => {
+  it("um por tier 2-8, só magos; menos armadura que o escudo do cavaleiro, mais mana a cada tier, mesmo valor", () => {
     const books = all.filter((d) => d.slot === "shield" && d.vocations?.includes("sorcerer")).sort((a, b) => a.level! - b.level!);
     const knight = all.filter((d) => d.slot === "shield" && d.vocations?.includes("knight"));
-    expect(books.map((b) => b.level)).toEqual([8, 15, 25, 35, 50, 70]);
+    expect(books.map((b) => b.level)).toEqual([8, 15, 25, 35, 50, 70, 100]);
     for (const [i, b] of books.entries()) {
       expect(b.vocations).toEqual(["sorcerer", "druid"]);
       const k = knight.find((s) => s.level === b.level)!;
@@ -238,5 +243,167 @@ describe("ciclo 8: recarga das poções", () => {
     }
     expect([HEALTH_POTION_CD_MS, MANA_POTION_CD_MS]).toEqual([2000, 1000]);
     expect(ITEMS.health_potion_large!.use!.cooldownMs).toBe(2000);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ciclo 16: botas dos tiers 6–7, itens únicos e tier 8 "Abissal"
+// ---------------------------------------------------------------------------
+const MAGES: Vocation[] = ["sorcerer", "druid"];
+const fits = (d: ItemDef, v: Vocation) => !d.vocations || d.vocations.includes(v);
+const sold = new Set(Object.values(NPCS).flatMap((n) => (n.shop?.sells ?? []).map((s) => s.itemId)));
+const dropsOf = (id: string) => Object.values(MONSTERS).filter((m) => (m.loot ?? []).some((e) => e.itemId === id));
+const chance = (monster: string, id: string) => MONSTERS[monster]?.loot?.find((e) => e.itemId === id)?.chance;
+
+describe("ciclo 16: botas dos tiers 6 e 7", () => {
+  const BOOTS: [string, number, Vocation[]][] = [
+    ["crown_boots", 50, ["knight"]], ["demon_boots", 70, ["knight"]], ["royal_boots", 50, ["paladin"]],
+    ["dragon_scale_boots", 70, ["paladin"]], ["mystic_boots", 50, MAGES], ["ferumbras_boots", 70, MAGES],
+  ];
+
+  it("uma por forma (cavaleiro, paladino, magos) em cada tier, abaixo do valor das Botas da Pressa", () => {
+    const haste = ITEMS.boots_haste!;
+    for (const [id, level, vocs] of BOOTS) {
+      const d = ITEMS[id]!;
+      expect(d, id).toBeDefined();
+      expect([d.kind, d.slot, d.level, d.vocations], id).toEqual(["boots", "boots", level, vocs]);
+      expect(d.value, id).toBeLessThan(haste.value);
+      expect(d.stats!.speed!, id).toBeLessThan(haste.stats!.speed!);
+      expect(d.stats!.armor!, id).toBeGreaterThanOrEqual(haste.stats!.armor!);
+      expect(d.unique, id).toBeUndefined();
+      // Fonte: monstro comum e a encomenda semanal da loja, como as outras peças dos tiers 6 e 7.
+      expect(dropsOf(id).some((m) => !m.boss), id).toBe(true);
+      expect(sold.has(id), id).toBe(true);
+    }
+    // O modelo de balanço (balanceKit.ts) escolhe o mais caro do slot: as Botas da Pressa continuam as escolhidas.
+    for (const v of VOCATIONS) {
+      const boots = all.filter((d) => d.slot === "boots" && fits(d, v));
+      expect(Math.max(...boots.map((d) => d.value)), v).toBe(haste.value);
+    }
+  });
+
+  it("valor e armadura crescem do tier 5 ao 7 em cada forma", () => {
+    for (const [t5, t6, t7] of [["mithril_boots", "crown_boots", "demon_boots"], ["master_archer_boots", "royal_boots", "dragon_scale_boots"],
+      ["archmage_boots", "mystic_boots", "ferumbras_boots"]]) {
+      const [a, b, c] = [ITEMS[t5!]!, ITEMS[t6!]!, ITEMS[t7!]!];
+      expect(a.value).toBeLessThan(b.value);
+      expect(b.value).toBeLessThan(c.value);
+      expect(b.stats!.speed!).toBeGreaterThan(a.stats!.speed!);
+      expect(c.stats!.speed!).toBeGreaterThan(b.stats!.speed!);
+      expect(c.stats!.armor!).toBeGreaterThanOrEqual(b.stats!.armor!);
+    }
+  });
+});
+
+describe("ciclo 16: itens únicos (Aniquilação)", () => {
+  const uniques = all.filter((d) => d.unique);
+
+  it("um por vocação, lv 100, 320 mil; só saem dos baús da Aniquilação (nem loja, nem monstro)", () => {
+    expect(uniques.map((d) => d.id).sort()).toEqual(["annihilator_bow", "annihilator_rod", "annihilator_wand", "stonecutter_axe"]);
+    expect(uniques.flatMap((d) => d.vocations!).sort()).toEqual([...VOCATIONS].sort());
+    for (const d of uniques) {
+      expect([d.kind, d.level, d.value], d.id).toEqual(["weapon", 100, 320000]);
+      expect(isExclusiveItem(d), d.id).toBe(true);
+      expect(sold.has(d.id), d.id).toBe(false);
+      expect(dropsOf(d.id).map((m) => m.id), d.id).toEqual([]);
+      // Melhor que a arma do tier 8 da vocação (é o prêmio da quest mais difícil).
+      const t8 = ABYSS_ITEM_IDS.map((id) => ITEMS[id]!).find((w) => w.slot === "weapon" && w.vocations![0] === d.vocations![0])!;
+      expect(d.stats!.attack!, d.id).toBeGreaterThan(t8.stats!.attack!);
+    }
+  });
+
+  it("os 4 baús mantêm o id; cada um dá a arma única de uma vocação e o urso", () => {
+    const anni = Object.values(QUEST_CHESTS).filter((c) => c.group === "annihilator");
+    expect(anni.map((c) => c.id)).toEqual(["anni_armor", "anni_sword", "anni_axe", "anni_bear"]);
+    const vocs = anni.map((c) => {
+      const ids = c.items!.map((i) => i.itemId);
+      expect(ids, c.id).toContain("annihilation_bear");
+      const weapon = ids.map((id) => ITEMS[id]!).filter((d) => d.unique);
+      expect(weapon, c.id).toHaveLength(1);
+      expect(c.unlock, c.id).toBe("title:aniquilador");
+      return weapon[0]!.vocations![0];
+    });
+    expect(vocs).toEqual(["knight", "paladin", "sorcerer", "druid"]);
+    for (const d of uniques) expect(Object.values(QUEST_CHESTS).some((c) => c.items?.some((i) => i.itemId === d.id)), d.id).toBe(true);
+  });
+});
+
+describe("ciclo 16: tier 8 \"Abissal\"", () => {
+  const t8 = ABYSS_ITEM_IDS.map((id) => ITEMS[id]!);
+  const COMMON = new Set(["abyss_tengu", "abyss_samurai"]);
+  // O Shogun Abissal (`lair_shogun`) é criado pela frente dos covis: se ainda não existir, o teste segue sem ele.
+  const BOSSES = new Set(["orshabaal", "ferumbras", "lair_shogun"]);
+
+  it("13 peças de lv 100, ícone com o tint abissal, 110–300 mil", () => {
+    expect(TIER_LEVEL).toEqual([1, 8, 15, 25, 35, 50, 70, 100]);
+    expect(t8).toHaveLength(13);
+    for (const d of t8) {
+      expect(d.level, d.id).toBe(TIER_LEVEL[7]);
+      expect(d.icon.tint, d.id).toBe(ABYSS_TINT);
+      expect(d.value, d.id).toBeGreaterThanOrEqual(110_000);
+      expect(d.value, d.id).toBeLessThanOrEqual(300_000);
+      expect(isEquipable(d), d.id).toBe(true);
+      expect(isExclusiveItem(d), d.id).toBe(true);
+      expect(d.unique, d.id).toBeUndefined();
+    }
+  });
+
+  it("por vocação: cavaleiro lâmina/elmo/armadura/escudo, paladino arco/elmo/couraça/grevas, magos arma/capuz/manto/grimório", () => {
+    const slotsOf = (v: Vocation) => t8.filter((d) => fits(d, v)).map((d) => d.slot).sort();
+    expect(slotsOf("knight")).toEqual(["armor", "helmet", "shield", "weapon"]);
+    expect(slotsOf("paladin")).toEqual(["armor", "helmet", "legs", "weapon"]);
+    for (const v of MAGES) expect(slotsOf(v), v).toEqual(["armor", "helmet", "shield", "weapon"]);
+    const weapon = (v: Vocation) => t8.find((d) => d.slot === "weapon" && d.vocations![0] === v)!;
+    expect(weapon("knight")).toMatchObject({ weaponType: "sword", stats: { attack: 160 } });
+    expect(weapon("knight").twoHanded).toBeUndefined(); // lâmina de uma mão: o Escudo Abissal tem uso
+    expect(weapon("paladin")).toMatchObject({ weaponType: "bow", stats: { attack: Math.ceil(125 * BOW_ATTACK_MULT) } });
+    expect(weapon("paladin").stats!.attack).toBe(144);
+    expect(weapon("sorcerer")).toMatchObject({ weaponType: "wand", damageKind: "death", stats: { attack: 105, magic: 6 } });
+    expect(weapon("druid")).toMatchObject({ weaponType: "rod", damageKind: "earth", stats: { attack: 105, magic: 6 } });
+    expect(ITEMS.spellbook_abyss).toMatchObject({ kind: "shield", vocations: MAGES });
+  });
+
+  it("coerente com a progressão do slot: acima da melhor peça do tier 7 da vocação em valor, armadura e ataque", () => {
+    for (const d of t8) {
+      for (const v of d.vocations!) {
+        const t7 = all.filter((x) => x.slot === d.slot && x.level === TIER_LEVEL[6] && !x.unique && x.vocations && fits(x, v));
+        expect(t7.length, `${d.id} ${v}`).toBeGreaterThan(0);
+        for (const o of t7) {
+          expect(d.value, `${d.id} vs ${o.id}`).toBeGreaterThan(o.value);
+          if (d.slot === "weapon") expect(d.stats!.attack!, `${d.id} vs ${o.id}`).toBeGreaterThan(o.stats!.attack!);
+          else expect(d.stats!.armor!, `${d.id} vs ${o.id}`).toBeGreaterThan(o.stats!.armor!);
+        }
+      }
+    }
+  });
+
+  it("só cai do Profundo (0,15–0,3%) e dos chefes listados (10–12%); toda peça tem fonte comum", () => {
+    const ids = new Set(ABYSS_ITEM_IDS);
+    for (const m of Object.values(MONSTERS)) {
+      for (const e of m.loot ?? []) {
+        if (!ids.has(e.itemId)) continue;
+        expect(COMMON.has(m.id) || BOSSES.has(m.id), `${m.id} -> ${e.itemId}`).toBe(true);
+        expect(!!m.boss, m.id).toBe(BOSSES.has(m.id));
+        const [lo, hi] = m.boss ? [0.1, 0.12] : [0.0015, 0.003];
+        expect(e.chance, `${m.id} -> ${e.itemId}`).toBeGreaterThanOrEqual(lo);
+        expect(e.chance, `${m.id} -> ${e.itemId}`).toBeLessThanOrEqual(hi);
+      }
+    }
+    for (const d of t8) expect(dropsOf(d.id).some((m) => COMMON.has(m.id)), d.id).toBe(true);
+    for (const b of ["orshabaal", "ferumbras"]) expect(MONSTERS[b]!.loot!.some((e) => ids.has(e.itemId)), b).toBe(true);
+    if (MONSTERS.lair_shogun) expect(MONSTERS.lair_shogun.loot!.some((e) => ids.has(e.itemId)), "lair_shogun").toBe(true);
+  });
+
+  it("Fragmento Abissal: Tengu 25%, Samurai 30%, Orshabaal, Ferumbras e Shogun sempre", () => {
+    expect(ITEMS.abyss_shard).toMatchObject({ kind: "material", stackable: true, name: "Fragmento Abissal" });
+    expect([chance("abyss_tengu", "abyss_shard"), chance("abyss_samurai", "abyss_shard")]).toEqual([0.25, 0.3]);
+    expect([chance("orshabaal", "abyss_shard"), chance("ferumbras", "abyss_shard")]).toEqual([1, 1]);
+    if (MONSTERS.lair_shogun) expect(chance("lair_shogun", "abyss_shard")).toBe(1);
+  });
+
+  it("tier 8 e únicos nunca em loja", () => {
+    for (const n of Object.values(NPCS)) {
+      for (const e of n.shop?.sells ?? []) expect(isExclusiveItem(ITEMS[e.itemId]!), `${n.id} -> ${e.itemId}`).toBe(false);
+    }
   });
 });

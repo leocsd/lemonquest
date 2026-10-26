@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BACKPACK_MAX, BACKPACK_SIZE, S2C, backpackCapacity, baseStats, weaponDamageRange, playerDamageRange } from "@lemonquest/shared";
-import { MSG, fitBackpack, makeItem } from "./inventory.ts";
+import { MSG, fitBackpack, makeItem, sanitizeItem } from "./inventory.ts";
 import { attackProfile } from "./combat.ts";
 import { invWorld, itemsFx } from "./m4kit.ts";
 
@@ -370,6 +370,16 @@ describe("inventory: stats aggregation", () => {
     expect([prof.range, prof.kind, prof.ranged]).toEqual([6, "physical", true]);
   });
 
+  it("refino (ciclo 16) entra nos atributos do equipamento: +3 de ataque na arma, +1 de armadura por nível", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { vocation: "knight", level: 40 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 2 });
+    w.inv.addItem(p, { ...makeItem("mithril_plate", 1, "rare", [{ stat: "armor", value: 1 }]), refine: 3 });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "equip", slot: "weapon" } });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 1 }, to: { where: "equip", slot: "armor" } });
+    expect(w.inv.stats("p1")).toEqual({ attack: 76, armor: 9 });
+  });
+
   it("persistence roundtrip", () => {
     const w = invWorld();
     const p = w.mk();
@@ -383,5 +393,56 @@ describe("inventory: stats aggregation", () => {
     w2.inv.load(q, { ...saved, backpack: [...saved.backpack, { defId: "nope", count: 1 }] });
     expect(w2.inv.serialize("p1")).toEqual(w.inv.serialize("p1"));
     expect(w2.inv.stat("p1", "hpMax")).toBe(29);
+  });
+});
+
+describe("inventory: refino preservado e sanitizado (ciclo 16)", () => {
+  it("sanitizeItem: mantém 1..5 em item refinável; descarta o resto (sem criar o campo)", () => {
+    const ok = sanitizeItem({ uid: "a", defId: "katana", count: 1, rarity: "rare", bonuses: [], refine: 4 }, itemsFx);
+    expect(ok).toEqual({ uid: "a", defId: "katana", count: 1, rarity: "rare", bonuses: [], refine: 4 });
+    for (const refine of [0, 6, -2, 1.5, "3", null]) {
+      const it = sanitizeItem({ uid: "a", defId: "katana", count: 1, rarity: "common", bonuses: [], refine }, itemsFx)!;
+      expect(Object.keys(it), String(refine)).not.toContain("refine");
+    }
+    // Item que não é refinável (espada sem level, anel): o campo some.
+    expect(Object.keys(sanitizeItem({ defId: "sword", refine: 2 }, itemsFx)!)).not.toContain("refine");
+    expect(Object.keys(sanitizeItem({ defId: "ring", refine: 2 }, itemsFx)!)).not.toContain("refine");
+    // Save antigo (sem o campo) continua igual.
+    expect(sanitizeItem({ uid: "b", defId: "katana", count: 1, rarity: "common", bonuses: [] }, itemsFx)).toEqual({ uid: "b", defId: "katana", count: 1, rarity: "common", bonuses: [] });
+  });
+
+  it("vai e volta do banco no equipamento, na mochila e no depot", () => {
+    const w = invWorld({ depotOpen: () => true });
+    const p = w.mk("p1", { level: 40 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 5 });
+    w.inv.addItem(p, { ...makeItem("mithril_plate"), refine: 2 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 1 });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "equip", slot: "weapon" } });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 2 }, to: { where: "depot", index: 7 } });
+    expect(w.inv.get("p1")!.depot[7]!.refine).toBe(1);
+    // Depot → mochila de volta → outro espaço do depot: continua +1.
+    w.inv.onMoveItem(p, { from: { where: "depot", index: 7 }, to: { where: "backpack", index: 2 } });
+    expect(bp(w)[2]!.refine).toBe(1);
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 2 }, to: { where: "depot", index: 3 } });
+    expect(w.inv.get("p1")!.depot[3]!.refine).toBe(1);
+    const saved = JSON.parse(JSON.stringify(w.inv.serialize("p1")));
+    const w2 = invWorld();
+    const q = w2.mk("p1", { level: 40 });
+    w2.inv.load(q, saved);
+    expect(w2.inv.serialize("p1")).toEqual(w.inv.serialize("p1"));
+    expect(eq(w2).weapon!.refine).toBe(5);
+    expect(bp(w2)[1]!.refine).toBe(2);
+    expect(w2.inv.get("p1")!.depot[3]!.refine).toBe(1);
+    expect(w2.inv.stat("p1", "attack")).toBe(85);
+  });
+
+  it("largar do equipamento leva o refino junto (a instância inteira sai)", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { level: 40 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 3 });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "equip", slot: "weapon" } });
+    const out = w.inv.takeForDrop(p, { where: "equip", slot: "weapon" });
+    expect(out!.refine).toBe(3);
+    expect(w.inv.stat("p1", "attack")).toBe(0);
   });
 });

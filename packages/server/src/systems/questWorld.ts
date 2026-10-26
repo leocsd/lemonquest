@@ -1,5 +1,6 @@
 // Quests de mundo no estilo Tibia (dados em shared/data/questWorld.ts):
 // - Baús de quest: clicar ao lado → confere alcance e level → QuestSystem.claimChest (uma vez por grupo e personagem).
+//   A trava dos covis (`needBoss`: abate do chefe registrado no personagem) é conferida lá, depois do "vazio".
 // - Alavanca de grupo (Aniquilação): com jogadores em pelo menos `minPlayers` placas (todos com o level mínimo, e quem puxa
 //   também numa placa) e a sala vazia, puxar a alavanca solta os monstros na sala (quantidade pelo tamanho do grupo, `leverMonsters`) e leva os
 //   jogadores aos destinos das suas placas. Monstros da sala somem se ela ficar vazia.

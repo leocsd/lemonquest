@@ -141,6 +141,16 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 16 (2026-10-26, fim de jogo)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1333 passados (112 arquivos; eram 1214), 0 pulados; typecheck limpo. Novos: `refine.test.ts` (shared e servidor), `imbuement.test.ts` (shared e servidor), `arenaChampion.test.ts`, `lairs.room.test.ts` (sala real: quem bate e o grupo perto ganham o abate do covil; arena não conta), `drawnChests.test.ts`, `dropConfirm.test.ts`, `imbueLogic.test.ts`; casos novos em `items`, `quests`, `questWorld`, `monsters`, `arena` (ondas 61–70 com cada modificador, virada de semana), `ground` (ouro de 1,5 mi sobrevive ao reinício), `m4` (clique duplo no encantamento cobra 1×), `conditions` |
+| Mapa | `diff-world.mjs` contra o ciclo 15: 0 tiles alterados, 826/826 objetos antigos, 17 novos (4 chefes, 12 baús, Mestre Brás); 67583/67596 tiles alcançáveis (13 baús/obstáculos) |
+| Balanço | `vocationBalance` e `arena` com o tier 8 completo: 48/48; Coliseu 61–70: grupo lv 110 cai na 61, lv 130 completa com qualquer modificador |
+| Revisão cruzada | Dois revisores: 5 achados corrigidos (cobrança dupla do encantamento no clique duplo; rollback de imagem zeraria encantamentos — o save grava também o campo antigo; ouro > 1 mi cortado no reinício do chão; venda avulsa de refinado sem confirmação; tempo do Coliseu na semana do fim) + a trava dos baús de covil trocada da prova (passável a alts) para o abate registrado; coroação do Coliseu isolada em `runSafe` |
+| E2E | Execução local completa interrompida pelo sistema por falta de memória na máquina (não foi falha de teste); não reiniciada. Specs ajustadas: `arena` (Onda N/70), `sinks` (encantamento), `caves` (baú de covil trancado), `refine.spec.ts` novo. Resultado do CI da PR abaixo |
+
 ## Resultados — ciclo 15 (2026-10-25, balanço das vocações e morte)
 
 | Camada | Resultado |
@@ -148,7 +158,7 @@ reportou 0 erros isolados e heap de 32–43 MB.
 | Unitários | 1214 passados (102 arquivos; eram 1162), 0 pulados; typecheck limpo. Novos: `balanceKit.ts` + `vocationBalance.test.ts` (P por vocação nos lv 30/60/100 nas tabelas de produção e do plano; feiticeiro não lidera dano e sobrevivência juntos; vida efetiva do escudo ≤ 1,1× a do cavaleiro), `skills.test.ts`, `admincli.test.ts`, `blessingText.test.ts`; casos novos em `combatFormulas`, `pvp`, `combat`, `spells`, `telemetry`, `monsterAbilities`, `conditions`, `shared/data/monsters`, `shared/data/spells`, `hotkeys`, `bestiaryLogic`. `arena.test.ts` com as metas de volta e sem `it.fails` |
 | Balanço medido | Pior/melhor do P (produção): 0,52/0,39/0,49 → 0,74/0,66/0,86; tabela do plano 0,74/0,73/0,83. Coliseu: solo lv 34 22–23, solo lv 120 29–30, grupo justo da 40/45/50/55/60 em 38/46/48/54/completa, lv 100 cai na 54, lv 120 completa |
 | Revisão cruzada | Sem bug grave; corrigidos: descrição do Escudo de Mana presa a "metade" (agora travada contra a constante por teste), teto "Protege até" da sacerdotisa sem a caveira vermelha, `cloneData` da telemetria quebrando com `byLevel` nulo, comentário e README da telemetria |
-| E2E | Não rodado localmente (decisão do dono: E2E local só a pedido). Specs ajustadas: `death.spec` (milhar com ponto em "−N XP"). Resultado do CI da PR abaixo |
+| E2E | Não rodado localmente (decisão do dono: E2E local só a pedido). Specs ajustadas: `death.spec` (milhar com ponto em "−N XP"). CI da PR #21: typecheck/testes/build, E2E e Docker verdes |
 
 ## Resultados — ciclo 14 (2026-10-25, correções de bugs e exploits)
 

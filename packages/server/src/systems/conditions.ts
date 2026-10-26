@@ -41,8 +41,8 @@ export interface ConditionOptions {
   send: (sessionId: string, type: string, msg: unknown) => void;
   /** Bônus de velocidade (%) do equipamento do jogador, somado ao haste. */
   speedBonus?: (playerId: string) => number;
-  /** Condições extras do jogador mantidas fora daqui (ex.: "fed" da comida). */
-  extra?: (p: PlayerState, now: number) => ConditionsMsg["list"][number] | undefined;
+  /** Condições extras do jogador mantidas fora daqui ("fed" da comida, "imbued" do encantamento). */
+  extra?: (p: PlayerState, now: number) => ConditionsMsg["list"][number] | undefined | (ConditionsMsg["list"][number] | undefined)[];
 }
 
 /** Velocidade resultante (100 = normal; 0 = enraizado). */
@@ -148,7 +148,7 @@ export class ConditionSystem {
   sync(now: number): void {
     for (const p of this.o.players()) {
       const list = this.listFor(p, now);
-      const sig = list.map((c) => `${c.id}:${c.value ?? ""}:${c.remainingMs === undefined ? "" : now + c.remainingMs}`).join("|");
+      const sig = list.map((c) => `${c.id}:${c.value ?? ""}:${c.value2 ?? ""}:${c.effect ?? ""}:${c.remainingMs === undefined ? "" : now + c.remainingMs}`).join("|");
       if (this.sentSig.get(p.id) === sig) continue;
       this.sentSig.set(p.id, sig);
       this.o.send(p.id, S2C.Conditions, { list } satisfies ConditionsMsg);
@@ -163,12 +163,16 @@ export class ConditionSystem {
       list.push(c.value ? { id: c.id, remainingMs: Math.max(0, c.until - now), value: c.value } : { id: c.id, remainingMs: Math.max(0, c.until - now) });
     }
     const extra = this.o.extra?.(p, now);
-    if (extra) list.push(extra);
+    for (const c of Array.isArray(extra) ? extra : [extra]) if (c) list.push(c);
     return list;
   }
 
-  /** Recalcula a velocidade do jogador (equipamento mudou). */
+  /**
+   * Recalcula a velocidade do jogador (equipamento mudou, entrada, reconexão) e força o reenvio da lista no próximo
+   * sync: o que saiu durante uma queda se perdeu (o "imbued", por exemplo, só muda a cada minuto de combate).
+   */
   refreshPlayer(id: string): void {
+    this.sentSig.delete(id);
     this.refresh(id);
   }
 

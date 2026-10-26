@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   HOTKEY_MAX, defaultHotkeys,
   BASE_STEP_MS, Dir, evalSpellFormula, mitigateSpell, playerDamageRange, GLOBAL_SPELL_COOLDOWN_MS, S2C, SKILL_START, TICK_MS, skillTriesFor, stepDuration,
-  MONSTERS, SPELLS, spellMana, spellsFor, type MonsterDef, type SpellDef, type Vocation,
+  MONSTERS, SPELLS, imbuementBonus, spellMana, spellsFor, type MonsterDef, type SpellDef, type Vocation,
 } from "@lemonquest/shared";
 import { ConditionSystem } from "./conditions.ts";
 import { SkillSystem } from "./skills.ts";
@@ -654,5 +654,24 @@ describe("spellPower: dano de magia do cavaleiro/paladino pela skill da arma e p
     // rng 0,5 = valor médio da fórmula; armadura 0.
     expect(w.events().filter((e: any) => e.sourceId === "k" && e.kind === "physical").at(-1)?.amount).toBe(1442);
     expect(evalSpellFormula(SPELLS.annihilation_strike!.damage!, 100, 10, () => 0.5)).toBe(952);
+  });
+});
+
+describe("encantamento em magia (ciclo 16)", () => {
+  it("magia de dano em monstro: Dreno de Vida devolve metade do valor; no boneco de treino, nada", () => {
+    const nuke: SpellDef = { id: "nuke", name: "n", words: "exevo nuke", vocations: ["druid"], level: 1, mana: 0, cooldownMs: 0, global: false, target: "target", range: 4, damage: { ...F(400), kind: "fire" }, fx: "fire", description: "" };
+    SP.nuke = nuke;
+    try {
+      for (const invulnerable of [false, true]) {
+        const w = setup({ monsters: [{ x: 10, y: 10, def: { hp: 100_000, invulnerable } }] });
+        w.combat.hooks.imbuement = () => imbuementBonus("lifesteal", 3); // 10% → 5% em magia
+        const p = w.addP("p", 11, 10, { hp: 50, maxHp: 5000 });
+        expect(w.spells.cast(p, "nuke", w.ms[0].s.id)).toMatchObject({ ok: true });
+        expect(w.events().find((e) => e.targetId === w.ms[0].s.id)).toMatchObject({ amount: 400 });
+        expect(p.hp, invulnerable ? "boneco" : "monstro").toBe(invulnerable ? 50 : 50 + 20);
+      }
+    } finally {
+      delete SP.nuke;
+    }
   });
 });

@@ -14,18 +14,26 @@ test("sinks: encantamento (Dona Marta), tingimento (janela de roupas) e ficha de
   await expect.poll(() => countOf(page, "wolf_fang")).toBe(5);
   await recordToasts(page);
 
-  // Encantamento: Dreno de Vida = 5 000 + 5 presas de lobo. A linha vira "Ativo" (o servidor reabre a janela).
+  // Encantamento (aba Encantar, grade efeito × tier): Dreno de Vida I = 5 000 + 5 presas de lobo, 10 h de combate. A
+  // célula vira "Renovar" (o servidor reabre a janela) e a faixa de condições mostra o ícone com "10h" (sem combate,
+  // o tempo não anda).
   const marta = await openNpc(page, "herbalist", "Dona Marta, Ervanária");
-  const lifesteal = marta.locator(".shop-row", { hasText: "Dreno de Vida" });
-  await expect(lifesteal).toContainText("5/5x Presa de Lobo");
-  await lifesteal.getByRole("button", { name: "Trocar" }).click();
-  await expect(lifesteal.getByRole("button", { name: "Ativo" })).toBeDisabled();
-  await expect(lifesteal.locator(".shop-name")).toContainText("Ativo");
-  await seenToast(page, "Encantamento ativo: Dreno de Vida");
+  await marta.getByRole("tab", { name: "Encantar" }).click();
+  await expect(marta.locator(".imbue-status")).toContainText("Nenhum encantamento ativo.");
+  const lifesteal = marta.locator('[data-imbue="lifesteal:1"]');
+  await expect(lifesteal).toContainText("5/5");
+  await lifesteal.getByRole("button", { name: "Comprar Dreno de Vida I" }).click(); // sem ativo: compra direto
+  await expect(lifesteal).toHaveClass(/active/);
+  await expect(lifesteal.getByRole("button", { name: "Renovar Dreno de Vida I" })).toBeDisabled(); // acabou o material
+  await expect(marta.locator(".imbue-status")).toContainText("Ativo: Dreno de Vida I · 10h de combate");
+  await seenToast(page, "Encantamento ativo: Dreno de Vida I");
   await expect.poll(() => gold(page)).toBe(15_000);
   await expect.poll(() => countOf(page, "wolf_fang")).toBe(0);
-  // Sem material, outro efeito fica travado.
-  await expect(marta.locator(".shop-row", { hasText: "Espinhos" }).getByRole("button", { name: "Trocar" })).toBeDisabled();
+  await expect(page.locator('.conditions .cond[data-tip="Encantado"] .cond-time')).toHaveText("10h");
+  // Sem material, outro efeito fica travado; tier II pede level 60.
+  await expect(marta.locator('[data-imbue="thorns:1"]').getByRole("button")).toBeDisabled();
+  await expect(marta.locator('[data-imbue="lifesteal:2"]')).toContainText("Lv 60");
+  await expect(marta.locator('[data-imbue="lifesteal:2"]').getByRole("button")).toBeDisabled();
   await snap(page, "sink-imbuement");
   await marta.getByRole("button", { name: "Fechar" }).click();
   await expect(marta).toBeHidden();

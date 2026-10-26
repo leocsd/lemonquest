@@ -16,6 +16,11 @@
   position: absolute; right: 0; bottom: -2px; font-size: 10px; line-height: 11px; color: #fff;
   text-shadow: 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000; font-variant-numeric: tabular-nums;
 }
+/* Selo do refino (+1..+5): dourado no canto de cima, acima do brilho de raridade. */
+.item-refine {
+  position: absolute; left: 0; top: -2px; z-index: 3; font-size: 10px; line-height: 11px; font-weight: 700; color: #ffd75e;
+  text-shadow: 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000; font-variant-numeric: tabular-nums;
+}
 .item-icon.framed {
   background: #0b0d13; border: 1px solid color-mix(in srgb, var(--rc) 55%, var(--hud-line-soft)); border-radius: 4px;
   box-shadow: inset 0 0 6px color-mix(in srgb, var(--rc) 18%, transparent);
@@ -111,6 +116,7 @@ body.item-dragging, body.item-dragging * { cursor: grabbing !important; user-sel
 .it-stats b { font-weight: 400; font-variant-numeric: tabular-nums; color: #dfe3ee; }
 .it-stats b.has-bonus { color: #8fd7ff; }
 .it-stats small { color: #8fd7ff; font-size: 11px; }
+.it-stats small.it-refine { color: #ffd75e; }
 .it-compare { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--hud-line); }
 .it-cmp-head { font-size: 11px; color: var(--hud-muted); margin-bottom: 2px; }
 .it-cmp { display: flex; justify-content: space-between; gap: 14px; }

@@ -1,9 +1,9 @@
 // Combate estilo Tibia: alvo + ataque automático a cada PLAYER_ATTACK_MS; dano de monstros; XP, level e morte.
 import {
   ELITE, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, PVP_DAMAGE_MULT, S2C, VOCATION_ATTACK, baseStats, critChance, deathXpLoss, levelForXp, manaShieldSplit, mitigate, shieldArmorBonus,
-  applyXpStage, autoAttackRange, damageTakenMult, rollAttack, rollInt, splitXp, xpStage,
+  applyXpStage, autoAttackRange, damageTakenMult, imbuementSpellValue, mitigateSpell, rollAttack, rollInt, splitXp, xpStage,
   type AttackMsg, type ItemDef, type SkillId, type CombatEvent, type CombatMsg, type CreatureDiedMsg, type DiedMsg, type LevelUpMsg,
-  type DamageKind, type ImbuementDef, type NoticeMsg, type XpGainMsg,
+  type DamageKind, type ImbuementBonus, type NoticeMsg, type XpGainMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { cheb, isMonsterState, killCredit, type CreatureState, type Monster, type MonsterManager } from "./monsters.ts";
@@ -88,8 +88,11 @@ export interface CombatHooks {
   dealtMult?: (p: PlayerState) => number;
   /** % de dano elemental extra no monstro (condição "exposed", Ruptura Elemental); 0 = nenhuma. */
   exposedPct?: (monsterId: string) => number;
-  /** Encantamento ativo do jogador (Dona Marta). Só aplicado no ataque automático contra monstro selvagem (PvE). */
-  imbuement?: (p: PlayerState) => ImbuementDef | undefined;
+  /**
+   * Encantamento ativo do jogador (efeito + valor do tier; systems/imbuement.ts). Só contra monstro selvagem, nunca no
+   * boneco de treino nem no PvP: ataque automático e Espinhos inteiros, magia pela metade (spellHitMonster).
+   */
+  imbuement?: (p: PlayerState) => ImbuementBonus | undefined;
   /** Multiplicador do dano recebido (postura). */
   takenMult?: (p: PlayerState) => number;
   /** Subiu de level (maxHp/maxMana/hp/mana já na base; o hook pode somar o equipamento). */
@@ -143,6 +146,8 @@ export class CombatSystem {
   private after: (() => void)[] = [];
   private readonly nextAttackAt = new Map<string, number>();
   private readonly lastCombatAt = new Map<string, number>();
+  /** Último dano dado em/recebido de monstro (sem boneco de treino nem PvP): relógio do encantamento. */
+  private readonly lastPveAt = new Map<string, number>();
   private readonly nextShieldTryAt = new Map<string, number>();
   private readonly rng: () => number;
   hooks: CombatHooks = {};
@@ -222,9 +227,16 @@ export class CombatSystem {
     if (id && this.o.getPlayer(id)) this.lastCombatAt.set(id, now);
   }
 
+  /** Em combate contra monstro: deu ou levou dano de monstro há menos de OUT_OF_COMBAT_MS (boneco e PvP não contam). */
+  inPveCombat(playerId: string, now: number): boolean {
+    const t = this.lastPveAt.get(playerId);
+    return t !== undefined && now - t < OUT_OF_COMBAT_MS;
+  }
+
   removePlayer(id: string): void {
     this.nextAttackAt.delete(id);
     this.lastCombatAt.delete(id);
+    this.lastPveAt.delete(id);
     this.nextShieldTryAt.delete(id);
     this.o.monsters.clearTargetsOf(id);
   }
@@ -243,7 +255,7 @@ export class CombatSystem {
       if (d < 1 || d > va.range || now < (this.nextAttackAt.get(p.id) ?? 0)) continue;
       // Ataque à distância (arco, varinha...) exige linha de visão; sem ela não ataca (a perseguição reposiciona).
       if (va.ranged && !this.o.monsters.los(p.x, p.y, m.s.x, m.s.y)) continue;
-      const imb = this.hooks.imbuement?.(p);
+      const imb = this.imbuementVs(p, m);
       this.nextAttackAt.set(p.id, now + Math.round(PLAYER_ATTACK_MS * (imb?.effect === "haste" ? 1 - imb.value : 1)));
       this.lastCombatAt.set(p.id, now);
       this.hooks.onAutoAttack?.(p);
@@ -252,9 +264,36 @@ export class CombatSystem {
       const armor = Math.round(m.def.armor * (imb?.effect === "pierce" ? 1 - imb.value : 1));
       const amount = roll.miss ? 0 : mitigate(raw, armor);
       const dealt = this.damageMonster(m, p.id, amount, va.kind, now, { crit: roll.crit, ranged: va.ranged });
-      if (dealt > 0 && imb?.effect === "lifesteal") p.hp = Math.min(p.maxHp, p.hp + Math.round(dealt * imb.value));
-      if (dealt > 0 && imb?.effect === "manasteal") p.mana = Math.min(p.maxMana, p.mana + Math.round(dealt * imb.value));
+      this.leech(p, imb, imb?.value ?? 0, dealt);
     }
+  }
+
+  /**
+   * Encantamento que vale contra este monstro: nenhum no boneco de treino (lá o tempo não gasta, então o efeito também
+   * não rende: Veloz treinaria skill de graça).
+   */
+  private imbuementVs(p: PlayerState, m: Monster): ImbuementBonus | undefined {
+    return m.def.invulnerable ? undefined : this.hooks.imbuement?.(p);
+  }
+
+  /** Drenos do encantamento: `value` do dano causado volta como vida ou mana. */
+  private leech(p: PlayerState, imb: ImbuementBonus | undefined, value: number, dealt: number): void {
+    if (!imb || dealt <= 0 || value <= 0) return;
+    if (imb.effect === "lifesteal") p.hp = Math.min(p.maxHp, p.hp + Math.round(dealt * value));
+    else if (imb.effect === "manasteal") p.mana = Math.min(p.maxMana, p.mana + Math.round(dealt * value));
+  }
+
+  /**
+   * Magia de dano do jogador num monstro (SpellSystem): armadura por mitigateSpell e encantamento pela metade (shared
+   * imbuementSpellValue: drenos e Perfurante a IMBUE_SPELL_MULT; Veloz e Espinhos não entram). Retorna o dano causado.
+   */
+  spellHitMonster(p: PlayerState, m: Monster, raw: number, kind: DamageKind, now: number): number {
+    const imb = this.imbuementVs(p, m);
+    const v = imbuementSpellValue(imb);
+    const armor = imb?.effect === "pierce" ? m.def.armor * (1 - v) : m.def.armor;
+    const dealt = this.damageMonster(m, p.id, mitigateSpell(raw, armor, kind), kind, now, { ranged: false }); // projétil vem do SpellCast
+    this.leech(p, imb, v, dealt);
+    return dealt;
   }
 
   /** Ataque automático contra outro jogador (PvP). */
@@ -326,7 +365,10 @@ export class CombatSystem {
       ranged: o.ranged ? true : undefined,
     });
     this.markCombat(credit, now);
-    if (credit && this.o.getPlayer(credit)) this.hooks.onActivity?.(credit, now);
+    if (credit && this.o.getPlayer(credit)) {
+      this.lastPveAt.set(credit, now);
+      this.hooks.onActivity?.(credit, now);
+    }
     this.o.monsters.onDamaged(m, sourceId, dealt, now, credit);
     if (dealt > 0) {
       m.s.hp -= dealt;
@@ -343,6 +385,8 @@ export class CombatSystem {
     o: { ranged?: boolean; killerName?: string; killerId?: string; killerKey?: string } = {}): number {
     if (p.hp <= 0) return 0;
     this.lastCombatAt.set(p.id, now);
+    // Golpe, habilidade ou dano contínuo de monstro (vivo) também é combate PvE (relógio do encantamento).
+    if (this.o.monsters.get(sourceId)) this.lastPveAt.set(p.id, now);
     let left = Math.max(0, Math.round(amount * (this.hooks.takenMult?.(p) ?? 1)));
     const red = this.hooks.damageTakenPct?.(p.id) ?? 0;
     if (red > 0 && left > 0) left = Math.max(0, Math.round(left * (1 - Math.min(100, red) / 100)));
@@ -403,7 +447,7 @@ export class CombatSystem {
     const raw = Math.round(rollInt(m.def.damage[0], m.def.damage[1], this.rng) * (m.dmgMult ?? 1));
     this.shieldTry(p, now, { monsterLevel: m.def.level, raw });
     const taken = this.damagePlayer(p, m.s.id, mitigate(raw, this.armorOf(p)), m.def.damageKind, now, { ranged, killerName: m.def.name, killerKey: m.def.id });
-    const imb = this.hooks.imbuement?.(p);
+    const imb = this.imbuementVs(p, m);
     if (imb?.effect === "thorns" && taken > 0 && m.s.hp > 0) this.damageMonster(m, p.id, Math.round(taken * imb.value), "physical", now, { creditId: p.id });
   }
 
@@ -483,6 +527,7 @@ export class CombatSystem {
     for (const o of this.o.players()) if (o.targetId === p.id) o.targetId = "";
     this.o.monsters.clearTargetsOf(p.id);
     this.lastCombatAt.delete(p.id);
+    this.lastPveAt.delete(p.id);
     this.nextAttackAt.delete(p.id);
     if (this.hooks.interceptDeath?.(p, killerName)) return;
     this.hooks.onDying?.(p, killer, now);

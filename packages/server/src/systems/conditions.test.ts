@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BOSS_ROOT_SLOW_PCT, SPELLS } from "@lemonquest/shared";
+import { BOSS_ROOT_SLOW_PCT, SPELLS, type ConditionsMsg } from "@lemonquest/shared";
 import { ConditionSystem } from "./conditions.ts";
-import { def, openGrid, world } from "./testkit.ts";
+import { def, openGrid, player, world } from "./testkit.ts";
 
 /** Um chefe e um monstro comum parados, e o sistema de condições ligado ao mundo de teste. */
 function setup() {
@@ -51,5 +51,54 @@ describe("controle em chefe (ciclo 15)", () => {
     w.conditions.apply(w.boss.s.id, "burn", 4000, 12, "mago", w.now());
     w.conditions.apply(w.boss.s.id, "exposed", 12_000, 15, "mago", w.now());
     expect([w.conditions.value(w.boss.s.id, "burn"), w.conditions.value(w.boss.s.id, "exposed")]).toEqual([12, 15]);
+  });
+});
+
+describe("condições extras (comida e encantamento)", () => {
+  it("extra aceita lista; troca de efeito ou de minuto do encantamento reenvia a faixa (sem remainingMs)", () => {
+    const w = world({ grid: openGrid(30, 30), spawns: [], defs: () => undefined });
+    const sent: { to: string; msg: any }[] = [];
+    let imbued: ConditionsMsg["list"][number] | undefined = { id: "imbued", value: 600, value2: 1, effect: "lifesteal" };
+    const conditions = new ConditionSystem({
+      monsters: w.mm, combat: w.combat, getPlayer: (id) => w.players.get(id), players: () => w.players.values(),
+      send: (to, _type, msg) => sent.push({ to, msg }),
+      extra: () => [undefined, imbued],
+    });
+    w.add(player("p1", 5, 5));
+    conditions.sync(w.now());
+    expect(sent.at(-1)!.msg.list).toEqual([{ id: "imbued", value: 600, value2: 1, effect: "lifesteal" }]);
+    conditions.sync(w.now() + 1000);
+    expect(sent).toHaveLength(1); // nada mudou: não reenvia
+    imbued = { ...imbued, effect: "manasteal" };
+    conditions.sync(w.now() + 2000);
+    expect(sent).toHaveLength(2);
+    imbued = { ...imbued, value: 599 };
+    conditions.sync(w.now() + 3000);
+    expect(sent).toHaveLength(3);
+    imbued = undefined;
+    conditions.sync(w.now() + 4000);
+    expect(sent.at(-1)!.msg.list).toEqual([]);
+  });
+});
+
+describe("reenvio da faixa", () => {
+  it("refreshPlayer (reconexão, equipamento) faz o próximo sync reenviar a lista mesmo sem mudança", () => {
+    const w = world({ grid: openGrid(30, 30), spawns: [], defs: () => undefined });
+    const sent: { to: string; msg: any }[] = [];
+    const conditions = new ConditionSystem({
+      monsters: w.mm, combat: w.combat, getPlayer: (id) => w.players.get(id), players: () => w.players.values(),
+      send: (to, _type, msg) => sent.push({ to, msg }),
+      extra: () => ({ id: "imbued", value: 600, value2: 1, effect: "lifesteal" }),
+    });
+    w.add(player("p1", 5, 5));
+    conditions.sync(w.now());
+    conditions.sync(w.now() + 50);
+    expect(sent).toHaveLength(1);
+    conditions.refreshPlayer("p1");
+    conditions.sync(w.now() + 100);
+    expect(sent).toHaveLength(2);
+    expect(sent[1]!.msg.list).toEqual([{ id: "imbued", value: 600, value2: 1, effect: "lifesteal" }]);
+    conditions.sync(w.now() + 150);
+    expect(sent).toHaveLength(2);
   });
 });

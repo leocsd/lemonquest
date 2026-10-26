@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   ARENA_BREAK_MS, ARENA_COUNTDOWN_MS, ARENA_MAX_WAVE, arenaWave, ARENA_INTRO_MS, ARENA_SHOP_PAUSE_MS, ARENA_SPAWN_DELAY_MS, S2C, arenaWaveGold,
-  ARENA_COMPLETE_GOLD, arenaWaveSpawns, monsterDef, type TiledMap, type Vocation,
+  ARENA_COMPLETE_GOLD, ARENA_MILESTONE_GOLD, ARENA_MILESTONE_WAVE, ARENA_MOD_FROM_WAVE, ARENA_MOD_ORDER, ARENA_MODS, ARENA_PAUSE_HEAL,
+  ARENA_WAVES, arenaModAt, arenaPauseMs, arenaShopAfter, arenaTimeText, arenaWaveMult, arenaWaveSpawns, arenaWeekMod, monsterDef,
+  weekId, type ArenaModId, type TiledMap, type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { ArenaSystem, parseArenas, type ArenaLayout } from "./arena.ts";
-import { arenaRun, fighterBuilds, type Fighter, type SimOptions } from "./balanceKit.ts";
+import { ARENA_WAVE_CAP_S, Battle, arenaRun, fighterBuilds, type Fighter, type SimOptions } from "./balanceKit.ts";
 import { openGrid, player, world } from "./testkit.ts";
 import { loadMap } from "../world/map.ts";
 
@@ -54,7 +56,23 @@ function setup(nArenas = 1, extra: Partial<ConstructorParameters<typeof ArenaSys
   const notices = (to: string) => w.sent.filter((s) => s.to === to && s.type === S2C.Notice).map((s) => s.msg.text as string);
   /** Do "iniciar" até a onda 1 começar a nascer (contagem + teleporte + 3-2-1 + aviso do spawn). */
   const toWave1 = () => run(ARENA_COUNTDOWN_MS + ARENA_INTRO_MS + ARENA_SPAWN_DELAY_MS + 1000);
-  return { w, arena, gold, best, exited, run, add, arenaMonsters, killAll, lastOf, notices, toWave1 };
+  /**
+   * Vence a onda atual de `id` (espera todos nascerem, mata, 100 ms) e devolve onda/fase/duração do intervalo; depois
+   * pula o intervalo (Pronto na pausa). null = a partida acabou.
+   */
+  const clearWave = (id: string) => {
+    const party = () => arena.partyFor(id);
+    for (let g = 0; g < 100 && party() && (party()!.phase !== "fight" || party()!.pending.length); g++) run(200);
+    for (const p of w.players.values()) p.hp = p.maxHp;
+    killAll();
+    run(100);
+    const p = party();
+    if (!p) return null;
+    const out = { wave: p.wave, phase: p.phase, ms: p.phaseEndsAt - w.now() };
+    if (p.phase === "pause") for (const m of p.members) { const pl = w.players.get(m.id); if (pl) arena.onAction(pl, { action: "ready" }); }
+    return out;
+  };
+  return { w, arena, gold, best, exited, run, add, arenaMonsters, killAll, lastOf, notices, toWave1, clearWave };
 }
 
 describe("coliseu: mapa", () => {
@@ -427,20 +445,43 @@ describe("coliseu: partida", () => {
  * ondas. Grupo: os golpes se espalham na proporção da vida máxima (a hipótese do modelo do ciclo 8; a tabela mostra
  * também o caso em que o da frente — o cavaleiro — leva todos os golpes, como a IA faz com quem chega perto). O antigo
  * (ciclo 8) não tinha Cura nem escudo, dava escudo ao paladino e ao cavaleiro de duas mãos e usava ML = 0,75 × level.
- * Resultado: a onda em que o time cai (61 = completou).
+ * Resultado: a onda em que o time cai (71 = completou as 70).
  */
 const VOCS: Vocation[] = ["sorcerer", "druid", "knight", "paladin"];
 const GROUP: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
-const fell = (w: number) => (w === 0 ? ARENA_MAX_WAVE + 1 : w);
+const DONE = ARENA_MAX_WAVE + 1;
+const fell = (w: number) => (w === 0 ? DONE : w);
 const reached = new Map<string, number>();
-/** Onda em que o time cai (61 = completou), com a melhor montagem de cada um. */
-function reach(vocs: readonly Vocation[], L: number, o: SimOptions = {}): number {
-  const key = `${vocs.join()}@${L}:${JSON.stringify(o)}`;
+
+/**
+ * `arenaRun` do balanceKit com o modificador da semana nas ondas 61–70: ondas de `arenaWaveSpawns(..., mod)` e o
+ * intervalo de `arenaPauseMs(wave, mod)` (Sem Trégua e Calmaria mudam o respiro; o `Battle.arenaPause` usa o padrão).
+ */
+function arenaRunMod(team: readonly Fighter[], mod: ArenaModId): number {
+  const avg = team.reduce((s, f) => s + f.L, 0) / team.length;
+  const b = new Battle(team);
+  for (let w = 1; w <= ARENA_MAX_WAVE; w++) {
+    b.setFoes(arenaWaveSpawns(w, team.length, avg, mod).map((s) => ({ def: monsterDef(s.defId)!, hpMult: s.hpMult, dmgMult: s.dmgMult })));
+    if (b.run("mixed", ARENA_WAVE_CAP_S) !== "won") return w;
+    for (const u of b.units) {
+      if (!u.alive) continue;
+      u.hp = Math.min(u.f.hp, u.hp + u.f.hp * ARENA_PAUSE_HEAL);
+      u.mana = Math.min(u.f.mana, u.mana + u.f.mana * ARENA_PAUSE_HEAL);
+    }
+    b.setFoes([]);
+    b.run("mixed", arenaPauseMs(w, mod) / 1000, false);
+  }
+  return 0;
+}
+
+/** Onda em que o time cai (71 = completou), com a melhor montagem de cada um; `mod` = modificador da semana. */
+function reach(vocs: readonly Vocation[], L: number, o: SimOptions = {}, mod?: ArenaModId): number {
+  const key = `${vocs.join()}@${L}:${JSON.stringify(o)}:${mod ?? ""}`;
   let w = reached.get(key);
   if (w === undefined) {
     let teams: Fighter[][] = [[]];
     for (const v of vocs) teams = teams.flatMap((t) => fighterBuilds(v, L).map((f) => [...t, f]));
-    w = Math.max(...teams.map((t) => fell(arenaRun(t, o))));
+    w = Math.max(...teams.map((t) => fell(mod ? arenaRunMod(t, mod) : arenaRun(t, o))));
     reached.set(key, w);
   }
   return w;
@@ -450,11 +491,16 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
   it("tabela: onda em que cada um cai sozinho e o grupo de 4 (console)", () => {
     const solo = [34, 60, 120].map((L) => ({ level: L, ...Object.fromEntries(VOCS.map((v) => [v, reach([v], L)])) }));
     console.table(solo);
-    const group = [...[40, 45, 50, 55, 60].map((x) => ({ grupo: `justo da ${x}`, level: arenaWave(x)!.level })), { grupo: "lv 100", level: 100 }, { grupo: "lv 120", level: 120 }]
+    const group = [...[40, 45, 50, 55, 60, 65, 70].map((x) => ({ grupo: `justo da ${x}`, level: arenaWave(x)!.level })),
+      ...[100, 110, 120, 130, 140].map((L) => ({ grupo: `lv ${L}`, level: L }))]
       .map((g) => ({ ...g, onda: reach(GROUP, g.level), "golpes no da frente": reach(GROUP, g.level, { targeting: "front" }) }));
     console.table(group);
+    // Modificador da semana (ondas 61–70): onda em que o grupo de 4 cai em cada semana.
+    console.table([110, 115, 120, 125, 130, 140].map((L) => ({
+      level: L, sem: reach(GROUP, L), ...Object.fromEntries(ARENA_MOD_ORDER.map((m) => [ARENA_MODS[m].name, reach(GROUP, L, {}, m)])),
+    })));
     expect(solo.length).toBe(3);
-  });
+  }, 60_000);
 
   // Ciclo 15-14 (ARENA_DMG_POINTS em shared/data/arena.ts). Antes da recalibração, com as vocações do ciclo 15 e as
   // skills da produção: solo lv 34 — magos 18; solo lv 120 — druida 34, cavaleiro de duas mãos 35; grupo no justo da
@@ -487,10 +533,32 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
     }
   });
 
-  it("completar as 60 pede grupo de level alto: lv 100 não completa, lv 120 completa", () => {
-    expect(reach(GROUP, 100)).toBeLessThanOrEqual(ARENA_MAX_WAVE);
-    expect(reach(GROUP, 120)).toBe(ARENA_MAX_WAVE + 1);
+  it("passar da 60 pede grupo de level alto: lv 100 não passa, lv 120 passa", () => {
+    expect(reach(GROUP, 100)).toBeLessThanOrEqual(60);
+    expect(reach(GROUP, 120)).toBeGreaterThan(60);
   });
+
+  // Ciclo 16 (16-6): ondas 61–70. Medido com o Shogun Abissal dos covis e sem o tier 8: grupo lv 110 cai na 61 (o
+  // portão do Abismo), lv 115 na 63, lv 120 em diante completa.
+  it("completar as 70 pede ainda mais: lv 110 não completa, lv 130 completa", () => {
+    expect(reach(GROUP, 110)).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+    expect(reach(GROUP, 130)).toBe(DONE);
+    expect(reach(GROUP, 140)).toBe(DONE);
+  });
+
+  it("modificador da semana: nenhum deixa o lv 110 completar as 70 e com todos o lv 130 completa", () => {
+    for (const m of ARENA_MOD_ORDER) {
+      expect(reach(GROUP, 110, {}, m), `${m} lv 110`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+      expect(reach(GROUP, 130, {}, m), `${m} lv 130`).toBe(DONE);
+    }
+  }, 30_000);
+
+  it("modificador da semana: a Calmaria nunca é mais difícil que a semana sem modificador; Fúria e Carapaça derrubam o lv 120", () => {
+    for (const L of [110, 115, 120, 125]) expect(reach(GROUP, L, {}, "calmaria"), `lv ${L}`).toBeGreaterThanOrEqual(reach(GROUP, L));
+    expect(reach(GROUP, 120)).toBe(DONE);
+    expect(reach(GROUP, 120, {}, "furia")).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+    expect(reach(GROUP, 120, {}, "carapaca")).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+  }, 30_000);
 
   it("o golpe médio dos monstros cresce a cada bloco de 10 ondas", () => {
     const hit = (b: number) => {
@@ -503,14 +571,140 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
     for (let b = 1; b < 6; b++) expect(hit(b), `bloco ${b + 1}`).toBeGreaterThan(hit(b - 1));
   });
 
-  it("ondas 31–60 seguem com o level justo crescente", () => {
-    expect(ARENA_MAX_WAVE).toBe(60);
+  it("ondas 31–70 seguem com o level justo crescente", () => {
+    expect(ARENA_MAX_WAVE).toBe(70);
     for (let w = 31; w <= ARENA_MAX_WAVE; w++) expect(arenaWave(w)!.level).toBeGreaterThan(arenaWave(w - 1)!.level);
   });
 });
 
+describe("coliseu: ondas 61–70 (ciclo 16)", () => {
+  it("monstros do Abismo Profundo; chefes Shogun Abissal (65) e Ferumbras (70); comuns de 1 a 3 por entrada", () => {
+    expect(ARENA_WAVES).toHaveLength(70);
+    const ids = new Set<string>();
+    for (let w = 61; w <= 70; w++) {
+      const wave = arenaWave(w)!;
+      expect(wave.wave).toBe(w);
+      expect(!!wave.boss, `onda ${w}`).toBe(w % 5 === 0);
+      for (const e of wave.monsters) {
+        ids.add(e.id);
+        expect(monsterDef(e.id), e.id).toBeDefined();
+        if (e.elite === undefined) expect(e.count, `onda ${w} ${e.id}`).toBeGreaterThanOrEqual(1);
+        if (e.elite === undefined) expect(e.count, `onda ${w} ${e.id}`).toBeLessThanOrEqual(3);
+      }
+    }
+    expect([...ids].sort()).toEqual(["abyss_samurai", "abyss_tengu", "ferumbras", "juggernaut", "lair_shogun"]);
+    expect(arenaWave(65)!.monsters).toEqual([{ id: "lair_shogun", count: 1, elite: 1 }]);
+    expect(arenaWave(70)!.monsters).toEqual([{ id: "ferumbras", count: 1, elite: 1 }]);
+    expect(monsterDef("lair_shogun")!.boss && monsterDef("ferumbras")!.boss).toBe(true);
+    // Chefes: um só, vida de grupo de 4 (×2,5 da arena), mínimo de 80% dela para o solo.
+    expect(arenaWaveSpawns(70, 4, 130)).toEqual([expect.objectContaining({ defId: "ferumbras", elite: true, hpMult: 2.5 })]);
+    expect(arenaWaveSpawns(70, 1, 130)[0]!.hpMult).toBeCloseTo(2.5 * 0.8, 6);
+    // Dano: portão na 61 e ×1,5 da 62 à 70.
+    expect(arenaWaveMult(61).dmg).toBeCloseTo(2.6, 6);
+    for (let w = 62; w <= 70; w++) expect(arenaWaveMult(w).dmg, `onda ${w}`).toBeCloseTo(1.5, 6);
+  });
+
+  it("o bando não diminui da 62 à 69 (grupo de 4: de 4 a 5 monstros, a 69 com 5 Samurais Rubros)", () => {
+    const commons = [62, 63, 64, 66, 67, 68, 69];
+    const n = commons.map((w) => arenaWaveSpawns(w, 4, 120).length);
+    for (let i = 1; i < n.length; i++) expect(n[i], `onda ${commons[i]}`).toBeGreaterThanOrEqual(n[i - 1]!);
+    expect(n.at(-1)).toBeGreaterThan(n[0]!);
+    expect(arenaWaveSpawns(69, 4, 120).map((s) => s.defId)).toEqual(Array(5).fill("abyss_samurai"));
+  });
+
+  it("vendedor e pausas: depois da 60 e da 65 (ondas-chefe); a 70 encerra", () => {
+    expect(arenaShopAfter(60)).toBe(true);
+    expect(arenaShopAfter(65)).toBe(true);
+    expect(arenaShopAfter(64)).toBe(false);
+    expect(arenaPauseMs(60)).toBe(ARENA_SHOP_PAUSE_MS);
+    expect(arenaPauseMs(66)).toBe(ARENA_BREAK_MS);
+  });
+});
+
+describe("coliseu: modificador da semana", () => {
+  it("rodízio determinístico pela semana: nunca repete em semanas seguidas e passa pelos 5", () => {
+    expect(arenaWeekMod("2026-W43")).toBe(arenaWeekMod("2026-W43"));
+    expect(arenaWeekMod("2026-W43")).toBe("calmaria");
+    expect(arenaWeekMod("2026-W44")).toBe("carapaca");
+    expect(arenaModAt(new Date(2026, 9, 25, 23, 59).getTime())).toBe(arenaWeekMod("2026-W43"));
+    expect(arenaModAt(new Date(2026, 9, 26, 0, 0).getTime())).toBe(arenaWeekMod("2026-W44"));
+    let prev = "";
+    const seen = new Set<string>();
+    for (let t = new Date(2026, 0, 5).getTime(), i = 0; i < 160; i++, t += 7 * 86_400_000) {
+      const m = arenaModAt(t);
+      expect(m, weekId(new Date(t))).not.toBe(prev);
+      prev = m;
+      seen.add(m);
+    }
+    expect([...seen].sort()).toEqual([...ARENA_MOD_ORDER].sort());
+    expect(Object.keys(ARENA_MODS).sort()).toEqual([...ARENA_MOD_ORDER].sort());
+  });
+
+  it("só pesa nas ondas 61–70: Fúria (+10% de dano), Carapaça (+25% de vida), Enxame (mais monstros e mais fracos)", () => {
+    for (const m of ARENA_MOD_ORDER) expect(arenaWaveSpawns(ARENA_MOD_FROM_WAVE - 1, 4, 120, m)).toEqual(arenaWaveSpawns(ARENA_MOD_FROM_WAVE - 1, 4, 120));
+    const base = arenaWaveSpawns(63, 4, 120);
+    const furia = arenaWaveSpawns(63, 4, 120, "furia"), cara = arenaWaveSpawns(63, 4, 120, "carapaca");
+    expect(furia.map((s) => s.dmgMult / base[0]!.dmgMult)).toEqual(base.map(() => expect.closeTo(1.1, 6)));
+    expect(cara.map((s) => s.hpMult / base[0]!.hpMult)).toEqual(base.map(() => expect.closeTo(1.25, 6)));
+    // Chefes também (Fúria/Carapaça); Enxame só mexe nos comuns.
+    expect(arenaWaveSpawns(70, 4, 130, "furia")[0]!.dmgMult / arenaWaveSpawns(70, 4, 130)[0]!.dmgMult).toBeCloseTo(1.1, 6);
+    expect(arenaWaveSpawns(70, 4, 130, "enxame")).toEqual(arenaWaveSpawns(70, 4, 130));
+    // Enxame: samurai e colosso (1 cada → 2 num grupo de 4) viram 3 cada, com 60% da vida e 75% do dano; a XP da onda não muda.
+    const swarm = arenaWaveSpawns(63, 4, 120, "enxame");
+    expect(base.map((s) => s.defId)).toEqual(["abyss_samurai", "abyss_samurai", "juggernaut", "juggernaut"]);
+    expect(swarm.map((s) => s.defId)).toEqual(["abyss_samurai", "abyss_samurai", "abyss_samurai", "juggernaut", "juggernaut", "juggernaut"]);
+    expect(swarm[0]!.hpMult / base[0]!.hpMult).toBeCloseTo(0.6, 6);
+    expect(swarm[0]!.dmgMult / base[0]!.dmgMult).toBeCloseTo(0.75, 6);
+    const xp = (l: { xp: number }[]) => l.reduce((a, b) => a + b.xp, 0);
+    expect(xp(swarm)).toBeCloseTo(xp(base), 6);
+  });
+
+  it("Sem Trégua: respiro de 1 s nas 61–69 e sem vendedor depois da 65 (o da 60 fica); Calmaria: respiro de 10 s", () => {
+    expect(arenaPauseMs(61, "sem_tregua")).toBe(1000);
+    expect(arenaShopAfter(65, "sem_tregua")).toBe(false);
+    expect(arenaPauseMs(65, "sem_tregua")).toBe(1000);
+    expect(arenaShopAfter(60, "sem_tregua")).toBe(true);
+    expect(arenaPauseMs(59, "sem_tregua")).toBe(ARENA_BREAK_MS);
+    expect(arenaPauseMs(62, "calmaria")).toBe(10_000);
+    expect(arenaPauseMs(65, "calmaria")).toBe(ARENA_SHOP_PAUSE_MS);
+    expect(arenaPauseMs(62, "furia")).toBe(ARENA_BREAK_MS);
+  });
+
+  it("servidor: o modificador vai no lobby e na partida, fica o da largada mesmo se a semana virar, e muda as pausas", () => {
+    let mod: ArenaModId = "sem_tregua";
+    const k = setup(1, { weekMod: () => mod });
+    const a = k.add("a", { level: 130, maxHp: 1e9, hp: 1e9 });
+    k.arena.onAction(a, { action: "list" });
+    expect(k.lastOf("a", S2C.ArenaLobbies).week).toMatchObject({ mod: "sem_tregua" });
+    k.arena.onAction(a, { action: "create" });
+    expect(k.lastOf("a", S2C.ArenaState).state.mod).toBe("sem_tregua");
+    k.arena.onAction(a, { action: "start" });
+    k.toWave1();
+    const st = k.lastOf("a", S2C.ArenaState).state;
+    expect(st).toMatchObject({ mod: "sem_tregua", wave: 1 });
+    expect(st.startedAt).toBeGreaterThan(0);
+    mod = "furia"; // a semana virou no meio da partida
+    const after = new Map<number, { phase: string; ms: number }>();
+    for (let g = 0; g < 200; g++) {
+      const r = k.clearWave("a");
+      if (!r) break;
+      after.set(r.wave, r);
+      k.run(r.phase === "pause" ? 3100 : r.ms + 50);
+    }
+    expect(after.get(60)).toMatchObject({ phase: "pause" });
+    expect(after.get(60)!.ms).toBeGreaterThan(ARENA_SHOP_PAUSE_MS - 500);
+    expect(after.get(61)).toMatchObject({ phase: "break" });
+    expect(after.get(61)!.ms).toBeLessThanOrEqual(1000);
+    expect(after.get(65)).toMatchObject({ phase: "break" });
+    expect(k.lastOf("a", S2C.ArenaResult)).toMatchObject({ reason: "completed", wavesCleared: 70 });
+    expect(k.notices("a").filter((t) => t.startsWith("Ondas 61–70 desta semana"))).toEqual([
+      `Ondas 61–70 desta semana: ⏩ Sem Trégua — ${ARENA_MODS.sem_tregua.desc}`,
+    ]);
+  });
+});
+
 describe("arena: fim do Coliseu", () => {
-  it(`vencer as ${ARENA_MAX_WAVE} ondas: resultado "completed", bônus de ouro e XP, recorde e arena liberada`, () => {
+  it(`vencer as ${ARENA_MAX_WAVE} ondas: resultado "completed", marco da 60, bônus de ouro e XP, recorde e arena liberada`, () => {
     const k = setup();
     const a = k.add("a", { level: 120, maxHp: 1e9, hp: 1e9 });
     k.arena.onAction(a, { action: "create" });
@@ -527,7 +721,10 @@ describe("arena: fim do Coliseu", () => {
     expect(res).toMatchObject({ reason: "completed", wavesCleared: ARENA_MAX_WAVE, best: ARENA_MAX_WAVE });
     let waveGold = 0;
     for (let w = 1; w <= ARENA_MAX_WAVE; w++) waveGold += arenaWaveGold(w);
-    expect(res.gold).toBe(waveGold + ARENA_COMPLETE_GOLD);
+    expect(waveGold).toBe(136_675);
+    expect(res.gold).toBe(waveGold + ARENA_MILESTONE_GOLD + ARENA_COMPLETE_GOLD);
+    const marco = `+${arenaWaveGold(ARENA_MILESTONE_WAVE) + ARENA_MILESTONE_GOLD} de ouro (${ARENA_MILESTONE_GOLD} do marco da onda ${ARENA_MILESTONE_WAVE}).`;
+    expect(k.notices("a").filter((t) => t.startsWith(`Onda ${ARENA_MILESTONE_WAVE} vencida!`) && t.endsWith(marco))).toHaveLength(1);
     expect(k.gold.get("a")).toBe(res.gold);
     expect(a.xp).toBe(res.xp); // começou com 0: tudo veio das ondas + 25% de bônus
     expect(k.best.get("a")).toBe(ARENA_MAX_WAVE);
@@ -535,5 +732,68 @@ describe("arena: fim do Coliseu", () => {
     expect(k.arena.freeArenas).toBe(1);
     expect(k.arenaMonsters()).toHaveLength(0);
     expect([a.x, a.y]).toEqual([EXIT.x, EXIT.y]);
+  });
+
+  it("ranking de tempo: grava o tempo das 70 no kv (sobreviventes na faixa de level), mostra no lobby, no resultado e no feed", () => {
+    const kv = new Map<string, string>();
+    const k = setup(1, { getKv: (key) => kv.get(key), setKv: (key, v) => kv.set(key, v), weekMod: () => "furia" });
+    const hi = k.add("hi", { name: "Hi", level: 130, maxHp: 1e9, hp: 1e9 }), lo = k.add("lo", { name: "Lo", level: 60, maxHp: 1e9, hp: 1e9 });
+    const play = (slowMs: number) => {
+      k.arena.onAction(hi, { action: "create" });
+      k.arena.onAction(lo, { action: "join", lobbyId: k.arena.partyFor("hi")!.id });
+      k.arena.onAction(hi, { action: "start" });
+      k.toWave1();
+      const t0 = k.lastOf("hi", S2C.ArenaState).state.startedAt as number;
+      for (let g = 0; g < 200; g++) {
+        if (slowMs) k.run(slowMs); // luta mais longa
+        const r = k.clearWave("hi");
+        if (!r) break;
+        k.run(r.phase === "pause" ? 3100 : r.ms + 50);
+      }
+      return { res: k.lastOf("hi", S2C.ArenaResult), t0 };
+    };
+    const first = play(0);
+    expect(first.res).toMatchObject({ reason: "completed", wavesCleared: 70, timeRecord: "server" });
+    expect(first.res.timeMs).toBeGreaterThan(60_000);
+    const week = weekId(new Date(k.w.now()));
+    const saved = JSON.parse(kv.get(`arena.time.week.${week}`)!);
+    expect(saved).toMatchObject({ ms: first.res.timeMs, names: ["Hi"], week, mod: "furia" }); // Lo (fora da faixa) não entra
+    expect(kv.get("arena.time.best")).toBe(kv.get(`arena.time.week.${week}`));
+    const feed = k.w.sent.filter((s) => s.type === S2C.Feed).map((s) => s.msg.text as string);
+    expect(feed).toContain(`🏟️ Hi e Lo venceram as 70 ondas do Coliseu em ${arenaTimeText(first.res.timeMs)}! Novo recorde de tempo!`);
+    k.arena.onAction(hi, { action: "list" });
+    expect(k.lastOf("hi", S2C.ArenaLobbies).week).toMatchObject({ mod: "furia", best: { names: ["Hi"] }, record: { names: ["Hi"] } });
+    // Mais devagar: não troca o recorde.
+    const second = play(2000);
+    expect(second.res.timeMs).toBeGreaterThan(first.res.timeMs);
+    expect(second.res.timeRecord).toBeUndefined();
+    expect(JSON.parse(kv.get("arena.time.best")!).ms).toBe(first.res.timeMs);
+  });
+
+  it("ranking de tempo: partida que vira a semana conta na semana em que começou (a do modificador que ela usou)", () => {
+    const kv = new Map<string, string>();
+    const k = setup(1, { getKv: (key) => kv.get(key), setKv: (key, v) => kv.set(key, v) }); // modificador de verdade (weekId)
+    k.w.setClock(new Date(2026, 9, 25, 23, 58).getTime()); // domingo 23:58 da 2026-W43
+    const a = k.add("a", { name: "Ana", level: 130, maxHp: 1e9, hp: 1e9 });
+    k.arena.onAction(a, { action: "create" });
+    k.arena.onAction(a, { action: "start" });
+    k.toWave1();
+    expect(k.arena.partyFor("a")!.mod).toBe(arenaWeekMod("2026-W43"));
+    for (let g = 0; g < 200; g++) {
+      k.run(2000); // lutas mais longas: a partida passa da meia-noite
+      const r = k.clearWave("a");
+      if (!r) break;
+      k.run(r.phase === "pause" ? 3100 : r.ms + 50);
+    }
+    expect(k.lastOf("a", S2C.ArenaResult)).toMatchObject({ reason: "completed", timeRecord: "server" });
+    expect(weekId(new Date(k.w.now()))).toBe("2026-W44");
+    expect(JSON.parse(kv.get("arena.time.week.2026-W43")!)).toMatchObject({ week: "2026-W43", mod: arenaWeekMod("2026-W43"), names: ["Ana"] });
+    expect(kv.has("arena.time.week.2026-W44")).toBe(false);
+    // A janela já mostra a semana nova: outro modificador, sem tempo da semana, recorde mantido.
+    k.arena.onAction(a, { action: "list" });
+    const week = k.lastOf("a", S2C.ArenaLobbies).week;
+    expect(week.mod).toBe(arenaWeekMod("2026-W44"));
+    expect(week.best).toBeUndefined();
+    expect(week.record).toMatchObject({ week: "2026-W43", names: ["Ana"] });
   });
 });

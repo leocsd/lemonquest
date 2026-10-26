@@ -10,8 +10,22 @@ Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
 Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
 Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 16 fim de jogo (tier 8, encantamento com tiers,
-covis, refino, Coliseu 61–70) ⏳ → 17 descoberta e interface (+ bocas de caverna) ⏳ → 18 invasões da Vila e Mural de
+covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ⏳ → 18 invasões da Vila e Mural de
 Excursões ⏳ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 16 (2026-10-26) — fim de jogo
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 16-1 | Botas tier 6–7 e `ItemDef.unique` | ✅ | `items.test.ts`, `quests.test.ts` (fora do Baú) |
+| 16-2 | Tier 8 Abissal, Fragmento Abissal, Aniquilação por vocação | ✅ | `items.test.ts`, `lookInfo.test.ts`, `WorldRoom.test.ts`; `arena.test.ts` com o tier 8 |
+| 16-3 | Encantamento com tiers e 10 h de combate PvE, migração | ✅ | `imbuement.test.ts` (shared e servidor), `m4.test.ts`, `conditions.test.ts`, `imbueLogic.test.ts` |
+| 16-4 | Chefes de covil, baús desenhados com trava pelo abate, Ferreiro, Os Quatro Covis | ✅ | `diff-world` 0 tiles 826/826; `questWorld.test.ts`, `lairs.room.test.ts`, `monsters`, `quests`, `drawnChests` |
+| 16-5 | Refino +1..+5 | ✅ | `refine.test.ts` (shared e servidor), `ground`, `trade`, `inventory`, `dropConfirm` |
+| 16-6 | Coliseu 61–70, modificador semanal, ranking de tempo, Campeão do Coliseu | ✅ | `arena.test.ts`, `arenaChampion.test.ts`, `achievements` |
+| 16-7 | Medir ganho×gasto de ouro do topo depois do refino (meta: gasto ≥ 50% do ganho no 100+) | ⏳ | `admin.mjs telemetria` |
+| 16-8 | Metas do Coliseu 61–70 usam o melhor item por slot (tier 8 + únicos) e não simulam invocações: conferir com partidas reais | ⏳ | ranking de tempo |
+| 16-9 | Remover a gravação do campo antigo `imbuement` (mantida no ciclo 16 para rollback) | ⏳ | ciclo seguinte |
 
 ## Ciclo 15 (2026-10-25) — balanço das vocações e morte mais pesada no 60+
 

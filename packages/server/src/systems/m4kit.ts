@@ -33,6 +33,9 @@ export const ITEMS_FX: Record<string, ItemDef> = {
   wolf_fang: { id: "wolf_fang", name: "Presa de Lobo", kind: "material", stackable: true, value: 30, icon },
   spider_eye: { id: "spider_eye", name: "Olho de Aranha", kind: "material", stackable: true, value: 90, icon },
   wolf_pelt: { id: "wolf_pelt", name: "Couro de Lobo", kind: "material", stackable: true, value: 40, icon },
+  // Encantamento tier II (Dreno de Vida) e tier III (todos).
+  necro_skull: { id: "necro_skull", name: "Crânio Profano", kind: "material", stackable: true, value: 820, icon },
+  demonic_essence: { id: "demonic_essence", name: "Essência Demoníaca", kind: "material", stackable: true, value: 4000, icon },
   sword: { id: "sword", name: "Espada", kind: "weapon", slot: "weapon", weaponType: "sword", stats: { attack: 20 }, value: 100, vocations: ["knight"], icon },
   axe2h: { id: "axe2h", name: "Machado Grande", kind: "weapon", slot: "weapon", weaponType: "axe", twoHanded: true, stats: { attack: 30 }, value: 200, icon, level: 1 },
   bow: { id: "bow", name: "Arco", kind: "weapon", slot: "weapon", weaponType: "bow", range: 6, damageKind: "physical", stats: { attack: 12 }, value: 100, vocations: ["paladin"], icon },
@@ -45,6 +48,9 @@ export const ITEMS_FX: Record<string, ItemDef> = {
   vest: { id: "vest", name: "Colete", kind: "armor", slot: "armor", stats: { armor: 2, hpMax: 20 }, value: 30, icon },
   boots: { id: "boots", name: "Botas", kind: "boots", slot: "boots", stats: { speed: 10 }, value: 60, icon },
   ring: { id: "ring", name: "Anel", kind: "ring", slot: "ring", stats: { crit: 10, magic: 2, hpRegen: 3 }, value: 500, level: 30, icon },
+  // Refináveis (tier 5 = level 35+, shared/data/refine.ts).
+  katana: { id: "katana", name: "Katana", kind: "weapon", slot: "weapon", weaponType: "sword", stats: { attack: 70 }, value: 38000, vocations: ["knight"], level: 35, icon },
+  mithril_plate: { id: "mithril_plate", name: "Armadura de Mithril", kind: "armor", slot: "armor", stats: { armor: 5 }, value: 17500, level: 35, icon },
 };
 export const itemsFx = (id: string) => ITEMS_FX[id];
 

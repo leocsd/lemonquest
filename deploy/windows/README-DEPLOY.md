@@ -175,6 +175,14 @@ Com o atalho (5B): feche a janela do servidor, rode os mesmos `git pull` / `npm 
 
 > O servidor faz backup do banco de hora em hora em `data\backups`; antes de uma atualização grande, vale guardar também uma cópia manual.
 
+**Voltar para a versão anterior (rollback):** pare o serviço, volte o código (`git checkout <commit-ou-tag-anterior>`),
+rode `npm ci` e `npm run build` e inicie de novo.
+
+> **Depois do ciclo 16 (refino +1..+5), voltar só o código apaga o refino.** O código antigo não conhece o campo `refine`
+> dos itens: no primeiro save de cada personagem os itens refinados voltam a +0, e o ouro e as gemas gastos não voltam.
+> Rollback para antes do ciclo 16, depois que alguém refinou, exige restaurar também a cópia do banco feita antes da
+> atualização (passo 8; perde-se o que aconteceu depois dela) ou aceitar a perda do refino.
+
 ## 7. Variáveis de ambiente
 
 | Variável | Padrão | Para que serve |

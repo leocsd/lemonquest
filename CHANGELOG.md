@@ -1,5 +1,47 @@
 # Changelog
 
+## [Não lançado] — 2026-10-26 · ciclo 16: fim de jogo (tier Abissal, covis, refino, encantamento e Coliseu 61–70)
+
+Terceiro ciclo do plano 14–20. Dados que motivaram: topo com 1,2 mi e 739 mil de ouro parados, gasto de 23% do ganho
+no 100+ e equipamento parando no lv 70. Cinco frentes (itens, encantamento, covis, refino, Coliseu) + duas revisões.
+
+**Itens (16-1, 16-2)**
+- **Botas tier 6–7** (6 peças, uma por forma; Coroa, Demoníacas, Reais, Escamas de Dragão, Místicas, de Ferumbras):
+  todas abaixo das Botas da Pressa em valor; caem de monstros comuns e entram na encomenda semanal.
+- **Tier 8 "Abissal"** (lv 100, `TIER_LEVEL` com o 100): 13 peças (ícone por tint `0xa080ff`, sem paleta nova) +
+  material **Fragmento Abissal**. Só caem do Tengu e do Samurai Rubros (0,15–0,3%) e de Orshabaal, Ferumbras e do
+  Shogun Abissal (10–12%). `ItemDef.unique` e `isExclusiveItem`: tier 8 e únicos nunca em loja nem no Baú de Recompensa.
+- **Aniquilação**: os 4 baús mantêm o id e agora guardam a arma única de cada vocação (Machado Cortapedras, Arco,
+  Varinha e Bastão Aniquiladores, 320 mil) + o Urso. Tooltip mostra "Item único".
+
+**Covis (16-4)** — objetos no fim do `generate.mjs` (`lateObjects14`): `diff-world.mjs` **0 tiles alterados**,
+826/826 objetos antigos, 17 novos.
+- Rei Toupeira (Minas, lv 28), Kraken das Grutas (lv 54), Chama Ancestral (Catacumbas, lv 82) e Shogun Abissal
+  (Profundo, lv 125; `lair_shogun`), com sprites do pack (frames conferidos nos PNGs), golpe em área e ajudantes da cave.
+- Baús do covil (3 por covil, escolha de equipamento) desenhados pelo cliente (`drawn`, baú grande do pack) — baú como
+  tile alteraria o mapa publicado. **Trava pelo abate registrado** (`needBoss`, `quests.slain`): abre para quem bateu
+  ou estava no grupo perto do chefe; Coliseu, invocação e alt com a prova na mochila não abrem (a prova vira troféu).
+- **Mestre Brás, o Ferreiro** (ao lado do Bento) e a missão **Os Quatro Covis** (Batedora Iara, lv 100, título
+  "Caçador de Covis").
+
+**Refino +1..+5 (16-5)** — `shared/data/refine.ts`, `server/systems/refine.ts`, `C2S.Refine` (4/s), aba "Refinar" no
+Mestre Brás, selo "+N". Arma +3 de ataque por nível; elmo/armadura/pernas/botas/escudo +1 de armadura; anel, amuleto e
+livro de magia não refinam; só tier 5+. Falha 0/10/25/40/50% sem destruir nem rebaixar. Custo por tentativa do tier 5
+(3–18 mil + esmeralda) ao tier 8 (25–150 mil + Fragmento Abissal): set Abissal em +5 ≈ 2,6 mi. `instanceStats` é a única
+conta (servidor e cliente); o refino viaja com a instância (depot, troca, chão, loot, reinício); "Vender tudo" não vende
+refinado e a venda avulsa pede confirmação. Chão restaurado no boot passa por `sanitizeItem` (sem cortar ouro > 1 mi).
+
+**Encantamento com tiers (16-3)** — 5 efeitos × 3 tiers (I = valores de antes; II lv 60, 30 mil + material de fim de
+jogo; III lv 90, 100 mil + 5 Essências Demoníacas). Dura **10 h de combate contra monstros** (`inPveCombat`; boneco e
+PvP não gastam nem ativam), vale pela metade em magia, aviso aos 30 min; condição `imbued` com o tempo na faixa; grade
+na Dona Marta. Os encantamentos antigos viraram tier I com 10 h; durante o ciclo 16 o save grava também o campo antigo
+(rollback de imagem não zera o que foi pago). Clique duplo não cobra duas vezes.
+
+**Coliseu 61–70 (16-6)** — portão do Abismo depois de Orshabaal: Tengus, Samurais, Colossos, Shogun Abissal na 65 e
+Ferumbras na 70. Modificador da semana só nas 61–70 (Fúria, Carapaça, Enxame, Sem Trégua, Calmaria; fixo pela semana em
+que a partida começou). Marco da 60 +20 mil; fim da 70 +50 mil e 25% da XP (regra dos 2/3). Ranking de tempo no kv e
+título rotativo **Campeão do Coliseu**; conquista **Senhor do Abismo**. Metas: grupo lv 110 cai na 61, lv 130 completa.
+
 ## [Não lançado] — 2026-10-25 · ciclo 15: balanço das vocações e morte mais pesada no 60+
 
 Segundo ciclo do plano 14–20. Dados de produção que motivaram: 7 dos 15 personagens eram feiticeiros (Escudo de Mana

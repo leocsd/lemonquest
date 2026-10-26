@@ -1,5 +1,5 @@
-// Janela de NPC: fala com digitação, abas Na obra / Missões / Viagem / Comprar / Vender / Depot.
-import { CASINO_TICKET_PRICE, DEPOT_SIZE, IMBUEMENT_EFFECTS, IMBUEMENTS, backpackRoom, itemDef, keptBySellAll, shopBuyMax, type NpcOpenMsg } from "@lemonquest/shared";
+// Janela de NPC: fala com digitação, abas Na obra / Missões / Refinar / Encantar / Viagem / Comprar / Vender / Depot.
+import { CASINO_TICKET_PRICE, DEPOT_SIZE, backpackRoom, itemDef, keptBySellAll, refinedName, shopBuyMax, type NpcOpenMsg } from "@lemonquest/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { sectionsStore } from "../hud/Section.tsx";
 import { persistedBool, useStore } from "../hud/store.ts";
@@ -10,17 +10,20 @@ import { sidebarOpen } from "../hud/uiState.ts";
 import { npcBuys } from "../items/actions.ts";
 import { GoldLabel, Coin } from "../items/Gold.tsx";
 import { defOf, depotStore, inventoryStore } from "../items/inventory.ts";
+import { needsSellConfirm, sellConfirmText } from "../items/dropConfirm.ts";
 import { fmtNum, rarityColor, sellPrice } from "../items/itemInfo.ts";
 import { ItemIcon } from "../items/ItemIcon.tsx";
 import { ItemSlot } from "../items/ItemSlot.tsx";
 import { itemTipStore, shopInstance } from "../items/tipStore.ts";
-import { buyBlessing, buyCasinoTicket, buyImbuement, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
+import { buyBlessing, buyCasinoTicket, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
 import { BountyBoard, MaterialRequestBoard, NpcQuestList } from "../quests/NpcQuests.tsx";
 import { blessingProtects } from "../combat/blessingText.ts";
 import { WorkTab } from "../work/WorkTab.tsx";
+import { RefineTab } from "../refine/RefineTab.tsx";
+import { ImbuementTab } from "../imbue/ImbuementTab.tsx";
 import "./npc.css";
 
-const TAB_LABEL: Record<NpcTab, string> = { work: "Na obra", quests: "Missões", bounties: "Recompensas", request: "Encomenda", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
+const TAB_LABEL: Record<NpcTab, string> = { work: "Na obra", quests: "Missões", bounties: "Recompensas", request: "Encomenda", refine: "Refinar", imbue: "Encantar", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
 const TYPE_MS = 25;
 
 export function NpcWindow() {
@@ -43,7 +46,6 @@ export function NpcWindow() {
         <Typewriter text={m.greeting} nonce={st.nonce} />
         {m.blessing && <BlessingBox npcId={m.npcId} blessing={m.blessing} gold={inv?.gold ?? 0} />}
         {m.casino && <CasinoBox npcId={m.npcId} gold={inv?.gold ?? 0} />}
-        {m.imbuement && <ImbuementBox npcId={m.npcId} active={m.imbuement.active} gold={inv?.gold ?? 0} />}
         {tabs.length > 0 && (
           <div class="npc-tabs" role="tablist">
             {tabs.map((t) => (
@@ -57,6 +59,8 @@ export function NpcWindow() {
         {st.tab === "quests" && <NpcQuestList npcId={m.npcId} />}
         {st.tab === "bounties" && <BountyBoard />}
         {st.tab === "request" && <MaterialRequestBoard />}
+        {st.tab === "refine" && <RefineTab />}
+        {st.tab === "imbue" && m.imbuement && <ImbuementTab npcId={m.npcId} imbue={m.imbuement} gold={inv?.gold ?? 0} />}
         {st.tab === "travel" && m.travel && <TravelList m={m} gold={inv?.gold ?? 0} />}
         {st.tab === "buy" && m.shop && <BuyList m={m} gold={inv?.gold ?? 0} backpack={inv?.backpack ?? []} />}
         {st.tab === "sell" && m.shop && <SellList m={m} />}
@@ -197,38 +201,6 @@ function CasinoBox({ npcId, gold }: { npcId: string; gold: number }) {
   );
 }
 
-function ImbuementBox({ npcId, active, gold }: { npcId: string; active: string; gold: number }) {
-  const inv = useStore(inventoryStore);
-  const have = (id: string) => (inv?.backpack ?? []).reduce((n, it) => (it && it.defId === id ? n + it.count : n), 0);
-  return (
-    <ul class="shop-list">
-      {IMBUEMENT_EFFECTS.map((effect) => {
-        const def = IMBUEMENTS[effect];
-        const got = have(def.materialId);
-        const afford = gold >= def.goldPrice && got >= def.materialCount;
-        const isActive = active === effect;
-        return (
-          <li key={effect} class="shop-row">
-            <div class="shop-main">
-              <div class="shop-name">{def.name}{isActive && <span class="shop-lv"> Ativo</span>}</div>
-              <div class="shop-price">
-                <Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(def.goldPrice)}</span>
-                <small> · {got}/{def.materialCount}x {itemDef(def.materialId)?.name ?? def.materialId}</small>
-              </div>
-            </div>
-            <button
-              class="shop-btn" disabled={isActive || !afford} onClick={() => buyImbuement(npcId, effect)}
-              data-tip={def.desc} data-tip-sub={isActive ? undefined : "Substitui o encantamento ativo, sem reembolso"}
-            >
-              {isActive ? "Ativo" : "Trocar"}
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 function TravelList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
   return (
     <ul class="shop-list">
@@ -262,9 +234,17 @@ function SellList({ m }: { m: NpcOpenMsg }) {
     });
     return out;
   }, [inv, m]);
+  // Item refinado: o primeiro clique em "Vender" só arma (o NPC paga o valor base e o refino se perde); o segundo vende.
+  // Desarma sozinho em 5 s, como o "Vender tudo".
+  const [armed, setArmed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(null), 5000);
+    return () => clearTimeout(t);
+  }, [armed]);
   if (rows.length === 0) return <div class="hud-empty">Nada na mochila que {m.name.split(",")[0]} compre.</div>;
-  // "Vender tudo" pula itens raros ou melhores (o servidor faz o mesmo); esses só saem pelo botão da própria linha.
-  const bulk = rows.filter((r) => !keptBySellAll(inv!.backpack[r.index]!.rarity));
+  // "Vender tudo" pula itens raros ou melhores e os refinados (o servidor faz o mesmo); esses só saem pelo botão da própria linha.
+  const bulk = rows.filter((r) => !keptBySellAll(inv!.backpack[r.index]!.rarity, inv!.backpack[r.index]!.refine));
   const totalItems = bulk.reduce((n, r) => n + inv!.backpack[r.index]!.count, 0);
   const totalGold = bulk.reduce((n, r) => n + r.price * inv!.backpack[r.index]!.count, 0);
   const kept = rows.length - bulk.length;
@@ -275,6 +255,7 @@ function SellList({ m }: { m: NpcOpenMsg }) {
       {rows.map(({ index, price }) => {
         const it = inv!.backpack[index]!;
         const def = defOf(it);
+        const asking = armed === it.uid;
         return (
           <li key={it.uid} class="shop-row">
             <div
@@ -288,16 +269,21 @@ function SellList({ m }: { m: NpcOpenMsg }) {
               <ItemIcon inst={it} box={32} framed />
             </div>
             <div class="shop-main">
-              <div class="shop-name" style={{ color: rarityColor(it.rarity) }}>{def?.name ?? it.defId}</div>
+              <div class="shop-name" style={{ color: rarityColor(it.rarity) }}>{refinedName(def, it)}</div>
               <div class="shop-price"><Coin size={14} /><span>{fmtNum(price)}</span>{it.count > 1 && <small> cada · {fmtNum(price * it.count)} no total</small>}</div>
+              {asking && <div class="sell-confirm bad">{sellConfirmText(it.refine ?? 0)}</div>}
             </div>
             <button
-              class="shop-btn"
-              onClick={(e) => sellItem(m.npcId, index, e.shiftKey ? it.count : 1)}
-              data-tip={it.count > 1 ? "Vender 1" : "Vender"}
-              data-tip-sub={it.count > 1 ? `Shift: vender os ${it.count}` : undefined}
+              class={`shop-btn${asking ? " danger" : ""}`}
+              onClick={(e) => {
+                if (needsSellConfirm(it) && !asking) { setArmed(it.uid); return; }
+                setArmed(null);
+                sellItem(m.npcId, index, e.shiftKey ? it.count : 1);
+              }}
+              data-tip={asking ? "Clique de novo para vender" : it.count > 1 ? "Vender 1" : "Vender"}
+              data-tip-sub={asking ? undefined : it.count > 1 ? `Shift: vender os ${it.count}` : needsSellConfirm(it) ? "Item refinado: pede um segundo clique" : undefined}
             >
-              Vender
+              {asking ? "Confirmar" : "Vender"}
             </button>
             {it.count > 1 && (
               <button class="shop-btn" onClick={() => sellItem(m.npcId, index, it.count)} data-tip={`Vender os ${it.count}`} data-tip-sub={`${fmtNum(price * it.count)} de ouro`}>
@@ -326,13 +312,13 @@ function SellAllBar({ npcId, items, gold, kept }: { npcId: string; items: number
         <>
           <span>
             Vender {fmtNum(items)} {items === 1 ? "item" : "itens"} por <b>{fmtNum(gold)}</b> de ouro?
-            {kept > 0 && <small class="sell-all-kept"> Itens raros ou melhores ficam na mochila.</small>}
+            {kept > 0 && <small class="sell-all-kept"> Itens raros ou melhores e refinados ficam na mochila.</small>}
           </span>
           <button class="shop-btn danger" onClick={() => { setAsking(false); sellAll(npcId); }}>Sim, vender</button>
           <button class="shop-btn" onClick={() => setAsking(false)}>Não</button>
         </>
       ) : (
-        <button class="shop-btn" onClick={() => setAsking(true)} data-tip="Vende tudo da mochila que este NPC compra" data-tip-sub="Itens raros ou melhores ficam na mochila">
+        <button class="shop-btn" onClick={() => setAsking(true)} data-tip="Vende tudo da mochila que este NPC compra" data-tip-sub="Itens raros ou melhores e refinados ficam na mochila">
           Vender tudo ({fmtNum(items)})
         </button>
       )}

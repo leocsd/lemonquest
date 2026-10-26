@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  ITEMS, MONSTERS, QUEST_CHESTS, QUEST_OBJECT_RANGE, QUEST_CHEST_GROUPS, QUEST_LEVERS, QUEST_LIST, S2C, TITLES, doorBlockReason,
+  ITEMS, MONSTERS, QUEST_CHESTS, QUEST_OBJECT_RANGE, QUEST_CHEST_GROUPS, QUEST_LEVERS, QUEST_LIST, S2C, TITLES, CHEST_LOCK_BOSSES, chestLockReason, doorBlockReason,
   findObjects, findQuestLevers, findQuestObjects, isValidUnlockId, leverMonsters, monsterDef, type QuestLeverSpot, type QuestObjectSpot, type TiledMap,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
-import { InventorySystem } from "./inventory.ts";
+import { InventorySystem, makeItem } from "./inventory.ts";
 import { QuestSystem } from "./quests.ts";
 import { LEVER_ROOM_EMPTY_MS, QuestWorldSystem } from "./questWorld.ts";
 import { openGrid, player, seeded, world } from "./testkit.ts";
@@ -91,6 +91,75 @@ describe("baús de quest", () => {
     t.qw.onUse(p, { kind: "chest", id: "nada" });
     t.qw.onUse(p, { kind: "x" as never, id: "pirate_saber" });
     expect(t.quests.chestDone("p1", "pirate_treasure")).toBe(false);
+  });
+});
+
+describe("baús dos covis (ciclo 16): trancados até o personagem derrotar o chefe", () => {
+  const LAIR: QuestObjectSpot[] = [
+    { kind: "chest", id: "lair_minas_furia", x: 10, y: 10, drawn: true }, { kind: "chest", id: "lair_minas_lich", x: 10, y: 12, drawn: true },
+  ];
+  const LOCKED = "Trancado: derrote o chefe do covil (Rei Toupeira) para abrir.";
+
+  it("sem o abate: trancado e nada muda; com o abate registrado: abre e entrega ouro, materiais e o equipamento", () => {
+    const t = setup({ objects: LAIR });
+    const p = t.mk("p1", 11, 11, 30);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toBe(LOCKED);
+    expect(t.quests.chestDone("p1", "lair_minas")).toBe(false);
+    expect(t.inv.countItem("p1", "ring_furia")).toBe(0);
+    expect(t.inv.get("p1")!.gold).toBe(0);
+    // Abate de outro chefe (ou de monstro comum) não destranca este covil.
+    t.quests.onKill("lair_kraken", ["p1"]);
+    t.quests.onKill("mine_mole", ["p1"]);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toBe(LOCKED);
+    t.quests.onKill("lair_mole_king", ["p1"]);
+    expect(t.quests.bossSlain("p1", "lair_mole_king")).toBe(true);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toMatch(/^Você encontrou: Anel da Fúria, 3x Esmeralda, 3x Barra de Ferro, 4000 de ouro\.$/);
+    expect(t.quests.chestDone("p1", "lair_minas")).toBe(true);
+    expect([t.inv.countItem("p1", "ring_furia"), t.inv.countItem("p1", "gem_green"), t.inv.countItem("p1", "iron_bar")]).toEqual([1, 3, 3]);
+    expect(t.inv.get("p1")!.gold).toBe(4000);
+    // a outra escolha do mesmo covil: vazia
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_lich" });
+    expect(t.notices("p1").at(-1)).toBe("O baú está vazio.");
+    expect(t.inv.countItem("p1", "amulet_lich")).toBe(0);
+  });
+
+  it("alt sem o abate não abre, mesmo com a prova (troféu) na mochila", () => {
+    const t = setup({ objects: LAIR });
+    const main = t.mk("main", 9, 11, 30), alt = t.mk("alt", 11, 11, 30);
+    t.quests.onKill("lair_mole_king", ["main"]);
+    t.inv.addItem(alt, makeItem("mole_king_claw")); // o principal passou a prova (troca ou chão)
+    t.qw.onUse(alt, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("alt").at(-1)).toBe(LOCKED);
+    expect(t.quests.chestDone("alt", "lair_minas")).toBe(false);
+    t.qw.onUse(main, { kind: "chest", id: "lair_minas_lich" });
+    expect(t.inv.countItem("main", "amulet_lich")).toBe(1);
+  });
+
+  it("o abate fica gravado no personagem (save) e o level do covil vem antes da trava", () => {
+    const t = setup({ objects: LAIR });
+    const p = t.mk("p1", 11, 11, 24);
+    t.quests.onKill("lair_mole_king", ["p1"]);
+    const saved = t.quests.serialize("p1")!;
+    expect(saved.slain).toEqual(["lair_mole_king"]);
+    t.quests.removePlayer("p1");
+    t.quests.load(p, { ...saved, slain: [...saved.slain!, "rat", "nao_existe"] }); // só chefes de covil voltam do save
+    expect(t.quests.serialize("p1")!.slain).toEqual(["lair_mole_king"]);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toBe("Você precisa ser level 25 para abrir este baú.");
+    p.level = 25;
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.quests.chestDone("p1", "lair_minas")).toBe(true);
+  });
+
+  it("regra pura: grupo sem trava abre sempre; com trava, só com o abate do chefe do covil", () => {
+    const g = QUEST_CHEST_GROUPS.lair_profundo!;
+    expect(CHEST_LOCK_BOSSES.has("lair_shogun")).toBe(true);
+    expect(chestLockReason(QUEST_CHEST_GROUPS.pirate_treasure!, () => false)).toBeNull();
+    expect(chestLockReason(g, (b) => b === "lair_shogun")).toBeNull();
+    expect(chestLockReason(g, () => false)).toBe("Trancado: derrote o chefe do covil (Shogun Abissal) para abrir.");
   });
 });
 

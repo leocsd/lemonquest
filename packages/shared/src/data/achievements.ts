@@ -36,6 +36,8 @@ export interface AchievementDef {
 export const TITLES: Record<string, string> = {
   /** Rotativo: líder de uma categoria semanal do ranking, só até a próxima segunda (server/systems/weeklyChampion.ts). */
   campeao_semana: "Campeão da Semana",
+  /** Rotativo (ciclo 16): o grupo do melhor tempo das 70 ondas do Coliseu na semana (server/systems/arenaChampion.ts). */
+  campeao_coliseu: "Campeão do Coliseu",
   persistente: "o Persistente",
   matador_lich: "Matador de Lich",
   regicida: "Regicida",
@@ -46,6 +48,7 @@ export const TITLES: Record<string, string> = {
   gladiador: "o Gladiador",
   rei_coliseu: "Rei do Coliseu",
   imperador_coliseu: "Imperador do Coliseu",
+  senhor_abismo: "Senhor do Abismo",
   cartografo: "o Cartógrafo",
   magnata: "o Magnata",
   heroi_povo: "Herói do Povo",
@@ -61,6 +64,7 @@ export const TITLES: Record<string, string> = {
   exorcista: "o Exorcista",
   algoz_ferumbras: "Algoz de Ferumbras",
   aniquilador: "o Aniquilador",
+  cacador_covis: "Caçador de Covis",
   // Escritório (ciclo 10): piadas internas, ver bloco correspondente em ACHIEVEMENTS.
   compras_onfire: "Compras Onfire",
   superposto: "o Superposto",
@@ -133,8 +137,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("arena_20", "Lenda da Arena", "Chegue à onda 20 do Coliseu", "🏴‍☠️", 40, "arena", 20, { rewards: ["outfit:pirata"], rare: true }),
   a("arena_30", "Rei do Coliseu", "Vença a onda 30 do Coliseu", "🏆", 80, "arena", 30,
     { rewards: ["addon:pirata:1", "title:rei_coliseu"], rare: true }),
-  a("arena_60", "Imperador do Coliseu", `Vença a onda ${ARENA_MAX_WAVE} do Coliseu`, "👑", 120, "arena", ARENA_MAX_WAVE,
+  // A 60 era o fim do Coliseu até o ciclo 15: o alvo fica em 60 (quem já tem não perde); a 70 ganhou a sua.
+  a("arena_60", "Imperador do Coliseu", "Vença a onda 60 do Coliseu", "👑", 120, "arena", 60,
     { rewards: ["title:imperador_coliseu"], rare: true }),
+  a("arena_70", "Senhor do Abismo", `Vença a onda ${ARENA_MAX_WAVE} do Coliseu`, "🔱", 150, "arena", ARENA_MAX_WAVE,
+    { rewards: ["title:senhor_abismo"], rare: true }),
   // Morrer, comer, treinar
   a("deaths_10", "Persistente", "Morra 10 vezes", "🪦", 10, "deaths", 10, { rewards: ["outfit:bruxo", "title:persistente"] }),
   a("deaths_50", "Mártir", "Morra 50 vezes", "😵", 20, "deaths", 50, { rewards: ["addon:bruxo:1"] }),

@@ -1,0 +1,19 @@
+/* Aba "Refinar" do Ferreiro (ciclo 16). Lista e botão reaproveitam .shop-list/.shop-row/.shop-btn (npc.css). */
+.refine { display: flex; flex-direction: column; gap: 8px; }
+.refine-hint { font-size: 11px; line-height: 1.4; color: var(--hud-muted); }
+.refine-empty { line-height: 1.4; }
+.refine-list { max-height: 196px; }
+.refine-row { cursor: pointer; }
+.refine-row.active { border-color: rgba(217, 164, 65, 0.6); background: rgba(217, 164, 65, 0.08); }
+.refine-where { font-size: 11px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
+.refine-detail {
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; font-size: 12px;
+  background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px;
+}
+.refine-name { font-size: 13px; font-weight: 600; }
+.refine-change { color: #ffd75e; font-variant-numeric: tabular-nums; }
+.refine-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.refine-line .good, .refine-line.good { color: #7fd18b; }
+.refine-cost { display: flex; align-items: center; gap: 4px; color: var(--hud-gold); font-variant-numeric: tabular-nums; }
+.refine-cost small { color: var(--hud-muted); font-size: 11px; }
+.refine-btn { align-self: flex-end; margin-top: 4px; }

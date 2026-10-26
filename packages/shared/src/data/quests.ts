@@ -487,6 +487,25 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 180000, gold: 40000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:exorcista" },
   }),
+  // Ciclo 16: os chefes de covil das quatro caves profundas (lateObjects14 no mapa). Dá para fazer em qualquer ordem; o
+  // Shogun (lv 125) é o que segura a missão no fim de jogo.
+  q({
+    id: "quatro_covis", name: "Os Quatro Covis", giver: "frontier_scout", minLevel: 100,
+    summary: "Cada cave profunda tem um dono no covil do fundo. A Batedora Iara quer os quatro derrubados para fechar o mapa.",
+    steps: [
+      { kind: "boss", target: "lair_mole_king", count: 1, label: "Rei Toupeira" },
+      { kind: "boss", target: "lair_kraken", count: 1, label: "Kraken das Grutas" },
+      { kind: "boss", target: "lair_flame", count: 1, label: "Chama Ancestral" },
+      { kind: "boss", target: "lair_shogun", count: 1, label: "Shogun Abissal" },
+    ],
+    dialog: {
+      offer: "Meu mapa das caves fundas tem quatro manchas escritas 'aqui mora alguém'. O Rei Toupeira nas Minas, o Kraken nas Grutas, a Chama Ancestral nas Catacumbas e o Shogun no Abismo Profundo. Derrube os quatro e eu troco as manchas pelo seu nome.",
+      accept: "Cada covil fica no fim da cave, depois da galeria funda. O baú do covil só abre para quem estava no grupo que derrubou o dono, então ninguém fica de fora da luta. E leve um grupo: o Shogun não tem pressa nenhuma de morrer.",
+      progress: "Ainda tem covil com dono no meu mapa. Quatro chefes, quatro covis. Três e meio não conta.",
+      complete: "Quatro covis, quatro donos a menos! Vou ter que desenhar o mapa de novo, desta vez com o seu nome em cada sala. Daqui para a frente, você é o Caçador de Covis.",
+    },
+    rewards: { xp: 150000, gold: 40000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }], unlock: "title:cacador_covis" },
+  }),
   // --- Costa Esmeralda: Porto Esperança (25–120) -------------------------------------------------------
   q({
     id: "banuta_apes", name: "Macacos Ladrões", giver: "explorer_jairo", minLevel: 25,

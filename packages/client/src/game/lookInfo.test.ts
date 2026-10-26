@@ -9,7 +9,9 @@ describe("classe dos baús de quest", () => {
     expect(chestClass("hero_sword").label).toBe("Cavaleiro");
     expect(chestClass("hero_bow").label).toBe("Paladino");
     expect(chestClass("frost_ring").label).toBe("Todas");
-    expect(chestClass("anni_bear").label).toBe("Todas");
+    // Aniquilação (ciclo 16): um baú por vocação; o urso que vai junto não tem vocação e não muda a classe.
+    expect(chestClass("anni_bear").label).toBe("Druida");
+    expect(chestClass("anni_armor").label).toBe("Cavaleiro");
     for (const id of Object.keys(QUEST_CHESTS)) expect(chestClass(id).label.length, id).toBeGreaterThan(0);
   });
 

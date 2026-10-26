@@ -660,3 +660,64 @@ describe("ground: persistência da reserva do grupo", () => {
     expect([at(5).owner, at(5).ownerUntil]).toEqual([undefined, undefined]);
   });
 });
+
+describe("ground: refino (ciclo 16)", () => {
+  it("largar e pegar mantém o refino; o olhar mostra o nível; o estado sincronizado não leva", () => {
+    const t = groundWorld();
+    const p = t.add("p1", 5, 5, { level: 40 });
+    const q = t.add("p2", 4, 4, { level: 40 });
+    t.w.inv.addItem(p, { ...makeItem("katana"), refine: 3 });
+    t.ground.onDrop(p, { from: { where: "backpack", index: 0 }, x: 4, y: 3 });
+    const [e] = t.onTile(4, 3);
+    expect(e!.item.refine).toBe(3);
+    expect(Object.keys(t.collection.get(e!.state.id)!)).not.toContain("refine");
+    t.ground.onLook(q, { groundId: e!.state.id });
+    expect(t.w.sent.filter((s) => s.type === S2C.LookItem).at(-1)!.msg.item.refine).toBe(3);
+    t.step();
+    t.ground.onPickup(q, { groundId: e!.state.id });
+    expect(t.bp("p2")[0]!.refine).toBe(3);
+  });
+
+  it("vai e volta do banco do chão; refino inválido no registro é limpo ao carregar", () => {
+    const w = invWorld();
+    let rows: GroundRecord[] = [];
+    const store = { load: () => structuredClone(rows), save: (r: GroundRecord[]) => { rows = structuredClone(r); } };
+    const make = () => new GroundSystem({
+      inventory: w.inv, collection: new Map<string, GroundItemState>(), now: w.now, log: () => {}, store,
+      canHold: (x, y) => MAP.isWalkable(x, y), seeThrough: (x, y) => MAP.isWalkable(x, y), send: () => {},
+    });
+    const g1 = make();
+    g1.place({ ...makeItem("katana"), refine: 5 }, 4, 4);
+    g1.place({ ...makeItem("mithril_plate"), refine: 2 }, 5, 5);
+    g1.flush();
+    rows.push({ x: 6, y: 6, item: { ...makeItem("katana"), refine: 9 }, expiresAt: w.now() + 60_000 });
+    rows.push({ x: 1, y: 1, item: { ...makeItem("sword"), refine: 2 }, expiresAt: w.now() + 60_000 });
+    const g2 = make();
+    expect(g2.restore()).toBe(4);
+    const one = (x: number, y: number) => g2.get(g2.at(x, y)[0]!)!.item;
+    expect([one(4, 4).refine, one(5, 5).refine]).toEqual([5, 2]);
+    expect(Object.keys(one(6, 6))).not.toContain("refine");
+    expect(Object.keys(one(1, 1))).not.toContain("refine");
+  });
+
+  it("ouro acima do maxStack (1,5 mi da caveira vermelha, uma pilha só) volta inteiro do reinício e vai inteiro para quem pega", () => {
+    const w = invWorld();
+    let rows: GroundRecord[] = [];
+    const store = { load: () => structuredClone(rows), save: (r: GroundRecord[]) => { rows = structuredClone(r); } };
+    const make = () => new GroundSystem({
+      inventory: w.inv, collection: new Map<string, GroundItemState>(), now: w.now, log: () => {}, store,
+      canHold: (x, y) => MAP.isWalkable(x, y), seeThrough: (x, y) => MAP.isWalkable(x, y), send: () => {},
+    });
+    const g1 = make();
+    g1.placeNear(makeItem("gold_coin", 1_500_000), 4, 4);
+    g1.flush();
+    const g2 = make();
+    expect(g2.restore()).toBe(1);
+    const id = g2.at(4, 4)[0]!;
+    expect([g2.get(id)!.item.count, g2.get(id)!.state.count]).toEqual([1_500_000, 1_500_000]);
+    const p = w.mk("p1");
+    p.x = 4; p.y = 4;
+    g2.onPickup(p, { groundId: id });
+    expect(w.inv.gold("p1")).toBe(1_500_000);
+  });
+});

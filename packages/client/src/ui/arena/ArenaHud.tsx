@@ -1,7 +1,8 @@
 // HUD da partida do coliseu (topo, centro): contagem 3-2-1, "Onda 7 · 5 monstros", respiro entre ondas, pausa com
-// "Pronto" (depois das ondas-chefe), botão de sair (com confirmação), faixa de onda e cartão de resultado.
+// "Pronto" (depois das ondas-chefe), botão de sair (com confirmação), faixa de onda e cartão de resultado. Ciclo 16:
+// modificador da semana nas ondas 61–70 e o relógio da partida (ranking de tempo das 70 ondas).
 import { useEffect, useState } from "preact/hooks";
-import { ARENA_MAX_WAVE, partyMinLevel } from "@lemonquest/shared";
+import { ARENA_MAX_WAVE, ARENA_MOD_FROM_WAVE, ARENA_MODS, arenaTimeText, partyMinLevel, type ArenaModId } from "@lemonquest/shared";
 import { session } from "../../session.ts";
 import { useStore } from "../hud/store.ts";
 import { arenaAction, arenaBannerStore, arenaResultStore, arenaStateStore, phaseRemaining } from "./arena.ts";
@@ -9,6 +10,19 @@ import { useTicker } from "./useTicker.ts";
 import "./arena.css";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
+
+/** Selo do modificador da semana (só nas ondas 61–70). */
+function ModChip({ mod, wave }: { mod?: ArenaModId; wave: number }) {
+  const m = mod ? ARENA_MODS[mod] : undefined;
+  if (!m || wave < ARENA_MOD_FROM_WAVE) return null;
+  return <><span class="sep">·</span><span class="arena-mod" data-tip={m.name} data-tip-sub={m.desc}>{m.icon} {m.name}</span></>;
+}
+
+/** Relógio da partida (desde a onda 1, no relógio do servidor). */
+function Clock({ startedAt, offset }: { startedAt?: number; offset: number }) {
+  if (!startedAt) return null;
+  return <><span class="sep">·</span><span class="arena-clock" data-tip="Tempo da partida" data-tip-sub="Ranking de tempo das 70 ondas">⏱ {arenaTimeText(Date.now() + offset - startedAt)}</span></>;
+}
 
 /** Faixa de onda e cartão de resultado. A barra da partida (MatchBar) fica na pilha do topo (App). */
 export function ArenaHud() {
@@ -23,7 +37,7 @@ export function ArenaHud() {
 export function MatchBar() {
   const st = useStore(arenaStateStore);
   const phase = st?.s.phase;
-  useTicker(phase === "countdown" || phase === "pause" || phase === "break" || phase === "queued" ? 200 : 0);
+  useTicker(phase === "countdown" || phase === "pause" || phase === "break" || phase === "queued" ? 200 : phase === "fight" ? 1000 : 0);
   if (!st) return null;
   const s = st.s;
   const left = phaseRemaining(st);
@@ -48,6 +62,8 @@ export function MatchBar() {
         <span>Onda <b>{s.wave}</b>/{ARENA_MAX_WAVE}</span>
         <span class="sep">·</span>
         <span>{s.monstersLeft ?? 0} {s.monstersLeft === 1 ? "monstro" : "monstros"}</span>
+        <ModChip mod={s.mod} wave={s.wave} />
+        <Clock startedAt={s.startedAt} offset={st.offset} />
         <LeaveButton />
       </div>
     );
@@ -57,6 +73,7 @@ export function MatchBar() {
     return (
       <div class="arena-bar">
         <span>Onda <b>{s.wave}</b> vencida! Próxima{next % 5 === 0 ? " (chefe!)" : ""} em <b>{secs}</b> s</span>
+        <ModChip mod={s.mod} wave={next} />
         <LeaveButton />
       </div>
     );
@@ -83,6 +100,9 @@ export function MatchBar() {
           ))}
         </div>
         <div class="arena-pause-hint">Próxima: onda {s.wave + 1}{(s.wave + 1) % 5 === 0 ? " (chefe!)" : ""} · Vendedor do Coliseu aberto · ganho: {fmt(s.earned.xp)} XP, {fmt(s.earned.gold)} ouro</div>
+        {s.wave + 1 === ARENA_MOD_FROM_WAVE && s.mod && ARENA_MODS[s.mod] && (
+          <div class="arena-pause-hint">Ondas {ARENA_MOD_FROM_WAVE}–{ARENA_MAX_WAVE} desta semana: {ARENA_MODS[s.mod].icon} <b>{ARENA_MODS[s.mod].name}</b> — {ARENA_MODS[s.mod].desc}</div>
+        )}
       </div>
     );
   }
@@ -143,7 +163,13 @@ function ResultCard() {
         <span>XP</span><b>+{fmt(r.xp)}</b>
         <span>Ouro</span><b class="gold">+{fmt(r.gold)}</b>
         <span>Recorde</span><b>{r.best}{r.best === r.wavesCleared && r.wavesCleared > 0 ? " ★" : ""}</b>
+        {r.timeMs !== undefined && <><span>Tempo</span><b>{arenaTimeText(r.timeMs)}{r.timeRecord ? " ★" : ""}</b></>}
       </div>
+      {r.timeRecord && (
+        <div class="arena-result-hint">
+          {r.timeRecord === "server" ? "Novo recorde de tempo do Coliseu!" : "Melhor tempo da semana!"} Na virada da semana, o grupo do melhor tempo leva o título "Campeão do Coliseu".
+        </div>
+      )}
       {r.reason === "wiped" && <div class="arena-result-hint">Sem penalidade: a recompensa das ondas vencidas é sua.</div>}
       <button class="arena-btn primary" onClick={() => arenaResultStore.set(null)}>Fechar</button>
     </div>

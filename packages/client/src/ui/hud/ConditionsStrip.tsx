@@ -42,7 +42,7 @@ export function ConditionsStrip() {
             data-tip-sub={[c.detail, left != null ? fmtLeft(left) : null].filter(Boolean).join(" · ") || undefined}
           >
             <PixelIcon name={def.glyph} size={14} />
-            {left != null && left <= 99 && <span class="cond-time">{left}</span>}
+            {c.label ? <span class="cond-time">{c.label}</span> : left != null && left <= 99 && <span class="cond-time">{left}</span>}
           </div>
         );
       })}

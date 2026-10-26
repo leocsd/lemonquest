@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { BACKPACK_SIZE, NPC_BUY_RATIO, RARITIES, S2C, STANCE_DEALT, STANCE_TAKEN, npcBuyPrice, type Rarity } from "@lemonquest/shared";
+import { BACKPACK_SIZE, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, NPC_BUY_RATIO, RARITIES, S2C, STANCE_DEALT, STANCE_TAKEN, npcBuyPrice, type Rarity } from "@lemonquest/shared";
 import { makeItem } from "./inventory.ts";
 import { LootSystem, RARITY_WEIGHTS, bonusPool, rollBonuses, rollLoot, rollRarity } from "./loot.ts";
+import { ImbuementSystem } from "./imbuement.ts";
 import { CLOSED, NpcSystem } from "./npcs.ts";
 import { CHASE_PAUSE_MS, FightModeSystem, stanceDealt, stanceTaken } from "./fightmode.ts";
 import { MovementSystem } from "./movement.ts";
@@ -87,6 +88,7 @@ function npcWorld(rng: () => number = () => 0.5) {
   const players = new Map<string, PlayerState>();
   const out: { to: string; type: string; msg: any }[] = [];
   let clock = 0;
+  const imbue = new ImbuementSystem({ inPveCombat: () => false, send: () => {} });
   npcs = new NpcSystem({
     npcs: [
       { id: "shop", x: 10, y: 10 }, { id: "depot", x: 30, y: 10 }, { id: "priest", x: 50, y: 10 }, { id: "armory", x: 60, y: 10 },
@@ -94,10 +96,10 @@ function npcWorld(rng: () => number = () => 0.5) {
     ],
     inventory: w.inv, defs: npcsFx, players: () => players.values(), getPlayer: (id) => players.get(id),
     send: (to, type, msg) => out.push({ to, type, msg }), broadcast: (type, msg) => out.push({ to: "*", type, msg }),
-    now: () => clock, rng,
+    now: () => clock, rng, imbue,
   });
   const add = (id: string, x: number, y: number) => { const p = w.mk(id); p.x = x; p.y = y; players.set(id, p); return p; };
-  return { w, npcs, out, add, players, tick: (ms: number) => { clock += ms; npcs.tick(clock); } };
+  return { w, npcs, out, add, players, imbue, tick: (ms: number) => { clock += ms; npcs.tick(clock); } };
 }
 
 describe("npcs", () => {
@@ -234,24 +236,84 @@ describe("npcs", () => {
     expect(t.w.inv.countItem("p1", "hp_pot_huge")).toBe(5);
   });
 
-  it("encantamento: precisa de ouro + material, troca sem reembolso, não deixa comprar o mesmo de novo", () => {
+  it("encantamento: tier I precisa de ouro + material; troca sem reembolso; o mesmo de novo renova as 10 h", () => {
     const t = npcWorld();
     const p = t.add("p1", 80, 10);
     t.npcs.onInteract(p, { npcId: "enchanter" });
+    expect(t.out.at(-1)!.msg.imbuement).toEqual({ active: "", tier: 0, leftMs: 0 });
     t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal" });
     expect(t.out.at(-1)!.msg.text).toContain("Faltam materiais");
-    t.w.inv.addGold(p, 5000);
     t.w.inv.addItem(p, makeItem("wolf_fang", 5));
-    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal" });
-    expect(p.imbuement).toBe("lifesteal");
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal", tier: 1 });
+    expect(t.out.at(-1)!.msg.text).toBe("Ouro insuficiente.");
+    expect(t.w.inv.countItem("p1", "wolf_fang")).toBe(5); // nada cobrado
+    t.w.inv.addGold(p, 5000);
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal" }); // sem tier = I (cliente antigo)
+    expect(t.imbue.get("p1")).toEqual({ effect: "lifesteal", tier: 1, leftMs: IMBUE_DURATION_MS });
     expect(t.w.inv.gold("p1")).toBe(0);
     expect(t.w.inv.get("p1")!.backpack.filter(Boolean)).toHaveLength(0);
-    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal" });
-    expect(t.out.at(-1)!.msg.text).toContain("já tem");
+    const sent = t.out.filter((o) => o.to === "p1");
+    expect(sent.at(-2)!.msg.text).toBe("Encantamento ativo: Dreno de Vida I, por 10 h de combate contra monstros. 5% do dano causado em monstros volta como vida (metade em magia).");
+    expect(sent.at(-1)).toMatchObject({ type: S2C.NpcOpen, msg: { imbuement: { active: "lifesteal", tier: 1, leftMs: IMBUE_DURATION_MS } } });
     t.w.inv.addGold(p, 5000);
     t.w.inv.addItem(p, makeItem("spider_eye", 5));
-    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "manasteal" });
-    expect(p.imbuement).toBe("manasteal"); // trocou, sem reembolso do anterior
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "manasteal", tier: 1 });
+    expect(t.imbue.get("p1")!.effect).toBe("manasteal"); // trocou, sem reembolso do anterior
+    t.imbue.load("p1", { imbue: { effect: "manasteal", tier: 1, leftMs: 3 * 3600_000 } }); // 7 h de combate depois
+    t.w.inv.addGold(p, 5000);
+    t.w.inv.addItem(p, makeItem("spider_eye", 5));
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "manasteal", tier: 1 });
+    expect(t.w.inv.gold("p1")).toBe(0); // renovou (cobrou de novo)
+    expect(t.imbue.get("p1")).toEqual({ effect: "manasteal", tier: 1, leftMs: IMBUE_DURATION_MS });
+  });
+
+  it("encantamento: clique duplo (2 compras seguidas do mesmo) cobra uma vez só, sem aviso de erro", () => {
+    const t = npcWorld();
+    const p = t.add("p1", 80, 10);
+    t.w.inv.addGold(p, 10_000);
+    t.w.inv.addItem(p, makeItem("wolf_fang", 10));
+    t.npcs.onInteract(p, { npcId: "enchanter" });
+    const buy = () => t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal", tier: 1 });
+    buy();
+    const sent = t.out.length;
+    buy();
+    expect(t.out).toHaveLength(sent); // ignorado em silêncio
+    expect(t.w.inv.gold("p1")).toBe(5000);
+    expect(t.w.inv.countItem("p1", "wolf_fang")).toBe(5);
+    // Gastos os 5 s de folga em combate, o mesmo de novo é renovação: cobra.
+    t.imbue.load("p1", { imbue: { effect: "lifesteal", tier: 1, leftMs: IMBUE_DURATION_MS - IMBUE_REBUY_GUARD_MS } });
+    buy();
+    expect(t.w.inv.gold("p1")).toBe(0);
+    expect(t.w.inv.countItem("p1", "wolf_fang")).toBe(0);
+  });
+
+  it("encantamento: tier II pede level 60 e tier III level 90, antes de cobrar; efeito/tier inválido é ignorado", () => {
+    const t = npcWorld();
+    const p = t.add("p1", 80, 10);
+    t.w.inv.addGold(p, 200_000);
+    t.w.inv.addItem(p, makeItem("necro_skull", 5));
+    t.w.inv.addItem(p, makeItem("demonic_essence", 5));
+    t.npcs.onInteract(p, { npcId: "enchanter" });
+    p.level = 59;
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal", tier: 2 });
+    expect(t.out.at(-1)!.msg.text).toBe("Dreno de Vida II precisa do level 60.");
+    for (const bad of [{ effect: "lifesteal", tier: 4 }, { effect: "lifesteal", tier: "2" }, { effect: "nope", tier: 1 }, { effect: 3, tier: 1 }]) {
+      t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", ...bad } as never);
+    }
+    expect(t.w.inv.gold("p1")).toBe(200_000);
+    expect(t.imbue.get("p1")).toBeUndefined();
+    p.level = 60;
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal", tier: 2 });
+    expect(t.imbue.get("p1")).toMatchObject({ effect: "lifesteal", tier: 2 });
+    expect(t.w.inv.gold("p1")).toBe(170_000);
+    expect(t.w.inv.countItem("p1", "necro_skull")).toBe(0);
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "pierce", tier: 3 });
+    expect(t.out.at(-1)!.msg.text).toBe("Perfurante III precisa do level 90.");
+    p.level = 90;
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "pierce", tier: 3 });
+    expect(t.imbue.get("p1")).toMatchObject({ effect: "pierce", tier: 3 });
+    expect(t.w.inv.gold("p1")).toBe(70_000);
+    expect(t.w.inv.countItem("p1", "demonic_essence")).toBe(0);
   });
 
   it("tier 6-7 (encomenda especial): só 1 por personagem por semana", () => {

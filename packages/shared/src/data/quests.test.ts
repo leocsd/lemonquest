@@ -5,10 +5,13 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CollisionGrid, canStepTerrain, findObjects, mapSpawn, objectTile, type TiledMap, type TiledObject } from "../map.ts";
+import { TITLES, isValidUnlockId } from "./achievements.ts";
+import { ITEMS } from "./items.ts";
 import { REQUEST_BANDS } from "./materialRequest.ts";
 import { MONSTERS } from "./monsters.ts";
 import { NPCS, NPC_RANGE } from "./npcs.ts";
 import { BOUNTY_BANDS, QUESTS, QUEST_LIST, bountyLevelMargin, bountyTitle, pluralPt } from "./quests.ts";
+import { CHEST_LOCK_BOSSES, QUEST_CHESTS, QUEST_CHEST_GROUPS, chestLockText, findQuestObjects } from "./questWorld.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const map = JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8")) as TiledMap;
@@ -177,5 +180,72 @@ describe("missões: textos e requisitos (ciclo 14)", () => {
     expect(text("dragon_scales")).toMatch(/guarda/);
     expect(text("frost_dragons")).toMatch(/guerreiros/);
     expect(QUESTS.orshabaal_hunt!.requires).toContain("selo_do_abismo");
+  });
+});
+
+describe("covis das caves profundas (ciclo 16)", () => {
+  const LAIRS = [
+    ["lair_mole_king", "lair_minas", "Minas Abandonadas"], ["lair_kraken", "lair_grutas", "Grutas Alagadas"],
+    ["lair_flame", "lair_catacumbas", "Catacumbas Esquecidas"], ["lair_shogun", "lair_profundo", "Abismo Profundo"],
+  ] as const;
+  const zone = (name: string) => findObjects(map, "zone").find((o) => o.name === name)!;
+  const inZone = (o: TiledObject, x: number, y: number) => x * 16 >= o.x && x * 16 < o.x + o.width && y * 16 >= o.y && y * 16 < o.y + o.height;
+  const chests = findQuestObjects(map).filter((s) => s.kind === "chest");
+
+  it("missão \"Os Quatro Covis\": Batedora Iara, lv 100, os quatro chefes como passo de chefe, título que existe", () => {
+    const d = QUESTS.quatro_covis!;
+    expect([d.giver, d.minLevel, NPCS[d.giver]!.name]).toEqual(["frontier_scout", 100, "Batedora Iara"]);
+    expect(d.steps.map((s) => [s.kind, s.target])).toEqual(LAIRS.map(([boss]) => ["boss", boss]));
+    for (const s of d.steps) expect(MONSTERS[s.target]!.boss, s.target).toBe(true);
+    expect(isValidUnlockId(d.rewards.unlock!)).toBe(true);
+    expect(TITLES.cacador_covis).toBe("Caçador de Covis");
+    // XP entre as missões do 100–110 (Selo do Abismo 120 mil, Orshabaal 180 mil); o teto de 2,5 levels no lv 100 é do
+    // catálogo (server/systems/quests.test.ts).
+    expect(d.rewards.xp).toBeGreaterThanOrEqual(QUESTS.selo_do_abismo!.rewards.xp);
+    expect(d.rewards.xp).toBeLessThanOrEqual(QUESTS.orshabaal_hunt!.rewards.xp);
+  });
+
+  it("cada chefe tem um spawn só, na cave dele, caçável no próprio level e não antes da porta da cave", () => {
+    for (const [boss, , caveName] of LAIRS) {
+      const sp = spawns.filter((s) => s.id === boss);
+      expect(sp, boss).toHaveLength(1);
+      expect(inZone(zone(caveName), sp[0]!.x, sp[0]!.y), `${boss} em ${caveName}`).toBe(true);
+      expect(huntable(boss, MONSTERS[boss]!.level), boss).toBe(true);
+    }
+    expect(huntable("lair_shogun", 99)).toBe(false); // Abismo Profundo: porta lv 100
+    expect(huntable("lair_mole_king", 9)).toBe(false); // Minas: porta lv 10
+  });
+
+  it("baús desenhados no covil: trancados pelo chefe da sala, tile bloqueado pelo objeto, abríveis de um vizinho alcançável", () => {
+    expect([...CHEST_LOCK_BOSSES].sort()).toEqual(LAIRS.map(([boss]) => boss).sort());
+    for (const [boss, group, caveName] of LAIRS) {
+      const g = QUEST_CHEST_GROUPS[group]!;
+      expect(g.needBoss, group).toBe(boss);
+      expect(chestLockText(g), group).toBe(`Trancado: derrote o chefe do covil (${MONSTERS[boss]!.name}) para abrir`);
+      // A prova continua caindo a 100%, mas é só troféu: a descrição não promete abrir nada.
+      const trophy = MONSTERS[boss]!.loot!.find((l) => l.chance === 1 && ITEMS[l.itemId]?.kind === "quest")!;
+      expect(ITEMS[trophy.itemId]!.description, trophy.itemId).not.toMatch(/abre/);
+      const ids = Object.values(QUEST_CHESTS).filter((c) => c.group === group).map((c) => c.id);
+      expect(ids.length, group).toBeGreaterThanOrEqual(3);
+      const sp = spawns.find((s) => s.id === boss)!;
+      const seen = reachAt(g.minLevel);
+      for (const id of ids) {
+        const c = chests.find((s) => s.id === id);
+        expect(c?.drawn, id).toBe(true);
+        expect(inZone(zone(caveName), c!.x, c!.y), id).toBe(true);
+        expect(cheb(c!.x, c!.y, sp.x, sp.y), `${id} na sala do chefe`).toBeLessThanOrEqual(8);
+        expect(grid.isWalkable(c!.x, c!.y), `${id} bloqueia o tile`).toBe(false);
+        const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[(c!.y + dy!) * map.width + c!.x + dx!] === 1);
+        expect(near, `${id} abrível no lv ${g.minLevel}`).toBe(true);
+      }
+    }
+  });
+
+  it("Mestre Brás, o Ferreiro: ao lado do Bento, na Vila", () => {
+    const at = (id: string) => objectTile(findObjects(map, "npc").find((o) => prop(o, "npcId") === id)!, map.tilewidth);
+    const b = at("blacksmith"), shop = at("shop");
+    expect(NPCS.blacksmith!.name).toBe("Mestre Brás, o Ferreiro");
+    expect(cheb(b.x, b.y, shop.x, shop.y)).toBeLessThanOrEqual(4);
+    expect(reachAt(1)[b.y * map.width + b.x]).toBe(1);
   });
 });

@@ -3,7 +3,7 @@
 // Parâmetros: ?npc=buy|sell|depot (abre o NPC), ?voc=knight|sorcerer..., ?lv=8
 // Console: __ut.loot("epic"), __ut.feed("boss"), __ut.npc("depot")
 import {
-  BACKPACK_SIZE, C2S, DEPOT_SIZE, EQUIP_SLOTS, ITEMS, itemDef,
+  BACKPACK_SIZE, C2S, DEPOT_SIZE, EQUIP_SLOTS, ITEMS, instanceStats, itemDef,
   type EquipSlot, type FeedMsg, type InventoryMsg, type ItemDef, type ItemInstance, type ItemLocation, type LootMsg, type NpcOpenMsg, type NpcTradeMsg, type Rarity, type StatId,
 } from "@lemonquest/shared";
 import { session } from "../../session.ts";
@@ -75,9 +75,7 @@ export function startUiTest(): void {
   const pushInv = () => {
     const stats: InventoryMsg["stats"] = {};
     for (const it of Object.values(equipment)) {
-      const d = itemDef(it!.defId);
-      for (const [k, v] of Object.entries(d?.stats ?? {})) stats[k as StatId] = (stats[k as StatId] ?? 0) + (v as number);
-      for (const b of it!.bonuses) stats[b.stat] = (stats[b.stat] ?? 0) + b.value;
+      for (const [k, v] of Object.entries(instanceStats(itemDef(it!.defId), it))) stats[k as StatId] = (stats[k as StatId] ?? 0) + (v as number);
     }
     inventoryStore.set({ equipment: { ...equipment }, backpack: [...backpack], gold, stats, cap: { used: 120 + backpack.filter(Boolean).length * 8, max: 400 } });
   };

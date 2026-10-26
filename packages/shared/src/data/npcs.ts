@@ -89,9 +89,9 @@ export const NPCS: Record<string, NpcDef> = {
         // loot/chefe normalmente, isso é só uma saída extra pra ouro acumulado).
         ...limited(
           ["fire_sword", 90000], ["giant_sword", 100000], ["royal_crossbow", 90000], ["starstorm_wand", 90000], ["northwind_rod", 90000],
-          ["crown_helmet", 24000], ["crown_armor", 56000], ["crown_legs", 32000], ["crown_shield", 32000],
+          ["crown_helmet", 24000], ["crown_armor", 56000], ["crown_legs", 32000], ["crown_shield", 32000], ["crown_boots", 16000],
           ["magic_longsword", 190000], ["demon_axe", 210000], ["celestial_bow", 190000], ["destruction_wand", 190000], ["ancient_root_rod", 190000],
-          ["demon_helmet", 60000], ["demon_armor", 140000], ["demon_legs", 80000], ["demon_shield", 80000],
+          ["demon_helmet", 60000], ["demon_armor", 140000], ["demon_legs", 80000], ["demon_shield", 80000], ["demon_boots", 40000],
         ),
       ],
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material"],
@@ -145,8 +145,9 @@ export const NPCS: Record<string, NpcDef> = {
           "elven_bow", "master_archer_helmet", "master_archer_armor", "master_archer_legs", "master_archer_boots",
           "health_potion", "meat", "fish", "beaf", "yakitori", "fishing_rod"),
         // tier 6-7: encomenda especial (ver Bento), 1 peça por personagem por semana.
-        ...limited(["royal_crossbow", 90000], ["royal_helmet", 22000], ["royal_armor", 52000], ["royal_legs", 30000],
-          ["celestial_bow", 190000], ["dragon_scale_helmet", 55000], ["dragon_scale_armor", 130000], ["dragon_scale_legs", 75000]),
+        ...limited(["royal_crossbow", 90000], ["royal_helmet", 22000], ["royal_armor", 52000], ["royal_legs", 30000], ["royal_boots", 15000],
+          ["celestial_bow", 190000], ["dragon_scale_helmet", 55000], ["dragon_scale_armor", 130000], ["dragon_scale_legs", 75000],
+          ["dragon_scale_boots", 37000]),
       ],
       buys: ["material", "food"],
     },
@@ -177,9 +178,9 @@ export const NPCS: Record<string, NpcDef> = {
         // tier 6-7: encomenda especial (ver Bento), 1 peça por personagem por semana.
         ...limited(
           ["starstorm_wand", 90000], ["northwind_rod", 90000], ["mystic_helmet", 20000], ["mystic_armor", 50000], ["mystic_legs", 28000],
-          ["spellbook_mystic", 32000],
+          ["mystic_boots", 14000], ["spellbook_mystic", 32000],
           ["destruction_wand", 190000], ["ancient_root_rod", 190000], ["ferumbras_helmet", 50000], ["ferumbras_armor", 120000], ["ferumbras_legs", 70000],
-          ["spellbook_ferumbras", 80000],
+          ["ferumbras_boots", 34000], ["spellbook_ferumbras", 80000],
         ),
       ],
       buys: ["material", "potion", "food"],
@@ -634,6 +635,17 @@ export const NPCS: Record<string, NpcDef> = {
       "Trem de volta sai daqui! Vila ou Estação Central.",
       "Parada não tem plataforma, mas tem horário. Mais ou menos.",
       "Saiu da Oficina com a mochila cheia? Embarque aqui, não precisa andar até a Estação.",
+    ],
+  },
+  // Ciclo 16: ferreiro ao lado do Bento (objeto no fim do mapa, lateObjects14). O refino (16-5) pendura a aba neste id.
+  blacksmith: {
+    id: "blacksmith", name: "Mestre Brás, o Ferreiro", sprite: C + "KnightGold/SpriteSheet.png",
+    greeting: "Bigorna quente, conversa curta. Desceu aos covis das caves fundas? Os baús lá de baixo só abrem para quem ajudou a derrubar o dono do covil, e o dono nunca facilita.",
+    idleLines: [
+      "Ferro bom se conhece pelo barulho. Esse aí está desafinado.",
+      "O Bento vende, eu conserto. Ele fica com o lucro, eu fico com o calo.",
+      "Garra de toupeira gigante? Já usei de martelo. Não recomendo.",
+      "Quem bate no Shogun volta com a espada torta. Quando volta.",
     ],
   },
 };

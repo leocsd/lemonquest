@@ -22,6 +22,7 @@ import { NpcManager, allNpcSheets } from "../game/npcs.ts";
 import { STATUE_RANGE, StatueIndex } from "../game/statues.ts";
 import { QUEST_OBJECT_RANGE, QuestObjectIndex, useQuestObject } from "../game/questObjects.ts";
 import { ChestLabels } from "../game/chestLabels.ts";
+import { drawDrawnChests, preloadDrawnChests } from "../game/drawnChests.ts";
 import { onTabReturn, settleActors } from "../game/tabReturn.ts";
 import { KeyboardInput } from "../game/input.ts";
 import { applyTextRes, onTextResChange, sceneTexts } from "../game/textRes.ts";
@@ -40,6 +41,7 @@ import { loading } from "../ui/loading.ts";
 import { openNpc } from "../ui/npc/npc.ts";
 import { openStatue } from "../ui/training/training.ts";
 import { showDeath, showLevelBanner } from "../ui/combat/combatUi.ts";
+import { fmtImbueBadge, imbuedDetail } from "../ui/imbue/imbueText.ts";
 import { setConditions } from "../ui/hud/conditions.ts";
 import { SKILL_LABELS } from "../ui/hud/SkillsWindow.tsx";
 import { pushToast } from "../ui/toasts.ts";
@@ -168,6 +170,7 @@ export class WorldScene extends Phaser.Scene {
     }
     CombatFx.preload(this);
     LootFx.preload(this);
+    preloadDrawnChests(this);
   }
 
   /** Alimenta a tela de carregamento com o progresso REAL do loader (mapa, tilesets, sprites, efeitos). */
@@ -245,6 +248,7 @@ export class WorldScene extends Phaser.Scene {
     this.statues = new StatueIndex(this.world.tiled);
     this.questObjs = new QuestObjectIndex(this.world.tiled);
     this.chestLabels = new ChestLabels(this, this.uiLayer, this.questObjs.list);
+    drawDrawnChests(this, this.worldLayer, this.questObjs.list);
     this.loot = new LootFx(this, this.worldLayer, this.uiLayer, this.fx, () => {
       const me = this.actors.get(this.myId);
       return me ? { x: me.bodyX, y: me.bodyY, headY: me.headY } : null;
@@ -1294,7 +1298,10 @@ export class WorldScene extends Phaser.Scene {
     setConditions(m.list.map((c) => ({
       id: c.id,
       until: c.remainingMs != null && c.remainingMs > 0 ? now + c.remainingMs : undefined,
-      detail: c.id === "fed" ? `+${c.value ?? 0} vida/+${c.value2 ?? 0} mana a cada 2 s` : undefined,
+      detail: c.id === "fed" ? `+${c.value ?? 0} vida/+${c.value2 ?? 0} mana a cada 2 s`
+        : c.id === "imbued" ? imbuedDetail(c.effect, c.value2, c.value ?? 0) : undefined,
+      // Encantamento: minutos de combate (value) num selo fixo; não conta sozinho (só gasta lutando).
+      label: c.id === "imbued" ? fmtImbueBadge((c.value ?? 0) * 60_000) : undefined,
     })));
     this.spells.setSelfConditions(m.list.map((c) => c.id));
   }

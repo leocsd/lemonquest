@@ -12,6 +12,22 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26e",
+    date: "26 de outubro (madrugada)",
+    title: "Fim de jogo: tier Abissal, covis, refino e Coliseu até a onda 70",
+    items: [
+      "Tier 8 Abissal (lv 100): 13 peças novas que caem do Tengu e do Samurai Rubros (raras), de Orshabaal, Ferumbras e do Shogun Abissal.",
+      "Fragmento Abissal: material novo do Profundo, usado no refino do tier 8. Botas novas dos tiers 6 e 7 para cada vocação.",
+      "A Aniquilação mudou: cada baú guarda a arma única de uma vocação (Machado Cortapedras, Arco, Varinha e Bastão Aniquiladores).",
+      "Covis: o Rei Toupeira (Minas), o Kraken (Grutas), a Chama Ancestral (Catacumbas) e o Shogun Abissal (Profundo) guardam o fundo das caves.",
+      "Cada chefe de covil deixa uma prova que abre os baús do covil. Missão nova: Os Quatro Covis (Batedora Iara, lv 100).",
+      "Mestre Brás, o Ferreiro, chegou à Vila (ao lado do Bento): refina equipamento de tier 5 em diante de +1 a +5. Falhar não quebra o item.",
+      "Encantamento com 3 tiers (lv 1, 60 e 90) na Dona Marta. Agora dura 10 h de combate contra monstros; o que você já tinha virou tier I com 10 h.",
+      "Coliseu até a onda 70: Tengus, Samurais, Colossos, o Shogun Abissal na 65 e Ferumbras na 70, com um modificador diferente a cada semana.",
+      "Vencer a 60 dá +20 mil; vencer as 70 dá +50 mil e 25% da XP. O melhor tempo da semana leva o título Campeão do Coliseu.",
+    ],
+  },
+  {
     id: "2026-10-26d",
     date: "25 de outubro (noite)",
     title: "Vocações mais equilibradas e morte mais pesada no fim de jogo",

@@ -1,5 +1,6 @@
 // Ícone de item nítido (pixelado), escalado por fator inteiro e centralizado num quadrado `box`.
-// Suporta imagem única e frame de atlas (background-position). Borda/brilho de raridade e contagem de pilha.
+// Suporta imagem única e frame de atlas (background-position). Borda/brilho de raridade, contagem de pilha e selo "+N"
+// do refino (canto de cima: mochila, equipamento, depot, troca e loja usam este ícone).
 import type { ItemDef, ItemInstance, ItemIcon as ItemIconDef, Rarity } from "@lemonquest/shared";
 import { useEffect, useState } from "preact/hooks";
 import { defOf } from "./inventory.ts";
@@ -105,6 +106,7 @@ export function ItemIcon({ def, inst, box = 32, count = true, framed = false, ra
         !d || img === null ? <span class="item-unknown">?</span> : null
       )}
       {count && n > 1 && <span class="item-count">{n > 9999 ? `${Math.floor(n / 1000)}k` : n}</span>}
+      {(inst?.refine ?? 0) > 0 && <span class="item-refine">+{inst!.refine}</span>}
     </div>
   );
 }

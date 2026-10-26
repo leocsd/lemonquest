@@ -50,7 +50,14 @@ export interface CharacterData {
   addons?: number;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; precisa estar liberado na conta). Ausente = cor natural. */
   tone?: string;
-  /** Encantamento ativo (id em IMBUEMENTS). Ausente = nenhum. */
+  /**
+   * Encantamento ativo (systems/imbuement.ts): efeito (IMBUEMENTS), tier 1–3 e combate PvE restante. Ausente = nenhum.
+   */
+  imbue?: { effect: string; tier: number; leftMs: number };
+  /**
+   * Formato antigo (até o ciclo 15, permanente): sem `imbue`, migra para tier I com 10 h na carga. No ciclo 16 ainda é
+   * gravado junto (só o efeito) para um rollback ao ciclo 15 não zerar os encantamentos pagos; a carga prefere `imbue`.
+   */
   imbuement?: string;
   /** Conquistas (systems/achievements.ts): concluídas, contadores e título ativo. */
   ach?: {
@@ -101,6 +108,8 @@ export interface QuestSaveData {
   bounty?: { day: string; band: number; s: { st: "open" | "active" | "done"; n: number; m?: string; c?: number }[] };
   /** Grupos de baús de quest do mapa já abertos (shared/data/questWorld.ts). */
   chests?: string[];
+  /** Chefes de covil derrotados (`needBoss` dos baús, ciclo 16): destrancam o baú do covil para este personagem. */
+  slain?: string[];
 }
 
 /** Registro persistido de um personagem (uma conta tem até MAX_CHARACTERS_PER_ACCOUNT personagens). */

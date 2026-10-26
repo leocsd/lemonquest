@@ -905,7 +905,87 @@ const lateNpcs11 = [['agente_parada', 154, 404]];
 // ===================================================================== CAVES PROFUNDAS (ciclo 13: tools/mapgen/expansion5.mjs)
 // Terceira expansão para baixo: o mapa acima (400×472) fica intacto e quatro caves (12–28, 35–55, 60–85, 100–130) entram
 // nas linhas 498..559. Entradas só-objeto: um portal com level mínimo num recanto andável de cada região de origem.
-const { map: world5 } = expand5({ old: world4, L: LEMON, spawnTile: SPAWN });
+const { map: world5, reach: reach5, portalMap: portals5, caves: caves5 } = expand5({ old: world4, L: LEMON, spawnTile: SPAWN });
+
+// ===================================================================== COVIS E FERREIRO (ciclo 16: só objetos)
+// Um chefe e três baús de escolha na sala do fundo (covil) de cada cave do ciclo 13, e o Mestre Brás, o Ferreiro, ao lado
+// do Bento. Nenhum tile muda: o baú é um objeto "quest_chest" com `drawn` (o cliente desenha o baú grande do pack e a
+// CollisionGrid bloqueia o tile pelo objeto) e o NPC vira obstáculo em jogo, como os lateNpcs. Tudo depois dos objetos
+// já publicados (ids antigos estáveis). Baús na parede do fundo, com um tile livre entre eles; chefe no meio do covil.
+// [cave, chefe, level, [baús de cima para baixo (de quem olha o mapa)]]
+const lateObjects14 = {
+  lairs: [
+    ['minas', 'lair_mole_king', 28, ['lair_minas_furia', 'lair_minas_lich', 'lair_minas_protecao']],
+    ['grutas', 'lair_kraken', 54, ['lair_grutas_might', 'lair_grutas_labirinto', 'lair_grutas_engrenagens']],
+    ['catacumbas', 'lair_flame', 82, ['lair_catacumbas_knight', 'lair_catacumbas_paladin', 'lair_catacumbas_mage']],
+    ['profundo', 'lair_shogun', 125, ['lair_profundo_amulet', 'lair_profundo_ring', 'lair_profundo_boots']],
+  ],
+  boss: { dx: 84, y: 541, radius: 2 },
+  chests: { dx: 91, ys: [539, 541, 543] },
+  npcs: [['blacksmith', 68, 95]], // Vila: grama a leste da loja do Bento (65,95), fora do caminho
+};
+{
+  const W5 = world5.w, at = (x, y) => y * W5 + x;
+  const prop = (o, n) => o.properties?.find((p) => p.name === n)?.value;
+  const cheb = (ax, ay, bx, by) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+  // Sala 4 (covil) da planta de tools/mapgen/expansion5.mjs (ROOMS: [73, 530, 91, 552]), com o mesmo espelhamento.
+  const LAIR = { dx0: 73, y0: 530, dx1: 91, y1: 552 };
+  const lairX = (c, dx) => (c.mirror ? c.x + 91 - dx : c.x + dx);
+  const lairRect = (c) => { const a = lairX(c, LAIR.dx0), b = lairX(c, LAIR.dx1); return { x0: Math.min(a, b), y0: LAIR.y0, x1: Math.max(a, b), y1: LAIR.y1 }; };
+  const pzZones = world5.objects.filter((o) => o.type === 'zone' && prop(o, 'pz') === true);
+  const inPz = (x, y) => pzZones.some((z) => x * 16 >= z.x && x * 16 < z.x + z.width && y * 16 >= z.y && y * 16 < z.y + z.height);
+  const pointAt = new Set(world5.objects.filter((o) => o.point).map((o) => `${Math.floor(o.x / 16)},${Math.floor(o.y / 16)}`));
+  const isPortalOrTarget = (x, y) => portals5.has(`${x},${y}`) || [...portals5.values()].some(([tx, ty]) => tx === x && ty === y);
+  const reachCount = () => { const r = bfs(world5, SPAWN[0], SPAWN[1], portals5); let n = 0; for (let i = 0; i < r.length; i++) n += r[i]; return n; };
+  const before = reachCount();
+  const lairObjs = [];
+  for (const [caveId, boss, level, chestIds] of lateObjects14.lairs) {
+    const c = caves5.find((k) => k.id === caveId);
+    if (!c) fail(`covil: cave ${caveId} não existe`);
+    const room = lairRect(c);
+    const inRoom = (x, y, r = 0) => x - r >= room.x0 && x + r <= room.x1 && y - r >= room.y0 && y + r <= room.y1;
+    const { dx, y, radius } = lateObjects14.boss;
+    const bx = lairX(c, dx);
+    if (!inRoom(bx, y, radius)) fail(`covil ${caveId}: chefe ${boss} em ${bx},${y} (raio ${radius}) fora da sala`);
+    if (world5.blocked(bx, y) || !reach5[at(bx, y)]) fail(`covil ${caveId}: chefe ${boss} em ${bx},${y} bloqueado ou inalcançável`);
+    if (inPz(bx, y) || pointAt.has(`${bx},${y}`)) fail(`covil ${caveId}: chefe ${boss} em ${bx},${y} em PZ ou em cima de outro objeto`);
+    lairObjs.push(['monster_spawn', bx, y, { monster: boss, count: 1, radius, level }, boss]);
+    const cx = lairX(c, lateObjects14.chests.dx);
+    for (const [i, cy] of lateObjects14.chests.ys.entries()) {
+      const id = chestIds[i];
+      if (!inRoom(cx, cy)) fail(`covil ${caveId}: baú ${id} em ${cx},${cy} fora da sala`);
+      if (world5.blocked(cx, cy) || !reach5[at(cx, cy)]) fail(`covil ${caveId}: baú ${id} em ${cx},${cy} bloqueado ou inalcançável`);
+      if (pointAt.has(`${cx},${cy}`) || isPortalOrTarget(cx, cy)) fail(`covil ${caveId}: baú ${id} em ${cx},${cy} em cima de outro objeto`);
+      if (cheb(cx, cy, bx, y) <= radius) fail(`covil ${caveId}: baú ${id} dentro da área do chefe`);
+      lairObjs.push(['quest_chest', cx, cy, { chestId: id, drawn: true }, id]);
+    }
+  }
+  for (const [id, x, y] of lateObjects14.npcs) {
+    const npcTiles = world5.objects.filter((o) => o.type === 'npc').map((o) => [o.x / 16, o.y / 16]);
+    const spawnObjs = world5.objects.filter((o) => o.type === 'monster_spawn').map((o) => [o.x / 16, o.y / 16, prop(o, 'radius') ?? 0]);
+    if (world5.blocked(x, y) || !reach5[at(x, y)]) fail(`late npc ${id} em ${x},${y} bloqueado ou inalcançável`);
+    if (!inPz(x, y)) fail(`late npc ${id} em ${x},${y} fora da zona protegida`);
+    if (npcTiles.some(([a, b]) => cheb(a, b, x, y) < 2)) fail(`late npc ${id} a menos de 2 tiles de outro NPC`);
+    if (spawnObjs.some(([a, b, r]) => cheb(a, b, x, y) - r < 8)) fail(`late npc ${id} perto demais de um spawn`);
+    if (pointAt.has(`${x},${y}`) || isPortalOrTarget(x, y)) fail(`late npc ${id} em ${x},${y} em cima de outro objeto`);
+    lairObjs.push(['npc', x, y, { npcId: id }, id]);
+  }
+  // Baús e NPC viram obstáculo em jogo: nenhum pode fechar bolsão. Bloqueados todos juntos, o mapa alcançável a partir
+  // do templo perde exatamente os próprios tiles; e todo baú tem um vizinho andável alcançável (abrir pede Chebyshev 1).
+  const solid = lairObjs.filter(([type]) => type !== 'monster_spawn');
+  for (const [, x, y] of solid) world5.block(x, y);
+  const r = bfs(world5, SPAWN[0], SPAWN[1], portals5);
+  let after = 0; for (let i = 0; i < r.length; i++) after += r[i];
+  for (const [type, x, y, props] of solid) {
+    if (type !== 'quest_chest') continue;
+    const ok = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => !world5.blocked(x + a, y + b) && r[at(x + a, y + b)]);
+    if (!ok) fail(`baú ${props.chestId} em ${x},${y} sem vizinho alcançável`);
+  }
+  for (const [, x, y] of solid) world5.block(x, y, false);
+  if (after !== before - solid.length) fail(`covis/ferreiro fecham ${before - solid.length - after} tile(s) do mapa`);
+  for (const [type, x, y, props, name] of lairObjs) world5.tileObj(type, x, y, props, name);
+  console.log(`lateObjects14: ${lateObjects14.lairs.length} chefes de covil, ${solid.length - lateObjects14.npcs.length} baús desenhados, ${lateObjects14.npcs.length} NPC; ${after}/${before} tiles alcançáveis com os obstáculos`);
+}
 
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });

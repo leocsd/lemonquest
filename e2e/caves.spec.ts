@@ -1,8 +1,11 @@
 // Caves profundas (ciclo 13): a entrada é um portal com level mínimo num recanto da região de origem
 // (tools/mapgen/expansion5.mjs). Abaixo do level a porta não abre; no level, leva à sala de entrada da cave, e a porta
 // norte da sala devolve ao lado da entrada.
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { enterGame, me, setLevel, snap, teleport, walkableNear } from "./helpers.ts";
+import { findQuestObjects } from "../packages/shared/src/data/questWorld.ts";
+import type { TiledMap } from "../packages/shared/src/map.ts";
+import { clickTile, countOf, enterGame, me, monsters, recordToasts, say, seenToast, setLevel, snap, teleport, waitSettled, walkableNear } from "./helpers.ts";
 
 /** [entrada (portal), retorno (tile ao lado), chegada na cave, saída (porta norte)] — expansion5.mjs. */
 const MINAS = { door: { x: 89, y: 74 }, ret: { x: 88, y: 74 }, arrival: { x: 17, y: 504 }, exit: { x: 17, y: 501 } };
@@ -94,4 +97,36 @@ test("Porta lv 80 do Vulcão: pisar de novo dentro da espera do portal não atra
   await page.waitForTimeout(1500);
   expect(maxY).toBeLessThan(97);
   expect((await me(page))!.y).toBe(95);
+});
+
+test("Covil das Minas (ciclo 16): o Rei Toupeira mora no covil; o baú desenhado fica trancado sem o abate, mesmo com a Garra", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const map = JSON.parse(readFileSync("assets/maps/world.json", "utf8")) as TiledMap;
+  const chest = findQuestObjects(map).find((s) => s.kind === "chest" && s.id === "lair_minas_furia")!;
+  expect(chest.drawn).toBe(true);
+  await enterGame(page, "knight");
+  await setLevel(page, 120); // aguenta o chefe batendo enquanto mexe no baú
+  await recordToasts(page);
+  // Tile ao lado do baú (o baú fica na parede do fundo; o vizinho andável está a oeste nas Minas).
+  const near = (await walkableNear(page, chest.x, chest.y, 1)).find((t) => Math.abs(t.x - chest.x) + Math.abs(t.y - chest.y) === 1)!;
+  await teleport(page, near.x, near.y);
+  await waitSettled(page);
+  // O baú não tem tile no mapa: a grade do cliente o bloqueia pelo objeto, e o chefe nasce no mesmo covil.
+  expect(await page.evaluate(([x, y]) => (window as any).__lq.walkable(x, y), [chest.x, chest.y] as const)).toBe(false);
+  await expect.poll(async () => (await monsters(page)).some((m) => m.defId === "lair_mole_king"), { timeout: 15_000 }).toBe(true);
+  await snap(page, "caves-covil-minas");
+
+  // A Garra é só troféu: com ela na mochila e sem o abate registrado, o baú continua trancado. (Abrir de verdade, com o
+  // abate, está nos testes da sala: rooms/lairs.room.test.ts e systems/questWorld.test.ts.)
+  await say(page, "/item mole_king_claw 1");
+  await expect.poll(() => countOf(page, "mole_king_claw"), { timeout: 10_000 }).toBe(1);
+  await expect.poll(async () => {
+    await clickTile(page, chest.x, chest.y, { fy: 0.6 });
+    await page.waitForTimeout(600);
+    return page.evaluate(() => ((window as any).__toastsSeen as string[] | undefined)?.some((s) => s.includes("Trancado")) ?? false);
+  }, { timeout: 15_000, intervals: [400] }).toBe(true);
+  await seenToast(page, "derrote o chefe do covil (Rei Toupeira)");
+  expect(await countOf(page, "ring_furia")).toBe(0);
+  expect(errors).toEqual([]);
 });

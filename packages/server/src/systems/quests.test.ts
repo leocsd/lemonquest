@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BOUNTY_BANDS, BOUNTY_CHEST_ID, ITEMS, MONSTERS, QUEST_LIST, QUESTS, RARITIES, S2C, isEquipable, itemDef, npcMarker, npcDef,
+  ABYSS_ITEM_IDS, BOUNTY_BANDS, BOUNTY_CHEST_ID, ITEMS, MONSTERS, QUEST_LIST, QUESTS, RARITIES, S2C, isEquipable, isExclusiveItem, itemDef, npcMarker, npcDef,
   applyXpStage, bountyTitle, isValidUnlockId, pluralPt, questStatus, questsForNpc, xpForLevel, type QuestDef, type QuestsMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -519,6 +519,25 @@ describe("baú de recompensa", () => {
     }
     expect(chestGearPool(50, "knight", [])).toEqual([]);
     for (const L of [1, 40, 100]) expect(ITEMS[chestFallbackGem(L)]?.kind).toBe("material");
+  });
+
+  it("ciclo 16: tier 8 e itens únicos nunca saem do baú, nem no lv 150 (o tier 8 cai de monstro comum do Profundo)", () => {
+    const exclusive = Object.values(ITEMS).filter(isExclusiveItem);
+    expect(exclusive.length).toBe(ABYSS_ITEM_IDS.length + 4); // + os 4 únicos da Aniquilação
+    for (const d of exclusive) expect(chestEligible(d.id), d.id).toBe(false);
+    // As botas novas dos tiers 6 e 7 seguem a regra das outras peças: caem de monstro comum, então valem.
+    for (const id of ["crown_boots", "demon_boots", "royal_boots", "dragon_scale_boots", "mystic_boots", "ferumbras_boots"]) expect(chestEligible(id), id).toBe(true);
+    for (const v of ["knight", "paladin", "sorcerer", "druid"] as const) {
+      for (const L of [100, 120, 150]) {
+        const pool = chestGearPool(L, v);
+        expect(pool.some((d) => d.slot === "weapon" || d.slot === "armor"), `${v} lv ${L}`).toBe(true);
+        for (const d of pool) expect(isExclusiveItem(d), `${v} lv ${L}: ${d.id}`).toBe(false);
+      }
+    }
+    const rng = seeded(16);
+    for (let i = 0; i < 2000; i++) {
+      for (const it of rollChest(130, "sorcerer", rng).items) expect(isExclusiveItem(ITEMS[it.defId]!), it.defId).toBe(false);
+    }
   });
 });
 

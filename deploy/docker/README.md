@@ -75,6 +75,18 @@ Abra `http://localhost:2567`. De outro PC: `http://<IP-desta-máquina>:2567` (o 
 
   (Se o `del` reclamar que os arquivos não existem, tudo bem.)
 
+### Voltar para a versão anterior (rollback)
+
+Antes de atualizar, guarde a imagem atual e uma cópia do banco: `docker tag lemonquest:latest lemonquest:pre-<versão>` e
+um backup manual do `.db` (com o jogo parado, `copy docker-data\lemonquest.db docker-data\backups\pre-<versão>.db`).
+Para voltar: `docker compose stop`, `docker tag lemonquest:pre-<versão> lemonquest:latest` e `docker compose up -d` (sem
+`--build`).
+
+> **Depois do ciclo 16 (refino +1..+5), voltar só a imagem apaga o refino.** O código antigo não conhece o campo
+> `refine` dos itens: no primeiro save de cada personagem os itens refinados voltam a +0, e o ouro e as gemas gastos não
+> voltam. Rollback para antes do ciclo 16, depois que alguém refinou, exige restaurar também o backup do banco feito antes
+> do deploy (como em "Restaurar um backup", acima; perde-se o que aconteceu depois dele) ou aceitar a perda do refino.
+
 ### Cópia dos backups em outro disco (recomendado)
 
 Se o disco da máquina morrer, `docker-data\backups\` vai junto. Com `LEMONQUEST_BACKUP_COPY_DIR`, depois de cada backup o

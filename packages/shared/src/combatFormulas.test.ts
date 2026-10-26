@@ -256,4 +256,8 @@ describe("vender tudo (NPC)", () => {
   it("deixa na mochila raro ou melhor; comum e incomum vendem", () => {
     expect(RARITIES.filter((r) => keptBySellAll(r))).toEqual(["rare", "epic", "legendary"]);
   });
+  it("item refinado fica mesmo comum (o NPC paga só o valor base)", () => {
+    expect(keptBySellAll("common", 1)).toBe(true);
+    expect(keptBySellAll("uncommon", 0)).toBe(false);
+  });
 });

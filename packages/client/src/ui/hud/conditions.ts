@@ -4,9 +4,9 @@ import { createStore, type Unsubscribe } from "./store.ts";
 export type ConditionId =
   | "combat" | "poison" | "burn" | "energy" | "bleed" | "freeze"
   | "protect" | "haste" | "slow" | "drunk" | "regen" | "pz"
-  | "manashield" | "rooted" | "taunted" | "fed" | "berserk" | "exposed";
+  | "manashield" | "rooted" | "taunted" | "fed" | "berserk" | "exposed" | "imbued";
 
-export type ConditionGlyph = "swords" | "drop" | "flame" | "bolt" | "flake" | "shield" | "wing" | "snail" | "swirl" | "plus" | "home" | "bubble" | "vine" | "target" | "drumstick";
+export type ConditionGlyph = "swords" | "drop" | "flame" | "bolt" | "flake" | "shield" | "wing" | "snail" | "swirl" | "plus" | "home" | "bubble" | "vine" | "target" | "drumstick" | "gem";
 
 export interface ConditionDef { label: string; color: string; glyph: ConditionGlyph }
 
@@ -31,6 +31,8 @@ export const CONDITION_DEFS: Record<ConditionId, ConditionDef> = {
   berserk: { label: "Fúria (+25% de dano)", color: "#ff6a3a", glyph: "swords" },
   // Só em monstros (Ruptura Elemental); fica no catálogo para o tipo bater com o do shared.
   exposed: { label: "Exposto (sem resistência)", color: "#b48cf2", glyph: "bolt" },
+  // Encantamento da Dona Marta: o tempo é de combate PvE, então vem como selo fixo (label), sem contagem local.
+  imbued: { label: "Encantado", color: "#c080ff", glyph: "gem" },
 };
 
 export interface Condition {
@@ -39,6 +41,8 @@ export interface Condition {
   until?: number;
   /** Texto extra no tooltip (ex.: "-5 HP/s"). */
   detail?: string;
+  /** Selo fixo no ícone no lugar da contagem (encantamento: "7h", "45m"). */
+  label?: string;
 }
 
 export const conditionsStore = createStore<Condition[]>([]);

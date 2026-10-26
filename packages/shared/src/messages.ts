@@ -6,6 +6,7 @@ import type { SpellGroup } from "./data/spellFamilies.ts";
 import type { PartyShareReason } from "./party.ts";
 export type { SkillId };
 import type { EquipSlot, ItemInstance, Rarity, Stats } from "./data/items.ts";
+import type { ArenaModId, ArenaTimeRecord } from "./data/arena.ts";
 
 /** Cliente → servidor */
 export const C2S = {
@@ -80,6 +81,8 @@ export const C2S = {
   WorkLink: "workLink",
   /** Desvincular o próprio ClickUp. */
   WorkUnlink: "workUnlink",
+  /** Refinar no Ferreiro aberto um item da mochila ou do equipamento (RefineMsg). */
+  Refine: "refine",
 } as const;
 
 /** C2S.WorkLink: token pessoal do ClickUp (pk_…). Nunca é guardado nem devolvido. */
@@ -138,6 +141,11 @@ export type DropFrom = { where: "backpack"; index: number } | { where: "equip"; 
 export interface DropItemMsg { from: DropFrom; x: number; y: number; count?: number }
 export type PickupTo = { where: "backpack"; index: number } | { where: "equip"; slot: EquipSlot };
 export interface PickupItemMsg { groundId: string; to?: PickupTo }
+/**
+ * C2S.Refine (shared/data/refine.ts). `uid` e `level` (nível buscado = atual + 1) protegem do item trocado de lugar e do
+ * clique duplo: se não batem com o item no servidor, nada é cobrado.
+ */
+export interface RefineMsg { from: DropFrom; uid: string; level: number }
 export interface NpcInteractMsg { npcId: string }
 export type NpcTradeMsg =
   | { npcId: string; action: "buy"; itemId: string; count: number }
@@ -148,8 +156,11 @@ export type NpcTradeMsg =
   | { npcId: string; action: "blessing" }
   /** Compra uma ficha de cassino (NpcDef.casino): prêmio aleatório, nunca poder de combate. */
   | { npcId: string; action: "casino" }
-  /** Compra/troca o encantamento ativo (NpcDef.imbuement): substitui o anterior, sem reembolso. */
-  | { npcId: string; action: "imbuement"; effect: string };
+  /**
+   * Compra/troca o encantamento ativo (NpcDef.imbuement): substitui o anterior, sem reembolso, com 10 h cheias de
+   * combate. `tier` 1–3 (shared/data/imbuement.ts); ausente = 1.
+   */
+  | { npcId: string; action: "imbuement"; effect: string; tier?: number };
 
 export interface CastMsg { spellId: string; targetId?: string | null }
 
@@ -347,7 +358,18 @@ export interface MonsterTelegraphMsg {
   ms: number;
   fx: SpellFx;
 }
-export interface ConditionsMsg { list: { id: ConditionId; remainingMs?: number; value?: number; /** 'fed': value = vida/tique, value2 = mana/tique. */ value2?: number }[] }
+export interface ConditionsMsg {
+  list: {
+    id: ConditionId; remainingMs?: number; value?: number;
+    /** 'fed': value = vida/tique, value2 = mana/tique. 'imbued': value = minutos de combate restantes, value2 = tier. */
+    value2?: number;
+    /**
+     * 'imbued': efeito (IMBUEMENTS). O encantamento não tem remainingMs: o tempo só corre em combate PvE, então o
+     * cliente não pode contar sozinho; o servidor reenvia quando muda o minuto.
+     */
+    effect?: string;
+  }[];
+}
 export interface SkillUpMsg { skill: SkillId; level: number }
 export interface InventoryMsg {
   equipment: Partial<Record<EquipSlot, ItemInstance>>;
@@ -370,8 +392,11 @@ export interface NpcOpenMsg {
   blessing?: { price: number; active: boolean };
   /** Vende ficha de cassino (NpcDef.casino): preço fixo em CASINO_TICKET_PRICE. */
   casino?: boolean;
-  /** Vende encantamento (NpcDef.imbuement): efeito ativo do personagem, se houver. */
-  imbuement?: { active: string };
+  /**
+   * Vende encantamento (NpcDef.imbuement): o ativo do personagem (`active` = efeito, "" = nenhum; `tier` 1–3;
+   * `leftMs` = combate restante).
+   */
+  imbuement?: { active: string; tier: number; leftMs: number };
 }
 export interface TravelMsg { npcId: string; dest: string }
 export interface LookGroundMsg { groundId: string }
@@ -397,7 +422,13 @@ export interface EventMsg { active: import("./data/events.ts").ActiveEvent | nul
 export interface TrainingOpenMsg { statueId: string }
 export interface TrainingResultMsg { skill: SkillId; minutes: number; levelsGained: number; newLevel: number; pct: number }
 export interface ArenaLobbySummary { id: string; leader: string; members: string[]; avgLevel: number }
-export interface ArenaLobbiesMsg { lobbies: ArenaLobbySummary[]; freeArenas: number; queue: number }
+export interface ArenaLobbiesMsg {
+  lobbies: ArenaLobbySummary[];
+  freeArenas: number;
+  queue: number;
+  /** Ciclo 16: modificador da semana (ondas 61–70), quando a semana acaba e os melhores tempos das 70 ondas. */
+  week?: { mod: ArenaModId; endsAt: number; best?: ArenaTimeRecord; record?: ArenaTimeRecord };
+}
 /** "break" = respiro curto entre ondas comuns (sem loja); "pause" = pausa com vendedor e "Pronto" (depois de chefe). */
 export type ArenaPhase = "lobby" | "queued" | "countdown" | "fight" | "break" | "pause" | "ended";
 export interface ArenaStateMsg {
@@ -416,9 +447,22 @@ export interface ArenaStateMsg {
     leader: string;
     /** Recompensa acumulada até agora (cada participante). */
     earned: { xp: number; gold: number };
+    /** Modificador das ondas 61–70 desta partida (o da semana em que começou; no lobby, o da semana). */
+    mod?: ArenaModId;
+    /** Início da onda 1 (ms epoch do servidor): relógio da partida para o ranking de tempo. */
+    startedAt?: number;
   };
 }
-export interface ArenaResultMsg { wavesCleared: number; xp: number; gold: number; best: number; reason: "wiped" | "gave_up" | "completed" }
+export interface ArenaResultMsg {
+  wavesCleared: number;
+  xp: number;
+  gold: number;
+  best: number;
+  reason: "wiped" | "gave_up" | "completed";
+  /** Venceu as 70: tempo da partida e se bateu o melhor da semana ou o recorde do servidor. */
+  timeMs?: number;
+  timeRecord?: "week" | "server";
+}
 export interface CombatMsg { events: CombatEvent[] }
 export interface XpGainMsg { amount: number; x: number; y: number }
 export interface LevelUpMsg { level: number; maxHp: number; maxMana: number }

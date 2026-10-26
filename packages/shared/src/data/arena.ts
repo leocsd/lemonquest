@@ -1,6 +1,8 @@
-// Coliseu: tabela de ondas, escalas (tamanho do grupo, level médio) e recompensas. Servidor (systems/arena.ts) e
-// cliente (textos/HUD) usam estas funções; o modelo de server/systems/balanceKit.ts (metas em arena.test.ts) simula as ondas.
+// Coliseu: tabela de ondas, escalas (tamanho do grupo, level médio), modificador da semana e recompensas. Servidor
+// (systems/arena.ts) e cliente (textos/HUD) usam estas funções; o modelo de server/systems/balanceKit.ts (metas em
+// arena.test.ts) simula as ondas.
 import { monsterDef } from "./monsters.ts";
+import { weekId } from "./weekly.ts";
 
 /** Membros do lobby precisam ficar a até esta distância (Chebyshev) do NPC do coliseu, senão saem do lobby. */
 export const ARENA_LOBBY_RANGE = 8;
@@ -19,8 +21,8 @@ export const ARENA_SPAWN_DELAY_MS = 800;
 export const ARENA_SPAWN_STAGGER_MS = 150;
 /** Cura no fim de cada onda (fração de vida e mana máximas). */
 export const ARENA_PAUSE_HEAL = 0.3;
-/** Última onda (vencê-la = "completed", com bônus). */
-export const ARENA_MAX_WAVE = 60;
+/** Última onda (vencê-la = "completed", com bônus). Ciclo 16: 60 → 70 (ondas do Abismo Profundo). */
+export const ARENA_MAX_WAVE = 70;
 /** Ondas-chefe: múltiplos disto. */
 export const ARENA_BOSS_EVERY = 5;
 /** XP por onda = soma da XP dos monstros da onda × isto ÷ membros vivos. */
@@ -75,7 +77,11 @@ const elite = (id: string, hp: number, dmg = 1.25): ArenaWaveEntry => ({ id, cou
  *  51-54 senhores dos dragões, elementais de magma, behemoths
  *  55    CHEFE: Behemoth de elite (vida ×3)
  *  56-59 cães infernais, demônios, juggernaut
- *  60    CHEFE FINAL: Orshabaal (chefe de zona)
+ *  60    CHEFE: Orshabaal (chefe de zona; era o chefe final até o ciclo 15) — marco com ouro extra
+ *  61-64 Tengus e Samurais Rubros, Colosso (Abismo Profundo) — daqui em diante vale o modificador da semana
+ *  65    CHEFE: Shogun Abissal (chefe do covil do Profundo)
+ *  66-69 Samurais e Tengus Rubros, Colosso; o bando cresce até a 69 (o muro de quem não tem level para completar)
+ *  70    CHEFE FINAL: Ferumbras (chefe de zona)
  */
 export const ARENA_WAVES: ArenaWave[] = [
   W(1, 1, [m("rat", 3)]),
@@ -138,21 +144,90 @@ export const ARENA_WAVES: ArenaWave[] = [
   W(58, 102, [m("demon", 1), m("dragon_lord", 1)]),
   W(59, 106, [m("juggernaut", 1)]),
   W(60, 110, [{ id: "orshabaal", count: 1, elite: 1 }], true),
+  W(61, 112, [m("abyss_tengu", 1), m("juggernaut", 1)]),
+  W(62, 114, [m("abyss_samurai", 1), m("abyss_tengu", 1)]),
+  W(63, 116, [m("abyss_samurai", 1), m("juggernaut", 1)]),
+  W(64, 118, [m("abyss_tengu", 2), m("juggernaut", 1)]),
+  W(65, 120, [{ id: "lair_shogun", count: 1, elite: 1 }], true),
+  W(66, 122, [m("abyss_tengu", 2), m("abyss_samurai", 1)]),
+  W(67, 124, [m("abyss_samurai", 2), m("abyss_tengu", 1)]),
+  W(68, 126, [m("abyss_samurai", 2), m("juggernaut", 1)]),
+  W(69, 128, [m("abyss_samurai", 3)]),
+  W(70, 130, [{ id: "ferumbras", count: 1, elite: 1 }], true),
 ];
 
 export const arenaWave = (wave: number): ArenaWave | undefined => ARENA_WAVES[wave - 1];
 export const isBossWave = (wave: number): boolean => wave > 0 && wave % ARENA_BOSS_EVERY === 0;
-/** Depois de vencer a onda `wave` abre a pausa com o vendedor? (só nas ondas-chefe: 5, 10, 15...) */
-export const arenaShopAfter = (wave: number): boolean => isBossWave(wave);
-/** Duração do intervalo DEPOIS de vencer a onda `wave` (pausa com loja ou respiro curto). */
-export const arenaPauseMs = (wave: number): number => (arenaShopAfter(wave) ? ARENA_SHOP_PAUSE_MS : ARENA_BREAK_MS);
+
+/**
+ * Modificador da semana (ciclo 16): muda as ondas 61–70 para todos durante a semana ISO (`weekId`, segunda a
+ * domingo), em rodízio fixo (semanas seguidas nunca repetem). A partida usa o da semana em que começou. Não muda a
+ * recompensa: a XP da onda vem da quantidade de antes (Enxame reparte a mesma XP entre mais monstros).
+ * Medidos no modelo (arena.test.ts, "modificador da semana"): nenhum deixa o grupo lv 110 completar e com todos o
+ * lv 130 completa; o lv 120, que completa sem modificador, cai na Fúria e na Carapaça (onda 61) e no Enxame (69).
+ */
+export type ArenaModId = "furia" | "carapaca" | "enxame" | "sem_tregua" | "calmaria";
+export interface ArenaModDef {
+  id: ArenaModId;
+  name: string;
+  icon: string;
+  desc: string;
+  /** Vida e dano de todos os monstros da onda (elites e chefes também). */
+  hp: number;
+  dmg: number;
+  /** Só monstros comuns (elites/chefes são 1 por onda): quantidade, vida e dano. */
+  count: number;
+  commonHp: number;
+  commonDmg: number;
+  /** Respiro depois das ondas 61–69 (ms; padrão ARENA_BREAK_MS). */
+  breakMs?: number;
+  /** Sem o vendedor depois da onda 65 (vira respiro). */
+  noShop?: boolean;
+}
+/** Primeira onda com o modificador da semana. */
+export const ARENA_MOD_FROM_WAVE = 61;
+const modDef = (id: ArenaModId, name: string, icon: string, desc: string, o: Partial<ArenaModDef> = {}): ArenaModDef =>
+  ({ id, name, icon, desc, hp: 1, dmg: 1, count: 1, commonHp: 1, commonDmg: 1, ...o });
+export const ARENA_MODS: Record<ArenaModId, ArenaModDef> = {
+  furia: modDef("furia", "Fúria", "🔥", "Os monstros batem 10% mais forte.", { dmg: 1.1 }),
+  carapaca: modDef("carapaca", "Carapaça", "🐢", "Os monstros têm 25% mais vida.", { hp: 1.25 }),
+  enxame: modDef("enxame", "Enxame", "🐝", "50% mais monstros comuns, cada um mais fraco (−40% de vida, −25% de dano).",
+    { count: 1.5, commonHp: 0.6, commonDmg: 0.75 }),
+  sem_tregua: modDef("sem_tregua", "Sem Trégua", "⏩", "As ondas emendam (1 s de respiro) e não há vendedor depois do Shogun.",
+    { breakMs: 1000, noShop: true }),
+  calmaria: modDef("calmaria", "Calmaria", "🌙", "Respiro de 10 s entre as ondas para se curar.", { breakMs: 10_000 }),
+};
+/** Ordem do rodízio semanal. */
+export const ARENA_MOD_ORDER: readonly ArenaModId[] = ["furia", "calmaria", "carapaca", "sem_tregua", "enxame"];
+
+/** Modificador da semana `week` ("2026-W43"): rodízio pelo número da semana (ano × 53 + semana). */
+export function arenaWeekMod(week: string): ArenaModId {
+  const m = /^(\d{4})-W(\d{2})$/.exec(week);
+  const n = m ? Number(m[1]) * 53 + Number(m[2]) : 0;
+  return ARENA_MOD_ORDER[n % ARENA_MOD_ORDER.length]!;
+}
+/** Modificador da semana no instante `at` (ms epoch, fuso do servidor). */
+export const arenaModAt = (at: number): ArenaModId => arenaWeekMod(weekId(new Date(at)));
+/** O modificador vale na onda `wave`? (só 61–70; null = sem modificador) */
+export const arenaWaveMod = (wave: number, modId?: ArenaModId | null): ArenaModDef | null =>
+  (modId && wave >= ARENA_MOD_FROM_WAVE ? ARENA_MODS[modId] ?? null : null);
+
+/**
+ * Depois de vencer a onda `wave` abre a pausa com o vendedor? (só nas ondas-chefe: 5, 10, 15...; com "Sem Trégua", a
+ * 65 vira respiro — a da 60 continua, ela vem antes do modificador.)
+ */
+export const arenaShopAfter = (wave: number, modId?: ArenaModId | null): boolean => isBossWave(wave) && !arenaWaveMod(wave, modId)?.noShop;
+/** Duração do intervalo DEPOIS de vencer a onda `wave` (pausa com loja ou respiro). */
+export const arenaPauseMs = (wave: number, modId?: ArenaModId | null): number =>
+  (arenaShopAfter(wave, modId) ? ARENA_SHOP_PAUSE_MS : arenaWaveMod(wave, modId)?.breakMs ?? ARENA_BREAK_MS);
 
 /**
  * Dificuldade do Coliseu (ciclo 8; recalibrada no ciclo 15). Os monstros já vêm com o dano por level dos dados
  * (MONSTER_DAMAGE_TIERS) e a arena soma um multiplicador próprio. Calibrado no modelo de server/systems/balanceKit.ts
  * (metas em arena.test.ts, "coliseu: balanço"): solo no level justo da 25 cai entre a 20 e a 25 e ninguém passa da 30
- * sozinho, nem no level 120; grupo de 4 no level justo da onda X cai entre X−5 e X+3; o lv 100 não completa e o lv 120
- * completa. Antes do ciclo 8 o modelo subestimava o jogador (~4× menos dano) e um mago completava o Coliseu sozinho.
+ * sozinho, nem no level 120; grupo de 4 no level justo da onda X cai entre X−5 e X+3; o lv 100 não passa da 60 e o lv
+ * 120 passa; o lv 110 não completa as 70 e o lv 130 completa. Antes do ciclo 8 o modelo subestimava o jogador (~4× menos
+ * dano) e um mago completava o Coliseu sozinho.
  */
 /** Vida das ondas: ×2,5. */
 export const ARENA_HP_MULT = 2.5;
@@ -164,8 +239,12 @@ export const ARENA_HP_MULT = 2.5;
  * duas mãos sem escudo, skills reais) e o pacote de vocações do ciclo 15, os magos lv 34 caíam na 18 → onda 20 a 1,9;
  * o druida (Cura em Grupo) e o cavaleiro lv 120 passavam do muro → onda 30 a 6,2; o grupo de 4 completava do lv 82 em
  * diante → onda 50 a 4,3 e 60 a 2,4.
+ * Ciclo 16 (ondas 61–70): a 61 é o portão do Abismo (×2,6, o muro de quem não tem level para o bloco: o grupo lv 110
+ * cai nela); da 62 em diante ×1,5 e o bando cresce até a 69 (5 Samurais Rubros num grupo de 4). Os monstros do
+ * Profundo já batem muito mais que os da 51–60 (×1,7 de MONSTER_DAMAGE_TIERS): com ×2,4 nem o lv 140 passava da 63.
  */
-export const ARENA_DMG_POINTS: readonly (readonly [number, number])[] = [[1, 1.5], [20, 1.9], [30, 6.2], [40, 3.5], [50, 4.3], [60, 2.4]];
+export const ARENA_DMG_POINTS: readonly (readonly [number, number])[] =
+  [[1, 1.5], [20, 1.9], [30, 6.2], [40, 3.5], [50, 4.3], [60, 2.4], [61, 2.6], [62, 1.5], [70, 1.5]];
 /** Monstros comuns a mais por membro além do primeiro (antes 0,6: o solo enfrentava 1/2,8 do bando de 4 — desconto demais). */
 export const ARENA_COUNT_PER_MEMBER = 0.2;
 /** Quantidade por membro que conta para a XP das ondas (a de antes do ciclo 8: a XP por onda não mudou). */
@@ -220,27 +299,35 @@ export interface ArenaSpawnSpec {
   elite: boolean;
 }
 
-/** Lista de monstros da onda para um grupo de `n` com level médio `avgLevel` (o level só mexe na XP). */
-export function arenaWaveSpawns(wave: number, n: number, avgLevel: number): ArenaSpawnSpec[] {
+/**
+ * Lista de monstros da onda para um grupo de `n` com level médio `avgLevel` (o level só mexe na XP). `modId` = o
+ * modificador da semana da partida (só pesa nas ondas 61–70).
+ */
+export function arenaWaveSpawns(wave: number, n: number, avgLevel: number, modId?: ArenaModId | null): ArenaSpawnSpec[] {
   const w = arenaWave(wave);
   if (!w) return [];
   const xpLv = arenaLevelXpMult(avgLevel, w.level);
   const am = arenaWaveMult(wave);
+  const md = arenaWaveMod(wave, modId);
+  const modHp = md?.hp ?? 1, modDmg = md?.dmg ?? 1;
   const party = arenaPartyStatMult(n);
   const out: ArenaSpawnSpec[] = [];
   for (const e of w.monsters) {
     const def = monsterDef(e.id);
     if (!def || def.stationary || def.invulnerable) continue; // nunca bonecos de treino
     if (e.elite !== undefined) {
-      const hpMult = e.elite * arenaEliteHpMult(n, !!def.boss) * am.hp;
-      const dmgMult = (e.eliteDmg ?? 1) * party * am.dmg;
+      const hpMult = e.elite * arenaEliteHpMult(n, !!def.boss) * am.hp * modHp;
+      const dmgMult = (e.eliteDmg ?? 1) * party * am.dmg * modDmg;
       out.push({ defId: def.id, hpMult, dmgMult, xp: Math.round(def.xp * e.elite * xpLv), elite: true });
       continue;
     }
-    const count = Math.max(1, Math.round(e.count * arenaCountMult(n)));
+    // Enxame: arredonda para cima, senão a entrada de 1 monstro (1,6 num grupo de 4) não ganhava ninguém a mais.
+    const raw = e.count * arenaCountMult(n);
+    const count = Math.max(1, md && md.count !== 1 ? Math.ceil(raw * md.count) : Math.round(raw));
     // XP da onda igual à de antes do ciclo 8: vale a quantidade antiga (1 + 0,6 por membro), repartida pelos que nascem.
     const xpCount = Math.max(1, Math.round(e.count * (1 + ARENA_XP_COUNT_PER_MEMBER * (Math.max(1, n) - 1))));
-    const hpMult = party * am.hp, dmgMult = party * am.dmg, xp = (def.xp * xpLv * xpCount) / count;
+    const hpMult = party * am.hp * modHp * (md?.commonHp ?? 1), dmgMult = party * am.dmg * modDmg * (md?.commonDmg ?? 1);
+    const xp = (def.xp * xpLv * xpCount) / count;
     for (let i = 0; i < count; i++) out.push({ defId: def.id, hpMult, dmgMult, xp, elite: false });
   }
   return out;
@@ -253,11 +340,45 @@ export function arenaWaveXp(spawns: readonly ArenaSpawnSpec[], aliveMembers: num
 }
 
 /**
- * Ouro por membro vivo (na faixa de level) ao vencer a onda: wave × (8 + wave). Partida completa (60 ondas): 88 mil + o
- * bônus. Era wave × (8 + 2 × wave) (162 mil): com as 60 ondas o Coliseu virou a maior fonte de ouro do jogo.
+ * Ouro por membro vivo (na faixa de level) ao vencer a onda: wave × (8 + wave). Partida completa (70 ondas): 137 mil +
+ * o marco da 60 + o bônus do fim. Era wave × (8 + 2 × wave) (162 mil nas 60): o Coliseu virou a maior fonte de ouro do jogo.
  */
 export const arenaWaveGold = (wave: number): number => wave * (8 + wave);
 
-/** Bônus por completar todas as ondas (ARENA_MAX_WAVE) (cada sobrevivente): ouro fixo + 25% da XP ganha na partida. */
-export const ARENA_COMPLETE_GOLD = 30_000;
+/** Marco da onda 60 (Orshabaal, o fim até o ciclo 15): ouro extra para cada sobrevivente na faixa de level. */
+export const ARENA_MILESTONE_WAVE = 60;
+export const ARENA_MILESTONE_GOLD = 20_000;
+/** Ouro do marco ao vencer a onda `wave` (0 fora do marco). */
+export const arenaMilestoneGold = (wave: number): number => (wave === ARENA_MILESTONE_WAVE ? ARENA_MILESTONE_GOLD : 0);
+
+/**
+ * Bônus por completar todas as ondas (ARENA_MAX_WAVE) (cada sobrevivente na faixa de level): ouro fixo + 25% da XP
+ * ganha na partida. Era 30 mil nas 60 ondas.
+ */
+export const ARENA_COMPLETE_GOLD = 50_000;
 export const ARENA_COMPLETE_XP_PCT = 0.25;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ranking de tempo (ciclo 16): tempo para vencer as ARENA_MAX_WAVE ondas, da onda 1 ao fim da última (pausas incluídas:
+// clicar em "Pronto" cedo encurta). Melhor de todos e melhor da semana no kv (server/systems/arenaChampion.ts); o grupo
+// do melhor tempo da semana leva o título rotativo "Campeão do Coliseu" na semana seguinte.
+// ---------------------------------------------------------------------------------------------------------------------
+export interface ArenaTimeRecord {
+  /** Duração da partida (ms). */
+  ms: number;
+  /** Quem venceu as ondas (sobreviventes na faixa de level). */
+  names: string[];
+  /** Semana (weekId) e modificador em que foi feito. */
+  week: string;
+  mod: ArenaModId;
+  /** Quando terminou (ms epoch). */
+  at: number;
+}
+
+/** "42:05" (até 1 h) ou "1:02:05". */
+export function arenaTimeText(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const two = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${two(m)}:${two(sec)}` : `${m}:${two(sec)}`;
+}

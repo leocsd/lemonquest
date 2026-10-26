@@ -23,6 +23,16 @@
 .arena-lobby-leader { font-size: 13px; }
 .arena-lobby-sub { font-size: 11px; color: var(--hud-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arena-slots { font-size: 12px; color: var(--hud-gold); font-variant-numeric: tabular-nums; }
+/* Ciclo 16: modificador da semana e melhores tempos. */
+.arena-week { display: flex; flex-direction: column; gap: 4px; }
+.arena-week-mod { display: flex; align-items: flex-start; gap: 6px; padding: 6px 8px; font-size: 12px; line-height: 1.35; color: var(--hud-text); background: rgba(160, 128, 255, 0.08); border: 1px solid rgba(160, 128, 255, 0.35); border-radius: 5px; }
+.arena-week-mod b { color: var(--hud-gold); }
+.arena-mod-icon { font-size: 15px; line-height: 1.1; }
+.arena-time-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--hud-muted); }
+.arena-time-row b { color: var(--hud-gold); font-variant-numeric: tabular-nums; }
+.arena-time-names { color: var(--hud-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.arena-bar .arena-mod { font-size: 13px; color: #c9b8ff; }
+.arena-bar .arena-clock { font-size: 12px; color: var(--hud-muted); }
 
 .arena-bar {
   /* Mora na pilha do topo (App: .top-stack). */

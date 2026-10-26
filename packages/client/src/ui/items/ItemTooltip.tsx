@@ -1,6 +1,6 @@
 // Balão de detalhes do item: nome (cor da raridade), tipo, requisitos, atributos, comparação com o equipado, valor.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { itemDef } from "@lemonquest/shared";
+import { itemDef, refinedName } from "@lemonquest/shared";
 import { useStore } from "../hud/store.ts";
 import { meStore } from "../hud/world.ts";
 import { defOf, inventoryStore } from "./inventory.ts";
@@ -54,10 +54,11 @@ export function ItemTooltip() {
     const unit = def?.value ?? 0;
     body = (
       <>
-        <div class="it-name" style={{ color: col }}>{def?.name ?? inst.defId}{inst.count > 1 ? ` ×${fmtNum(inst.count)}` : ""}</div>
+        <div class="it-name" style={{ color: col }}>{refinedName(def, inst)}{inst.count > 1 ? ` ×${fmtNum(inst.count)}` : ""}</div>
         <div class="it-sub">
           <span style={{ color: col }}>{rarityLabel(inst.rarity)}</span>
           {def && <span> · {kindText(def)}</span>}
+          {def?.unique && <span> · Item único</span>}
         </div>
         {def?.range != null && def.slot === "weapon" && (
           <div class="it-line muted">
@@ -91,6 +92,7 @@ export function ItemTooltip() {
                 <b class={l.bonus ? "has-bonus" : ""}>
                   {fmtStat(l.stat, l.total)}
                   {l.bonus !== 0 && l.base !== 0 && <small> ({fmtStat(l.stat, l.bonus)})</small>}
+                  {l.refine !== 0 && <small class="it-refine"> ({fmtStat(l.stat, l.refine)} refino)</small>}
                 </b>
               </li>
             ))}
@@ -99,7 +101,7 @@ export function ItemTooltip() {
         {useLine && <div class="it-line good">{useLine}</div>}
         {deltas.length > 0 && (
           <div class="it-compare">
-            <div class="it-cmp-head">vs. equipado: <span style={{ color: rarityColor(eq!.rarity) }}>{eqDef?.name ?? eq!.defId}</span></div>
+            <div class="it-cmp-head">vs. equipado: <span style={{ color: rarityColor(eq!.rarity) }}>{refinedName(eqDef, eq!)}</span></div>
             {deltas.map((d) => (
               <div key={d.stat} class={`it-cmp ${d.delta > 0 ? "up" : "down"}`}>
                 <span>{d.label}</span>

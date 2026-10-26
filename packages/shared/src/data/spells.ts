@@ -6,7 +6,9 @@ export type ConditionId =
   | "protect" | "haste" | "slow" | "drunk" | "regen" | "pz"
   | "manashield" | "rooted" | "taunted" | "fed" | "berserk"
   /** Monstro sem resistência elemental e com +value% de dano elemental (Ruptura Elemental, lv 100). */
-  | "exposed";
+  | "exposed"
+  /** Jogador com encantamento ativo (server/systems/imbuement.ts; só na faixa do HUD, sem efeito no ConditionSystem). */
+  | "imbued";
 
 /** Fórmula de magia (estilo Tibia): valor = base + level*perLevel + magicLevel*perMagic, ±variance. */
 export interface SpellFormula {

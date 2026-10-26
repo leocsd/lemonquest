@@ -321,9 +321,8 @@ export class SpellSystem {
       for (const m of hitMonsters) {
         const base = evalSpellFormula(s.damage, p.level, power, this.rng);
         const raw = dealt === 1 ? base : Math.round(base * dealt);
-        const amount = mitigateSpell(raw, m.def.armor, s.damage.kind);
-        this.o.combat.damageMonster(m, p.id, amount, s.damage.kind, now,
-          { ranged: false }); // projétil da magia vem do SpellCast
+        // Armadura (mitigateSpell) e encantamento pela metade (ciclo 16) ficam no combate.
+        this.o.combat.spellHitMonster(p, m, raw, s.damage.kind, now);
       }
       for (const v of victims) {
         const base = evalSpellFormula(s.damage, p.level, power, this.rng);

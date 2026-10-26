@@ -1,6 +1,6 @@
 // Formatação de itens: atributos, requisitos e comparação com o equipado. Sem dependência de UI (testável).
 import {
-  FOOD_TICK_MS, RARITY_COLOR, RARITY_LABEL, RARITY_PRICE_MULT, autoAttackRange,
+  FOOD_TICK_MS, RARITY_COLOR, RARITY_LABEL, RARITY_PRICE_MULT, autoAttackRange, instanceStats, refineBonus,
   type DamageKind, type EquipSlot, type ItemDef, type ItemInstance, type ItemKind, type Rarity, type StatId, type Stats, type Vocation,
   type WeaponType,
 } from "@lemonquest/shared";
@@ -43,24 +43,24 @@ export function fmtStat(stat: StatId, v: number): string {
   return `${sign}${Math.abs(v)}${PERCENT_STATS.has(stat) ? "%" : ""}`;
 }
 
-/** Soma stats da definição + bônus aleatórios da instância. */
+/** Stats da definição + bônus aleatórios + refino da instância (shared instanceStats: a mesma conta do servidor). */
 export function totalStats(def: ItemDef | undefined, inst: ItemInstance | undefined): Stats {
-  const out: Stats = {};
-  for (const [k, v] of Object.entries(def?.stats ?? {})) out[k as StatId] = (out[k as StatId] ?? 0) + (v as number);
-  for (const b of inst?.bonuses ?? []) out[b.stat] = (out[b.stat] ?? 0) + b.value;
-  return out;
+  return instanceStats(def, inst);
 }
 
-export interface StatLine { stat: StatId; label: string; total: number; base: number; bonus: number }
+/** `bonus` = bônus da raridade; `refine` = o que o refino soma (separados no balão). */
+export interface StatLine { stat: StatId; label: string; total: number; base: number; bonus: number; refine: number }
 
 export function statLines(def: ItemDef | undefined, inst: ItemInstance | undefined): StatLine[] {
   const total = totalStats(def, inst);
+  const ref = refineBonus(def, inst?.refine ?? 0);
   const lines: StatLine[] = [];
   for (const stat of STAT_ORDER) {
     const t = total[stat];
     if (!t) continue;
     const base = def?.stats?.[stat] ?? 0;
-    lines.push({ stat, label: STAT_LABEL[stat], total: t, base, bonus: t - base });
+    const refine = ref[stat] ?? 0;
+    lines.push({ stat, label: STAT_LABEL[stat], total: t, base, bonus: t - base - refine, refine });
   }
   return lines;
 }

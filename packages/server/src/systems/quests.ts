@@ -7,10 +7,11 @@
 //   gravadas com o id do monstro (a lista do dia não muda se as faixas mudarem).
 // - Baú de Recompensa: usar sorteia poções/comida/ouro e às vezes um equipamento incomum+ da faixa do personagem.
 // - Baús de quest do mapa (estilo Tibia, shared/data/questWorld.ts): um por grupo, uma vez por personagem; o pedido
-//   chega por systems/questWorld.ts (que confere alcance e level).
+//   chega por systems/questWorld.ts (que confere alcance e level). Os dos covis pedem o abate do chefe registrado
+//   aqui mesmo (`slain`, gravado em rec.data.quests), com o crédito do passo "boss".
 import {
   BOUNTIES_PER_DAY, BOUNTY_CHEST_ID, BOUNTY_NPC, ITEMS, MAX_TRACKED_QUESTS, MONSTERS, NPCS, QUEST_LIST, RARITIES, S2C, applyXpStage,
-  bountyBand, bountyTitle, isEquipable, questAvailable, questChestGroup, questDef, questReady, rollInt,
+  CHEST_LOCK_BOSSES, bountyBand, bountyTitle, chestLockReason, isEquipable, isExclusiveItem, questAvailable, questChestGroup, questDef, questReady, rollInt,
   type BountyStatus, type BountyView, type FeedMsg, type ItemDef, type ItemInstance, type LootMsg, type NoticeMsg,
   type QuestActionMsg, type QuestChestDef, type QuestCompleteMsg, type QuestDef, type QuestReward, type QuestsMsg, type Rarity, type Vocation,
 } from "@lemonquest/shared";
@@ -61,6 +62,8 @@ interface Entry {
   bounty: Bounty | null;
   /** Grupos de baús de quest já abertos. */
   chests: Set<string>;
+  /** Chefes que destrancam baús (`needBoss`, covis) já derrotados, com o crédito do passo "boss" (onKill). */
+  slain: Set<string>;
   tx: number; ty: number;
 }
 
@@ -88,9 +91,10 @@ export class QuestSystem {
   // --- ciclo de vida ----------------------------------------------------------------------------
 
   load(p: PlayerState, data: QuestSaveData | undefined): void {
-    const e: Entry = { active: new Map(), done: new Set(), tracked: [], bounty: null, chests: new Set(), tx: p.x, ty: p.y };
+    const e: Entry = { active: new Map(), done: new Set(), tracked: [], bounty: null, chests: new Set(), slain: new Set(), tx: p.x, ty: p.y };
     for (const id of data?.done ?? []) if (this.def(id)) e.done.add(id);
     for (const g of data?.chests ?? []) if (questChestGroup(g)) e.chests.add(g);
+    for (const b of data?.slain ?? []) if (CHEST_LOCK_BOSSES.has(b)) e.slain.add(b);
     for (const [id, prog] of Object.entries(data?.active ?? {})) {
       const d = this.def(id);
       if (!d || e.done.has(id) || !Array.isArray(prog)) continue;
@@ -129,6 +133,7 @@ export class QuestSystem {
       out.bounty = { day: b.day, band: b.band, s: b.s.map((x, i) => ({ st: x.st, n: x.n, m: b.defs[i]!.monster, c: b.defs[i]!.count })) };
     }
     if (e.chests.size) out.chests = [...e.chests];
+    if (e.slain.size) out.slain = [...e.slain];
     return out;
   }
 
@@ -179,11 +184,17 @@ export class QuestSystem {
 
   // --- ganchos -----------------------------------------------------------------------------------
 
-  /** Monstro morto: crédito para cada jogador da lista (quem causou dano; o sistema de grupo pode ampliar). */
+  /**
+   * Monstro morto: crédito para cada jogador da lista (quem causou dano; o sistema de grupo pode ampliar). A sala manda
+   * a mesma lista do passo "boss" (WorldRoom.questCredit: vazia no Coliseu, em invocação e em ajudante de monstro); é ela
+   * que registra o abate dos chefes que destrancam baús de covil.
+   */
   onKill(monsterId: string, playerIds: Iterable<string>): void {
+    const lockBoss = CHEST_LOCK_BOSSES.has(monsterId);
     for (const pid of new Set(playerIds)) {
       const e = this.st.get(pid);
       if (!e) continue;
+      if (lockBoss) e.slain.add(monsterId);
       for (const [qid, prog] of e.active) {
         const d = this.def(qid);
         d?.steps.forEach((s, i) => {
@@ -417,15 +428,21 @@ export class QuestSystem {
   /** Grupo de baús já aberto por este personagem? */
   chestDone(id: string, group: string): boolean { return !!this.st.get(id)?.chests.has(group); }
 
+  /** Abate registrado de um chefe que destranca baú (covis)? */
+  bossSlain(id: string, bossId: string): boolean { return !!this.st.get(id)?.slain.has(bossId); }
+
   /**
-   * Abre um baú de quest (alcance e level já conferidos por quem chama). Grupo já aberto → "vazio". Equipamentos saem
-   * raros. true = recompensa entregue.
+   * Abre um baú de quest (alcance e level já conferidos por quem chama). Grupo já aberto → "vazio". Grupo com trava
+   * (`needBoss`, covis): só abre com o abate do chefe registrado neste personagem (`slain`); a prova na mochila não conta.
+   * Equipamentos saem raros. true = recompensa entregue.
    */
   claimChest(p: PlayerState, chest: QuestChestDef): boolean {
     const e = this.st.get(p.id);
     const group = questChestGroup(chest.group);
     if (!e || !group) return false;
     if (e.chests.has(group.id)) { this.notice(p.id, "O baú está vazio.", "info"); return false; }
+    const locked = chestLockReason(group, (boss) => e.slain.has(boss));
+    if (locked) { this.notice(p.id, locked, "warn"); return false; }
     e.chests.add(group.id);
     this.dirty.add(p.id);
     const items = this.grant(p, { xp: 0, gold: chest.gold ?? 0, items: chest.items }, [], "rare");
@@ -499,12 +516,13 @@ let chestEligibleIds: Set<string> | null = null;
  * Equipáveis que o baú pode dar: os que se conseguem sem chefe nem missão (vendidos por algum NPC ou derrubados por
  * monstro comum). Ficam fora os prêmios só de missão, os itens só dos baús de quest do mapa e os únicos de chefe.
  * Antes o filtro era valor ≤ 15 mil, o que zerava o baú a partir do lv ~58 (tiers 6 e 7 valem mais que isso).
+ * Ciclo 16: também os itens únicos e o tier 8 (`isExclusiveItem`), que caem do Tengu e do Samurai Rubros.
  */
 export function chestEligible(id: string): boolean {
   if (!chestEligibleIds) {
     const sold = new Set(Object.values(NPCS).flatMap((n) => (n.shop?.sells ?? []).map((s) => s.itemId)));
     const mob = new Set(Object.values(MONSTERS).filter((m) => !m.boss).flatMap((m) => (m.loot ?? []).map((l) => l.itemId)));
-    chestEligibleIds = new Set([...sold, ...mob]);
+    chestEligibleIds = new Set([...sold, ...mob].filter((i) => { const d = ITEMS[i]; return !d || !isExclusiveItem(d); }));
   }
   return chestEligibleIds.has(id);
 }

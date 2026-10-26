@@ -371,6 +371,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "battle_axe", chance: 0.012 },
       { itemId: "mithril_helmet", chance: 0.01 },
       { itemId: "crown_helmet", chance: 0.004 },
+      { itemId: "crown_boots", chance: 0.004 },
     ],
     sprite: grid4(M + "Beast2/Beast2.png", { tint: 0x9fd08a }),
   },
@@ -426,6 +427,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "inferno_wand", chance: 0.008 },
       { itemId: "glacier_rod", chance: 0.008 },
       { itemId: "mystic_legs", chance: 0.005 },
+      { itemId: "mystic_boots", chance: 0.005 },
     ],
     sprite: grid4(M + "Bear/SpriteSheet.png", { tint: 0xa088e0 }),
   },
@@ -521,6 +523,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "dragon_scale_helmet", chance: 0.005 },
       { itemId: "magic_longsword", chance: 0.003 },
       { itemId: "ferumbras_helmet", chance: 0.003 },
+      { itemId: "dragon_scale_boots", chance: 0.004 },
       { itemId: "amulet_dragon", chance: 0.01 },
     ],
     sprite: grid4(M + "DragonYellow/SpriteSheet.png", { tint: 0xff7a64 }),
@@ -567,6 +570,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "ancient_root_rod", chance: 0.003 },
       { itemId: "celestial_bow", chance: 0.003 },
       { itemId: "ferumbras_armor", chance: 0.002 },
+      { itemId: "demon_boots", chance: 0.003 },
       { itemId: "boots_haste", chance: 0.005 },
     ],
     sprite: grid4(M + "Beast/Beast.png", { scale: 1.25 }),
@@ -633,7 +637,14 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "ancient_root_rod", chance: 0.15 },
       { itemId: "ferumbras_armor", chance: 0.15 },
       { itemId: "dragon_scale_legs", chance: 0.15 },
+      { itemId: "demon_boots", chance: 0.15 },
       { itemId: "boots_haste", chance: 0.3 },
+      // Ciclo 16: tier 8 de cavaleiro e paladino (Ferumbras dá o dos magos).
+      { itemId: "abyss_shard", chance: 1, min: 2, max: 4 },
+      { itemId: "abyss_blade", chance: 0.12 },
+      { itemId: "abyss_armor", chance: 0.1 },
+      { itemId: "abyss_bow", chance: 0.12 },
+      { itemId: "abyss_archer_armor", chance: 0.1 },
     ],
     sprite: strip(B + "DemonCyclop/Walk.png", 50, 6, { tint: 0xff6060, scale: 2 }),
   },
@@ -840,6 +851,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "crown_legs", chance: 0.005 },
       { itemId: "giant_sword", chance: 0.004 },
       { itemId: "royal_legs", chance: 0.005 },
+      { itemId: "royal_boots", chance: 0.005 },
     ],
     sprite: grid4(C + "Caveman2/SpriteSheet.png", { tint: 0xe8d0b8 }),
   },
@@ -967,6 +979,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "demon_armor", chance: 0.003 },
       { itemId: "ferumbras_helmet", chance: 0.004 },
       { itemId: "dragon_scale_armor", chance: 0.003 },
+      { itemId: "ferumbras_boots", chance: 0.003 },
       { itemId: "boots_haste", chance: 0.006 },
     ],
     sprite: grid4(M + "TRex/SpriteSheet.png", { tint: 0xb08070, scale: 1.5 }),
@@ -1050,7 +1063,15 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "ancient_root_rod", chance: 0.2 },
       { itemId: "amulet_orshabaal", chance: 0.15 },
       { itemId: "spellbook_ferumbras", chance: 0.2 },
+      { itemId: "ferumbras_boots", chance: 0.2 },
       { itemId: "boots_haste", chance: 0.4 },
+      // Ciclo 16: tier 8 dos magos (Orshabaal dá o de cavaleiro e paladino).
+      { itemId: "abyss_shard", chance: 1, min: 2, max: 4 },
+      { itemId: "abyss_wand", chance: 0.12 },
+      { itemId: "abyss_rod", chance: 0.12 },
+      { itemId: "abyss_mage_helmet", chance: 0.1 },
+      { itemId: "abyss_mage_armor", chance: 0.1 },
+      { itemId: "spellbook_abyss", chance: 0.1 },
     ],
     sprite: grid4(C + "Vampire/SpriteSheet.png", { tint: 0xd890ff, scale: 1.9 }),
   },
@@ -1316,6 +1337,15 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "health_potion_large", chance: 0.2, min: 1, max: 2 },
       { itemId: "starstorm_wand", chance: 0.004 },
       { itemId: "mystic_armor", chance: 0.004 },
+      // Ciclo 16: tier 8 dos magos e do paladino (o Samurai Rubro dá o do cavaleiro e o resto do paladino).
+      { itemId: "abyss_shard", chance: 0.25 },
+      { itemId: "abyss_wand", chance: 0.002 },
+      { itemId: "abyss_rod", chance: 0.002 },
+      { itemId: "abyss_mage_helmet", chance: 0.003 },
+      { itemId: "abyss_mage_armor", chance: 0.0015 },
+      { itemId: "spellbook_abyss", chance: 0.002 },
+      { itemId: "abyss_bow", chance: 0.002 },
+      { itemId: "abyss_archer_helmet", chance: 0.003 },
     ],
     sprite: strip(B + "TenguRed/Walk.png", 82, 10, { scale: 0.38 }),
   },
@@ -1334,9 +1364,120 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "magic_longsword", chance: 0.004 },
       { itemId: "demon_armor", chance: 0.003 },
       { itemId: "ferumbras_legs", chance: 0.003 },
+      // Ciclo 16: tier 8 do cavaleiro e do paladino.
+      { itemId: "abyss_shard", chance: 0.3 },
+      { itemId: "abyss_blade", chance: 0.002 },
+      { itemId: "abyss_helmet", chance: 0.003 },
+      { itemId: "abyss_armor", chance: 0.0015 },
+      { itemId: "abyss_shield", chance: 0.003 },
+      { itemId: "abyss_archer_armor", chance: 0.0015 },
+      { itemId: "abyss_archer_legs", chance: 0.002 },
     ],
     // Walk.png 576x48 = 6 frames de 96x48 (largura dupla; ver assets/CATALOG.md). Em 12 de 48 animava meio samurai.
     sprite: strip(B + "GiantRedSamurai/Walk.png", 48, 6, { frameWidth: 96, scale: 0.65 }),
+  },
+
+  // ===== Chefes de covil (ciclo 16): um na sala do fundo de cada cave do ciclo 13, nascendo como objeto no fim do mapa
+  // (tools/mapgen/generate.mjs, lateObjects14). Vida da tabela do plano; XP, ouro e dano entre os chefes vizinhos de
+  // level. A prova (100%) é troféu; o baú do covil abre para quem tem o abate registrado (shared/data/questWorld.ts).
+  lair_mole_king: {
+    id: "lair_mole_king", name: "Rei Toupeira", level: 28, hp: 4500, xp: 3600, damage: [40, 80], damageKind: "physical", armor: 10,
+    abilities: [
+      ability.stomp({ name: "Desmoronamento", radius: 1, min: 45, max: 85, cooldownMs: 11_000 }),
+      ability.summon({ name: "Cavem, filhas!", monsterId: "mine_mole", count: 1, max: 2, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 440, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [1200, 2200],
+    loot: [
+      { itemId: "mole_king_claw", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 2, max: 3 },
+      { itemId: "iron_bar", chance: 1, min: 2, max: 4 },
+      { itemId: "gem_green", chance: 0.8, min: 1, max: 2 },
+      { itemId: "mithril_bar", chance: 0.3 },
+      { itemId: "ring_furia", chance: 0.2 },
+      { itemId: "colete_refletivo", chance: 0.2 },
+      { itemId: "amulet_lich", chance: 0.15 },
+      { itemId: "battle_axe", chance: 0.12 },
+      { itemId: "composite_bow", chance: 0.12 },
+    ],
+    // Idle.png 360x60 = 6 frames de 60x60 (o guaxinim gigante, tingido de terra).
+    sprite: strip(B + "GiantRacoon/Idle.png", 60, 6, { tint: 0xd8b088, scale: 1.25 }),
+  },
+  lair_kraken: {
+    id: "lair_kraken", name: "Kraken das Grutas", level: 54, hp: 11000, xp: 11000, damage: [80, 150], damageKind: "ice", armor: 18,
+    abilities: [
+      ability.blast({ name: "Tinta Abissal", radius: 2, range: 4, min: 90, max: 160, kind: "ice", fx: "ice", cooldownMs: 10_000, condition: { id: "slow", durationMs: 3000, value: 40 } }),
+      ability.summon({ name: "Filhotes, ao ataque!", monsterId: "cave_octopus", count: 1, max: 2, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2200, attackRange: 3, stepMs: 400, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [2400, 4200],
+    loot: [
+      { itemId: "kraken_eye", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
+      { itemId: "mana_potion_large", chance: 1, min: 2, max: 4 },
+      { itemId: "croc_leather", chance: 1, min: 2, max: 4 },
+      { itemId: "gem_yellow", chance: 0.7, min: 1, max: 2 },
+      { itemId: "ring_might", chance: 0.15 },
+      { itemId: "amulet_minotaur", chance: 0.15 },
+      { itemId: "crown_armor", chance: 0.1 },
+      { itemId: "royal_armor", chance: 0.1 },
+      { itemId: "mystic_armor", chance: 0.1 },
+    ],
+    // Walk.png 304x79 = 4 frames de 76x79.
+    sprite: strip(B + "SquidGreen/Walk.png", 79, 4, { frameWidth: 76, scale: 0.95 }),
+  },
+  lair_flame: {
+    id: "lair_flame", name: "Chama Ancestral", level: 82, hp: 22000, xp: 26000, damage: [140, 260], damageKind: "fire", armor: 28,
+    abilities: [
+      ability.blast({ name: "Fogo Ancestral", radius: 2, range: 5, min: 160, max: 280, kind: "fire", fx: "fire", cooldownMs: 9000, condition: { id: "burn", durationMs: 6000, value: 20 } }),
+      ability.summon({ name: "Acordem, crânios!", monsterId: "flame_skull", count: 1, max: 2, cooldownMs: 30_000 }),
+    ],
+    attackMs: 2200, attackRange: 4, stepMs: 380, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 10_800_000, boss: true,
+    gold: [4500, 8000],
+    loot: [
+      { itemId: "ancestral_heart", chance: 1 },
+      { itemId: "ember", chance: 1, min: 4, max: 8 },
+      { itemId: "necro_skull", chance: 1, min: 2, max: 4 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
+      { itemId: "gem_purple", chance: 0.7, min: 1, max: 2 },
+      { itemId: "demon_helmet", chance: 0.12 },
+      { itemId: "dragon_scale_helmet", chance: 0.12 },
+      { itemId: "ferumbras_helmet", chance: 0.12 },
+      { itemId: "ring_demodras", chance: 0.1 },
+      { itemId: "magic_longsword", chance: 0.08 },
+    ],
+    sprite: strip(B + "GiantFlam/Idle.png", 50, 5, { tint: 0xd090ff, scale: 1.6 }),
+  },
+  // Tier 8 (16-2): as peças que Orshabaal não dá (elmos, escudo e grevas), 10–12%, e o Fragmento Abissal sempre.
+  lair_shogun: {
+    id: "lair_shogun", name: "Shogun Abissal", level: 125, hp: 45000, xp: 60000, damage: [210, 390], damageKind: "physical", armor: 48,
+    abilities: [
+      ability.stomp({ name: "Corte do Shogun", radius: 1, min: 240, max: 420, windupMs: 700, cooldownMs: 10_000 }),
+      ability.breath({ name: "Vendaval de Lâminas", length: 4, width: 3, min: 200, max: 360, kind: "physical", fx: "physical", windupMs: 900, cooldownMs: 12_000 }),
+      ability.summon({ name: "Samurais, a mim!", monsterId: "abyss_samurai", count: 1, max: 2, cooldownMs: 30_000 }),
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 330, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 14_400_000, boss: true,
+    gold: [12000, 20000],
+    loot: [
+      { itemId: "shogun_seal", chance: 1 },
+      { itemId: "demonic_essence", chance: 1, min: 2, max: 4 },
+      { itemId: "juggernaut_plate", chance: 1, min: 2, max: 3 },
+      { itemId: "health_potion_large", chance: 1, min: 4, max: 6 },
+      { itemId: "gem_purple", chance: 0.8, min: 2, max: 3 },
+      { itemId: "magic_longsword", chance: 0.12 },
+      { itemId: "demon_armor", chance: 0.12 },
+      { itemId: "dragon_scale_armor", chance: 0.1 },
+      { itemId: "ferumbras_armor", chance: 0.1 },
+      { itemId: "boots_haste", chance: 0.15 },
+      { itemId: "abyss_shard", chance: 1, min: 2, max: 3 },
+      { itemId: "abyss_helmet", chance: 0.12 },
+      { itemId: "abyss_shield", chance: 0.12 },
+      { itemId: "abyss_archer_helmet", chance: 0.1 },
+      { itemId: "abyss_archer_legs", chance: 0.1 },
+      { itemId: "abyss_mage_helmet", chance: 0.1 },
+    ],
+    // Walk.png 576x48 = 6 frames de 96x48, como o Samurai Rubro, só que em tamanho de chefe.
+    sprite: strip(B + "GiantBlueSamurai/Walk.png", 48, 6, { frameWidth: 96, scale: 1.5 }),
   },
 };
 
@@ -1592,5 +1733,10 @@ export function monsterAbilitySpell(spellId: string): SpellDef | undefined {
  * rato_de_lastro     50   700  1015    60  ("Ratazana Negra"; bando "lastro")
  * vagao_nao_insp.*   52 10000 10000   122          grupo de 3+, respawn 2 h (invoca toupeiras)
  * locomotiva_fant.*  58 14000 15000   145          "Tirano da Serra"; grupo de 3-4, respawn 2 h (quarta 17h)
+ * --- Covis das caves profundas (ciclo 16: um chefe na sala do fundo de cada cave; a prova abre o baú do covil)
+ * lair_mole_king*    28  4500  3600    60          "Rei Toupeira" (Minas); grupo de 2-3, respawn 2 h (invoca toupeiras)
+ * lair_kraken*       54 11000 11000   115 (dist 3, gelo) "Kraken das Grutas"; grupo de 3+, respawn 2 h
+ * lair_flame*        82 22000 26000   200 (dist 4, fogo) "Chama Ancestral" (Catacumbas); grupo de 4+, respawn 3 h
+ * lair_shogun*      125 45000 60000   300          "Shogun Abissal" (Abismo Profundo); grupo de 5+, respawn 4 h
  * (*boss). Magos causam ~30% menos por acerto: 4+1.1*lvl.
  */

@@ -207,10 +207,10 @@ describe("resistência elemental", () => {
     ]);
     // Fogo/gelo = o elemento do ataque (o mesmo critério da resistência).
     expect(by("fire")).toEqual([
-      "demodras", "demon", "dragon", "dragon_lord", "flame_skull", "flame_spirit", "hellhound", "iluminador_rebelde", "magma_elemental",
-      "minotaur_mage", "orshabaal", "slag_slime",
+      "demodras", "demon", "dragon", "dragon_lord", "flame_skull", "flame_spirit", "hellhound", "iluminador_rebelde", "lair_flame",
+      "magma_elemental", "minotaur_mage", "orshabaal", "slag_slime",
     ]);
-    expect(by("ice")).toEqual(["frost_dragon", "ice_witch", "kappa", "winter_wolf", "yeti"]);
+    expect(by("ice")).toEqual(["frost_dragon", "ice_witch", "kappa", "lair_kraken", "winter_wolf", "yeti"]);
     expect(MONSTERS.necromancer!.undead).toBeUndefined();
     expect(MONSTERS.ferumbras!.undead).toBeUndefined();
   });
@@ -241,5 +241,47 @@ describe("resistência elemental", () => {
   it("o Dragão de Gelo usa o sprite próprio (não o dragão verde tingido)", () => {
     expect(MONSTERS.frost_dragon!.sprite.url).toBe("monsters/FrostDragon.png");
     expect(MONSTERS.frost_dragon!.sprite.tint).toBeUndefined();
+  });
+});
+
+describe("chefes de covil (ciclo 16)", () => {
+  // [id, level, vida (tabela do plano), prova, sprite do pack sem uso]
+  const LAIRS = [
+    ["lair_mole_king", 28, 4500, "mole_king_claw", "Boss/GiantRacoon/"],
+    ["lair_kraken", 54, 11000, "kraken_eye", "Boss/SquidGreen/"],
+    ["lair_flame", 82, 22000, "ancestral_heart", "Boss/GiantFlam/"],
+    ["lair_shogun", 125, 45000, "shogun_seal", "Boss/GiantBlueSamurai/"],
+  ] as const;
+
+  it("level, vida e sprite da tabela; chefe que deixa a prova a 100%; respawn de 2 a 4 h", () => {
+    for (const [id, level, hp, proof, sprite] of LAIRS) {
+      const d = MONSTERS[id]!;
+      expect([d.level, d.hp, d.boss], id).toEqual([level, hp, true]);
+      expect(d.sprite.url, id).toContain(sprite);
+      expect(d.loot!.find((l) => l.itemId === proof)?.chance, id).toBe(1);
+      expect(d.respawnMs, id).toBeGreaterThanOrEqual(7_200_000);
+      expect(d.respawnMs, id).toBeLessThanOrEqual(14_400_000);
+      expect(d.abilities?.some((a) => a.summon), `${id} invoca ajudantes`).toBe(true);
+    }
+    // Tiras largas: Squid 304x79 = 4 de 76x79; Samurai 576x48 = 6 de 96x48 (meio samurai se cortasse em 48).
+    expect([MONSTERS.lair_kraken!.sprite.frameWidth, MONSTERS.lair_kraken!.sprite.frameHeight]).toEqual([76, 79]);
+    expect([MONSTERS.lair_shogun!.sprite.frameWidth, MONSTERS.lair_shogun!.sprite.frameHeight]).toEqual([96, 48]);
+  });
+
+  it("XP por vida, dano máximo e ouro por vida entre os dos chefes vizinhos de level (±10%)", () => {
+    const others = Object.values(MONSTERS).filter((m) => m.boss && !m.id.startsWith("lair_"));
+    for (const [id] of LAIRS) {
+      const d = MONSTERS[id]!;
+      const below = others.filter((m) => m.level <= d.level).sort((a, b) => b.level - a.level)[0]!;
+      const above = others.filter((m) => m.level >= d.level).sort((a, b) => a.level - b.level)[0]!;
+      const within = (f: (m: typeof d) => number, what: string) => {
+        const lo = Math.min(f(below), f(above)) * 0.9, hi = Math.max(f(below), f(above)) * 1.1;
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeGreaterThanOrEqual(lo);
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeLessThanOrEqual(hi);
+      };
+      within((m) => m.xp / m.hp, "xp/vida");
+      within((m) => m.damage[1], "dano máximo");
+      within((m) => m.gold![1] / m.hp, "ouro/vida");
+    }
   });
 });

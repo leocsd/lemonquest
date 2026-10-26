@@ -7,7 +7,7 @@ import {
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
-  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, imbuementDef,
+  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -27,8 +27,10 @@ import { rollWeek } from "../systems/weekly.ts";
 import { grantLoginBonus } from "../systems/loginBonus.ts";
 import { ChallengeSystem } from "../systems/challenges.ts";
 import { MaterialRequestSystem } from "../systems/materialRequest.ts";
+import { RefineSystem } from "../systems/refine.ts";
 import { FishingSystem } from "../systems/fishing.ts";
 import { FoodSystem } from "../systems/food.ts";
+import { ImbuementSystem } from "../systems/imbuement.ts";
 import { ConditionSystem } from "../systems/conditions.ts";
 import { SkillSystem } from "../systems/skills.ts";
 import { TrainingSystem, parseStatues } from "../systems/training.ts";
@@ -53,7 +55,8 @@ import { AchievementSystem, setActiveAchievements } from "../systems/achievement
 import { PartySystem } from "../systems/party.ts";
 import { ErrorLog, runSafe, runSteps } from "../systems/safe.ts";
 import { PlayTelemetry, summarizePlay } from "../systems/telemetry.ts";
-import { crownWeek } from "../systems/weeklyChampion.ts";
+import { crownWeek, type ChampionHost } from "../systems/weeklyChampion.ts";
+import { crownArenaWeek } from "../systems/arenaChampion.ts";
 import { claimOnline, consumeToken, createResetCode, releaseOnline, type AuthData } from "../persistence/auth.ts";
 import {
   addAccountTone, getAccountTones, getCharacterByName, getKv, listRankingRows, nameKey, loadGroundRows, replaceGroundRows, saveCharacter, setKv, transaction,
@@ -79,7 +82,7 @@ export const KICK_DEFAULT_REASON = "Expulso por um administrador";
 export const MAX_MESSAGES_PER_SECOND = 60;
 /** Limites por tipo de mensagem (excesso descartado em silêncio). */
 export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
-  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5,
+  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4,
   // Chat inclui comandos (/convidar...) e palavras mágicas, que não passam pelo limite de fala do chat.ts.
   [C2S.Chat]: 6,
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
@@ -117,6 +120,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private regen!: RegenSystem;
   private conditions!: ConditionSystem;
   private food!: FoodSystem;
+  private imbue!: ImbuementSystem;
   private skills!: SkillSystem;
   private summons!: SummonSystem;
   private spells!: SpellSystem;
@@ -141,6 +145,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private weeklyAt = 0;
   private challenges!: ChallengeSystem;
   private materialRequest!: MaterialRequestSystem;
+  private refine!: RefineSystem;
   private perf = { n: 0, sum: 0, max: 0, since: Date.now() };
   /** Duração do autosave (todos os jogadores) desde o último log de desempenho. */
   private savePerf = { n: 0, sum: 0, max: 0 };
@@ -259,8 +264,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       heal: (p, n) => this.combat.healPlayer(p, p.id, n),
       restoreMana: (p, n) => this.combat.restoreMana(p, n),
     });
+    // Encantamento (ciclo 16): 10 h que só correm em combate contra monstro.
+    this.imbue = new ImbuementSystem({ inPveCombat: (id, now) => this.combat.inPveCombat(id, now), send });
     this.npcs = new NpcSystem({
-      npcs: parseNpcs(this.map.tiled), inventory: this.inventory,
+      npcs: parseNpcs(this.map.tiled), inventory: this.inventory, imbue: this.imbue,
       players: () => this.state.players.values(), getPlayer, send, broadcast,
       blocked: (p, npcId) => (this.arena && !this.arena.canUseShop(p, npcId) ? "A loja do Coliseu só atende na pausa depois das ondas de chefe (5, 10, 15...)." : null),
       travel: (p, x, y) => {
@@ -346,7 +353,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       monsters: this.monsters, combat: this.combat, send,
       getPlayer, players: () => this.state.players.values(),
       speedBonus: (id) => this.inventory.stat(id, "speed"),
-      extra: (p, now) => this.food.condition(p.id, now),
+      extra: (p, now) => [this.food.condition(p.id, now), this.imbue.condition(p.id)],
     });
     this.summons = new SummonSystem({ monsters: this.monsters, combat: this.combat, getPlayer });
     this.spells = new SpellSystem({
@@ -400,7 +407,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       dealtMult: (p) => this.dealtMult(p),
       // Ruptura Elemental: a condição vive no ConditionSystem (criado depois; só é lido durante o tick).
       exposedPct: (id) => this.conditions?.value(id, "exposed") ?? 0,
-      imbuement: (p) => imbuementDef(p.imbuement),
+      imbuement: (p) => this.imbue.bonus(p.id),
       takenMult: stanceTaken,
       onLevelUp: (p) => {
         this.telemetry.onLevel(p.id, p.level);
@@ -464,6 +471,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       addGold: (p, n) => this.inventory.addGold(p, n),
       loadServerBest: () => Number(getKv("arena.serverBest") ?? 0),
       saveServerBest: (n) => setKv("arena.serverBest", String(n)),
+      getKv, setKv,
       getBest: (id) => this.records.get(id)?.data.arenaBest ?? 0,
       setBest: (id, n) => { const rec = this.records.get(id); if (rec) rec.data.arenaBest = n; },
       onWaveCleared: (p, wave) => { this.ach?.event(p.id, "arena", { wave }); this.quests.onArenaWave(p.id, wave); },
@@ -511,6 +519,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       getPlayer, record: (id) => this.records.get(id), send, inventory: this.inventory, placeLoot: (p, it) => this.placeReward(p, it),
       gainXp: (p, n) => this.combat.gainXp(p, n, p.x, p.y), save: (id) => this.save(id),
     });
+    // Refino +1..+5 no Mestre Brás (ciclo 16): sem estado próprio, só a ação.
+    this.refine = new RefineSystem({ inventory: this.inventory, send, npcOpen: (id) => this.npcs.openFor(id), save: (id) => this.save(id) });
     this.materialRequest = new MaterialRequestSystem({
       record: (id) => this.records.get(id), send, inventory: this.inventory, save: (id) => this.save(id),
       npcOpen: (id) => this.npcs.openFor(id),
@@ -607,6 +617,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<FishMsg>(C2S.Fish, (p, m) => this.fishing.onMessage(p, m));
     this.on<ChallengeActionMsg>(C2S.Challenge, (p, m) => this.challenges.onMessage(p, m));
     this.on<MaterialRequestActionMsg>(C2S.MaterialRequest, (p, m) => this.materialRequest.onMessage(p, m));
+    this.on<RefineMsg>(C2S.Refine, (p, m) => this.refine.onRefine(p, m));
     this.on<SetOutfitMsg>(C2S.SetOutfit, (p, m) => {
       const rec = this.records.get(p.id);
       applySetOutfit(p, rec, m, rec ? getAccountTones(rec.accountId) : []);
@@ -644,6 +655,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["regen", () => this.regen.tick(this.tickNow, players())],
       ["arena", () => this.arena.tick(this.tickNow)],
       ["food", () => this.food.tick(this.tickNow, players())],
+      ["imbue", () => this.imbue.tick(this.tickNow)],
       ["npcs", () => this.npcs.tick(this.tickNow)],
       ["quests", () => this.quests.tick(this.tickNow, players())],
       ["questWorld", () => this.questWorld.tick(this.tickNow)],
@@ -767,7 +779,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       for (const [sid, rec] of this.records) if (nameKey(rec.name) === nameKey(name)) return { sid, rec, p: this.state.players.get(sid) };
       return null;
     };
-    crownWeek({
+    const host: ChampionHost = {
       getKv, setKv,
       rows: () => listRankingRows(),
       record: (name) => online(name)?.rec ?? getCharacterByName(name),
@@ -783,7 +795,11 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       },
       save: (rec) => saveCharacter(rec),
       announce: (text) => this.loot.feed(text, "info"),
-    }, now);
+    };
+    crownWeek(host, now);
+    // Coliseu (ciclo 16): o melhor tempo das 70 ondas na semana que acabou leva o título rotativo "Campeão do Coliseu".
+    // Isolado: uma falha aqui (banco) não pode impedir a virada das bases semanais (rollWeek) que vem depois.
+    runSafe("arenaChampion", () => crownArenaWeek(host, now), this.errors);
   }
 
   /** Linhas do /status (admin). */
@@ -858,7 +874,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.fight.load(p, rec.data.stance, rec.data.chase, rec.data.auto);
     this.pvp.load(p, rec.data.pvpKills, rec.data.pvpWhiteUntil, rec.data.pvpPzLockUntil);
     p.blessed = !!rec.data.blessed;
-    p.imbuement = rec.data.imbuement ?? "";
+    this.imbue.load(p.id, rec.data);
     this.npcs.loadLimitedBuy(p.id, rec.data.limitedBuyWeek);
     this.food.load(p.id, rec.data, Date.now());
     this.quests.load(p, rec.data.quests);
@@ -1206,6 +1222,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["skills", () => this.skills.removePlayer(sid)],
         ["regen", () => this.regen.removePlayer(sid)],
         ["food", () => this.food.removePlayer(sid)],
+        ["imbue", () => this.imbue.removePlayer(sid)],
         ["exploration", () => this.exploration.removePlayer(sid)],
         ["inventory", () => this.inventory.removePlayer(sid)],
         ["ground", () => this.ground.removePlayer(sid)],
@@ -1283,7 +1300,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const lock = this.pvp.savedPzLockUntil(p.id);
     if (lock) rec.data.pvpPzLockUntil = lock; else delete rec.data.pvpPzLockUntil;
     rec.data.blessed = p.blessed;
-    rec.data.imbuement = p.imbuement;
+    this.imbue.saveTo(sessionId, rec.data);
     const limitedBuyWeek = this.npcs.savedLimitedBuy(p.id);
     if (limitedBuyWeek) rec.data.limitedBuyWeek = limitedBuyWeek; else delete rec.data.limitedBuyWeek;
     rec.data.outfit = p.outfit;

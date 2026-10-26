@@ -43,8 +43,7 @@ export class PlayerState extends Schema implements PlayerView {
   @type("boolean") blessed = false;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; "" = cor natural). */
   @type("string") tone = "";
-  /** Encantamento ativo (id em IMBUEMENTS; "" = nenhum). Só vale no PvE. */
-  @type("string") imbuement = "";
+  // Encantamento: fora do schema desde o ciclo 16 (systems/imbuement.ts; o tempo vai na faixa de condições).
 }
 
 /** Deve espelhar MonsterView (packages/shared/src/types.ts). */
