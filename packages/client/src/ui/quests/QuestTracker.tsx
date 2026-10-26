@@ -3,7 +3,7 @@ import { BOUNTY_NPC, NPCS, bountyTitle, questDef, questReady } from "@lemonquest
 import { useEffect, useRef } from "preact/hooks";
 import { worldIndexStore } from "../../game/worldIndex.ts";
 import { useStore } from "../hud/store.ts";
-import { guideRequestStore, isGuiding, toggleGuideBounty, toggleGuideQuest } from "../hud/guideState.ts";
+import { guideEffectiveStore, isGuiding, toggleGuideBounty, toggleGuideQuest } from "../hud/guideState.ts";
 import { inventoryStore } from "../items/inventory.ts";
 import { huntInfo, nextStepLines } from "./questInfo.ts";
 import { inventoryCounter, myLevelStore, questDoneStore, questLogOpen, questStore, rewardText, stepLines, trackerCollapsed } from "./quests.ts";
@@ -15,7 +15,7 @@ export function QuestTracker() {
   const collapsed = useStore(trackerCollapsed);
   const level = useStore(myLevelStore);
   const idx = useStore(worldIndexStore);
-  const guide = useStore(guideRequestStore);
+  const guide = useStore(guideEffectiveStore);
   const prev = useRef(new Map<string, number>());
   const tracked = (st?.tracked ?? []).flatMap((id) => {
     const def = questDef(id);

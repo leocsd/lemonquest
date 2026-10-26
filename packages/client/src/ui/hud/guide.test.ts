@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SPAWN, QUEST_LIST, buildWorldIndex, mapSpawn, type QuestsMsg, type TiledMap } from "@lemonquest/shared";
-import { GUIDE_MAX_LEVEL, dropSources, effectiveRequest, guideTarget, requestFinished, stepDestination, type GuideInput } from "./guide.ts";
+import {
+  GUIDE_MAX_LEVEL, dropSources, effectiveRequest, guideTarget, isGuiding, requestFinished, stepDestination, toggledRequest,
+  type GuideInput,
+} from "./guide.ts";
 
 const root = fileURLToPath(new URL("../../../../../", import.meta.url));
 const map = JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8")) as TiledMap;
@@ -31,6 +34,21 @@ describe("guia do novato (primeira missão, sem pedido)", () => {
     expect(guideTarget(input({ level: GUIDE_MAX_LEVEL + 1 }))).toBeNull();
     expect(guideTarget(input({ quests: null }))).toBeNull();
     expect(effectiveRequest(null, 1, qs())).toEqual({ kind: "quest", id: "rats_barn" });
+  });
+  it("botão do novato: aparece 'Guiando' sem pedido; 'Parar' grava off e a seta some (não volta sozinha)", () => {
+    const novice = effectiveRequest(null, 1, qs());
+    expect(isGuiding(novice, "quest", "rats_barn")).toBe(true);
+    expect(isGuiding(novice, "quest", "slime_salve")).toBe(false);
+    const off = toggledRequest(novice, "quest", "rats_barn");
+    expect(off).toEqual({ kind: "off" });
+    expect(effectiveRequest(off, 1, qs())).toBeNull();
+    expect(guideTarget(input({ request: off }))).toBeNull();
+    expect(requestFinished(off, qs())).toBe(false);
+    // Desligado: clicar de novo liga o pedido explícito.
+    expect(toggledRequest(effectiveRequest(off, 1, qs()), "quest", "rats_barn")).toEqual({ kind: "quest", id: "rats_barn" });
+    // Pedido explícito de outra coisa: o botão da recompensa liga ela, sem apagar nada além.
+    expect(toggledRequest(novice, "bounty", "rat")).toEqual({ kind: "bounty", monster: "rat" });
+    expect(isGuiding({ kind: "bounty", monster: "rat" }, "bounty", "rat")).toBe(true);
   });
 });
 
@@ -67,6 +85,21 @@ describe("guia de uma missão pedida (botão Guiar)", () => {
     const board = index.npcAt("bounty_board")!;
     expect(guideTarget(input({ level: 15, request: req, quests: b(10) }))!).toMatchObject({ x: board.x, y: board.y });
     expect(guideTarget(input({ level: 15, request: req, quests: b(0, "open") }))!.label).toMatch(/aceite/);
+  });
+
+  it("rota pelas portas que o personagem abre: lv 90 vai ao demônio do Abismo, não ao da Cidadela (porta lv 100)", () => {
+    const b = qs({ bounties: { day: "", resetsAt: 0, list: [{ monster: "demon", count: 10, progress: 0, status: "active", xp: 1, gold: 1 }] } });
+    const req = { kind: "bounty", monster: "demon" } as const;
+    const porto = { x: 372, y: 64 };
+    const lv90 = guideTarget(input({ level: 90, me: porto, request: req, quests: b }))!;
+    expect(index.zoneAt(lv90.dest.x, lv90.dest.y)).toBe("Abismo");
+    expect(lv90.hop?.kind === "portal" ? index.portalAt(lv90.hop.x, lv90.hop.y)!.minLevel ?? 0 : 0).toBeLessThanOrEqual(90);
+    // Com lv 100 a porta abre e a Cidadela, mais perto do Porto, volta a valer.
+    const lv100 = guideTarget(input({ level: 100, me: porto, request: req, quests: b }))!;
+    expect(index.zoneAt(lv100.dest.x, lv100.dest.y)).toBe("Cidadela de Ferumbras");
+    // Destino só atrás de porta fechada (larva das Minas no lv 5): a seta ainda leva até a porta (rótulo vermelho).
+    const larva = qs({ bounties: { day: "", resetsAt: 0, list: [{ monster: "mine_larva", count: 10, progress: 0, status: "active", xp: 1, gold: 1 }] } });
+    expect(guideTarget(input({ level: 5, request: { kind: "bounty", monster: "mine_larva" }, quests: larva }))!.hop).toMatchObject({ x: 89, y: 74 });
   });
 
   it("pedido de tile (Agenda) e fim do pedido", () => {

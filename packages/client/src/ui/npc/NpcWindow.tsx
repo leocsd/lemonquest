@@ -17,6 +17,7 @@ import { ItemSlot } from "../items/ItemSlot.tsx";
 import { itemTipStore, shopInstance } from "../items/tipStore.ts";
 import { buyBlessing, buyCasinoTicket, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
 import { BountyBoard, MaterialRequestBoard, NpcQuestList } from "../quests/NpcQuests.tsx";
+import { myLevelStore } from "../quests/quests.ts";
 import { blessingProtects } from "../combat/blessingText.ts";
 import { WorkTab } from "../work/WorkTab.tsx";
 import { RefineTab } from "../refine/RefineTab.tsx";
@@ -213,7 +214,7 @@ function CasinoBox({ npcId, gold }: { npcId: string; gold: number }) {
 
 function TravelList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
   const idx = useStore(worldIndexStore);
-  const level = useStore(meStore)?.level ?? 1;
+  const level = useStore(myLevelStore); // só o level: o meStore muda a cada passo
   return (
     <ul class="shop-list">
       {m.travel!.map((t) => {

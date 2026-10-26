@@ -8,7 +8,7 @@ import { meStore } from "../hud/world.ts";
 import { inventoryStore } from "../items/inventory.ts";
 import { useTicker } from "../arena/useTicker.ts";
 import { worldIndexStore } from "../../game/worldIndex.ts";
-import { guideRequestStore, isGuiding, toggleGuideBounty } from "../hud/guideState.ts";
+import { guideEffectiveStore, isGuiding, toggleGuideBounty } from "../hud/guideState.ts";
 import { huntInfo, materialSources, materialSourcesText } from "./questInfo.ts";
 import { inventoryCounter, myLevelStore, questAction, questStore, rewardText, stepLines } from "./quests.ts";
 import { materialRequestAction, materialRequestStore } from "./materialRequest.ts";
@@ -105,7 +105,7 @@ export function BountyBoard() {
   const st = useStore(questStore);
   const level = useStore(myLevelStore);
   const idx = useStore(worldIndexStore);
-  const guide = useStore(guideRequestStore);
+  const guide = useStore(guideEffectiveStore);
   useTicker(30_000);
   if (!st) return <div class="hud-empty">Carregando recompensas…</div>;
   const chest = itemDef(BOUNTY_CHEST_ID)?.name ?? "Baú";

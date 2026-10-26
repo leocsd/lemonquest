@@ -4,7 +4,7 @@ import Phaser from "phaser";
 import { TILE_SIZE, type QuestsMsg, type WorldIndex, type WorldPortal } from "@lemonquest/shared";
 import { questStore } from "../ui/quests/quests.ts";
 import type { LookContent } from "./lookInfo.ts";
-import { PORTAL_BLOCKED_COLOR, PORTAL_COLOR, lookPortal, portalBlockReason } from "./portalInfo.ts";
+import { PORTAL_BLOCKED_COLOR, PORTAL_COLOR, lookPortal, portalBlockReason, portalHasLabel } from "./portalInfo.ts";
 import { textRes } from "./textRes.ts";
 
 const FONT = '"Pixelify Sans", Verdana, system-ui, sans-serif';
@@ -17,6 +17,7 @@ export class PortalLabels {
 
   constructor(scene: Phaser.Scene, uiLayer: Phaser.GameObjects.Layer, private readonly index: WorldIndex) {
     for (const p of index.portals) {
+      if (!portalHasLabel(p)) continue; // saída colada na porta: o rótulo só cobriria o da porta
       const text = scene.add.text(0, 0, p.label, {
         fontFamily: FONT, fontSize: "10px", fontStyle: "bold", color: PORTAL_COLOR, stroke: "#10131c", strokeThickness: 3,
         resolution: textRes(),

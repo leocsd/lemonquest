@@ -22,6 +22,11 @@ export interface WorldPortal {
 }
 /** Próximo passo para trocar de região: tile do portal ou do NPC de viagem. */
 export interface WorldHop { x: number; y: number; label: string; kind: "portal" | "travel" }
+/**
+ * O personagem atravessa esta porta? (Mesma regra do rótulo vermelho: level, missão, baú.) Sem filtro, toda porta passa:
+ * a rota de um lv 88 não pode passar pela porta lv 100 da Cidadela quando há demônio no Abismo, aberto.
+ */
+export type PortalFilter = (p: WorldPortal) => boolean;
 
 export interface WorldIndex {
   readonly width: number;
@@ -46,11 +51,14 @@ export interface WorldIndex {
   componentAt(x: number, y: number): number;
   /**
    * Próximo passo (tile de portal ou NPC de viagem) para ir de `from` até `to`; null se andar direto é o melhor caminho
-   * (mesmo componente e nenhuma viagem encurta) ou se não há caminho.
+   * (mesmo componente e nenhuma viagem encurta) ou se não há caminho. `canPass` pula as portas que o personagem não abre.
    */
-  nextHop(from: { x: number; y: number }, to: { x: number; y: number }): WorldHop | null;
-  /** Custo estimado (tiles + troca de região) de `from` até `to`; Infinity sem caminho. Serve para escolher o spawn mais perto. */
-  travelCost(from: { x: number; y: number }, to: { x: number; y: number }): number;
+  nextHop(from: { x: number; y: number }, to: { x: number; y: number }, canPass?: PortalFilter): WorldHop | null;
+  /**
+   * Custo estimado (tiles + troca de região) de `from` até `to`; Infinity sem caminho. Serve para escolher o spawn mais
+   * perto. `canPass` pula as portas que o personagem não abre.
+   */
+  travelCost(from: { x: number; y: number }, to: { x: number; y: number }, canPass?: PortalFilter): number;
 }
 
 export interface WorldIndexOptions {
@@ -66,6 +74,12 @@ const TRAVEL_EXTRA = 15;
 /** Padrões de `levelsNear`: raio (tiles) que cobre as zonas vizinhas de uma vila de chegada, e mínimo de spawns. */
 export const LEVELS_NEAR_RADIUS = 40;
 export const LEVELS_NEAR_MIN = 6;
+/**
+ * Bolsão andável menor que isto (o tile solto atrás do balcão do sacerdote do Porto) não serve de região para NPC ou
+ * portal fora do chão andável, a não ser que não haja outra por perto: a rota partiria de um bolsão sem saída (custo
+ * infinito) e a seta apontaria através da parede.
+ */
+const MIN_COMPONENT = 4;
 
 const prop = (o: TiledObject, name: string): unknown => o.properties?.find((p) => p.name === name)?.value;
 const cheb = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
@@ -79,7 +93,11 @@ export function portalLabel(zone: string | undefined, req: { minLevel?: number; 
   return parts.join(" · ");
 }
 
-interface Edge { from: number; to: number; x: number; y: number; toX: number; toY: number; label: string; kind: WorldHop["kind"] }
+interface Edge {
+  from: number; to: number; x: number; y: number; toX: number; toY: number; label: string; kind: WorldHop["kind"];
+  /** Porta atravessada (kind "portal"): o filtro `canPass` da rota olha o requisito dela. */
+  portal?: WorldPortal;
+}
 
 export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): WorldIndex {
   const W = map.width, H = map.height, N = W * H, t = map.tilewidth;
@@ -167,6 +185,8 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) open[y * W + x] = grid.isWalkable(x, y) ? 1 : 0;
   for (const k of portalByTile.keys()) open[k] = 0;
   const comp = new Uint32Array(N);
+  /** Tiles de cada componente (índice = número do componente). */
+  const compSize: number[] = [0];
   const queue = new Int32Array(N);
   let nComp = 0;
   for (let s = 0; s < N; s++) {
@@ -182,24 +202,30 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
       if (i >= W && open[i - W] && !comp[i - W]) { comp[i - W] = c; queue[tail++] = i - W; }
       if (i + W < N && open[i + W] && !comp[i + W]) { comp[i + W] = c; queue[tail++] = i + W; }
     }
+    compSize[c] = tail;
   }
   const compRaw = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : comp[y * W + x]!);
-  /** Componentes no anel mais perto de (x,y) que tenha algum (NPC atrás do balcão, portal, destino ocupado). */
+  /**
+   * Componentes no anel mais perto de (x,y) que tenha algum (NPC atrás do balcão, portal, destino ocupado). Bolsões de
+   * menos de MIN_COMPONENT tiles ficam de fora enquanto houver outro componente até maxR (só sobram se não houver).
+   */
   const compsNear = (x: number, y: number, maxR = 3): number[] => {
     const own = compRaw(x, y);
     if (own) return [own];
+    let pockets: number[] = [];
     for (let r = 1; r <= maxR; r++) {
-      const found = new Set<number>();
+      const found = new Set<number>(), tiny = new Set<number>();
       for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         // Raio 1: só os 4 vizinhos (pisar num portal na diagonal exige os dois lados livres, que já estão nos 4).
         if (r === 1 && dx !== 0 && dy !== 0) continue;
         const c = compRaw(x + dx, y + dy);
-        if (c) found.add(c);
+        if (c) (compSize[c]! >= MIN_COMPONENT ? found : tiny).add(c);
       }
       if (found.size) return [...found];
+      if (!pockets.length && tiny.size) pockets = [...tiny];
     }
-    return [];
+    return pockets;
   };
   const componentAt = (x: number, y: number): number => compsNear(x, y)[0] ?? 0;
 
@@ -208,7 +234,7 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
   for (const p of portals) {
     const to = componentAt(p.toX, p.toY);
     if (!to) continue;
-    for (const from of compsNear(p.x, p.y)) edges.push({ from, to, x: p.x, y: p.y, toX: p.toX, toY: p.toY, label: p.label, kind: "portal" });
+    for (const from of compsNear(p.x, p.y)) edges.push({ from, to, x: p.x, y: p.y, toX: p.toX, toY: p.toY, label: p.label, kind: "portal", portal: p });
   }
   for (const n of npcs) {
     const def = Object.hasOwn(NPCS, n.id) ? NPCS[n.id] : undefined;
@@ -229,7 +255,7 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
    * Dijkstra nos "pontos de chegada" (origem + chegada de cada aresta): custo = tiles em linha reta (Chebyshev) dentro
    * do componente + HOP_COST por troca. Poucas dezenas de arestas: O(V²) sem fila de prioridade.
    */
-  const route = (from: { x: number; y: number }, to: { x: number; y: number }): { cost: number; first: number } | null => {
+  const route = (from: { x: number; y: number }, to: { x: number; y: number }, canPass?: PortalFilter): { cost: number; first: number } | null => {
     const a = componentAt(from.x, from.y), b = componentAt(to.x, to.y);
     if (!a || !b) return null;
     const V = edges.length + 1; // 0 = origem; i+1 = chegada da aresta i
@@ -252,6 +278,7 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
       }
       for (const ei of edgesFrom.get(sc) ?? []) {
         const e = edges[ei]!;
+        if (canPass && e.portal && !canPass(e.portal)) continue;
         const c = dist[s]! + cheb(sx, sy, e.x, e.y) + HOP_COST + (e.kind === "travel" ? TRAVEL_EXTRA : 0);
         if (c < dist[ei + 1]!) { dist[ei + 1] = c; first[ei + 1] = s === 0 ? ei : first[s]!; }
       }
@@ -279,12 +306,12 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
     npcAt: (id) => npcById.get(id),
     portalAt: (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? undefined : portalByTile.get(y * W + x)),
     componentAt,
-    nextHop(from, to) {
-      const r = route(from, to);
+    nextHop(from, to, canPass) {
+      const r = route(from, to, canPass);
       if (!r || r.first < 0) return null;
       const e = edges[r.first]!;
       return { x: e.x, y: e.y, label: e.label, kind: e.kind };
     },
-    travelCost: (from, to) => route(from, to)?.cost ?? Infinity,
+    travelCost: (from, to, canPass) => route(from, to, canPass)?.cost ?? Infinity,
   };
 }

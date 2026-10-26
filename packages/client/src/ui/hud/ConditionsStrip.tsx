@@ -3,17 +3,19 @@
 import { useEffect, useState } from "preact/hooks";
 import { CONDITION_DEFS, conditionsStore, type Condition } from "./conditions.ts";
 import { PixelIcon } from "./icons.tsx";
-import { useStore } from "./store.ts";
+import { selectStore, useStore } from "./store.ts";
 import { meStore } from "./world.ts";
 
 /** 45s / 12:05 */
 const fmtLeft = (s: number): string => (s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `${s}s`);
 
 const BLESSED: Condition = { id: "blessed", detail: "A próxima morte não tira XP" };
+/** Só a bênção do jogador: o meStore muda a cada passo e a faixa não precisa redesenhar por isso. */
+const blessedStore = selectStore(meStore, (m) => !!m?.blessed);
 
 export function ConditionsStrip() {
   const conds = useStore(conditionsStore);
-  const blessed = !!useStore(meStore)?.blessed;
+  const blessed = useStore(blessedStore);
   const list = blessed ? [...conds, BLESSED] : conds;
   const timed = conds.some((c) => c.until);
   const [, setTick] = useState(0);

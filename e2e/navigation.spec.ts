@@ -32,6 +32,7 @@ test("portal: rótulo da cave vermelho abaixo do level, normal no level; olhar m
     if (!text.includes("Minas Abandonadas")) await page.keyboard.press("Escape");
     return text;
   }, { timeout: 15_000, intervals: [400] }).toContain("Minas Abandonadas · lv 10+");
+  await expect(card).toContainText("Passagem lv 10+"); // porta só de level não é "Porta de missão"
   await expect(card).toContainText("level 10 ou mais");
   await page.keyboard.press("Escape");
 

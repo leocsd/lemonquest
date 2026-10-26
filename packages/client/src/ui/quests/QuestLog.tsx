@@ -12,7 +12,7 @@ import { inventoryStore } from "../items/inventory.ts";
 import { toggleChallenges } from "../challenges/challenges.ts";
 import { bindOverlay } from "../overlays.ts";
 import { worldIndexStore } from "../../game/worldIndex.ts";
-import { guideRequestStore, isGuiding, toggleGuideQuest } from "../hud/guideState.ts";
+import { guideEffectiveStore, isGuiding, toggleGuideQuest } from "../hud/guideState.ts";
 import { npcWhere, npcZone } from "./questInfo.ts";
 import { inventoryCounter, myLevelStore, questAction, questLogOpen, questStore, rewardText, stepLines } from "./quests.ts";
 import "./quests.css";
@@ -34,7 +34,7 @@ function QuestLogDialog() {
   const st = useStore(questStore);
   const level = useStore(myLevelStore);
   const idx = useStore(worldIndexStore);
-  const guide = useStore(guideRequestStore);
+  const guide = useStore(guideEffectiveStore);
   useStore(inventoryStore);
   const count = inventoryCounter();
   const active = (st?.active ?? []).flatMap((a) => { const d = questDef(a.id); return d ? [{ def: d, a }] : []; });
