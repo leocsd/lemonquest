@@ -24,6 +24,7 @@ import { STATUE_RANGE, StatueIndex } from "../game/statues.ts";
 import { QUEST_OBJECT_RANGE, QuestObjectIndex, useQuestObject } from "../game/questObjects.ts";
 import { ChestLabels } from "../game/chestLabels.ts";
 import { PortalLabels } from "../game/portalLabels.ts";
+import { PortalSprites, preloadPortalSprites } from "../game/portalSprites.ts";
 import { ensureWorldIndex } from "../game/worldIndex.ts";
 import { drawDrawnChests, preloadDrawnChests } from "../game/drawnChests.ts";
 import { onTabReturn, settleActors } from "../game/tabReturn.ts";
@@ -56,6 +57,7 @@ import { getHudInsets } from "../ui/hud/layout.ts";
 import { GuideArrow } from "../game/guide.ts";
 import { FishBobbers } from "../game/fishing.ts";
 import { reducedMotion } from "../ui/a11y/a11y.ts";
+import { questStore } from "../ui/quests/quests.ts";
 import { spellCooldownLeft } from "../ui/hud/castbar.ts";
 import { BATTLE_RANGE, chebyshev, hpPct, setBattleEntries, clearBattleEntries, type BattleEntry } from "../ui/hud/battle.ts";
 import { getTarget, setTarget, subscribeTarget, toggleTarget, type Target } from "../ui/hud/target.ts";
@@ -122,6 +124,7 @@ export class WorldScene extends Phaser.Scene {
   private npcs!: NpcManager;
   private chestLabels!: ChestLabels;
   private portalLabels!: PortalLabels;
+  private portalSprites!: PortalSprites;
   private loot!: LootFx;
   private ground!: GroundItems;
   /** Item do chão clicado de longe: pega ao chegar ao lado (cancelado por movimento manual). */
@@ -173,6 +176,7 @@ export class WorldScene extends Phaser.Scene {
     CombatFx.preload(this);
     LootFx.preload(this);
     preloadDrawnChests(this);
+    preloadPortalSprites(this);
   }
 
   /** Alimenta a tela de carregamento com o progresso REAL do loader (mapa, tilesets, sprites, efeitos). */
@@ -251,6 +255,7 @@ export class WorldScene extends Phaser.Scene {
     this.questObjs = new QuestObjectIndex(this.world.tiled);
     this.chestLabels = new ChestLabels(this, this.uiLayer, this.questObjs.list);
     this.portalLabels = new PortalLabels(this, this.uiLayer, ensureWorldIndex(this.world.tiled));
+    this.portalSprites = new PortalSprites(this, this.worldLayer, ensureWorldIndex(this.world.tiled).portals, { quests: questStore.get, reducedMotion });
     drawDrawnChests(this, this.worldLayer, this.questObjs.list);
     this.loot = new LootFx(this, this.worldLayer, this.uiLayer, this.fx, () => {
       const me = this.actors.get(this.myId);
@@ -1062,6 +1067,7 @@ export class WorldScene extends Phaser.Scene {
     this.npcs.placeUi(zoom, dt, (wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.chestLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height);
     this.portalLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height, this.myLevel);
+    this.portalSprites.update(this.cameras.main, this.myLevel, time);
     this.updateGuide(me, dt);
     this.bobbers.update((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.checkPendingNpc();

@@ -1,5 +1,18 @@
 # Changelog
 
+## [Não lançado] — 2026-10-26 · portais desenhados e animados
+
+Pedido do dono: "os portais não têm nenhum desenho ou animação, fica só com o nome". Até aqui o portal era só a luz roxa
+do sistema de iluminação (some de dia e com a luz desligada) e o rótulo do ciclo 17.
+- **Vórtice animado** desenhado em código (`tools/fx/portal.mjs` → `assets/fx/portal.png`, 3 estados × 10 quadros de
+  24×32, contorno `#141b1b`, roxo do TilesetLemon): `open` roxo com coluna de luz e faíscas; `locked` vermelho com grades
+  (mesma regra do rótulo, `portalBlockReason`; repinta ao subir de level ou concluir missão); `exit` menor nas saídas
+  coladas a uma porta. `client/src/game/portalSprites.ts`: um sprite por portal (76), uma animação compartilhada por
+  estado, culling pela câmera, quadro parado com animações reduzidas. Teste `portalSprites.test.ts` (PNG igual ao que o
+  script gera, todo portal do mapa real ganha sprite, estados por level/missão).
+- **Balões de fala** expiram pelo relógio real (antes somavam o delta de quadro, que o Phaser limita com a máquina lenta:
+  no CI o balão de 9 s passava de 15 s na tela).
+
 ## [Não lançado] — 2026-10-26 · ciclo 20: região Montadora
 
 Sétimo e último ciclo do plano 14–20: a segunda região grande, para todos os levels (10 a 120). Tema só de fantasia

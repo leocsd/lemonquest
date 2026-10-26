@@ -72,6 +72,7 @@ export function buildPublic() {
   copy("addons", (src) => !/preview/i.test(basename(src)));
   copy("monsters", (src) => !/preview/i.test(basename(src))); // variações recoloridas (tools/monsters/recolor.mjs)
   copy("favicon", (src) => !/preview/i.test(basename(src))); // favicons + manifest.webmanifest
+  copy("fx", (src) => !/preview/i.test(basename(src))); // efeitos desenhados em código (tools/fx: portal animado)
   // Só o mapa; os previews .png ficam de fora.
   mkdirSync(join(PUBLIC_DIR, "maps"), { recursive: true });
   cpSync(join(assets, "maps", "world.json"), join(PUBLIC_DIR, "maps", "world.json"));

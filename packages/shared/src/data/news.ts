@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26j",
+    date: "26 de outubro (noite)",
+    title: "Portais com cara de portal",
+    items: [
+      "Todo portal agora tem um vórtice animado no chão: roxo quando dá para passar, vermelho e com grades quando ainda falta level ou missão.",
+      "As saídas logo ao lado de uma porta ganharam um vórtice menor. Com animações reduzidas, o desenho fica parado.",
+      "Balões de fala somem no tempo certo mesmo quando o computador está lento.",
+    ],
+  },
+  {
     id: "2026-10-26i",
     date: "26 de outubro",
     title: "Região nova: a Montadora",

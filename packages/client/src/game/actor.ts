@@ -131,7 +131,7 @@ export class Actor {
   private skullKind = "";
   private baseNameColor = "#ffffff";
   /** Falas ativas, da mais antiga para a mais nova. */
-  private speech: { text: Phaser.GameObjects.Text; age: number; ttl: number }[] = [];
+  private speech: { text: Phaser.GameObjects.Text; born: number; age: number; ttl: number }[] = [];
   /** Nome do jogador (o label pode ter o título numa 2ª linha). */
   readonly name: string;
 
@@ -265,7 +265,7 @@ export class Actor {
 
   private pushSpeech(obj: Phaser.GameObjects.Text, ttl: number) {
     this.deps.uiLayer.add(obj);
-    this.speech.push({ text: obj, age: 0, ttl });
+    this.speech.push({ text: obj, born: performance.now(), age: 0, ttl });
     while (this.speech.length > SPEECH_MAX) this.speech.shift()!.text.destroy();
     this.applyVisible();
   }
@@ -275,12 +275,16 @@ export class Actor {
     return this.speech.map((s) => ({ text: s.text.text, color: String(s.text.style.color) }));
   }
 
-  /** Avança o tempo das falas e as empilha acima do nome (a mais nova embaixo). */
-  private placeSpeech(dtMs: number) {
+  /**
+   * Avança o tempo das falas e as empilha acima do nome (a mais nova embaixo). A idade sai do relógio real, não da soma
+   * dos deltas de quadro: com a máquina lenta o Phaser limita o delta e o balão ficava na tela bem mais que o previsto.
+   */
+  private placeSpeech(_dtMs: number) {
     if (!this.speech.length) return;
     let top = this.label.y - this.label.displayHeight - SPEECH_GAP;
+    const now = performance.now();
     this.speech = this.speech.filter((s) => {
-      s.age += dtMs;
+      s.age = now - s.born;
       if (s.age >= s.ttl) { s.text.destroy(); return false; }
       return true;
     });
