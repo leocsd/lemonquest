@@ -9,8 +9,8 @@ import { monsterDef } from "./monsters.ts";
 // - Portas de level/missão: objetos "portal" com `minLevel`, `quest` (missão concluída) e/ou `chestGroup` (baú aberto).
 //   Quem não cumpre bate na porta e volta para o tile de onde veio.
 // - Alavancas de grupo (objeto "quest_lever"): com jogadores em pelo menos `minPlayers` placas, puxar a alavanca leva
-//   todos para a sala da quest e solta os monstros, em número proporcional ao grupo (Aniquilação). As posições
-//   (placas, destinos, sala, monstros) vêm do mapa.
+//   todos para a sala da quest e solta os monstros, em número proporcional ao grupo (Aniquilação e, desde o ciclo 20, o
+//   Crash Test da Montadora). As posições (placas, destinos, sala, monstros) vêm do mapa.
 
 export interface QuestChestGroupDef {
   id: string;
@@ -47,6 +47,8 @@ export interface QuestLeverDef {
   minPlayers: number;
   /** Ids de MONSTERS soltos na sala com o grupo cheio, na ordem das posições `spawns` do objeto do mapa. */
   monsters: string[];
+  /** Aviso a quem entra (ausente = o texto da Aniquilação, que fala em demônios). */
+  startText?: string;
 }
 
 /**
@@ -74,6 +76,8 @@ export const QUEST_CHEST_GROUPS: Record<string, QuestChestGroupDef> = {
   lair_grutas: { id: "lair_grutas", name: "O Covil do Kraken", where: "Covil das Grutas Alagadas", minLevel: 50, needBoss: "lair_kraken" },
   lair_catacumbas: { id: "lair_catacumbas", name: "O Covil da Chama Ancestral", where: "Covil das Catacumbas Esquecidas", minLevel: 75, needBoss: "lair_flame" },
   lair_profundo: { id: "lair_profundo", name: "O Covil do Shogun", where: "Covil do Abismo Profundo", minLevel: 110, needBoss: "lair_shogun" },
+  // Montadora (ciclo 20): baús do fim do Crash Test (alavanca), escolha única por personagem como a Aniquilação.
+  crash_test: { id: "crash_test", name: "Crash Test", where: "Boxe dos Troféus, sob a Pista de Testes", minLevel: 95 },
 };
 
 const chest = (id: string, group: string, extra: Omit<QuestChestDef, "id" | "group">): QuestChestDef => ({ id, group, ...extra });
@@ -115,14 +119,27 @@ export const QUEST_CHESTS: Record<string, QuestChestDef> = Object.fromEntries([
   ...lairChests("lair_profundo", 50000, [["demonic_essence", 5], ["gem_purple", 5]], {
     lair_profundo_amulet: "amulet_orshabaal", lair_profundo_ring: "ring_demodras", lair_profundo_boots: "boots_haste",
   }),
+  // Crash Test (ciclo 20): um anel por vocação, de cima para baixo cavaleiro, paladino, feiticeiro e druida (a ordem da
+  // Aniquilação); o Cromo Puro vai em todos.
+  chest("mt_crash_knight", "crash_test", { items: [...one("mt_anel_para_choque"), ...one("mt_cromo", 2)] }),
+  chest("mt_crash_paladin", "crash_test", { items: [...one("mt_anel_retrovisor"), ...one("mt_cromo", 2)] }),
+  chest("mt_crash_sorcerer", "crash_test", { items: [...one("mt_anel_ignicao"), ...one("mt_cromo", 2)] }),
+  chest("mt_crash_druid", "crash_test", { items: [...one("mt_anel_radiador"), ...one("mt_cromo", 2)] }),
 ].map((c) => [c.id, c]));
 
 function lairChests(group: string, gold: number, mats: [string, number][], choices: Record<string, string>): QuestChestDef[] {
   return Object.entries(choices).map(([id, itemId]) => chest(id, group, { gold, items: [...one(itemId), ...mats.map(([m, n]) => ({ itemId: m, count: n }))] }));
 }
 
+/** A ordem dos objetos "quest_lever" no mapa segue a deste objeto (questWorld.test.ts). */
 export const QUEST_LEVERS: Record<string, QuestLeverDef> = {
   annihilator: { id: "annihilator", name: "A Aniquilação", minLevel: 100, players: 4, minPlayers: 2, monsters: ["demon", "demon", "demon", "demon", "demon", "demon"] },
+  // Montadora (ciclo 20), sob a Pista de Testes: com 2 jogadores saem dublê, montador e dublê (leverMonsters).
+  crash_test: {
+    id: "crash_test", name: "Crash Test", minLevel: 95, players: 4, minPlayers: 2,
+    monsters: ["mt_duble", "mt_robo_montador", "mt_duble", "mt_tengu_cromado", "mt_robo_montador", "mt_piloto_fantasma"],
+    startText: "Crash Test começou! Derrube os bonecos e alcance os troféus.",
+  },
 };
 
 export const questChestDef = (id: string): QuestChestDef | undefined => (Object.hasOwn(QUEST_CHESTS, id) ? QUEST_CHESTS[id] : undefined);

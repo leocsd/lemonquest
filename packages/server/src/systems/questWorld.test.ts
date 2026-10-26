@@ -9,7 +9,8 @@ import {
 import type { PlayerState } from "../state.ts";
 import { InventorySystem, makeItem } from "./inventory.ts";
 import { QuestSystem } from "./quests.ts";
-import { LEVER_ROOM_EMPTY_MS, QuestWorldSystem } from "./questWorld.ts";
+import type { CharacterData } from "../persistence/types.ts";
+import { LEVER_ROOM_EMPTY_MS, QuestWorldSystem, leverDayOf, setLeverDayOf } from "./questWorld.ts";
 import { openGrid, player, seeded, world } from "./testkit.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -276,13 +277,15 @@ describe("alavanca: uma entrada por dia (dia troca às 6h)", () => {
     expect(pull(t, [c!, d])).toBe(true);
   });
 
-  it("guarda o dia no armazenamento dado (CharacterData.leverDay) e o respeita ao recarregar", () => {
-    const saved = new Map<string, string>([["p0", "2026-10-20"]]);
+  it("guarda o dia no save do personagem (CharacterData, como o WorldRoom) e o respeita ao recarregar", () => {
+    // p0 vem de um save antigo (ciclo 19): o `leverDay` de um campo só conta como a Aniquilação.
+    const saves = new Map<string, CharacterData>([["p0", { leverDay: "2026-10-20" }], ["p1", {}]]);
     const t = setup(lever);
     const qw = new QuestWorldSystem({
       objects: lever.objects, levers: lever.levers, quests: t.quests, monsters: t.w.mm, players: () => t.w.players.values(),
       teleport: (p, x, y) => { p.x = x; p.y = y; }, send: (to, type, msg) => t.w.sent.push({ to, type, msg }), now: t.w.now,
-      getLeverDay: (id) => saved.get(id), setLeverDay: (id, day) => { saved.set(id, day); },
+      getLeverDay: (id, leverId) => leverDayOf(saves.get(id), leverId),
+      setLeverDay: (id, day, leverId) => { const d = saves.get(id); if (d) setLeverDayOf(d, leverId, day); },
     });
     t.w.setClock(Date.UTC(2026, 9, 20, 23, 0)); // 20:00 do dia 20
     const ps = [t.mk("p0", LEVER.plates[0]!.x, LEVER.plates[0]!.y, 100), t.mk("p1", LEVER.plates[1]!.x, LEVER.plates[1]!.y, 100)];
@@ -291,7 +294,33 @@ describe("alavanca: uma entrada por dia (dia troca às 6h)", () => {
     t.w.setClock(Date.UTC(2026, 9, 21, 10, 0));
     qw.onUse(ps[0]!, { kind: "lever", id: "annihilator" });
     expect([ps[0]!.x, ps[0]!.y]).toEqual([LEVER.dests[0]!.x, LEVER.dests[0]!.y]);
-    expect(Object.fromEntries(saved)).toEqual({ p0: "2026-10-21", p1: "2026-10-21" });
+    // Grava por alavanca e, para a Aniquilação, também no campo antigo (rollback ao ciclo 19 mantém o limite).
+    for (const id of ["p0", "p1"]) expect(saves.get(id), id).toEqual({ leverDays: { annihilator: "2026-10-21" }, leverDay: "2026-10-21" });
+  });
+});
+
+describe("dia de entrada por alavanca no save (ciclo 20)", () => {
+  it("save antigo com `leverDay` conta como Aniquilação e não como Crash Test", () => {
+    const old: CharacterData = { leverDay: "2026-10-20" };
+    expect(leverDayOf(old, "annihilator")).toBe("2026-10-20");
+    expect(leverDayOf(old, "crash_test")).toBeUndefined();
+    expect(leverDayOf(undefined, "annihilator")).toBeUndefined();
+    expect(leverDayOf({}, "crash_test")).toBeUndefined();
+  });
+
+  it("gravar uma alavanca não mexe na outra; a Aniquilação vai também no campo antigo", () => {
+    const d: CharacterData = { leverDay: "2026-10-20" };
+    setLeverDayOf(d, "crash_test", "2026-10-21");
+    expect(d).toEqual({ leverDay: "2026-10-20", leverDays: { crash_test: "2026-10-21" } });
+    expect(leverDayOf(d, "annihilator")).toBe("2026-10-20");
+    setLeverDayOf(d, "annihilator", "2026-10-22");
+    expect(d).toEqual({ leverDay: "2026-10-22", leverDays: { crash_test: "2026-10-21", annihilator: "2026-10-22" } });
+    expect([leverDayOf(d, "annihilator"), leverDayOf(d, "crash_test")]).toEqual(["2026-10-22", "2026-10-21"]);
+  });
+
+  it("rollback ao ciclo 19 gravou só o campo antigo: vale o dia mais recente dos dois", () => {
+    expect(leverDayOf({ leverDay: "2026-10-25", leverDays: { annihilator: "2026-10-22" } }, "annihilator")).toBe("2026-10-25");
+    expect(leverDayOf({ leverDay: "2026-10-20", leverDays: { annihilator: "2026-10-22" } }, "annihilator")).toBe("2026-10-22");
   });
 });
 
@@ -313,6 +342,77 @@ describe("Aniquilação com grupo menor", () => {
       expect([...t.w.mm.all()].filter((m) => m.def.id === "demon")).toHaveLength(demons);
     });
   }
+});
+
+/** Segunda alavanca na mesma grade de teste (40×40), longe da sala da Aniquilação (20..35 × 20..30). */
+const CRASH: QuestLeverSpot = {
+  id: "crash_test", x: 5, y: 12,
+  plates: [{ x: 4, y: 13 }, { x: 6, y: 13 }, { x: 8, y: 13 }, { x: 10, y: 13 }],
+  dests: [{ x: 2, y: 32 }, { x: 2, y: 34 }, { x: 2, y: 36 }, { x: 2, y: 38 }],
+  room: { x0: 1, y0: 31, x1: 15, y1: 39 },
+  spawns: [{ x: 10, y: 32 }, { x: 12, y: 35 }, { x: 10, y: 38 }, { x: 14, y: 32 }, { x: 14, y: 35 }, { x: 14, y: 38 }],
+};
+
+describe("alavanca do Crash Test (Montadora, ciclo 20)", () => {
+  const both = {
+    objects: [{ kind: "lever" as const, id: "annihilator", x: 5, y: 5 }, { kind: "lever" as const, id: "crash_test", x: 5, y: 12 }],
+    levers: [LEVER, CRASH],
+  };
+  const pull = (t: ReturnType<typeof setup>, spot: QuestLeverSpot, ps: PlayerState[]) => {
+    ps.forEach((p, i) => { p.x = spot.plates[i]!.x; p.y = spot.plates[i]!.y; });
+    t.qw.onUse(ps[0]!, { kind: "lever", id: spot.id });
+    return ps.every((p, i) => p.x === spot.dests[i]!.x && p.y === spot.dests[i]!.y);
+  };
+
+  it("dados: lv 95, 2 a 4 jogadores; o grupo menor solta menos (2 → dublê, montador, dublê; 3 → 5; 4 → 6)", () => {
+    const def = QUEST_LEVERS.crash_test!;
+    expect([def.minLevel, def.minPlayers, def.players]).toEqual([95, 2, 4]);
+    expect(leverMonsters(def, 2)).toEqual(["mt_duble", "mt_robo_montador", "mt_duble"]);
+    expect([3, 4].map((n) => leverMonsters(def, n).length)).toEqual([5, 6]);
+    // Um anel por vocação, de cima para baixo cavaleiro, paladino, feiticeiro, druida (a ordem da Aniquilação).
+    const chests = Object.values(QUEST_CHESTS).filter((c) => c.group === "crash_test");
+    expect(chests.map((c) => c.id)).toEqual(["mt_crash_knight", "mt_crash_paladin", "mt_crash_sorcerer", "mt_crash_druid"]);
+    expect(chests.map((c) => ITEMS[c.items![0]!.itemId]?.vocations)).toEqual([["knight"], ["paladin"], ["sorcerer"], ["druid"]]);
+    for (const c of chests) expect(c.items![1], c.id).toEqual({ itemId: "mt_cromo", count: 2 });
+    expect(QUEST_CHEST_GROUPS.crash_test!.minLevel).toBe(def.minLevel);
+  });
+
+  it("2 jogadores: vão para os destinos das placas e nascem dublê, montador e dublê, presos na sala", () => {
+    const t = setup(both);
+    const ps = [t.mk("p0", 0, 0, 95), t.mk("p1", 0, 0, 95)];
+    expect(pull(t, CRASH, ps)).toBe(true);
+    expect(t.qw.alive("crash_test")).toBe(3);
+    const ms = [...t.w.mm.all()];
+    expect(ms.map((m) => m.def.id)).toEqual(["mt_duble", "mt_robo_montador", "mt_duble"]);
+    for (const m of ms) expect([m.questLever, m.bounds]).toEqual(["crash_test", CRASH.room]);
+    expect(t.qw.alive("annihilator")).toBe(0);
+  });
+
+  it("texto de início por alavanca: o Crash Test fala de bonecos; a Aniquilação continua falando de demônios", () => {
+    const t = setup(both);
+    t.w.setClock(Date.UTC(2026, 9, 20, 12, 0));
+    const ps = [t.mk("p0", 0, 0, 100), t.mk("p1", 0, 0, 100)];
+    expect(pull(t, CRASH, ps)).toBe(true);
+    expect(t.notices("p1").at(-1)).toBe("Crash Test começou! Derrube os bonecos e alcance os troféus.");
+    expect(pull(t, LEVER, ps)).toBe(true);
+    expect(t.notices("p1").at(-1)).toBe("A Aniquilação começou! Derrote os demônios e alcance o tesouro.");
+  });
+
+  it("Aniquilação e Crash Test no mesmo dia: cada alavanca tem o seu dia (uma não gasta a entrada da outra)", () => {
+    const t = setup(both);
+    t.w.setClock(Date.UTC(2026, 9, 20, 12, 0));
+    const ps = [t.mk("p0", 0, 0, 100), t.mk("p1", 0, 0, 100)];
+    expect(pull(t, LEVER, ps)).toBe(true);
+    expect(pull(t, CRASH, ps)).toBe(true);
+    expect(pull(t, CRASH, ps)).toBe(false);
+    expect(t.notices("p0").at(-1)).toBe('A alavanca não se mexe: p0 e p1 já entraram em "Crash Test" hoje. Cada aventureiro entra uma vez por dia; a alavanca volta às 6h.');
+    expect(pull(t, LEVER, ps)).toBe(false);
+    expect(t.notices("p0").at(-1)).toMatch(/já entraram em "A Aniquilação" hoje/);
+    // Dia seguinte, depois das 6h: as duas voltam.
+    t.w.setClock(Date.UTC(2026, 9, 21, 9, 0));
+    expect(pull(t, CRASH, ps)).toBe(true);
+    expect(pull(t, LEVER, ps)).toBe(true);
+  });
 });
 
 describe("quests de mundo: dados e mapa", () => {

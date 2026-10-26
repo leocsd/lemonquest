@@ -298,7 +298,9 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
       // Lugar fechado sem monstro cuja saída é uma porta de level (Estação do Minério → Pátio, lv 10): vale o que está
       // do outro lado da porta. Portal comum não conta (a Oficina continua "sem monstros por perto").
       if (!near.length) {
-        const doors = (edgesFrom.get(c) ?? []).filter((i) => edges[i]!.kind === "portal" && (edges[i]!.portal?.minLevel ?? 0) > 0);
+        // Só porta cujo outro lado fica perto (o portão da Estação); o atalho da Oficina para a Montadora leva longe.
+        const doors = (edgesFrom.get(c) ?? []).filter((i) => edges[i]!.kind === "portal" && (edges[i]!.portal?.minLevel ?? 0) > 0
+          && cheb(edges[i]!.toX, edges[i]!.toY, x, y) <= radius);
         near = inComps(new Set(doors.map((i) => edges[i]!.to)));
       }
       let min = Infinity, max = -Infinity;

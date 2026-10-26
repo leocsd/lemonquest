@@ -113,6 +113,62 @@ describe("NPCS", () => {
     expect(pzAt(24, 594)).toEqual(["Estação do Minério"]);
   });
 
+  it("Montadora (ciclo 20): cegonha da Vila, Cocheiro Dito e Caminhão de Bobinas chegam à Portaria; ninguém leva para depois das portas", () => {
+    const to = (npc: string, id: string) => NPCS[npc]!.travel!.find((d) => d.id === id);
+    const portaria = { id: "montadora", label: "Portaria da Montadora", x: 232, y: 758 };
+    expect(to("mt_cegonha_vila", "montadora")).toEqual({ ...portaria, price: 250 });
+    expect(to("coach_oficina", "montadora")).toEqual({ ...portaria, price: 200 });
+    expect(to("mt_bobinas_sid", "montadora")).toEqual({ ...portaria, price: 200 });
+    expect(to("mt_supervisora", "montadora")?.price).toBe(100);
+    // A volta: o Caminhão de Bobinas até a chegada do trem na Estação do Minério; a cegonha e a Supervisora até a Vila.
+    expect(to("mt_bobinas", "minerio")).toEqual({ id: "minerio", label: "Estação do Minério", x: 24, y: 594, price: 200 });
+    expect(to("mt_motorista", "village")).toMatchObject({ x: 97, y: 98, price: 250 });
+    expect(to("mt_motorista", "oficina")).toMatchObject({ x: 83, y: 330, price: 150 });
+    expect(to("mt_supervisora", "village")).toMatchObject({ x: 97, y: 98, price: 250 });
+    // O Dito continua com as viagens de antes, na mesma ordem.
+    expect(NPCS.coach_oficina!.travel!.map((d) => d.id)).toEqual(["village", "port", "montadora"]);
+    // No bloco da Montadora (x 216–395, y 746–885) só se chega pela Portaria (x 219–246, y 749–778): o resto fica atrás
+    // das portas de level 25–110, e a Sala de Descanso da Supervisora é só saída.
+    const dests = Object.values(NPCS).flatMap((n) => (n.travel ?? []).map((d) => ({ npc: n.id, ...d })));
+    const inBlock = dests.filter((d) => d.x >= 216 && d.x <= 395 && d.y >= 746 && d.y <= 885);
+    expect(inBlock.length).toBeGreaterThanOrEqual(4);
+    for (const d of inBlock) expect(d.x >= 219 && d.x <= 246 && d.y >= 749 && d.y <= 778, `${d.npc} → ${d.id} (${d.x},${d.y})`).toBe(true);
+  });
+
+  it("Montadora: 14 NPCs e 6 placas, com os papéis da Portaria e do posto avançado; sprites que a Siderúrgica não usa", () => {
+    const ids = [
+      "mt_cegonha_vila", "mt_motorista", "mt_bobinas", "mt_bobinas_sid", "mt_porteiro", "mt_cantineira", "mt_depot", "mt_enfermeira",
+      "mt_lavador", "mt_prensista", "mt_soldadora", "mt_pintor", "mt_supervisora", "mt_piloto",
+      "mt_placa_patio", "mt_placa_estamparia", "mt_placa_funilaria", "mt_placa_pintura", "mt_placa_montagem", "mt_placa_pista",
+    ];
+    expect(Object.keys(NPCS).filter((k) => k.startsWith("mt_")).sort()).toEqual([...ids].sort());
+    expect([NPCS.mt_depot!.depot, NPCS.mt_supervisora!.depot, NPCS.mt_enfermeira!.blessing]).toEqual([true, true, true]);
+    const shop = NPCS.mt_cantineira!.shop!;
+    expect(shop.sells.map((e) => e.itemId)).toEqual(expect.arrayContaining(["limonada_turno", "prato_feito", "health_potion_large", "mana_potion_large"]));
+    expect(shop.buys).toEqual(NPCS.ferramenteiro!.shop!.buys);
+    // Placas: sprite dos quadros, sem loja, viagem nem depósito.
+    for (const id of ids.filter((x) => x.startsWith("mt_placa_"))) {
+      const n = NPCS[id]!;
+      expect(n.sprite, id).toContain("Inspector/");
+      expect([n.shop, n.travel, n.depot], id).toEqual([undefined, undefined, undefined]);
+    }
+    // Nenhum NPC da Montadora usa sprite de NPC da Siderúrgica, e os sete sprites novos são só daqui.
+    const sid = ["chefe_estacao_minerio", "almoxarife", "depot_minerio", "capela_epi", "mestre_turno", "operadora_correia",
+      "encarregada_coqueria", "forneiro_chefe", "mestre_aciaria", "operador_laminador", "supervisora_controle", "espirito_fundidor"];
+    const sidSprites = new Set(sid.map((id) => NPCS[id]!.sprite));
+    for (const id of ids.filter((x) => !x.startsWith("mt_placa_"))) expect(sidSprites.has(NPCS[id]!.sprite), id).toBe(false);
+    const fresh = ["NinjaLeaf", "LionOrange", "CaveLion", "Lion", "LionBoy", "Pig", "GreenPig"].map((s) => `${s}/SpriteSheet.png`);
+    for (const n of Object.values(NPCS)) if (!n.id.startsWith("mt_")) expect(fresh.some((f) => n.sprite.endsWith("/" + f)), n.id).toBe(false);
+  });
+
+  it("Montadora: a chegada (232,758) cai na zona protegida \"Portaria da Montadora\"", () => {
+    const layer = world.layers.find((l: any) => l.name === "objects");
+    const pzAt = (x: number, y: number) => layer.objects.filter((o: any) => (o.type ?? o.class) === "zone"
+      && x * 16 >= o.x && x * 16 < o.x + o.width && y * 16 >= o.y && y * 16 < o.y + o.height
+      && (o.properties ?? []).some((p: any) => p.name === "pz" && p.value === true)).map((o: any) => o.name);
+    expect(pzAt(232, 758)).toEqual(["Portaria da Montadora"]);
+  });
+
   it("loja principal cobre todas as vocações com arma de level 1 e ~8", () => {
     const items = NPCS.shop!.shop!.sells.map((e) => ITEMS[e.itemId]!);
     for (const voc of ["knight", "paladin", "sorcerer", "druid"] as const) {

@@ -1783,6 +1783,263 @@ export const MONSTERS: Record<string, MonsterDef> = {
     // Walk.png 744x62 = 12 frames de 62x62: a "chaminé viva" laranja do pack, sem recolorir.
     sprite: strip(B + "GiantBamboo2/Walk.png", 62, 12, { scale: 2 }),
   },
+  // ===== Montadora (ciclo 20, tools/mapgen/expansion7.mjs): as máquinas da linha criaram vontade própria e tudo sai
+  // amarelo-limão. Números de docs/regioes/montadora.md §3 (xp/vida a ±3% dos vizinhos de level, ouro por faixa e regra
+  // dos chefes vizinhos conferidos com a Siderúrgica somada); dano no fonte ANTES de MONSTER_DAMAGE_TIERS (final no
+  // comentário). A Gosma Azul do Lava-Rápido é o `runaway_drum` da Oficina, sem mudança.
+  // Pátio de Carros (lv 10–25)
+  mt_calota: {
+    id: "mt_calota", name: "Calota Rolante", level: 12, hp: 130, xp: 58, damage: [9, 20], damageKind: "physical", armor: 5,
+    attackMs: 1900, attackRange: 1, stepMs: 240, aggroRange: 4, fleeAtHpPct: 0, respawnMs: 45_000,
+    gold: [14, 32],
+    loot: [
+      { itemId: "mt_parafuso", chance: 0.55, min: 1, max: 3 },
+      { itemId: "health_potion", chance: 0.06 },
+      { itemId: "mana_potion", chance: 0.05 },
+      { itemId: "bronze_boots", chance: 0.015 },
+      { itemId: "mt_bone_visitante", chance: 0.01 },
+    ],
+    sprite: grid4(M + "Larva2/Larva2.png", { tint: 0xe2e8ee }),
+  },
+  mt_serpente_fiacao: {
+    id: "mt_serpente_fiacao", name: "Serpente de Fiação", level: 16, hp: 170, xp: 96, damage: [12, 26], damageKind: "energy", armor: 3,
+    abilities: [
+      ability.bolt({ name: "Curto-Circuito", range: 3, min: 14, max: 30, kind: "energy", fx: "energy", cooldownMs: 9000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 320, aggroRange: 4, fleeAtHpPct: 0, respawnMs: 50_000,
+    gold: [20, 44],
+    loot: [
+      { itemId: "mt_fio_cobre", chance: 0.5, min: 1, max: 2 },
+      { itemId: "mt_parafuso", chance: 0.3 },
+      { itemId: "health_potion", chance: 0.08 },
+      { itemId: "mana_potion", chance: 0.06 },
+      { itemId: "mt_calca_impermeavel", chance: 0.008 },
+    ],
+    sprite: grid4(M + "Snake/Snake.png"),
+  },
+  // Estamparia (lv 25–40)
+  mt_polvo_graxa: {
+    id: "mt_polvo_graxa", name: "Polvo de Graxa", level: 30, hp: 390, xp: 350, damage: [24, 48], damageKind: "earth", armor: 7, // final [34, 67]
+    abilities: [
+      ability.bolt({ name: "Jato de Graxa", range: 4, min: 28, max: 56, kind: "earth", fx: "earth", cooldownMs: 9000, condition: { id: "slow", durationMs: 3000, value: 30 } }), // final 39–78
+    ],
+    attackMs: 2000, attackRange: 3, stepMs: 400, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [80, 160],
+    loot: [
+      { itemId: "mt_graxa", chance: 0.5, min: 1, max: 2 },
+      { itemId: "mt_parafuso", chance: 0.4, min: 2, max: 4 },
+      { itemId: "health_potion_medium", chance: 0.08 },
+      { itemId: "mana_potion_medium", chance: 0.08 },
+    ],
+    sprite: grid4(M + "Octopus2/SpriteSheet.png", { tint: 0x5a5a68 }),
+  },
+  mt_estampador: {
+    id: "mt_estampador", name: "Estampador Vermelho", level: 36, hp: 540, xp: 590, damage: [31, 63], damageKind: "physical", armor: 13, // final [43, 88]
+    abilities: [
+      ability.stomp({ name: "Prensada", radius: 1, min: 50, max: 105, cooldownMs: 10_000 }), // final 70–147
+    ],
+    attackMs: 2200, attackRange: 1, stepMs: 420, aggroRange: 4, fleeAtHpPct: 0, respawnMs: 70_000,
+    gold: [110, 230],
+    loot: [
+      { itemId: "mt_chapa_amassada", chance: 0.45, min: 1, max: 2 },
+      { itemId: "iron_bar", chance: 0.04 },
+      { itemId: "health_potion_medium", chance: 0.1 },
+      { itemId: "mt_escudo_porta", chance: 0.008 },
+    ],
+    sprite: grid4(M + "KappaRed/SpriteSheet.png", { scale: 1.15 }),
+  },
+  // Funilaria e Armação (lv 40–60)
+  mt_lagartixa_faisca: {
+    id: "mt_lagartixa_faisca", name: "Lagartixa de Faísca", level: 42, hp: 620, xp: 800, damage: [38, 76], damageKind: "energy", armor: 9, // final [57, 114]
+    attackMs: 1700, attackRange: 1, stepMs: 260, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 70_000,
+    pack: { family: "faisca", shout: "Faíscas, curto-circuito!" },
+    gold: [100, 200],
+    loot: [
+      { itemId: "mt_faisca", chance: 0.4 },
+      { itemId: "health_potion_medium", chance: 0.1 },
+      { itemId: "mana_potion_medium", chance: 0.1 },
+    ],
+    // Reptile.png recolorido em amarelo-faísca (tools/monsters/recolor.mjs).
+    sprite: grid4("monsters/MtSparkLizard.png"),
+  },
+  mt_robo_soldador: {
+    id: "mt_robo_soldador", name: "Robô Soldador", level: 52, hp: 1050, xp: 1540, damage: [52, 100], damageKind: "fire", armor: 18, // final [78, 150]
+    abilities: [
+      ability.breath({ name: "Arco de Solda", length: 3, width: 1, min: 75, max: 145, kind: "fire", fx: "fire", cooldownMs: 9000 }), // final 113–218
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 80_000,
+    gold: [150, 285],
+    loot: [
+      { itemId: "mt_eletrodo", chance: 0.4 },
+      { itemId: "iron_bar", chance: 0.06 },
+      { itemId: "health_potion_large", chance: 0.06 },
+      { itemId: "mt_mascara_solda", chance: 0.006 },
+    ],
+    sprite: grid4(C + "RobotCamouflage/SpriteSheet.png", { scale: 1.1 }),
+  },
+  // Cabines de Pintura (lv 60–80)
+  mt_mariposa_tinta: {
+    id: "mt_mariposa_tinta", name: "Mariposa de Tinta", level: 64, hp: 1350, xp: 2230, damage: [62, 120], damageKind: "earth", armor: 10, // final [93, 180]
+    abilities: [
+      ability.bolt({ name: "Pó de Tinta", range: 4, min: 75, max: 145, kind: "earth", fx: "earth", cooldownMs: 9000, condition: { id: "poison", durationMs: 6000, value: 12 } }), // final 113–218
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 90_000,
+    gold: [180, 340],
+    loot: [
+      { itemId: "mt_tinta", chance: 0.35 },
+      { itemId: "mana_potion_large", chance: 0.06 },
+      { itemId: "gem_yellow", chance: 0.02 },
+    ],
+    sprite: grid4(M + "Butterfly/SpriteSheet.png", { scale: 1.1 }),
+  },
+  mt_robo_pintor: {
+    id: "mt_robo_pintor", name: "Robô Pintor", level: 70, hp: 1900, xp: 3330, damage: [70, 135], damageKind: "energy", armor: 20, // final [112, 216]
+    abilities: [
+      ability.healAllies({ name: "Retoque", pct: 0.12, radius: 4, belowHpPct: 0.7, cooldownMs: 10_000 }),
+      ability.bolt({ name: "Jato de Tinta", range: 4, min: 80, max: 160, kind: "energy", fx: "energy", cooldownMs: 8000 }), // final 128–256
+    ],
+    attackMs: 2100, attackRange: 4, stepMs: 380, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 100_000,
+    gold: [210, 400],
+    loot: [
+      { itemId: "mt_tinta", chance: 0.45, min: 1, max: 2 },
+      { itemId: "mana_potion_large", chance: 0.08 },
+      { itemId: "health_potion_large", chance: 0.06 },
+      { itemId: "mt_avental_pintor", chance: 0.005 },
+    ],
+    // RobotGreen.png (NPC da Oficina) recolorido em amarelo-limão com visor azul.
+    sprite: grid4("monsters/MtRobotPainter.png", { scale: 1.1 }),
+  },
+  // Montagem Final (lv 80–100)
+  mt_robo_montador: {
+    id: "mt_robo_montador", name: "Robô Montador", level: 84, hp: 3100, xp: 5900, damage: [100, 190], damageKind: "physical", armor: 30, // final [160, 304]
+    abilities: [
+      ability.stomp({ name: "Aperto de Parafusadeira", radius: 1, min: 140, max: 275, cooldownMs: 10_000 }), // final 224–440
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 120_000,
+    gold: [300, 590],
+    loot: [
+      { itemId: "mt_motor", chance: 0.3 },
+      { itemId: "mithril_bar", chance: 0.03 },
+      { itemId: "health_potion_large", chance: 0.1 },
+      { itemId: "mt_macacao", chance: 0.004 },
+    ],
+    // RobotGrey.png (NPC da Oficina) recolorido em laranja de máquina.
+    sprite: grid4("monsters/MtRobotAssembler.png", { scale: 1.25 }),
+  },
+  mt_duble: {
+    id: "mt_duble", name: "Dublê de Crash Test", level: 92, hp: 4300, xp: 8800, damage: [120, 230], damageKind: "physical", armor: 34, // final [192, 368]
+    abilities: [
+      ability.stomp({ name: "Impacto Frontal", radius: 1, min: 160, max: 320, cooldownMs: 9000 }), // final 256–512
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 125_000,
+    gold: [360, 720],
+    loot: [
+      { itemId: "mt_airbag", chance: 0.3 },
+      { itemId: "health_potion_large", chance: 0.12 },
+      { itemId: "gem_purple", chance: 0.03 },
+    ],
+    sprite: grid4(C + "NinjaMasked/SpriteSheet.png", { tint: 0xfff070, scale: 1.15 }),
+  },
+  // Pista de Testes (lv 90–110)
+  mt_tengu_cromado: {
+    id: "mt_tengu_cromado", name: "Tengu Cromado", level: 104, hp: 5600, xp: 12100, damage: [140, 270], damageKind: "energy", armor: 32, // final [238, 459]
+    abilities: [
+      ability.blast({ name: "Vento Cromado", radius: 2, range: 5, min: 175, max: 350, kind: "energy", fx: "energy", cooldownMs: 10_000 }), // final 298–595
+      ability.bolt({ name: "Raio Cromado", range: 5, min: 150, max: 265, kind: "energy", fx: "energy", cooldownMs: 8000 }), // final 255–451
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 300, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 150_000,
+    gold: [450, 900],
+    loot: [
+      { itemId: "mt_cromo", chance: 0.25 },
+      { itemId: "mithril_bar", chance: 0.05 },
+      { itemId: "mana_potion_large", chance: 0.12 },
+      { itemId: "health_potion_large", chance: 0.1 },
+      { itemId: "mt_amuleto_cromado", chance: 0.003 },
+    ],
+    // Walk.png 820x82 = 10 frames de 82 (o mesmo layout do Tengu Rubro), em cromo.
+    sprite: strip(B + "TenguBlue/Walk.png", 82, 10, { tint: 0xe4ecf4, scale: 0.38 }),
+  },
+  mt_piloto_fantasma: {
+    id: "mt_piloto_fantasma", name: "Piloto Fantasma", level: 108, hp: 6000, xp: 13100, damage: [145, 280], damageKind: "death", armor: 28, undead: true, // final [247, 476]
+    abilities: [
+      ability.breath({ name: "Rastro Fantasma", length: 4, width: 1, min: 180, max: 360, kind: "death", fx: "death", cooldownMs: 9000 }), // final 306–612
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 240, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 160_000,
+    gold: [470, 940],
+    loot: [
+      { itemId: "mt_cromo", chance: 0.3 },
+      { itemId: "ectoplasm", chance: 0.4, min: 2, max: 4 },
+      { itemId: "health_potion_large", chance: 0.12 },
+      { itemId: "mt_amuleto_cromado", chance: 0.003 },
+    ],
+    sprite: grid4(C + "Tengu2/SpriteSheet.png", { tint: 0xc8d8ff, scale: 1.1 }),
+  },
+  // Chefe do Lava-Rápido (grupo de 2–3): só aceita lavagem completa.
+  mt_sapao: {
+    id: "mt_sapao", name: "Sapão do Lava-Rápido", level: 26, hp: 4200, xp: 3200, damage: [32, 70], damageKind: "ice", armor: 9, // final [45, 98]
+    abilities: [
+      ability.blast({ name: "Jato de Espuma", radius: 2, range: 4, min: 50, max: 100, kind: "ice", fx: "ice", cooldownMs: 10_000 }), // final 70–140
+      ability.summon({ name: "Bolhas, ao ataque!", monsterId: "runaway_drum", count: 2, max: 4, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 420, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [1100, 2000],
+    loot: [
+      { itemId: "mt_coroa_espuma", chance: 1 },
+      { itemId: "health_potion_medium", chance: 1, min: 2, max: 4 },
+      { itemId: "gem_green", chance: 0.2 },
+      { itemId: "mt_bone_visitante", chance: 0.2 },
+      { itemId: "mt_calca_impermeavel", chance: 0.15 },
+      { itemId: "ring_pressa", chance: 0.08 },
+    ],
+    // Idle40x40.png 200x40 = 5 frames de 40 (sapo gigante do pack em azul-espuma).
+    sprite: strip(B + "GiantFrog/Idle40x40.png", 40, 5, { tint: 0xbfe6ff, scale: 1.2 }),
+  },
+  // Chefe da Estufa (grupo de 4+): a estufa de secagem acordou com fome de tinta fresca.
+  mt_monstro_estufa: {
+    id: "mt_monstro_estufa", name: "Monstro da Estufa", level: 74, hp: 21000, xp: 23000, damage: [140, 260], damageKind: "fire", armor: 28, // final [224, 416]
+    abilities: [
+      ability.blast({ name: "Bafo da Estufa", radius: 2, range: 5, min: 160, max: 320, kind: "fire", fx: "fire", cooldownMs: 9000 }), // final 256–512
+      ability.summon({ name: "Tinta fresca!", monsterId: "mt_mariposa_tinta", count: 2, max: 4, cooldownMs: 30_000 }),
+    ],
+    attackMs: 2200, attackRange: 3, stepMs: 380, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 10_800_000, boss: true,
+    // 4500–8000: com 7500 de teto o Golem do Convertedor (76), vizinho de cima, saía da regra dos chefes (ouro/vida).
+    gold: [4500, 8000],
+    loot: [
+      { itemId: "mt_brasa_estufa", chance: 1 },
+      { itemId: "mt_tinta", chance: 1, min: 3, max: 6 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 6 },
+      { itemId: "mana_potion_large", chance: 1, min: 3, max: 6 },
+      { itemId: "gem_purple", chance: 0.25 },
+      { itemId: "mt_avental_pintor", chance: 0.12 },
+      { itemId: "ring_dragon", chance: 0.1 },
+    ],
+    // GiantSlime2/Idle.png 310x52 = 5 frames de 62x52, recolorido em tinta quente (tools/monsters/recolor.mjs).
+    sprite: strip("monsters/MtPaintBlob.png", 52, 5, { frameWidth: 62, scale: 1.6 }),
+  },
+  // Chefe final (grupo de 5+, evento "Teste de Pista" quarta 13h): o primeiro carro que a linha fez sozinha. Tier 8 a 6%
+  // (elmos e grimório; a Fornalha da Siderúrgica dá as armaduras e o escudo).
+  mt_prototipo: {
+    id: "mt_prototipo", name: "O Protótipo", level: 120, hp: 70000, xp: 92000, damage: [230, 410], damageKind: "energy", armor: 46, // final [391, 697]
+    abilities: [
+      ability.stomp({ name: "Arrancada", radius: 2, min: 300, max: 580, kind: "energy", fx: "energy", cooldownMs: 10_000 }), // final 510–986
+      ability.breath({ name: "Faróis Altos", length: 5, width: 3, min: 260, max: 520, kind: "energy", fx: "energy", cooldownMs: 12_000 }), // final 442–884
+      ability.summon({ name: "Linha de montagem!", monsterId: "mt_robo_montador", count: 2, max: 4, cooldownMs: 30_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 320, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 14_400_000, boss: true,
+    gold: [17000, 27000],
+    loot: [
+      { itemId: "mt_chave_prototipo", chance: 1 },
+      { itemId: "abyss_shard", chance: 1, min: 1, max: 3 },
+      { itemId: "mt_cromo", chance: 1, min: 3, max: 6 },
+      { itemId: "mt_amuleto_cromado", chance: 0.1 },
+      { itemId: "abyss_helmet", chance: 0.06 },
+      { itemId: "abyss_archer_helmet", chance: 0.06 },
+      { itemId: "abyss_mage_helmet", chance: 0.06 },
+      { itemId: "spellbook_abyss", chance: 0.06 },
+    ],
+    // Walk.png 576x48 = 6 frames de 96x48 (Samurai Rubro gigante recolorido em limão e cromo: tools/monsters/recolor.mjs).
+    sprite: strip("monsters/MtPrototype.png", 48, 6, { frameWidth: 96, scale: 1.6 }),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -2059,5 +2316,21 @@ export function monsterAbilitySpell(spellId: string): SpellDef | undefined {
  * contramestre_f.*   36  6500  6500    92          grupo de 3-4, respawn 2 h (chama guaxinins)
  * golem_convert.*    76 21000 24000   200 (fogo)   grupo de 4+, respawn 3 h (evento segunda 17h; chama Golem de Escória)
  * fornalha_prim.*   118 55000 72000   307.5 (dist 4, fogo) chefe final, grupo de 5+, respawn 4 h
+ * --- Montadora (ciclo 20: região nova abaixo da Siderúrgica, lv 10–120, setores com porta de level)
+ * mt_calota          12   130    58    14.5
+ * mt_serpente_fiac.  16   170    96    19          (energia; curto-circuito à distância)
+ * mt_polvo_graxa     30   390   350    36 (dist 3, terra; jato de lentidão)
+ * mt_estampador      36   540   590    47          (prensada em volta)
+ * mt_lagartixa_f.    42   620   800    57 (energia, bando "faisca")
+ * mt_robo_soldador   52  1050  1540    76 (fogo; arco de solda)
+ * mt_mariposa_tinta  64  1350  2230    91 (dist 4, terra; veneno)
+ * mt_robo_pintor     70  1900  3330   102.5 (dist 4, energia; cura os aliados)
+ * mt_robo_montador   84  3100  5900   145
+ * mt_duble           92  4300  8800   175
+ * mt_tengu_cromado  104  5600 12100   205 (dist 4, energia)
+ * mt_piloto_fant.   108  6000 13100   212.5 (morte, morto-vivo, rápido)
+ * mt_sapao*          26  4200  3200    51 (gelo)   grupo de 2-3, respawn 2 h (chama Gosmas Azuis)
+ * mt_monstro_est.*   74 21000 23000   200 (dist 3, fogo) grupo de 4+, respawn 3 h (chama Mariposas de Tinta)
+ * mt_prototipo*     120 70000 92000   320 (energia) chefe final, grupo de 5+, respawn 4 h (evento quarta 13h)
  * (*boss). Magos causam ~30% menos por acerto: 4+1.1*lvl.
  */

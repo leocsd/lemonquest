@@ -12,6 +12,7 @@ import { expand3 } from './expansion3.mjs';
 import { expand4 } from './expansion4.mjs';
 import { expand5 } from './expansion5.mjs';
 import { expand6 } from './expansion6.mjs';
+import { expand7 } from './expansion7.mjs';
 import { drawEntrances14 } from './entrances14.mjs';
 import { PNG } from 'pngjs';
 
@@ -1077,14 +1078,20 @@ const lateObjects18 = {
 // aloca L.industry()/L.steel() (os tiles Lemon antigos mantêm o id).
 const { map: world6 } = expand6({ old: world5, ts, S, L: LEMON, spawnTile: SPAWN });
 
+// ===================================================================== MONTADORA (ciclo 20: tools/mapgen/expansion7.mjs)
+// Sétima expansão para baixo: o mapa acima (400×722) fica intacto e a região entra nas linhas 746..885 (x 216..395),
+// ligada à Vila (cegonha), à Oficina (Cocheiro Dito e o atalho oculto do Pátio de Encomendas) e à Estação do Minério
+// (Caminhão de Bobinas). Roda por último: é a única etapa que aloca L.factory() (os tiles Lemon antigos mantêm o id).
+const { map: world7 } = expand7({ old: world6, ts, S, L: LEMON, spawnTile: SPAWN });
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
-fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world6.toTiled()));
+fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world7.toTiled()));
 { const cp = LEMON.set.croppedPng(); const out = new PNG({ width: cp.width, height: cp.height }); out.data = Buffer.from(cp.data); const dir = path.join(MAPS_DIR, '../tiles'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'lemon-terrain.png'), PNG.sync.write(out)); }
 // Os previews ficam só no disco (assets/maps/preview*.png está no .gitignore): são regenerados aqui a cada rodada.
-const a = renderPreview(world6, path.join(MAPS_DIR, 'preview.png'));
-const b = renderPreview(world6, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
+const a = renderPreview(world7, path.join(MAPS_DIR, 'preview.png'));
+const b = renderPreview(world7, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
 if (process.argv.includes('--debug')) {
-  renderPreview(world6, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
+  renderPreview(world7, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
 }
-console.log(`world.json ${world6.w}x${world6.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world6.objects.length}`);
+console.log(`world.json ${world7.w}x${world7.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world7.objects.length}`);

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { render } from "preact";
 import { WorldScene } from "./scenes/WorldScene.ts";
+import { VOID_COLOR } from "./game/worldMap.ts";
 import { App } from "./ui/App.tsx";
 import { GAME_NAME } from "@lemonquest/shared";
 import { loading } from "./ui/loading.ts";
@@ -15,7 +16,7 @@ new Phaser.Game({
   type: Phaser.AUTO,
   parent: "game",
   pixelArt: true,
-  backgroundColor: "#1b1f2a",
+  backgroundColor: VOID_COLOR, // a cor do vazio do mapa: as células de vazio não viram Tile no Phaser (worldMap.ts)
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   scene: [WorldScene],
 });

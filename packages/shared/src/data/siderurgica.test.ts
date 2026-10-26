@@ -100,10 +100,12 @@ const faixaOf = (zone: string) => String(ZONES.find(([n, , , , , pz]) => n === z
 
 describe("Siderúrgica: geometria", () => {
   it("o mapa cresce para 400×722 e a região fica no bloco, com 30 linhas de vazio acima", () => {
-    expect([map.width, map.height]).toEqual([400, 722]);
+    // a Montadora (ciclo 20, montadora.test.ts) cresce o mapa de novo, para baixo da linha 722
+    expect(map.width).toBe(400);
+    expect(map.height).toBeGreaterThanOrEqual(722);
     for (let y = 553; y <= 582; y++) for (let x = 0; x < map.width; x++) expect(grid.isWalkable(x, y), `${x},${y}`).toBe(false);
     let walk = 0;
-    for (let y = 560; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+    for (let y = 560; y < 722; y++) for (let x = 0; x < map.width; x++) {
       if (!grid.isWalkable(x, y)) continue;
       walk++;
       expect(x >= 7 && x <= 180 && y >= 583 && y <= 716, `andável fora do bloco em ${x},${y}`).toBe(true);
@@ -175,7 +177,7 @@ describe("Siderúrgica: portas e acesso", () => {
 });
 
 describe("Siderúrgica: spawns e NPCs", () => {
-  const here = spawns.filter((s) => s.y >= 580);
+  const here = spawns.filter((s) => s.y >= 580 && s.y < 722);
 
   it("36 spawns, cada um na zona da faixa certa, com o level do monstro; um spawn de cada chefe", () => {
     expect(here).toHaveLength(36);
@@ -198,6 +200,7 @@ describe("Siderúrgica: spawns e NPCs", () => {
       expect(index.npcAt(id), id).toMatchObject({ x, y });
       expect(NPCS[id], id).toBeDefined();
     }
-    expect(findObjects(map, "npc").filter((o) => o.y / 16 >= 580)).toHaveLength(NPC_TILES.length);
+    // + o Caminhão de Bobinas da Montadora (ciclo 20) no tile reservado da Estação, (30,605)
+    expect(findObjects(map, "npc").filter((o) => o.y / 16 >= 580 && o.y / 16 < 722 && prop(o, "npcId") !== "mt_bobinas_sid")).toHaveLength(NPC_TILES.length);
   });
 });

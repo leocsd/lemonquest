@@ -11,7 +11,25 @@ Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
 Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 16 fim de jogo (tier 8, encantamento com tiers,
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
-Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 20 (2026-10-26) — região Montadora
+
+Especificação: [regioes/montadora.md](regioes/montadora.md). Último ciclo do plano 14–20.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 20-1 | Mapa 400×888, setores com portas de level e saídas sem level, subsolo e Sala dos Protótipos | ✅ | `diff-world` 0 tiles, 1120/1120; validações do `expansion7.mjs`; `montadora.test.ts` |
+| 20-2 | Arte `L.factory()` (+622 tiles) | ✅ | `diff-atlas.mjs` 984/984 |
+| 20-3 | 12 monstros + 3 chefes, materiais, 7 peças, 4 anéis (Coliseu inalterado) | ✅ | `monsters`, `items`, `arena`/`vocationBalance` |
+| 20-4 | Aço Líquido/Cromo no refino +4/+5 (tiers 7–8) e Rubi/Aço Líquido/Cromo no encantamento III | ✅ | `refine`, `imbuement` (shared e servidor), `m4`, `refineLogic` |
+| 20-5 | 14 missões, 14 NPCs + 6 placas, viagens (cegonha, Dito, Bobinas, atalho), Teste de Pista quarta 13h, conquistas | ✅ | `quests`, `npcs`, `events`, `achievements`, `worldIndex`, `guide` |
+| 20-6 | Alavanca Crash Test, dia por alavanca, texto por alavanca | ✅ | `questWorld.test.ts` (shared e servidor) |
+| 20-7 | Faixa 114 do Quadro | ✅ | `bounties.test.ts` (faixas antigas congeladas) |
+| 20-8 | Heap do cliente com o mapa 400×888 | ✅ | `tools/mapmem.mjs`: 84 MB (era 120 MB antes de tirar o vazio do Phaser; 88 MB no mapa de 560 sem a mitigação) |
+| 20-10 | Revisão: Galeria com Colosso (tier 8 comum +25%, não +83%), "Lava-Rápido", Rubi fora do refino 5–6, textos, mapa M fracionário | ✅ | `montadora.test.ts`, `refine`, `worldIndex` |
+| 20-11 | % explorado das conquistas varre ~355 mil células por jogador a cada 5 s (cresceu com o mapa): guardar índices alcançáveis | ⏳ | otimização opcional |
+| 20-9 | Parar de gravar o `leverDay` antigo e o `imbuement` antigo (mantidos para rollback) | ⏳ | ciclo seguinte |
 
 ## Ciclo 19 (2026-10-26) — região Siderúrgica
 

@@ -41,6 +41,23 @@ describe("aba Refinar: próxima tentativa", () => {
     expect(v.next).toMatchObject({ level: 1, gold: 3000, successPct: 100, changes: [{ stat: "armor", before: 5, after: 6 }] });
   });
 
+  it("ciclo 20: do +4 em diante (tiers 7–8) mostra o material extra com o que o jogador tem; falta dele desliga o botão", () => {
+    const have = (id: string) => (id === "gem_purple" ? 3 : 0);
+    const v = refineView(cand(mk("demon_axe", 3)), 100_000, have, itemDef);
+    expect(v.next).toMatchObject({
+      level: 4, gold: 48000, materialId: "gem_purple", have: 3,
+      extra: { materialId: "frasco_aco_liquido", materialName: "Frasco de Aço Líquido", count: 1, have: 0 },
+    });
+    expect(v.why).toBe("Falta 1x Frasco de Aço Líquido");
+    const ok = refineView(cand(mk("demon_axe", 3)), 100_000, () => 1, itemDef);
+    expect([ok.why, ok.next!.extra!.have]).toEqual([undefined, 1]);
+    // +3 e abaixo, e os tiers 5–6 em qualquer nível: sem extra.
+    expect(refineView(cand(mk("demon_axe", 2)), 100_000, () => 1, itemDef).next!.extra).toBeUndefined();
+    const t5 = refineView(cand(mk("mithril_katana", 4)), 100_000, (id) => (id === "gem_green" ? 1 : 0), itemDef);
+    expect([t5.next!.extra, t5.why]).toEqual([undefined, undefined]);
+    expect(refineView(cand(mk("stonecutter_axe", 4)), 1_000_000, () => 0, itemDef).next!.extra).toMatchObject({ materialName: "Cromo Puro" });
+  });
+
   it("motivo do botão desligado: falta gema, falta ouro, refino máximo", () => {
     expect(refineView(cand(mk("demon_axe", 1)), 1_000_000, () => 0, itemDef).why).toBe("Falta 1x Ametista");
     expect(refineView(cand(mk("demon_axe", 1)), 23_999, () => 1, itemDef).why).toBe("Ouro insuficiente");

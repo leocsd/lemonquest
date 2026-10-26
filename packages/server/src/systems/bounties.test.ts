@@ -21,6 +21,24 @@ describe("BOUNTY_BANDS", () => {
     }
   });
 
+  it("faixas antigas congeladas: as 11 de antes do ciclo 20 não mudam (o sorteio de quem gravou antes depende do índice)", () => {
+    expect(BOUNTY_BANDS.slice(0, 11)).toEqual([
+      { minLevel: 1, monsters: ["rat", "slime", "bee", "datacenter_rat"] },
+      { minLevel: 10, monsters: ["wolf", "snake", "spider", "bat", "mine_larva"] },
+      { minLevel: 18, monsters: ["spider", "bat", "skeleton", "goblin", "mine_mole"] },
+      { minLevel: 26, monsters: ["skeleton", "goblin", "ghost", "lizardman"] },
+      { minLevel: 34, monsters: ["ghost", "lizardman", "flame_spirit", "goblin"] },
+      { minLevel: 42, monsters: ["orc_warrior", "orc_shaman", "crocodile", "pirate_buccaneer", "carniphila", "kappa"] },
+      { minLevel: 52, monsters: ["minotaur", "minotaur_mage", "cyclops", "winter_wolf", "barbarian", "cave_octopus"] },
+      { minLevel: 62, monsters: ["bonelord", "black_knight", "ice_witch", "necromancer", "flame_skull"] },
+      { minLevel: 72, monsters: ["dragon", "hero", "flame_skull", "dragon_lord", "red_lantern"] },
+      { minLevel: 88, monsters: ["behemoth", "magma_elemental", "hellhound", "demon"] },
+      { minLevel: 106, monsters: ["juggernaut", "abyss_tengu", "abyss_samurai", "demon"] },
+    ]);
+    // Ciclo 20: a faixa 114 (Siderúrgica e Montadora) entra no fim.
+    expect(BOUNTY_BANDS.at(-1)).toEqual({ minLevel: 114, monsters: ["gosma_aco_liquido", "mt_piloto_fantasma", "mt_tengu_cromado", "abyss_samurai"] });
+  });
+
   it("bountyBand nos limites: início/fim de cada faixa, abaixo de 1 e acima do level máximo", () => {
     for (let i = 0; i < BOUNTY_BANDS.length; i++) {
       const min = BOUNTY_BANDS[i]!.minLevel;

@@ -1,5 +1,45 @@
 # Changelog
 
+## [Não lançado] — 2026-10-26 · ciclo 20: região Montadora
+
+Sétimo e último ciclo do plano 14–20: a segunda região grande, para todos os levels (10 a 120). Tema só de fantasia
+(as máquinas criaram vontade própria; carros saem amarelo-limão). Especificação em `docs/regioes/montadora.md`,
+alinhada com a da Siderúrgica (ids com prefixo `mt_`, arte compartilhada, contrato de `L.industry()`/`T.coil()`); três
+frentes em paralelo + revisão cruzada.
+
+**Mapa** (`tools/mapgen/expansion7.mjs`, depois do `expansion6`): bloco 180×140 em x 216..395 × y 746..885, mapa
+400×722 → **400×888**. `diff-world.mjs`: **0 tiles alterados**, 1120/1120 objetos antigos, 277 novos (43 spawns com 125
+monstros, 20 NPCs, 16 portais, 178 luzes); 15.059/15.059 tiles andáveis alcançáveis, 561 só pela alavanca, nenhum
+bolsão. Setores com portas de level 25/40/60/80/90/110 e saída sem level ao lado: Portaria (PZ), Pátio de Carros e
+Lava-Rápido, Estamparia, Funilaria, Cabines de Pintura e Estufa, Montagem Final e Sala de Descanso (PZ), Pista de Testes,
+subsolo com a Galeria e a Sala dos Protótipos. A Galeria tem Colossos e só 3 "protótipos rubros" (Tengu e Samurai
+Rubro, a fonte comum do tier 8, do Fragmento Abissal e da Essência Demoníaca): no mundo eles passam de 12 para 15, não
+para 22 (revisão). **Arte** `L.factory()`: +622 tiles (carros vistos de cima em 5 cores,
+cegonha, prensas, braços robóticos, cabines, a pista oval com zebra desenhada pixel a pixel); `diff-atlas.mjs`: 984/984
+tiles antigos idênticos. **Acesso**: caminhão-cegonha na Vila (91,100), destino novo no Cocheiro Dito da Oficina,
+Caminhão de Bobinas Siderúrgica ↔ Montadora, atalho do Pátio de Encomendas da Oficina (83,332, lv 10).
+
+**Monstros e itens** — 12 monstros + 3 chefes (Sapão do Lava-Rápido lv 26, Monstro da Estufa lv 74, O Protótipo lv 120 —
+tier Abissal a 6% em `REGION_FINAL_BOSSES`), 5 trocas de paleta; 10 materiais (Cromo Puro), 3 troféus, 7 peças e 4
+anéis lv 95 por vocação (`trinket` com `vocations`), todos abaixo do melhor do slot (Coliseu inalterado). **Refino +4/+5**
+dos tiers 7–8 passa a pedir também Frasco de Aço Líquido (7) ou Cromo Puro (8) — os tiers 5–6 ficam sem extra, porque o
+Rubi só cai de monstro comum do lv 64 em diante — e o **encantamento tier III**, Rubi, Frasco ou Cromo; tudo cobrado
+junto e só se estiver na mochila. **Quadro de Recompensas**: faixa nova lv 114 (faixas antigas congeladas por
+teste).
+
+**Missões, NPCs, alavanca e evento** — 14 missões do lv 10 ao 112 (Crachá de Visitante → O Protótipo), 14 NPCs + 6
+placas, loja da Cantineira. **Alavanca Crash Test** (lv 95, 2–4 jogadores) com baús de anéis por vocação; o dia de
+entrada passa a ser **por alavanca** (`leverDays`; o `leverDay` antigo vale para a Aniquilação e continua gravado para
+rollback) e cada alavanca tem o seu texto de início. Evento **Teste de Pista** quarta 13h–14h (O Protótipo, XP ×1,5,
+loot +50%). Conquistas e títulos "o Lava-Rápido" e "Piloto de Testes". Guia aponta a placa da alavanca para o passo do
+Crash Test (`QuestStep.guideAt`).
+
+**Memória do cliente** (`tools/mapmem.mjs`, mediana de 3 rodadas, servidor isolado): só com a mitigação do ciclo 19 o
+heap JS ia de 88 MB (400×560) a 120 MB (400×888, +36%, acima do alerta de +35% da especificação). O vazio entre as regiões
+(tile sólido do `TilesetHole`, 228 mil células) deixa de virar objeto Tile no Phaser e o fundo da cena ganha a mesma cor
+(`VOID_COLOR`): heap 65 MB (400×560) → 76 MB (400×722) → **84 MB (400×888)**, tempo de carga igual (~5,4 s). O mapa
+mundial (M) passa a usar escala fracionária quando 1 px por tile não cabe na janela.
+
 ## [Não lançado] — 2026-10-26 · ciclo 19: região Siderúrgica
 
 Sexto ciclo do plano 14–20: a primeira das duas regiões grandes, para todos os levels (setores de 10 a 120). Tema

@@ -3,7 +3,7 @@
 // Cocheiro (`travel`): cobra o ouro e leva o jogador ao destino (grátis até TRAVEL_FREE_LEVEL).
 // Ambientação: a cada 20–40 s cada NPC com idleLines fala (S2C.NpcSay) se houver jogador a até 15 tiles.
 import {
-  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, RED_SKULL_DEATH_XP_MULT, S2C, blessingPrice, deathXpLoss, findObjects, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, imbuementDef, imbuementDesc, imbuementName, imbuementTier, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
+  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, RED_SKULL_DEATH_XP_MULT, S2C, blessingPrice, deathXpLoss, findObjects, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, imbuementDef, imbuementDesc, imbuementMaterials, imbuementName, imbuementTier, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
   type NoticeMsg, type NpcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcSayMsg, type NpcTradeMsg, type TiledMap, type TravelMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -242,8 +242,9 @@ export class NpcSystem {
   }
 
   /**
-   * Compra/troca o encantamento: tier 1–3 (ausente = 1) com level mínimo, ouro e material. Substitui o ativo sem
-   * reembolso e com 10 h cheias de combate (o mesmo de novo = renovar); o cliente confirma quando já há um ativo.
+   * Compra/troca o encantamento: tier 1–3 (ausente = 1) com level mínimo, ouro e material (no tier III, mais o extra do
+   * ciclo 20). Confere tudo antes de cobrar qualquer coisa. Substitui o ativo sem reembolso e com 10 h cheias de combate
+   * (o mesmo de novo = renovar); o cliente confirma quando já há um ativo.
    */
   private buyImbuement(p: PlayerState, d: NpcDef, effectId: unknown, tierIn: unknown): void {
     const imbue = this.o.imbue;
@@ -257,11 +258,13 @@ export class NpcSystem {
     const name = imbuementName(effect, t.tier);
     if (p.level < t.minLevel) return this.notice(p, `${name} precisa do level ${t.minLevel}.`, "warn");
     const inv = this.o.inventory;
-    if (inv.countItem(p.id, t.materialId) < t.materialCount) {
-      return this.notice(p, `Faltam materiais: ${t.materialCount}x ${inv.defs(t.materialId)?.name ?? t.materialId}.`, "warn");
+    const mats = imbuementMaterials(t);
+    const missing = mats.filter((m) => inv.countItem(p.id, m.materialId) < m.count);
+    if (missing.length) {
+      return this.notice(p, `Faltam materiais: ${missing.map((m) => `${m.count}x ${inv.defs(m.materialId)?.name ?? m.materialId}`).join(", ")}.`, "warn");
     }
     if (!inv.spendGold(p, t.goldPrice)) return this.notice(p, "Ouro insuficiente.", "warn");
-    inv.removeItems(p, t.materialId, t.materialCount);
+    for (const m of mats) inv.removeItems(p, m.materialId, m.count);
     imbue.set(p.id, effect, t.tier);
     this.notice(p, `Encantamento ativo: ${name}, por 10 h de combate contra monstros. ${imbuementDesc(effect, t.tier)}`, "good");
     this.o.send(p.id, S2C.NpcOpen, this.openMsg(d, p));

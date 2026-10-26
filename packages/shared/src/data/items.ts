@@ -583,8 +583,9 @@ add({ id: "botina_seguranca", name: "Botas do Andarilho", kind: "boots", slot: "
 // ---------------------------------------------------------------------------
 // Anéis e amuletos (level 10+)
 // ---------------------------------------------------------------------------
-const trinket = (id: string, name: string, slot: "ring" | "amulet", tier: GearTier, level: number, stats: Stats, value: number, description: string): void =>
-  add({ id, name, kind: slot, slot, icon: gear(slot, tier), level, stats, value, description });
+/** `vocations` (ciclo 20): joia de uma vocação só (anéis do Crash Test); sem ele, todas. */
+const trinket = (id: string, name: string, slot: "ring" | "amulet", tier: GearTier, level: number, stats: Stats, value: number, description: string, vocations?: Vocation[]): void =>
+  add({ id, name, kind: slot, slot, icon: gear(slot, tier), ...(vocations ? { vocations } : {}), level, stats, value, description });
 trinket("ring_vigor", "Anel do Vigor", "ring", "bronze", 10, { hpRegen: 1 }, 450, "Acelera a recuperação de vida.");
 trinket("ring_mente", "Anel da Mente", "ring", "steel", 15, { manaRegen: 2 }, 800, "Acalma a mente e devolve mana.");
 trinket("ring_pressa", "Anel da Pressa", "ring", "gold", 20, { speed: 6 }, 2500, "Seus passos ficam mais rápidos.");
@@ -652,6 +653,50 @@ add({ id: "elmo_laminador", name: "Elmo do Laminador", kind: "helmet", slot: "he
   description: "Saiu inteiro do laminador novo. A chapa era fina; o elmo, nem tanto." });
 trinket("anel_alto_forno", "Anel do Alto-Forno", "ring", "gold", 60, { crit: 3, hpRegen: 4, manaRegen: 2, speed: 2 }, 48000, "Forjado na boca do Alto-Forno. Segura o calor por você.");
 trinket("amuleto_rubi", "Amuleto de Rubi", "amulet", "dragon", 70, { armor: 4, hpMax: 240, manaMax: 60 }, 42000, "Um rubi do fundo da panela de aço, preso numa corrente que nunca esfria.");
+
+// ---------------------------------------------------------------------------
+// Montadora (ciclo 20, lv 10–120): materiais da linha (o Cromo Puro entra no refino +4/+5 do tier 8 e no encantamento
+// III: shared/data/refine.ts e imbuement.ts), provas dos três chefes, 7 peças e os anéis do Crash Test. Equipamento:
+// valor ABAIXO do melhor item do slot no level dela para toda vocação que a usa (ranger_helmet 100, iron_legs 900,
+// steel_shield 3.200, archmage_helmet 5.500, mystic_armor 50 mil, ferumbras_legs 70 mil, amulet_orshabaal 300 mil; o
+// items.test.ts calcula): o balanceKit.ts escolhe por valor e o Coliseu segue calibrado.
+// ---------------------------------------------------------------------------
+mat("mt_parafuso", "Parafuso Solto", img("Projectile/Caltrop.png", 0xc8d0d8), 18, "Caiu de algum lugar importante. Ninguém sabe de onde.");
+mat("mt_fio_cobre", "Fio de Cobre", img("Resource/BarCopper.png"), 60, "Enrolado do jeito que a serpente deixou. O ferreiro derrete e não pergunta.");
+mat("mt_graxa", "Pote de Graxa", img("Potion/EmptyPot.png", 0x3a3a44), 140, "Preta, grossa e escorregadia. Sai da mão em três dias; da roupa, nunca.");
+mat("mt_chapa_amassada", "Chapa Amassada", img("Other/Stamp.png", 0xb8c0c8), 260, "Saiu da prensa com a cara do Estampador. Vira carroceria ou escultura.");
+// Azul-elétrico: a Limonada do Turno usa o mesmo frasco em amarelo.
+mat("mt_faisca", "Faísca Engarrafada", img("Potion/WaterPot.png", 0x8fd8ff), 420, "Pula dentro do frasco o dia inteiro. Não balance.");
+mat("mt_eletrodo", "Eletrodo de Solda", img("Weapons/Stick/Sprite.png", 0xff9040), 650, "Gasto pela metade. O robô soldava com ele a porta do vestiário.");
+mat("mt_tinta", "Lata de Tinta Limão", img("Potion/MilkPot.png", 0xf2e14a), 900, "Amarelo-limão, claro. Por aqui não existe outra cor.");
+mat("mt_motor", "Motor Elétrico", matIcon("ember", 0x70b0ff), 1500, "Ainda zumbe baixinho e gira sozinho quando alguém chega perto.");
+mat("mt_airbag", "Airbag Murcho", img("Object/Bag.png", 0xf8f0e0), 2200, "Abriu uma vez e nunca mais fechou direito. Ótimo travesseiro.");
+mat("mt_cromo", "Cromo Puro", img("Resource/BarSilver.png", 0xf0f4ff), 3800, "Reflete tanto que dá para pentear o cabelo nele.");
+// Provas dos chefes: troféus (a missão usa passo "boss"; não abrem nada).
+add({ id: "mt_coroa_espuma", name: "Coroa de Espuma", kind: "quest", value: 0, icon: img("Treasure/SilverCup.png", 0xbfe6ff), description: "Não desmancha nunca. Prova de que o Sapão do Lava-Rápido caiu." });
+add({ id: "mt_brasa_estufa", name: "Brasa da Estufa", kind: "quest", value: 0, icon: matIcon("ember", 0xff8a3c), description: "Ainda cheira a tinta fresca. Prova de que o Monstro da Estufa caiu." });
+add({ id: "mt_chave_prototipo", name: "Chave do Protótipo", kind: "quest", value: 0, icon: img("Treasure/GoldKey.png", 0xf2e14a), description: "Não liga nenhum carro conhecido. Prova de que O Protótipo caiu." });
+// Equipamento de todas as vocações (o escudo, só do cavaleiro: o paladino só tem o Escudo de Madeira, e um escudo geral
+// de 2.900 viraria o "melhor" dele no modelo). Recompensa de missão e loot raro de comum: entram no Baú de Recompensa.
+add({ id: "mt_bone_visitante", name: "Boné de Visitante", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 12, stats: { armor: 1, speed: 2 }, value: 95,
+  description: "Amarelo, com a aba torta. Com ele ninguém pergunta quem você é." });
+add({ id: "mt_calca_impermeavel", name: "Calça Impermeável", kind: "legs", slot: "legs", icon: gear("legs_pants", "bronze"), level: 20, stats: { armor: 2, hpMax: 25 }, value: 850,
+  description: "Espuma não passa, água também não. O suor, infelizmente, também não." });
+add({ id: "mt_escudo_porta", name: "Escudo de Porta", kind: "shield", slot: "shield", icon: gear("shield_kite", "steel"), vocations: ["knight"], level: 30, stats: { armor: 2, shield: 3, hpMax: 30 }, value: 2900,
+  description: "Já foi a porta de um carro. A maçaneta ainda funciona." });
+add({ id: "mt_mascara_solda", name: "Máscara de Soldador", kind: "helmet", slot: "helmet", icon: gear("helmet_full", "iron"), level: 45, stats: { armor: 3, hpMax: 40 }, value: 5200,
+  description: "Visor escuro de soldador. Faísca nenhuma passa; o sol do meio-dia, quase." });
+add({ id: "mt_avental_pintor", name: "Avental de Pintor", kind: "armor", slot: "armor", icon: gear("armor_robe", "gold"), level: 65, stats: { armor: 4, hpMax: 80, manaMax: 80 }, value: 46000,
+  description: "Respingado de limão dos ombros aos joelhos. A tinta seca já virou armadura." });
+add({ id: "mt_macacao", name: "Macacão Amarelo-Limão", kind: "legs", slot: "legs", icon: gear("legs_pants", "gold"), level: 85, stats: { armor: 4, hpMax: 100, speed: 2 }, value: 64000,
+  description: "O uniforme da linha. Tem bolso para tudo, até para o que você não tem." });
+trinket("mt_amuleto_cromado", "Amuleto Cromado", "amulet", "steel", 100, { armor: 3, hpMax: 250, manaMax: 120, speed: 2 }, 180000, "Cromado com o que sobrou dos protótipos. Brilha mais que farol alto.");
+// Anéis do Crash Test (um por vocação, só dos baús do Boxe dos Troféus): abaixo do Anel de Demodras (120 mil), o melhor
+// anel de toda vocação do lv 70 em diante. Não são `unique` (como o Anel do Gelo Eterno): só a Aniquilação dá únicos.
+trinket("mt_anel_para_choque", "Anel do Para-Choque", "ring", "steel", 95, { armor: 2, melee: 3, hpRegen: 4 }, 96000, "Amassado de um lado, inteiro do outro. Aguenta a batida por você.", ["knight"]);
+trinket("mt_anel_retrovisor", "Anel do Retrovisor", "ring", "gold", 95, { distance: 3, crit: 5 }, 96000, "Mostra o que vem por trás. O alvo, por isso, nunca escapa.", ["paladin"]);
+trinket("mt_anel_ignicao", "Anel da Ignição", "ring", "arcane", 95, { magic: 3, manaRegen: 5 }, 96000, "Gira e acende. A faísca vai direto para a ponta da varinha.", ["sorcerer"]);
+trinket("mt_anel_radiador", "Anel do Radiador", "ring", "mithril", 95, { magic: 2, manaRegen: 4, hpRegen: 3 }, 96000, "Sempre fresco, até no meio da Estufa. As plantas agradecem.", ["druid"]);
 
 /** Catálogo (derivado das listas acima). */
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(ITEM_LIST.map((d) => [d.id, d]));

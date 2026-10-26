@@ -500,3 +500,109 @@ describe("ciclo 19: Siderúrgica", () => {
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Ciclo 20: Montadora (docs/regioes/montadora.md §4)
+// ---------------------------------------------------------------------------
+describe("ciclo 20: Montadora", () => {
+  const MATS: [string, number][] = [
+    ["mt_parafuso", 18], ["mt_fio_cobre", 60], ["mt_graxa", 140], ["mt_chapa_amassada", 260], ["mt_faisca", 420], ["mt_eletrodo", 650],
+    ["mt_tinta", 900], ["mt_motor", 1500], ["mt_airbag", 2200], ["mt_cromo", 3800],
+  ];
+  // [id, slot, level, valor, vocações (undefined = todas)]
+  const GEAR: [string, ItemDef["slot"], number, number, Vocation[] | undefined][] = [
+    ["mt_bone_visitante", "helmet", 12, 95, undefined], ["mt_calca_impermeavel", "legs", 20, 850, undefined],
+    ["mt_escudo_porta", "shield", 30, 2900, ["knight"]], ["mt_mascara_solda", "helmet", 45, 5200, undefined],
+    ["mt_avental_pintor", "armor", 65, 46000, undefined], ["mt_macacao", "legs", 85, 64000, undefined],
+    ["mt_amuleto_cromado", "amulet", 100, 180000, undefined],
+  ];
+  const RINGS: [string, Vocation][] = [
+    ["mt_anel_para_choque", "knight"], ["mt_anel_retrovisor", "paladin"], ["mt_anel_ignicao", "sorcerer"], ["mt_anel_radiador", "druid"],
+  ];
+  const MT_GEAR = new Set([...GEAR.map(([id]) => id), ...RINGS.map(([id]) => id)]);
+
+  it("10 materiais em ordem de valor (18 → 3.800), cada um com monstro que derruba", () => {
+    for (const [id, value] of MATS) {
+      const d = ITEMS[id]!;
+      expect(d, id).toBeDefined();
+      expect([d.kind, d.stackable, d.value], id).toEqual(["material", true, value]);
+      expect(dropsOf(id).length, id).toBeGreaterThan(0);
+    }
+    for (let i = 1; i < MATS.length; i++) expect(MATS[i]![1], MATS[i]![0]).toBeGreaterThan(MATS[i - 1]![1]);
+    // O Cromo cai do Tengu, do Piloto e do Protótipo (e sai dos baús do Crash Test).
+    expect(dropsOf("mt_cromo").map((m) => m.id).sort()).toEqual(["mt_piloto_fantasma", "mt_prototipo", "mt_tengu_cromado"]);
+  });
+
+  it("provas dos três chefes: troféus (quest, valor 0) que não prometem abrir nada", () => {
+    for (const [id, boss] of [["mt_coroa_espuma", "mt_sapao"], ["mt_brasa_estufa", "mt_monstro_estufa"], ["mt_chave_prototipo", "mt_prototipo"]] as const) {
+      const d = ITEMS[id]!;
+      expect([d.kind, d.value, d.stackable], id).toEqual(["quest", 0, undefined]);
+      expect(d.description, id).not.toMatch(/abre/i);
+      expect(chance(boss, id), id).toBe(1);
+    }
+  });
+
+  it("7 peças: cada uma abaixo do melhor item do slot no level dela, por vocação (a Siderúrgica entra na referência)", () => {
+    for (const [id, slot, level, value, vocations] of GEAR) {
+      const d = ITEMS[id]!;
+      expect([d.slot, d.level, d.value, d.vocations, d.unique], id).toEqual([slot, level, value, vocations, undefined]);
+      expect(isExclusiveItem(d), id).toBe(false);
+      for (const v of vocations ?? VOCATIONS) {
+        const ref = all.filter((x) => x.slot === slot && !MT_GEAR.has(x.id) && fits(x, v) && (x.level ?? 1) <= level)
+          .reduce<ItemDef | undefined>((b, x) => (!b || x.value > b.value ? x : b), undefined)!;
+        expect(ref, `${id} ${v}`).toBeDefined();
+        expect(d.value, `${id} ${v}: referência ${ref.id} (${ref.value})`).toBeLessThan(ref.value);
+      }
+    }
+  });
+
+  it("o modelo de balanço (balanceKit.ts: o mais caro do slot) nunca escolhe uma peça da Montadora, do lv 1 ao 150", () => {
+    const equip = all.filter((d) => d.slot);
+    for (const v of VOCATIONS) {
+      for (let L = 1; L <= 150; L++) {
+        const best = new Map<string, ItemDef>();
+        for (const d of equip) {
+          if (!fits(d, v) || (d.level ?? 0) > L) continue;
+          const b = best.get(d.slot!);
+          if (!b || d.value > b.value) best.set(d.slot!, d);
+        }
+        for (const d of best.values()) expect(MT_GEAR.has(d.id), `${v} lv ${L}: ${d.id}`).toBe(false);
+      }
+    }
+  });
+
+  it("fontes: as 7 peças caem de monstro comum (entram no Baú de Recompensa) e nenhuma é vendida", () => {
+    for (const [id] of GEAR) {
+      expect(dropsOf(id).some((m) => !m.boss), id).toBe(true);
+      expect(sold.has(id), id).toBe(false);
+    }
+  });
+
+  it("anéis do Crash Test: um por vocação, lv 95, abaixo do Anel de Demodras, só dos baús (nenhum monstro, nenhuma loja)", () => {
+    const demodras = ITEMS.ring_demodras!;
+    for (const [id, voc] of RINGS) {
+      const d = ITEMS[id]!;
+      expect([d.kind, d.slot, d.level, d.vocations, d.unique], id).toEqual(["ring", "ring", 95, [voc], undefined]);
+      expect(d.value, id).toBe(96000);
+      expect(d.value, id).toBeLessThan(demodras.value);
+      expect(dropsOf(id).map((m) => m.id), id).toEqual([]);
+      expect(sold.has(id), id).toBe(false);
+    }
+    // Os baús do Crash Test (frente das missões, questWorld.ts): quando existirem, cada anel sai de um deles.
+    const crash = Object.values(QUEST_CHESTS).filter((c) => c.group === "crash_test");
+    if (crash.length) for (const [id] of RINGS) expect(crash.some((c) => c.items?.some((i) => i.itemId === id)), id).toBe(true);
+    // O trinket sem vocação continua de todas.
+    expect(ITEMS.ring_demodras!.vocations).toBeUndefined();
+  });
+
+  it("O Protótipo: Fragmento Abissal sempre e os elmos e o grimório do tier 8 a 6% (a Fornalha dá as armaduras e o escudo)", () => {
+    expect(chance("mt_prototipo", "abyss_shard")).toBe(1);
+    const t8 = MONSTERS.mt_prototipo!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard");
+    expect(t8.map((e) => [e.itemId, e.chance])).toEqual([
+      ["abyss_helmet", 0.06], ["abyss_archer_helmet", 0.06], ["abyss_mage_helmet", 0.06], ["spellbook_abyss", 0.06],
+    ]);
+    // Os dois chefes finais de região juntos dão uma peça de cada forma de vocação (sem repetir).
+    const both = ["fornalha_primordial", "mt_prototipo"].flatMap((b) => MONSTERS[b]!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard").map((e) => e.itemId));
+    expect(new Set(both).size).toBe(8);
+  });
+});

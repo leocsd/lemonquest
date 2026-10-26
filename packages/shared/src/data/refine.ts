@@ -1,5 +1,6 @@
 // Refino +1..+5 no Ferreiro (ciclo 16, passo 16-5): o gasto grande do fim de jogo. Cada tentativa custa ouro + 1 gema
-// (por tier do item) e pode falhar; a falha NÃO destrói nem rebaixa o item, só consome o custo. Arma ganha +3 de ataque
+// (por tier do item) e pode falhar; a falha NÃO destrói nem rebaixa o item, só consome o custo. Ciclo 20: o +4 e o +5
+// dos tiers 7 e 8 pedem também um material das regiões novas (REFINE_EXTRA). Arma ganha +3 de ataque
 // por nível; elmo/armadura/calças/botas/escudo ganham +1 de armadura por nível.
 // Fora do refino: anel e amuleto (joia, não é trabalho de forja, e já carregam os atributos mais fortes do jogo) e o
 // livro dos magos (escudo só de feiticeiro/druida: troca armadura por mana/magia de propósito; +5 de armadura apagaria
@@ -34,6 +35,16 @@ export const REFINE_GOLD_MULT: readonly number[] = [1, 2, 3, 4, 6];
 /** Gema consumida por tentativa (sucesso ou falha). Tier 8: Fragmento Abissal (tengus/samurais do Profundo e chefes). */
 export const REFINE_MATERIAL: Record<RefineTier, string> = { 5: "gem_green", 6: "gem_yellow", 7: "gem_purple", 8: "abyss_shard" };
 export const REFINE_MATERIAL_COUNT = 1;
+/**
+ * Ciclo 20 (Siderúrgica e Montadora): material EXTRA das tentativas do +4 e do +5, consumido junto com a gema (sucesso
+ * ou falha). Nada ficou mais barato e os níveis de baixo não mudam: quem chega ao topo puxa as regiões novas. Frasco de
+ * Aço Líquido (Coração do Forno) no tier 7, Cromo Puro (Pista de Testes) no 8. Tiers 5–6 sem extra: quem refina no lv
+ * 35–65 mal chega às regiões novas (o Rubi só cai de monstro comum do lv 64 em diante; antes, só do chefe Contramestre).
+ * Do +0 ao +5 são ~3,7 unidades em média (refineExpectedExtra): no tier 8, ~14 mil em Cromo perto dos ~650 mil de ouro.
+ */
+export const REFINE_EXTRA: Partial<Record<RefineTier, string>> = { 7: "frasco_aco_liquido", 8: "mt_cromo" };
+export const REFINE_EXTRA_FROM = 4;
+export const REFINE_EXTRA_COUNT = 1;
 
 const MAGES = new Set(["sorcerer", "druid"]);
 
@@ -90,6 +101,8 @@ export interface RefineCost {
   gold: number;
   materialId: string;
   materialCount: number;
+  /** Material extra do +4/+5 (REFINE_EXTRA); ausente nos níveis de baixo e nos tiers sem extra. */
+  extra?: { materialId: string; count: number };
   /** Chance de falha 0..1 (falha só perde o custo). */
   failChance: number;
 }
@@ -100,14 +113,37 @@ export function refineCost(d: ItemDef | undefined, target: number): RefineCost |
   if (!tier || !Number.isInteger(target) || target < 1 || target > REFINE_MAX) return null;
   return {
     target, gold: REFINE_BASE_GOLD[tier] * REFINE_GOLD_MULT[target - 1]!, materialId: REFINE_MATERIAL[tier],
-    materialCount: REFINE_MATERIAL_COUNT, failChance: REFINE_FAIL_CHANCE[target - 1]!,
+    materialCount: REFINE_MATERIAL_COUNT,
+    ...(target >= REFINE_EXTRA_FROM && REFINE_EXTRA[tier] ? { extra: { materialId: REFINE_EXTRA[tier], count: REFINE_EXTRA_COUNT } } : {}),
+    failChance: REFINE_FAIL_CHANCE[target - 1]!,
   };
+}
+
+/**
+ * Todos os materiais da tentativa (gema do tier e o extra), somados por id: a mesma lista para o servidor conferir
+ * antes de cobrar e para a aba Refinar mostrar.
+ */
+export function refineMaterials(c: Pick<RefineCost, "materialId" | "materialCount" | "extra">): { materialId: string; count: number }[] {
+  const out = [{ materialId: c.materialId, count: c.materialCount }];
+  if (c.extra) {
+    const same = out.find((m) => m.materialId === c.extra!.materialId);
+    if (same) same.count += c.extra.count;
+    else out.push({ materialId: c.extra.materialId, count: c.extra.count });
+  }
+  return out;
 }
 
 /** Ouro esperado (falhas incluídas) para levar um item do tier de +0 a +`to` (balanço e Novidades). */
 export function refineExpectedGold(tier: RefineTier, to = REFINE_MAX): number {
   let sum = 0;
   for (let k = 1; k <= to; k++) sum += (REFINE_BASE_GOLD[tier] * REFINE_GOLD_MULT[k - 1]!) / (1 - REFINE_FAIL_CHANCE[k - 1]!);
+  return sum;
+}
+
+/** Unidades esperadas do material extra (falhas incluídas) para levar um item de tier 7/8 de +0 a +`to` (balanço e Novidades). */
+export function refineExpectedExtra(to = REFINE_MAX): number {
+  let sum = 0;
+  for (let k = REFINE_EXTRA_FROM; k <= to; k++) sum += REFINE_EXTRA_COUNT / (1 - REFINE_FAIL_CHANCE[k - 1]!);
   return sum;
 }
 

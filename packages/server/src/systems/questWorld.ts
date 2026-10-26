@@ -1,15 +1,17 @@
 // Quests de mundo no estilo Tibia (dados em shared/data/questWorld.ts):
 // - Baús de quest: clicar ao lado → confere alcance e level → QuestSystem.claimChest (uma vez por grupo e personagem).
 //   A trava dos covis (`needBoss`: abate do chefe registrado no personagem) é conferida lá, depois do "vazio".
-// - Alavanca de grupo (Aniquilação): com jogadores em pelo menos `minPlayers` placas (todos com o level mínimo, e quem puxa
+// - Alavanca de grupo (Aniquilação, Crash Test): com jogadores em pelo menos `minPlayers` placas (todos com o level mínimo, e quem puxa
 //   também numa placa) e a sala vazia, puxar a alavanca solta os monstros na sala (quantidade pelo tamanho do grupo, `leverMonsters`) e leva os
 //   jogadores aos destinos das suas placas. Monstros da sala somem se ela ficar vazia.
-//   Cada personagem entra 1× por dia de jogo (troca às 6h, o mesmo relógio das recompensas diárias): sem isso a sala
-//   virava fazenda de demônios sob demanda.
+//   Cada personagem entra 1× por dia de jogo em cada alavanca (troca às 6h, o mesmo relógio das recompensas diárias): sem
+//   isso a sala virava fazenda de monstros sob demanda. Desde o ciclo 20 o dia é por alavanca: o Crash Test não gasta a
+//   entrada da Aniquilação.
 import {
   QUEST_OBJECT_RANGE, S2C, leverMonsters, monsterDef, questChestDef, questChestGroup, questLeverDef,
   type FeedMsg, type NoticeMsg, type QuestChestDef, type QuestLeverSpot, type QuestObjectSpot, type UseQuestObjectMsg,
 } from "@lemonquest/shared";
+import type { CharacterData } from "../persistence/types.ts";
 import type { PlayerState } from "../state.ts";
 import { bountyDay } from "./bounties.ts";
 import type { Monster, MonsterManager } from "./monsters.ts";
@@ -17,6 +19,28 @@ import { cheb } from "./monsters.ts";
 
 /** Sala de alavanca sem nenhum jogador por este tempo → os monstros que sobraram somem. */
 export const LEVER_ROOM_EMPTY_MS = 30_000;
+
+/** Alavanca do campo antigo `CharacterData.leverDay` (até o ciclo 19 era a única). */
+export const LEGACY_LEVER = "annihilator";
+
+/** Parte do save que guarda os dias de entrada pelas alavancas. */
+export type LeverDaySave = Pick<CharacterData, "leverDay" | "leverDays">;
+
+/**
+ * Dia de jogo da última entrada do personagem pela alavanca `leverId`, lido do save. O `leverDay` antigo vale para a
+ * Aniquilação; se os dois campos existirem, vale o mais recente (um rollback ao ciclo 19 grava só o antigo).
+ */
+export function leverDayOf(save: LeverDaySave | undefined, leverId: string): string | undefined {
+  const day = save?.leverDays?.[leverId];
+  if (leverId !== LEGACY_LEVER || !save?.leverDay) return day;
+  return day && day > save.leverDay ? day : save.leverDay;
+}
+
+/** Grava a entrada de hoje no save. A Aniquilação também vai no campo antigo, para um rollback manter o limite diário. */
+export function setLeverDayOf(save: LeverDaySave, leverId: string, day: string): void {
+  save.leverDays = { ...save.leverDays, [leverId]: day };
+  if (leverId === LEGACY_LEVER) save.leverDay = day;
+}
 
 export interface QuestWorldOptions {
   objects: QuestObjectSpot[];
@@ -30,11 +54,13 @@ export interface QuestWorldOptions {
   broadcast?: (type: string, msg: unknown) => void;
   now?: () => number;
   /**
-   * Dia de jogo (`bountyDay`) da última entrada do personagem pela alavanca, persistido em `CharacterData.leverDay`.
-   * Ausente = guarda só em memória (testes); a regra de 1 entrada por dia vale do mesmo jeito.
+   * Dia de jogo (`bountyDay`) da última entrada do personagem pela alavanca `leverId`, persistido em
+   * `CharacterData.leverDays` (`leverDayOf`/`setLeverDayOf`). O dia vem antes da alavanca no `setLeverDay` de propósito:
+   * uma ligação que ignora a alavanca continua valendo como antes (um dia só para todas). Ausente = guarda só em memória
+   * (testes); a regra de 1 entrada por dia vale do mesmo jeito.
    */
-  getLeverDay?: (id: string) => string | undefined;
-  setLeverDay?: (id: string, day: string) => void;
+  getLeverDay?: (charId: string, leverId: string) => string | undefined;
+  setLeverDay?: (charId: string, day: string, leverId: string) => void;
 }
 
 interface LeverRun { monsterIds: string[]; emptySince: number }
@@ -42,14 +68,15 @@ interface LeverRun { monsterIds: string[]; emptySince: number }
 export class QuestWorldSystem {
   private readonly runs = new Map<string, LeverRun>();
   private readonly now: () => number;
+  /** Sem armazenamento dado: "alavanca|personagem" → dia. */
   private readonly leverDays = new Map<string, string>();
-  private readonly getLeverDay: (id: string) => string | undefined;
-  private readonly setLeverDay: (id: string, day: string) => void;
+  private readonly getLeverDay: (charId: string, leverId: string) => string | undefined;
+  private readonly setLeverDay: (charId: string, day: string, leverId: string) => void;
 
   constructor(private readonly o: QuestWorldOptions) {
     this.now = o.now ?? Date.now;
-    this.getLeverDay = o.getLeverDay ?? ((id) => this.leverDays.get(id));
-    this.setLeverDay = o.setLeverDay ?? ((id, day) => { this.leverDays.set(id, day); });
+    this.getLeverDay = o.getLeverDay ?? ((charId, leverId) => this.leverDays.get(`${leverId}|${charId}`));
+    this.setLeverDay = o.setLeverDay ?? ((charId, day, leverId) => { this.leverDays.set(`${leverId}|${charId}`, day); });
   }
 
   /** Tiles de baús/alavancas (bloqueados; a IA e o drop de itens não usam). */
@@ -99,7 +126,7 @@ export class QuestWorldSystem {
     if (weak) return this.notice(p, `A alavanca não se mexe: todos precisam ser level ${def.minLevel} ou mais (${weak.name} não é).`, "warn");
     const now = this.now();
     const today = bountyDay(now);
-    const been = group.filter((q) => this.getLeverDay(q.id) === today).map((q) => q.name);
+    const been = group.filter((q) => this.getLeverDay(q.id, id) === today).map((q) => q.name);
     if (been.length) {
       const who = been.length === 1 ? `${been[0]} já entrou` : `${been.slice(0, -1).join(", ")} e ${been.at(-1)} já entraram`;
       return this.notice(p, `A alavanca não se mexe: ${who} em "${def.name}" hoje. Cada aventureiro entra uma vez por dia; a alavanca volta às 6h.`, "warn");
@@ -114,9 +141,10 @@ export class QuestWorldSystem {
       if (m) ids.push(m.s.id);
     });
     this.runs.set(id, { monsterIds: ids, emptySince: 0 });
-    for (const q of group) this.setLeverDay(q.id, today);
+    for (const q of group) this.setLeverDay(q.id, today, id);
     for (const e of onPlates) this.o.teleport(e.q, e.dest.x, e.dest.y);
-    for (const q of group) this.notice(q, `${def.name} começou! Derrote os demônios e alcance o tesouro.`, "warn");
+    const start = def.startText ?? `${def.name} começou! Derrote os demônios e alcance o tesouro.`;
+    for (const q of group) this.notice(q, start, "warn");
     this.o.broadcast?.(S2C.Feed, { text: `⚔️ ${group.map((q) => q.name).join(", ")} puxaram a alavanca de "${def.name}"!`, kind: "info" } satisfies FeedMsg);
   }
 

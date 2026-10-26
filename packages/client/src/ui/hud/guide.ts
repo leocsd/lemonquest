@@ -142,7 +142,8 @@ export function stepDestination(s: QuestStep, index: WorldIndex, me: Pt, count: 
     case "arena":
       return npcDest(index, "arena_master", s.label);
     case "explore":
-      if (s.area) return { x: Math.floor(s.area.x + s.area.w / 2), y: Math.floor(s.area.y + s.area.h / 2), label: s.label };
+      // Área que não se alcança a pé (sala do Crash Test, só pela alavanca): o passo diz para onde guiar.
+      if (s.area) return s.guideAt ? { ...s.guideAt, label: s.label } : { x: Math.floor(s.area.x + s.area.w / 2), y: Math.floor(s.area.y + s.area.h / 2), label: s.label };
       return zoneDest(index, s.target, me, s.label, pass);
     case "collect":
     case "deliver": {

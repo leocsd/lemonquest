@@ -4,7 +4,7 @@
 // Everything is deterministic. Tiles are allocated on demand (blend/overlay variants), the atlas is cropped to the used rows.
 import { createHash } from 'node:crypto';
 import { mulberry32 } from './lib.mjs';
-import { createIndustry, createSteel } from './industry.mjs';
+import { createIndustry, createSteel, createFactory } from './industry.mjs';
 
 export const COLS = 16, CAP_ROWS = 160;
 const hexc = (s) => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)];
@@ -509,6 +509,8 @@ export function createLemon(ts) {
   // expansion6 (e etapas depois dela) chama. `industry` volta na Montadora (ciclo 20).
   L.industry = () => (L._industry ??= createIndustry(L));
   L.steel = () => (L._steel ??= createSteel(L));
+  // arte da Montadora (ciclo 20, createFactory em industry.mjs): mesma regra; só a expansion7 chama (depois da expansion6)
+  L.factory = () => (L._factory ??= createFactory(L));
   return L;
 }
 

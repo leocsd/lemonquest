@@ -109,6 +109,19 @@ const ZONE_MODES: Record<string, ZoneLightMode> = {
   "Sala de Controle": "lit",
   "Aciaria": "lit",
   "Coração do Forno": "dark",
+  // Montadora (ciclo 20): a Portaria é praça (como a Vila); os galpões, a Sala de Descanso e as duas salas da alavanca são
+  // interiores iluminados; a Sala dos Protótipos (subsolo) é escura. Fundo da região, Pátio e Pista ficam ao ar livre.
+  "Portaria da Montadora": "town",
+  "Lava-Rápido": "lit",
+  "Estamparia": "lit",
+  "Funilaria e Armação": "lit",
+  "Cabines de Pintura": "lit",
+  "Estufa": "lit",
+  "Montagem Final": "lit",
+  "Sala de Descanso": "lit",
+  "Pista do Crash Test": "lit",
+  "Boxe dos Troféus": "lit",
+  "Sala dos Protótipos": "dark",
   "Centro de Treinamento": "town",
   "Vila de Pedra Clara": "town",
 };

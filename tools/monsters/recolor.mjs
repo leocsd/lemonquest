@@ -32,6 +32,29 @@ const VARIANTS = {
     src: "ninja/Actor/Boss/GiantBamboo/Walk.png",
     map: { adbc3a: "c3ccd2", "74a334": "93a0aa", "56864c": "66737d", "5f7160": "454f57", "4e484a": "2a2629", "8f3e56": "e66a3a", e0394c: "ffe9a0" },
   },
+  // Montadora (ciclo 20): lagarto amarelo-faísca, robô pintor amarelo-limão com visor azul, robô montador laranja de
+  // máquina, a gosma gigante em tinta quente (olho claro sobre o laranja) e o samurai gigante em limão e cromo (o branco
+  // e o azul do visor ficam). As origens dos robôs e do samurai já aparecem no jogo; por isso só entram recoloridas.
+  MtSparkLizard: {
+    src: "ninja/Actor/Monster/Reptile/Reptile.png",
+    map: { "79b8ce": "f2b632", "548789": "c06a1e", "4e484a": "6e3418", fce2ca: "fff3b0" },
+  },
+  MtRobotPainter: {
+    src: "ninja/Actor/Character/RobotGreen/SpriteSheet.png",
+    map: { "56864c": "d8b62a", a8a129: "f2e14a", "345a52": "8a6e1e", e0394c: "4a9df0" },
+  },
+  MtRobotAssembler: {
+    src: "ninja/Actor/Character/RobotGrey/SpriteSheet.png",
+    map: { "8d977f": "d07a28", "5f7160": "9a5420", f2eaf1: "ffc070", e0394c: "7fe8ff" },
+  },
+  MtPaintBlob: {
+    src: "ninja/Actor/Boss/GiantSlime2/Idle.png",
+    map: { adbc3a: "f2b632", "74a334": "e66a3a", "56864c": "a8441e", "8f3e56": "8a1c24", e0394c: "fff3b0" },
+  },
+  MtPrototype: {
+    src: "ninja/Actor/Boss/GiantRedSamurai/Walk.png",
+    map: { e0394c: "f2e14a", "8f3e56": "b8962a", "3b3643": "6e7a88", f1c471: "dfe6ee", ef914f: "f8ec6a", e46d3a: "e6c23e", d14b34: "a8861e" },
+  },
 };
 
 const rgb = (h) => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];

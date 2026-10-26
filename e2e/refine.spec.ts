@@ -1,6 +1,7 @@
 // Refino no Ferreiro (ciclo 16, 16-5): a janela abre na aba "Refinar"; a Katana de Mithril (tier 5) mostra custo,
 // chance e ataque antes → depois; cada tentativa cobra ouro + Esmeralda; sucesso sobe o nível (selo "+N" no ícone e no
-// nome do balão), falha só gasta o custo. No +5 o botão trava em "Refino máximo".
+// nome do balão), falha só gasta o custo. No +5 o botão trava em "Refino máximo". O material extra do +4/+5 (ciclo 20) é
+// só dos tiers 7–8: a Katana não pede.
 import { expect, test, type Page } from "@playwright/test";
 import { NPCS } from "../packages/shared/src/data/npcs.ts";
 import { countOf, enterGame, inventory, openNpc, recordToasts, say, seenToast, snap } from "./helpers.ts";

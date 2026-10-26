@@ -13,6 +13,9 @@ const HIDDEN_LAYERS = new Set(["collision"]);
 const tilesetTexKey = (name: string) => `tileset:${name}`;
 /** Cópia do mapa só com as camadas desenhadas, entregue ao Phaser (ver buildWorldMap). */
 const DRAWN_KEY = "world:drawn";
+/** Tile de vazio do gerador (TilesetHole, id local 12: sólido #141b1b) e a cor que o substitui no fundo da cena. */
+const VOID_LOCAL_ID = 12;
+export const VOID_COLOR = "#141b1b";
 
 let resolveWorldMapJson: (data: TiledMap) => void = () => {};
 /**
@@ -58,7 +61,16 @@ export function buildWorldMap(scene: Phaser.Scene): WorldMap {
   // O Phaser cria um objeto Tile por célula de cada camada. A colisão e os objetos o cliente lê do JSON cru (grades
   // próprias, luzes, minimapa), então o Phaser só recebe as camadas desenhadas, e células vazias viram null
   // (insertNull): com o mapa 400×722 (ciclo 19) isso tira milhões de objetos da memória.
-  const drawn = { ...tiled, layers: tiled.layers.filter((l) => l.type === "tilelayer" && !HIDDEN_LAYERS.has(l.name)) };
+  // O vazio entre as regiões (tile sólido #141b1b do TilesetHole, ~64% do chão com o mapa 400×888) também vira célula
+  // vazia: o fundo da cena tem a mesma cor (VOID_COLOR em main.tsx), então nada muda na tela e somem ~228 mil Tiles.
+  const hole = tiled.tilesets.find((t) => t.name === "TilesetHole");
+  const voidGid = hole ? hole.firstgid + VOID_LOCAL_ID : -1;
+  const drawn = {
+    ...tiled,
+    layers: tiled.layers
+      .filter((l) => l.type === "tilelayer" && !HIDDEN_LAYERS.has(l.name))
+      .map((l) => (l.name === "ground" && l.data ? { ...l, data: l.data.map((g) => (g === voidGid ? 0 : g)) } : l)),
+  };
   scene.cache.tilemap.add(DRAWN_KEY, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: drawn });
   const tilemap = scene.make.tilemap({ key: DRAWN_KEY, insertNull: true });
   scene.cache.tilemap.remove(DRAWN_KEY);

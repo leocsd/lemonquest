@@ -1,9 +1,10 @@
 // Refino no Ferreiro (ciclo 16, 16-5): C2S.Refine com a janela do Ferreiro aberta (NpcSystem fecha ao sair do
-// alcance). Item da mochila ou do equipamento; cobra ouro + gema por tentativa (shared/data/refine.ts) e sorteia.
+// alcance). Item da mochila ou do equipamento; cobra ouro + gema (+ o material extra do +4/+5, ciclo 20) por tentativa
+// (shared/data/refine.ts) e sorteia.
 // Falha só consome o custo: o item não some nem perde nível. Sem estado próprio (o nível mora na ItemInstance, que
 // viaja com o item para depot, troca e chão).
 import {
-  REFINE_MAX, REFINE_NPC, S2C, refineBlock, refineCost, refinedName, refineLevel,
+  REFINE_MAX, REFINE_NPC, S2C, refineBlock, refineCost, refinedName, refineLevel, refineMaterials,
   type DropFrom, type NoticeMsg, type RefineMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -20,12 +21,16 @@ export interface RefineHost {
   log?: (line: string) => void;
 }
 
+/** "Faltam materiais: 1x Ametista, 1x Frasco de Aço Líquido." */
+const missingText = (list: { count: number; name: string }[]): string => `Faltam materiais: ${list.map((m) => `${m.count}x ${m.name}`).join(", ")}.`;
+
 export const REFINE_MSG = {
   closed: "Fale com o Ferreiro para refinar.",
   gone: "O item não está mais aí.",
   max: `Este item já está no refino máximo (+${REFINE_MAX}).`,
   gold: (n: number) => `Ouro insuficiente: a tentativa custa ${n.toLocaleString("pt-BR")} de ouro.`,
-  material: (n: number, name: string) => `Faltam materiais: ${n}x ${name}.`,
+  material: (n: number, name: string) => missingText([{ count: n, name }]),
+  materials: missingText,
 } as const;
 
 const isInt = (n: unknown): n is number => Number.isInteger(n);
@@ -65,12 +70,15 @@ export class RefineSystem {
     // Nível pedido ≠ atual + 1: clique repetido que chegou depois do resultado (ou janela velha). Não cobra nada.
     if (msg.level !== cur + 1) return;
     const cost = refineCost(d, cur + 1)!;
-    if (inv.countItem(p.id, cost.materialId) < cost.materialCount) {
-      return this.notice(p.id, REFINE_MSG.material(cost.materialCount, inv.defs(cost.materialId)?.name ?? cost.materialId), "warn");
+    // Confere TODOS os materiais (gema e o extra do +4/+5) e o ouro antes de cobrar qualquer coisa.
+    const mats = refineMaterials(cost);
+    const missing = mats.filter((m) => inv.countItem(p.id, m.materialId) < m.count);
+    if (missing.length) {
+      return this.notice(p.id, REFINE_MSG.materials(missing.map((m) => ({ count: m.count, name: inv.defs(m.materialId)?.name ?? m.materialId }))), "warn");
     }
     if (inv.gold(p.id) < cost.gold) return this.notice(p.id, REFINE_MSG.gold(cost.gold), "warn");
     if (!inv.spendGold(p, cost.gold)) return;
-    inv.removeItems(p, cost.materialId, cost.materialCount);
+    for (const m of mats) inv.removeItems(p, m.materialId, m.count);
     const before = refinedName(d, it);
     const ok = this.rng() >= cost.failChance;
     if (ok) {
@@ -78,7 +86,7 @@ export class RefineSystem {
       inv.itemChanged(p, msg.from);
       this.notice(p.id, `Refino concluído: ${refinedName(d, it)}!`, "good");
     } else {
-      this.notice(p.id, `O refino falhou. ${before} continua como estava; o ouro e a gema foram gastos.`, "warn");
+      this.notice(p.id, `O refino falhou. ${before} continua como estava; ${cost.extra ? "o ouro e os materiais foram gastos" : "o ouro e a gema foram gastos"}.`, "warn");
     }
     this.log(`[refino] ${p.name} ${ok ? "subiu" : "falhou"} ${it.defId} → +${cur + 1} (${cost.gold} de ouro)`);
     this.o.save?.(p.id);

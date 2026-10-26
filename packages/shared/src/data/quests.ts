@@ -29,6 +29,11 @@ export interface QuestStep {
   npc?: string;
   /** "explore": retângulo em tiles (alternativa ao nome da zona). */
   area?: { x: number; y: number; w: number; h: number };
+  /**
+   * "explore" com `area` que não se alcança a pé (sala de alavanca, ciclo 20): tile para onde o guia aponta em vez do
+   * centro da área (a placa ao lado da alavanca).
+   */
+  guideAt?: { x: number; y: number };
   /** Texto curto do passo no rastreador (PT-BR), ex.: "Ratos". */
   label: string;
 }
@@ -1136,6 +1141,227 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 180000, gold: 45000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:coracao_de_aco" },
   }),
+  // --- Montadora (ciclo 20, lv 10–112): as máquinas da linha criaram vontade própria e tudo sai amarelo-limão. Porteiro e
+  // Lavador-Chefe (Portaria), Operadora da Prensa (Estamparia), Mestra Soldadora (Funilaria), Pintor-Chefe (Cabines),
+  // Supervisora de Linha (Sala de Descanso) e Piloto de Testes Veterano (Pista). Quem dá a missão seguinte é apontado
+  // no "complete" da anterior, com a porta e o level. ---
+  q({
+    id: "mt_cracha", name: "Crachá de Visitante", giver: "mt_porteiro", minLevel: 10,
+    summary: "Ninguém entra na Montadora sem crachá. O Porteiro quer que você conheça a Cantineira e a Enfermeira da Portaria e dê uma volta no Pátio de Carros antes de liberar o seu.",
+    steps: [
+      { kind: "talk", target: "mt_cantineira", count: 1, label: "Conhecer a Cantineira" },
+      { kind: "talk", target: "mt_enfermeira", count: 1, label: "Conhecer a Enfermeira" },
+      { kind: "explore", target: "Pátio de Carros", count: 1, label: "Dar uma volta no Pátio de Carros" },
+    ],
+    dialog: {
+      offer: "Ninguém entra sem crachá. Ninguém. Nem o crachá. Para fazer o seu, conheça a Cantineira e a Enfermeira aqui da Portaria e dê uma volta no Pátio de Carros, depois da cancela. Assim você já sabe onde come, onde se cura e onde as calotas mordem.",
+      accept: "A cancela abre sozinha, não precisa empurrar. No Pátio, olho nas calotas soltas: elas rolam na sua direção.",
+      progress: "Sem as três assinaturas, sem crachá. Cantineira, Enfermeira e uma volta no Pátio.",
+      complete: "Pronto: crachá amarelo, foto tremida e o seu nome escrito errado. Bem-vindo à Montadora! Leve umas poções; o Lavador-Chefe, aqui na Portaria, vai querer falar com você.",
+    },
+    rewards: { xp: 1500, gold: 400, items: [{ itemId: "health_potion", count: 5 }, { itemId: "mana_potion", count: 5 }] },
+  }),
+  q({
+    id: "mt_calotas", name: "Calotas Fujonas", giver: "mt_lavador", minLevel: 12, requires: ["mt_cracha"],
+    summary: "As calotas aprenderam a rolar sozinhas e fugiram dos carros do Pátio. O Lavador-Chefe quer doze delas de volta ao chão e seis parafusos soltos para prender as que sobraram.",
+    steps: [
+      { kind: "kill", target: "mt_calota", count: 12, label: "Calotas Rolantes" },
+      { kind: "deliver", target: "mt_parafuso", count: 6, label: "Parafusos Soltos" },
+    ],
+    dialog: {
+      offer: "Sabe calota que voa na curva? Aqui elas voam sem curva e sem carro: aprenderam a rolar sozinhas e agora assustam quem passa pelo Pátio. Derrube doze Calotas Rolantes e me traga seis parafusos soltos, para eu prender as que ainda estão no lugar.",
+      accept: "Calota rola rápido mas bate fraco. O perigo é quando vêm três de uma vez.",
+      progress: "Ainda tem calota rolando pelo Pátio. Doze, e seis parafusos.",
+      complete: "Seis parafusos! As calotas que sobraram ficam presas, por enquanto. Tome um boné: visitante de boné eu enxergo de longe. E a Operadora da Prensa anda pedindo socorro na Estamparia; a porta fica no fim do Pátio e abre no level 25.",
+    },
+    rewards: { xp: 2200, gold: 600, items: [{ itemId: "mt_bone_visitante", count: 1 }] },
+  }),
+  q({
+    id: "mt_bolhas", name: "Bolhas no Lava-Rápido", giver: "mt_lavador", minLevel: 15, requires: ["mt_cracha"],
+    summary: "A espuma do Lava-Rápido criou vida e virou Gosma Azul. O Lavador-Chefe quer doze bolhas estouradas antes do próximo carro entrar.",
+    steps: [
+      { kind: "explore", target: "Lava-Rápido", count: 1, label: "Entrar no Lava-Rápido" },
+      { kind: "kill", target: "runaway_drum", count: 12, label: "Gosmas Azuis" },
+    ],
+    dialog: {
+      offer: "Sabão demais, água de menos e um pouco de vontade própria: a espuma do Lava-Rápido levantou e virou Gosma Azul. Entre no Lava-Rápido, no fundo do Pátio, e estoure doze. Com carinho, que é espuma.",
+      accept: "Entre pela frente aberta, do lado do Pátio. A baia do fundo é do Sapão: não acorde ele ainda.",
+      progress: "Ainda tem espuma pulando pelo Lava-Rápido. Doze Gosmas Azuis.",
+      complete: "Lava-Rápido limpo! Bom, limpo de espuma viva. Leve esta calça impermeável: aqui dentro todo mundo sai molhado.",
+    },
+    rewards: { xp: 3000, gold: 900, items: [{ itemId: "mt_calca_impermeavel", count: 1 }] },
+  }),
+  q({
+    id: "mt_sapao_hunt", name: "O Sapão do Lava-Rápido", giver: "mt_lavador", minLevel: 22, requires: ["mt_bolhas"],
+    summary: "Na baia do fundo do Lava-Rápido mora um sapo do tamanho de uma van, que só aceita lavagem completa. O Lavador-Chefe pede um grupo para acabar com o Sapão.",
+    steps: [{ kind: "boss", target: "mt_sapao", count: 1, label: "Sapão do Lava-Rápido" }],
+    dialog: {
+      offer: "Na baia do fundo do Lava-Rápido mora um sapo do tamanho de uma van. Não sai de lá, não deixa ninguém lavar nada e só aceita lavagem completa, com cera. Chame um grupo e acabe com o Sapão do Lava-Rápido. Sozinho, você vira enxágue.",
+      accept: "Ele cospe espuma gelada em área e chama as bolhas para ajudar. Espalhem-se e estourem as bolhas antes que cerquem vocês.",
+      progress: "O Sapão ainda está na baia. Ouço o coaxar daqui.",
+      complete: "Acabou a lavagem completa! Já tem gente aqui chamando você de Lava-Rápido. Tome, poções para o grupo inteiro.",
+    },
+    rewards: { xp: 8000, gold: 3000, items: [{ itemId: "health_potion_medium", count: 10 }, { itemId: "mana_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "mt_prensa", name: "Prensa Desregulada", giver: "mt_prensista", minLevel: 25, requires: ["mt_calotas"],
+    summary: "A prensa vermelha da Estamparia carimba tudo o que passa, inclusive operários, e de cada carimbada sai um Estampador Vermelho. A Operadora da Prensa quer doze a menos.",
+    steps: [
+      { kind: "explore", target: "Estamparia", count: 1, label: "Entrar na Estamparia" },
+      { kind: "kill", target: "mt_estampador", count: 12, label: "Estampadores Vermelhos" },
+    ],
+    dialog: {
+      offer: "A prensa vermelha desregulou: carimba chapa, carimba pallet, carimba operário. E de cada carimbada sai um Estampador Vermelho andando. Derrube doze aqui na Estamparia, antes que carimbem a fábrica inteira.",
+      accept: "Estampador bate pesado e de perto, e pisa no chão como uma prensa. Não deixe ele te encurralar na parede.",
+      progress: "Ainda ouço carimbada lá no fundo. Doze Estampadores Vermelhos.",
+      complete: "Silêncio na Estamparia! A prensa até voltou a carimbar só chapa. Tome, para os hematomas.",
+    },
+    rewards: { xp: 8000, gold: 2500, items: [{ itemId: "health_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "mt_chapa", name: "Chapa Torta", giver: "mt_prensista", minLevel: 30, requires: ["mt_prensa"],
+    summary: "Os Polvos de Graxa engraxam o chão da Estamparia e a chapa sai torta. A Operadora quer quinze polvos fora e seis chapas amassadas para análise.",
+    steps: [
+      { kind: "kill", target: "mt_polvo_graxa", count: 15, label: "Polvos de Graxa" },
+      { kind: "deliver", target: "mt_chapa_amassada", count: 6, label: "Chapas Amassadas" },
+    ],
+    dialog: {
+      offer: "A chapa entra reta e sai torta. Descobri por quê: os Polvos de Graxa engraxam o chão e tudo escorrega para dentro da prensa. Quinze polvos, e me traga seis chapas amassadas dos Estampadores para eu mostrar o estrago para a chefia.",
+      accept: "Polvo cospe graxa de longe e deixa você lento. Chegue perto rápido, ou leve alguém que cure.",
+      progress: "O chão ainda escorrega. Quinze polvos, e seis chapas amassadas.",
+      complete: "Seis chapas, todas tortas do mesmo jeito: era a graxa mesmo! Leve as poções. E, se quiser trabalho mais quente, a Mestra Soldadora precisa de gente na Funilaria; a porta fica no Pátio e abre no level 40.",
+    },
+    rewards: { xp: 10000, gold: 3000, items: [{ itemId: "mana_potion_medium", count: 15 }] },
+  }),
+  q({
+    id: "mt_solda", name: "Ponto de Solda", giver: "mt_soldadora", minLevel: 40, requires: ["mt_prensa"],
+    summary: "As Lagartixas de Faísca comem o arame de solda da Funilaria. A Mestra Soldadora quer vinte delas fora e cinco faíscas engarrafadas.",
+    steps: [
+      { kind: "explore", target: "Funilaria e Armação", count: 1, label: "Entrar na Funilaria e Armação" },
+      { kind: "kill", target: "mt_lagartixa_faisca", count: 20, label: "Lagartixas de Faísca" },
+      { kind: "deliver", target: "mt_faisca", count: 5, label: "Faíscas Engarrafadas" },
+    ],
+    dialog: {
+      offer: "Arame de solda some todo dia. Pensei que fosse gente levando para casa, mas são as Lagartixas de Faísca: comem o arame e cospem faísca para todo lado. Vinte lagartixas, e me traga cinco faíscas engarrafadas. Vou usar para acender o maçarico.",
+      accept: "Elas andam em bando: bateu numa, vem a ninhada inteira. Lute com as costas na parede.",
+      progress: "Ainda tem lagartixa comendo o meu arame. Vinte, e cinco faíscas.",
+      complete: "Cinco faíscas, ainda piscando! Fique com esta máscara: faísca no olho dói, e você vai voltar aqui.",
+    },
+    rewards: { xp: 15000, gold: 3500, items: [{ itemId: "mt_mascara_solda", count: 1 }] },
+  }),
+  q({
+    id: "mt_curto", name: "Curto na Armação", giver: "mt_soldadora", minLevel: 48, requires: ["mt_solda"],
+    summary: "Os Robôs Soldadores aprenderam a soldar sozinhos e soldaram a porta do vestiário por dentro. A Mestra Soldadora quer quinze robôs desligados e cinco eletrodos.",
+    steps: [
+      { kind: "kill", target: "mt_robo_soldador", count: 15, label: "Robôs Soldadores" },
+      { kind: "deliver", target: "mt_eletrodo", count: 5, label: "Eletrodos de Solda" },
+    ],
+    dialog: {
+      offer: "Os robôs aprenderam a soldar sozinhos. O problema é o que eles soldam: ontem foi a porta do vestiário, por dentro, com o turno inteiro lá. Desligue quinze Robôs Soldadores e me traga cinco eletrodos para eu abrir aquela porta.",
+      accept: "Eles soldam em linha reta na sua frente: saia do arco e bata de lado.",
+      progress: "A porta do vestiário continua soldada. Quinze robôs, cinco eletrodos.",
+      complete: "Porta aberta, turno solto! Leve as poções. Se quiser ver tinta com asas, o Pintor-Chefe pede ajuda nas Cabines de Pintura; a porta fica na parede leste daqui e abre no level 60.",
+    },
+    rewards: { xp: 22000, gold: 5000, items: [{ itemId: "health_potion_large", count: 10 }] },
+  }),
+  q({
+    id: "mt_nevoa", name: "Névoa de Tinta", giver: "mt_pintor", minLevel: 60, requires: ["mt_solda"],
+    summary: "A tinta das cabines criou asas e virou Mariposa de Tinta, e os Robôs Pintores retocam quem você machuca. O Pintor-Chefe quer as cabines limpas.",
+    steps: [
+      { kind: "explore", target: "Cabines de Pintura", count: 1, label: "Entrar nas Cabines de Pintura" },
+      { kind: "kill", target: "mt_mariposa_tinta", count: 20, label: "Mariposas de Tinta" },
+      { kind: "kill", target: "mt_robo_pintor", count: 8, label: "Robôs Pintores" },
+    ],
+    dialog: {
+      offer: "Toda tinta aqui virou amarelo-limão, e a que sobrou criou asas. As Mariposas de Tinta deixam uma névoa no ar que gruda no pulmão, e os Robôs Pintores retocam quem você machuca. Vinte mariposas e oito robôs, por favor.",
+      accept: "Derrube os Robôs Pintores primeiro: enquanto um estiver de pé, as mariposas voltam novinhas. E não respire fundo.",
+      progress: "Ainda tem névoa amarela nas cabines. Vinte mariposas, oito robôs.",
+      complete: "Ar limpo! Quase dá para ver a parede. Leve este avental: a tinta vai pegar em você de qualquer jeito, mas pelo menos pega nele primeiro.",
+    },
+    rewards: { xp: 32000, gold: 6000, items: [{ itemId: "mt_avental_pintor", count: 1 }] },
+  }),
+  q({
+    id: "mt_estufa_hunt", name: "O Monstro da Estufa", giver: "mt_pintor", minLevel: 68, requires: ["mt_nevoa"],
+    summary: "A estufa de secagem acordou com fome de tinta fresca e virou o Monstro da Estufa. O Pintor-Chefe pede um grupo para desligá-la.",
+    steps: [
+      { kind: "explore", target: "Estufa", count: 1, label: "Entrar na Estufa" },
+      { kind: "boss", target: "mt_monstro_estufa", count: 1, label: "Monstro da Estufa" },
+    ],
+    dialog: {
+      offer: "A estufa de secagem roncava de noite. Agora também anda, come tinta fresca e cospe ar quente em quem chega perto. Chame um grupo, entre na Estufa, no fundo das Cabines, e derrube o Monstro da Estufa. Sozinho você sai seco. E torrado.",
+      accept: "O bafo dele queima em área e ele chama as mariposas. Espalhem-se, curem-se e não fiquem parados na frente da porta do forno.",
+      progress: "A estufa ainda ronca. Dá para sentir o calor daqui.",
+      complete: "Estufa desligada! Pela primeira vez a tinta secou sem tentar fugir. Poções para o grupo. E a Supervisora de Linha procura gente boa para a Montagem Final: a porta fica na parede sul daqui, abre no level 80, e ela fica na Sala de Descanso.",
+    },
+    rewards: { xp: 55000, gold: 12000, items: [{ itemId: "health_potion_large", count: 15 }] },
+  }),
+  q({
+    id: "mt_linha", name: "A Linha Não Pode Parar", giver: "mt_supervisora", minLevel: 82, requires: ["mt_nevoa"],
+    summary: "Robôs Montadores e Dublês de Crash Test tomaram a linha da Montagem Final. A Supervisora precisa da linha andando e de cinco motores para a reposição.",
+    steps: [
+      { kind: "kill", target: "mt_robo_montador", count: 20, label: "Robôs Montadores" },
+      { kind: "kill", target: "mt_duble", count: 12, label: "Dublês de Crash Test" },
+      { kind: "deliver", target: "mt_motor", count: 5, label: "Motores Elétricos" },
+    ],
+    dialog: {
+      offer: "A linha não pode parar. Se você parou aqui, é porque a linha parou. Os Robôs Montadores montam o que querem, os Dublês de Crash Test deitam na esteira e nada anda. Vinte robôs, doze dublês e cinco motores elétricos para a reposição.",
+      accept: "O Robô Montador aperta com a parafusadeira: não deixe ele segurar você. O Dublê bate de frente e não sente dor. Literalmente.",
+      progress: "A linha continua parada. Vinte robôs, doze dublês, cinco motores.",
+      complete: "A linha andou! Um carro por minuto, todo amarelo. Fique com este macacão, o uniforme de quem salvou o turno. O Piloto de Testes Veterano anda atrás de gente corajosa na Pista; a porta fica na parede leste da Montagem e abre no level 90.",
+    },
+    rewards: { xp: 72000, gold: 14000, items: [{ itemId: "mt_macacao", count: 1 }] },
+  }),
+  // A área do passo de explorar é a sala da alavanca (objeto "quest_lever" crash_test, room "220,852,260,864"), que só
+  // se alcança pela alavanca; o guia aponta para a placa ao lado dela.
+  q({
+    id: "mt_crash", name: "Crash Test", giver: "mt_piloto", minLevel: 95, requires: ["mt_linha"],
+    summary: "O Piloto de Testes Veterano quer saber se os bonecos aguentam batida de verdade. Suba nas placas em frente aos boxes com o seu grupo, puxe a alavanca do Crash Test e derrube quinze dublês.",
+    steps: [
+      {
+        kind: "explore", target: "Crash Test", count: 1, area: { x: 220, y: 852, w: 41, h: 13 }, guideAt: { x: 354, y: 835 },
+        label: "Entre no Crash Test pela alavanca",
+      },
+      { kind: "kill", target: "mt_duble", count: 15, label: "Dublês de Crash Test" },
+    ],
+    dialog: {
+      offer: "Trinta anos de pista e nunca vi boneco de teste levantar sozinho. Até esta semana. Quero saber se eles aguentam batida de verdade. Junte de dois a quatro, todos de level 95 ou mais, subam nas placas aqui na frente dos boxes e puxem a alavanca do Crash Test. E derrube quinze Dublês de Crash Test: lá embaixo, na Pista ou na Montagem, tanto faz.",
+      accept: "Cada um numa placa, e quem puxa fica na placa ao lado da alavanca. Cada aventureiro entra uma vez por dia. No fim da pista de impacto fica o Boxe dos Troféus: um baú para cada vocação, e você só leva um.",
+      progress: "Ainda não vi você descer para o Crash Test. E quinze dublês, lembra?",
+      complete: "Batida de verdade, e você inteiro! Os bonecos não, ainda bem. Leve as poções: quem volta do Crash Test volta mancando.",
+    },
+    rewards: { xp: 95000, gold: 20000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
+  }),
+  q({
+    id: "mt_cromados", name: "Cromados", giver: "mt_piloto", minLevel: 100, requires: ["mt_linha"],
+    summary: "O cromo dos protótipos foi parar nos Tengus Cromados e nos Pilotos Fantasmas da Pista. O Piloto quer quinze de cada fora da pista e cinco barras de cromo de volta.",
+    steps: [
+      { kind: "kill", target: "mt_tengu_cromado", count: 15, label: "Tengus Cromados" },
+      { kind: "kill", target: "mt_piloto_fantasma", count: 15, label: "Pilotos Fantasmas" },
+      { kind: "deliver", target: "mt_cromo", count: 5, label: "Barras de Cromo Puro" },
+    ],
+    dialog: {
+      offer: "O cromo dos protótipos sumiu do almoxarifado e apareceu na pista, em cima de Tengus Cromados e de Pilotos Fantasmas que dão volta sem carro. Quinze de cada, e me traga cinco barras de Cromo Puro de volta.",
+      accept: "Os Tengus jogam vento cromado em área; os Pilotos Fantasmas deixam um rastro de morte em linha reta. Não fique no caminho de nenhum dos dois.",
+      progress: "Ainda vejo brilho de cromo na reta. Quinze Tengus, quinze Pilotos, cinco barras.",
+      complete: "Cinco barras, brilhando tanto que dá para pentear o cabelo nelas! Este amuleto foi cromado com o que sobrou. Combina com você.",
+    },
+    rewards: { xp: 130000, gold: 28000, items: [{ itemId: "mt_amuleto_cromado", count: 1 }] },
+  }),
+  q({
+    id: "mt_prototipo_hunt", name: "O Protótipo", giver: "mt_piloto", minLevel: 112, requires: ["mt_cromados"],
+    summary: "O primeiro carro que a linha fez sozinha mora na Sala dos Protótipos, no subsolo da Pista, e não quer ser recolhido. O Piloto pede um grupo de cinco ou mais para derrubar O Protótipo.",
+    steps: [
+      { kind: "explore", target: "Sala dos Protótipos", count: 1, label: "Descer à Sala dos Protótipos" },
+      { kind: "boss", target: "mt_prototipo", count: 1, label: "O Protótipo" },
+    ],
+    dialog: {
+      offer: "O primeiro carro que a linha fez sozinha não tem motorista, não tem placa e não tem freio. Mora na Sala dos Protótipos, no subsolo, e não quer ser recolhido. Desça pela rampa no canto sudeste da pista, a partir do level 110, com um grupo de cinco ou mais, e derrube O Protótipo. Eu dirigi de tudo nessa vida. Isso eu não dirijo.",
+      accept: "Ele arranca em área, acende os faróis altos num cone e chama a linha de montagem para ajudar. Espalhem-se e derrubem os montadores primeiro. Toda quarta, à uma da tarde, é o Teste de Pista: ele liga o motor lá embaixo de novo, mesmo que alguém já tenha recolhido.",
+      progress: "O Protótipo ainda dá volta lá embaixo. Ouço o motor daqui.",
+      complete: "Recolhido! Trinta anos de pista e esta foi a melhor volta que eu já vi. A partir de hoje você é Piloto de Testes, com título e tudo. Pode deixar que eu assino.",
+    },
+    rewards: { xp: 190000, gold: 45000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:piloto_testes" },
+  }),
 ];
 
 export const QUESTS: Record<string, QuestDef> = Object.fromEntries(QUEST_LIST.map((d) => [d.id, d]));
@@ -1279,6 +1505,8 @@ export const BOUNTY_BANDS: { minLevel: number; monsters: string[] }[] = [
   { minLevel: 88, monsters: ["behemoth", "magma_elemental", "hellhound", "demon"] },
   // Ciclo 13: faixa do Abismo Profundo (o 88+ ficaria pesado demais com os monstros de 112–120).
   { minLevel: 106, monsters: ["juggernaut", "abyss_tengu", "abyss_samurai", "demon"] },
+  // Ciclos 19–20: Siderúrgica e Montadora (margem de 14: monstros até lv 128, caçáveis no 114 sem missão).
+  { minLevel: 114, monsters: ["gosma_aco_liquido", "mt_piloto_fantasma", "mt_tengu_cromado", "abyss_samurai"] },
 ];
 
 export function bountyBand(level: number): number {

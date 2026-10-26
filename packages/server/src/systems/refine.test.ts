@@ -64,13 +64,62 @@ describe("refino no servidor", () => {
   it("o sorteio usa a chance do nível alvo: +5 falha abaixo de 50%, passa a partir dela", () => {
     const s = setup({ rolls: [0.49, 0.5] });
     const k = s.give({ ...makeItem("mithril_katana"), refine: 4 });
-    s.give(makeItem("gem_green", 2));
+    s.give(makeItem("gem_green", 2)); // tier 5: o +5 não pede material extra (só os tiers 7–8)
     s.inv.addGold(s.p, 36_000);
     s.ask(at(0), k);
     expect(k.refine).toBe(4);
     s.ask(at(0), k);
     expect(k.refine).toBe(5);
-    expect(s.inv.gold("p1")).toBe(0);
+    expect([s.inv.gold("p1"), s.inv.countItem("p1", "gem_green")]).toEqual([0, 0]);
+  });
+
+  it("ciclo 20: +4/+5 pedem o material extra; sem ele nada é cobrado e o item não muda; com tudo, consome ouro, gema e extra", () => {
+    const s = setup({ rolls: [0.5, 0.1] });
+    const k = s.give({ ...makeItem("demon_axe"), refine: 3 });
+    s.give(makeItem("gem_purple", 5));
+    s.inv.addGold(s.p, 200_000);
+    s.ask(at(0), k);
+    expect(s.notices().at(-1)!.text).toBe("Faltam materiais: 1x Frasco de Aço Líquido.");
+    expect([k.refine, s.inv.gold("p1"), s.inv.countItem("p1", "gem_purple")]).toEqual([3, 200_000, 5]);
+    expect(s.saved).toEqual([]);
+    // Sem a gema e sem o extra: os dois aparecem no aviso.
+    const t = setup();
+    const k2 = t.give({ ...makeItem("demon_axe"), refine: 3 });
+    t.inv.addGold(t.p, 200_000);
+    t.ask(at(0), k2);
+    expect(t.notices().at(-1)!.text).toBe("Faltam materiais: 1x Ametista, 1x Frasco de Aço Líquido.");
+    // Com o Frasco: sobe para +4 e gasta 48 mil, 1 Ametista e 1 Frasco.
+    s.give(makeItem("frasco_aco_liquido", 2));
+    s.ask(at(0), k);
+    expect(k.refine).toBe(4);
+    expect([s.inv.gold("p1"), s.inv.countItem("p1", "gem_purple"), s.inv.countItem("p1", "frasco_aco_liquido")]).toEqual([152_000, 4, 1]);
+    // A falha do +5 também consome o extra.
+    s.ask(at(0), k);
+    expect(k.refine).toBe(4);
+    expect([s.inv.gold("p1"), s.inv.countItem("p1", "gem_purple"), s.inv.countItem("p1", "frasco_aco_liquido")]).toEqual([80_000, 3, 0]);
+    expect(s.notices().at(-1)!.text).toBe("O refino falhou. Machado Demoníaco +4 continua como estava; o ouro e os materiais foram gastos.");
+  });
+
+  it("ciclo 20: tier 8 pede Cromo Puro no +4; tier 7, Frasco de Aço Líquido; o +3 continua sem extra", () => {
+    const s = setup();
+    const axe = s.give({ ...makeItem("demon_axe"), refine: 3 });
+    const sword = s.give({ ...makeItem("stonecutter_axe"), refine: 3 });
+    const low = s.give({ ...makeItem("stonecutter_axe"), refine: 2 });
+    s.give(makeItem("gem_purple", 5));
+    s.give(makeItem("abyss_shard", 5));
+    s.inv.addGold(s.p, 1_000_000);
+    s.ask(at(0), axe);
+    expect(s.notices().at(-1)!.text).toBe("Faltam materiais: 1x Frasco de Aço Líquido.");
+    s.ask(at(1), sword);
+    expect(s.notices().at(-1)!.text).toBe("Faltam materiais: 1x Cromo Puro.");
+    s.ask(at(2), low);
+    expect(low.refine).toBe(3);
+    s.give(makeItem("frasco_aco_liquido", 1));
+    s.give(makeItem("mt_cromo", 1));
+    s.ask(at(0), axe);
+    s.ask(at(1), sword);
+    expect([axe.refine, sword.refine]).toEqual([4, 4]);
+    expect([s.inv.countItem("p1", "frasco_aco_liquido"), s.inv.countItem("p1", "mt_cromo")]).toEqual([0, 0]);
   });
 
   it("sem ouro ou sem gema: nada é cobrado", () => {

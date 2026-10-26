@@ -47,7 +47,7 @@ import { GroundSystem } from "../systems/ground.ts";
 import { NpcSystem, parseNpcs } from "../systems/npcs.ts";
 import { ArenaSystem, parseArenas } from "../systems/arena.ts";
 import { QuestSystem, type ZoneRect } from "../systems/quests.ts";
-import { QuestWorldSystem } from "../systems/questWorld.ts";
+import { QuestWorldSystem, leverDayOf, setLeverDayOf } from "../systems/questWorld.ts";
 import { killCredit, type Monster } from "../systems/monsters.ts";
 import { FightModeSystem, stanceDealt, stanceTaken } from "../systems/fightmode.ts";
 import { handleDevCommand, isDevAdmin } from "../systems/devcommands.ts";
@@ -344,8 +344,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         send(p.id, S2C.Teleported, to);
       },
       // Entrada da Aniquilação 1×/dia: vai junto com o personagem (autosave), como o recorde do Coliseu.
-      getLeverDay: (id) => this.records.get(id)?.data.leverDay,
-      setLeverDay: (id, day) => { const rec = this.records.get(id); if (rec) rec.data.leverDay = day; },
+      // Um dia por alavanca (ciclo 20): o Crash Test não gasta a entrada do dia na Aniquilação.
+      getLeverDay: (id, leverId) => leverDayOf(this.records.get(id)?.data, leverId),
+      setLeverDay: (id, day, leverId) => { const rec = this.records.get(id); if (rec) setLeverDayOf(rec.data, leverId, day); },
       send, broadcast,
     });
     this.loot = new LootSystem({

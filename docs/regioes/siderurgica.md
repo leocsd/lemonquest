@@ -1392,8 +1392,8 @@ Com a Montadora (ciclo 20, `docs/regioes/montadora.md` §1), combinado com quem 
   do `expand7`.
 - Chefes vizinhos com as duas regiões somadas: o Monstro da Estufa (`mt_monstro_estufa`, lv 74, ouro 4.500–8.000) vira o
   vizinho de baixo do Golem do Convertedor; a Montadora conferiu os 4 covis e os 6 chefes novos com os dois catálogos.
-  No ciclo 20, `gem_red` e `frasco_aco_liquido` entram como custo extra no refino +4/+5 e no encantamento III
-  (`montadora.md` §4.6); o ciclo 19 não mexe em refino nem em encantamento.
+  No ciclo 20, `frasco_aco_liquido` entra como custo extra no refino +4/+5 do tier 7 e, com `gem_red`, no encantamento
+  III (`montadora.md` §4.6); o ciclo 19 não mexe em refino nem em encantamento.
 - Caminhão de Bobinas: `mt_bobinas_sid` no tile reservado (30,605); o caminhão da Montadora leva à chegada do trem
   (24,594).
 - Itens que a Montadora usa daqui: `limonada_turno` e `prato_feito` (loja da Cantineira), `gosma_aco_liquido` (faixa lv

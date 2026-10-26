@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   IMBUEMENTS, IMBUEMENT_EFFECTS, IMBUEMENT_TIERS, IMBUE_DURATION_MS, IMBUE_SPELL_MULT,
-  imbuementBonus, imbuementDesc, imbuementName, imbuementPct, imbuementSpellValue, imbuementTier,
+  imbuementBonus, imbuementDesc, imbuementMaterials, imbuementName, imbuementPct, imbuementSpellValue, imbuementTier,
 } from "./imbuement.ts";
 import { itemDef } from "./items.ts";
 import { MONSTERS } from "./monsters.ts";
@@ -28,6 +28,23 @@ describe("encantamento: tabela de tiers", () => {
     // Cada efeito pede um material de tier II diferente (o farm se espalha pelas caças).
     expect(new Set(IMBUEMENT_EFFECTS.map((e) => IMBUEMENTS[e].tiers[2].materialId)).size).toBe(IMBUEMENT_EFFECTS.length);
     expect(itemDef("demonic_essence")?.kind).toBe("material");
+  });
+
+  it("ciclo 20: só o tier III tem material extra (Rubi, Frasco de Aço Líquido, Cromo Puro); tiers I e II iguais", () => {
+    expect(Object.fromEntries(IMBUEMENT_EFFECTS.map((e) => [e, IMBUEMENTS[e].tiers[3].extra]))).toEqual({
+      lifesteal: { materialId: "gem_red", count: 2 }, manasteal: { materialId: "gem_red", count: 2 }, thorns: { materialId: "mt_cromo", count: 2 },
+      pierce: { materialId: "frasco_aco_liquido", count: 1 }, haste: { materialId: "mt_cromo", count: 2 },
+    });
+    for (const e of IMBUEMENT_EFFECTS) {
+      expect(IMBUEMENTS[e].tiers[1].extra, e).toBeUndefined();
+      expect(IMBUEMENTS[e].tiers[2].extra, e).toBeUndefined();
+      const x = IMBUEMENTS[e].tiers[3].extra!;
+      expect([itemDef(x.materialId)?.kind, itemDef(x.materialId)?.stackable], `${e}: ${x.materialId}`).toEqual(["material", true]);
+      expect(droppedBy(x.materialId).some((m) => !m.boss), `${e}: ${x.materialId}`).toBe(true);
+      expect(x.materialId, e).not.toBe(IMBUEMENTS[e].tiers[3].materialId);
+    }
+    expect(imbuementMaterials(IMBUEMENTS.pierce.tiers[3])).toEqual([{ materialId: "demonic_essence", count: 5 }, { materialId: "frasco_aco_liquido", count: 1 }]);
+    expect(imbuementMaterials(IMBUEMENTS.pierce.tiers[2])).toEqual([{ materialId: "behemoth_claw", count: 5 }]);
   });
 
   it("valores sobem a cada tier: II ≈ ×1,5 do I, III até ×2, com teto (Veloz 15%, Perfurante 30%)", () => {

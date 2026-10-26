@@ -36,6 +36,10 @@ export const ITEMS_FX: Record<string, ItemDef> = {
   // Encantamento tier II (Dreno de Vida) e tier III (todos).
   necro_skull: { id: "necro_skull", name: "Crânio Profano", kind: "material", stackable: true, value: 820, icon },
   demonic_essence: { id: "demonic_essence", name: "Essência Demoníaca", kind: "material", stackable: true, value: 4000, icon },
+  // Ciclo 20: material extra do tier III (Rubi, Frasco de Aço Líquido, Cromo Puro).
+  gem_red: { id: "gem_red", name: "Rubi", kind: "material", stackable: true, maxStack: 50, value: 1500, icon },
+  frasco_aco_liquido: { id: "frasco_aco_liquido", name: "Frasco de Aço Líquido", kind: "material", stackable: true, value: 4200, icon },
+  mt_cromo: { id: "mt_cromo", name: "Cromo Puro", kind: "material", stackable: true, value: 3800, icon },
   sword: { id: "sword", name: "Espada", kind: "weapon", slot: "weapon", weaponType: "sword", stats: { attack: 20 }, value: 100, vocations: ["knight"], icon },
   axe2h: { id: "axe2h", name: "Machado Grande", kind: "weapon", slot: "weapon", weaponType: "axe", twoHanded: true, stats: { attack: 30 }, value: 200, icon, level: 1 },
   bow: { id: "bow", name: "Arco", kind: "weapon", slot: "weapon", weaponType: "bow", range: 6, damageKind: "physical", stats: { attack: 12 }, value: 100, vocations: ["paladin"], icon },

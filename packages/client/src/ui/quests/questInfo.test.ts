@@ -82,11 +82,12 @@ describe("próximo passo (cartão de missão concluída e banner de level)", () 
     ];
     const withPortals = { ...idx, portals };
     // lv 9 → 10: as Minas; Relatório do Pântano (lv 10) pede os Lobos da Floresta, que ainda não foi feita. Primeiro
-    // Turno (Siderúrgica, ciclo 19) abre no 10 sem pré-requisito.
+    // Turno (Siderúrgica, ciclo 19) e Crachá de Visitante (Montadora, ciclo 20) abrem no 10 sem pré-requisito.
     const turno = `Nova missão: Primeiro Turno (${npcDef("mestre_turno")!.name})`;
-    expect(levelUnlockLines(withPortals, 9, 10, { level: 10, done: [] })).toEqual(["Liberado: Minas Abandonadas · lv 10+", turno]);
+    const cracha = `Nova missão: Crachá de Visitante (${npcDef("mt_porteiro")!.name})`;
+    expect(levelUnlockLines(withPortals, 9, 10, { level: 10, done: [] })).toEqual(["Liberado: Minas Abandonadas · lv 10+", turno, cracha]);
     expect(levelUnlockLines(withPortals, 9, 10, { level: 10, done: ["forest_wolves"] }))
-      .toEqual(["Liberado: Minas Abandonadas · lv 10+", `Nova missão: Relatório do Pântano (${captain})`, turno]);
+      .toEqual(["Liberado: Minas Abandonadas · lv 10+", `Nova missão: Relatório do Pântano (${captain})`, turno, cracha]);
     // Missão de porta concluída: a porta com level também entra.
     expect(levelUnlockLines(withPortals, 9, 10, { level: 10, done: ["yeti_hunt"] })).toContain("Liberado: Porta com missão · lv 10+");
     // Baú de quest (sem índice também).

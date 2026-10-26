@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ITEMS, itemDef, type ItemDef, type ItemInstance } from "./items.ts";
 import {
-  REFINE_BASE_GOLD, REFINE_FAIL_CHANCE, REFINE_MATERIAL, REFINE_MAX, REFINE_TIER_LEVEL, REFINE_TIERS, instanceStats, isRefinable, refineBlock, refineBonus,
-  refineCost, refineExpectedGold, refineLevel, refineSuffix, refineTier, refinedName,
+  REFINE_BASE_GOLD, REFINE_EXTRA, REFINE_EXTRA_COUNT, REFINE_EXTRA_FROM, REFINE_FAIL_CHANCE, REFINE_MATERIAL, REFINE_MAX, REFINE_TIER_LEVEL, REFINE_TIERS,
+  instanceStats, isRefinable, refineBlock, refineBonus, refineCost, refineExpectedExtra, refineExpectedGold, refineLevel, refineMaterials, refineSuffix,
+  refineTier, refinedName,
 } from "./refine.ts";
+import { MONSTERS } from "./monsters.ts";
 
 const inst = (defId: string, refine?: number, bonuses: ItemInstance["bonuses"] = []): ItemInstance =>
   ({ uid: "u", defId, count: 1, rarity: "rare", bonuses, ...(refine === undefined ? {} : { refine }) });
@@ -90,6 +92,44 @@ describe("refino: custo e chance", () => {
     // Um item tier 5 em +5: ~78 mil, perto do dobro do valor da própria Katana de Mithril (38 mil).
     expect(Math.round(refineExpectedGold(5))).toBe(77_667);
     expect(refineExpectedGold(5, 1)).toBe(3000); // +1 nunca falha
+  });
+});
+
+describe("refino: material extra do +4/+5 (ciclo 20: Aço Líquido e Cromo nos tiers 7–8)", () => {
+  it("+1..+3 sem extra; +4/+5 dos tiers 7–8 pedem 1 do material do tier (Frasco de Aço Líquido 7, Cromo Puro 8)", () => {
+    expect([REFINE_EXTRA_FROM, REFINE_EXTRA_COUNT]).toEqual([4, 1]);
+    expect(REFINE_EXTRA).toEqual({ 7: "frasco_aco_liquido", 8: "mt_cromo" });
+    for (const [id, extra] of [["demon_axe", "frasco_aco_liquido"], ["stonecutter_axe", "mt_cromo"]] as const) {
+      for (const t of [1, 2, 3]) expect(refineCost(itemDef(id), t)!.extra, `${id} +${t}`).toBeUndefined();
+      for (const t of [4, 5]) expect(refineCost(itemDef(id), t)!.extra, `${id} +${t}`).toEqual({ materialId: extra, count: 1 });
+    }
+    // Tiers 5–6 (lv 35–65): sem extra em nível nenhum, como antes do ciclo 20 — o Rubi ainda não está ao alcance.
+    for (const id of ["mithril_katana", "fire_sword"]) for (const t of [1, 2, 3, 4, 5]) expect(refineCost(itemDef(id), t)!.extra, `${id} +${t}`).toBeUndefined();
+    // Nada ficou mais barato: ouro, gema e chance iguais aos de antes.
+    expect(refineCost(itemDef("mithril_katana"), 5)).toEqual({ target: 5, gold: 18000, materialId: "gem_green", materialCount: 1, failChance: 0.5 });
+    expect(refineCost(itemDef("demon_axe"), 5)).toEqual({
+      target: 5, gold: 72000, materialId: "gem_purple", materialCount: 1, extra: { materialId: "frasco_aco_liquido", count: 1 }, failChance: 0.5,
+    });
+  });
+
+  it("os dois materiais existem, empilham e caem de monstro comum (não só de chefe)", () => {
+    for (const id of Object.values(REFINE_EXTRA) as string[]) {
+      const d = itemDef(id);
+      expect([d?.kind, d?.stackable], id).toEqual(["material", true]);
+      expect(Object.values(MONSTERS).some((m) => !m.boss && m.loot?.some((l) => l.itemId === id)), id).toBe(true);
+    }
+  });
+
+  it("lista de materiais da tentativa: gema e extra, somados quando são o mesmo id", () => {
+    expect(refineMaterials(refineCost(itemDef("mithril_katana"), 3)!)).toEqual([{ materialId: "gem_green", count: 1 }]);
+    expect(refineMaterials(refineCost(itemDef("stonecutter_axe"), 4)!)).toEqual([{ materialId: "abyss_shard", count: 1 }, { materialId: "mt_cromo", count: 1 }]);
+    expect(refineMaterials({ materialId: "gem_red", materialCount: 1, extra: { materialId: "gem_red", count: 2 } })).toEqual([{ materialId: "gem_red", count: 3 }]);
+  });
+
+  it("do +0 ao +5: ~3,7 unidades do extra em média (falhas incluídas); tier 8 ≈ 14 mil em Cromo", () => {
+    expect(refineExpectedExtra()).toBeCloseTo(1 / 0.6 + 1 / 0.5, 10);
+    expect(refineExpectedExtra(3)).toBe(0);
+    expect(Math.round(refineExpectedExtra() * itemDef("mt_cromo")!.value)).toBe(13_933);
   });
 });
 

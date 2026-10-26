@@ -12,6 +12,22 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-26i",
+    date: "26 de outubro",
+    title: "Região nova: a Montadora",
+    items: [
+      "As máquinas da Montadora criaram vontade própria (e todo carro sai amarelo-limão). Caminhão-cegonha na Vila (250) ou o Cocheiro Dito na Oficina (200).",
+      "Setores do lv 10 ao 120: Pátio de Carros e Lava-Rápido, Estamparia, Funilaria, Cabines de Pintura e Estufa, Montagem Final, Pista de Testes e a Sala dos Protótipos.",
+      "12 criaturas novas e 3 chefes: o Sapão do Lava-Rápido, o Monstro da Estufa e O Protótipo, que pode deixar peças do tier Abissal.",
+      "14 missões do Crachá de Visitante ao Protótipo, com os títulos o Lava-Rápido e Piloto de Testes.",
+      "Crash Test (lv 95, 2 a 4 jogadores): suba nas placas e puxe a alavanca. O baú guarda um anel de cada vocação. Não gasta a entrada do dia na Aniquilação.",
+      "Teste de Pista toda quarta, 13h–14h: O Protótipo acorda, XP ×1,5 e loot +50%. Caminhão de Bobinas liga a Montadora à Siderúrgica.",
+      "Refino +4 e +5 dos tiers 7 e 8 pede também Frasco de Aço Líquido ou Cromo Puro; o encantamento tier III, Rubi, Frasco ou Cromo (ouro e chance iguais).",
+      "Quadro de Recompensas com uma faixa nova no lv 114. Dizem que o Pátio de Encomendas da Oficina tem um atalho…",
+      "Com a Siderúrgica e a Montadora o mapa ficou bem maior, então o seu % explorado caiu: tem muito chão novo para descobrir.",
+    ],
+  },
+  {
     id: "2026-10-26h",
     date: "26 de outubro",
     title: "Região nova: a Siderúrgica",

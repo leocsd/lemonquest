@@ -201,17 +201,20 @@ describe("resistência elemental", () => {
   it("mortos-vivos, bichos de fogo e de gelo do jogo (lista travada: mudou de propósito, atualize aqui)", () => {
     const by = (n: MonsterNature) => Object.values(MONSTERS).filter((m) => monsterNatures(m).includes(n)).map((m) => m.id).sort();
     // Mortos-vivos por dado (`undead`): esqueletos, fantasmas/espectros, liches, crânios, lanternas assombradas e o Olho
-    // Maligno do Cemitério. O Necromante (humano que ergue os mortos) e o Ferumbras (feiticeiro) não são.
+    // Maligno do Cemitério. O Necromante (humano que ergue os mortos) e o Ferumbras (feiticeiro) não são. Ciclo 20: o
+    // Piloto Fantasma da Montadora.
     expect(by("undead")).toEqual([
-      "bonelord", "flame_skull", "frame_descartado", "ghost", "iluminador_rebelde", "red_lantern", "skeleton", "swamp_lich",
+      "bonelord", "flame_skull", "frame_descartado", "ghost", "iluminador_rebelde", "mt_piloto_fantasma", "red_lantern", "skeleton",
+      "swamp_lich",
     ]);
     // Fogo/gelo = o elemento do ataque (o mesmo critério da resistência). Ciclo 19: os 7 bichos de fogo da Siderúrgica.
+    // Ciclo 20 (Montadora): Robô Soldador e Monstro da Estufa (fogo), Sapão do Lava-Rápido (gelo).
     expect(by("fire")).toEqual([
       "coracao_brasa", "demodras", "demon", "dragon", "dragon_lord", "flame_skull", "flame_spirit", "forjador_rubro", "fornalha_primordial",
       "golem_convertedor", "gosma_aco_liquido", "gosma_gusa", "hellhound", "iluminador_rebelde", "lair_flame", "magma_elemental",
-      "minotaur_mage", "orshabaal", "salamandra_cadinho", "slag_slime",
+      "minotaur_mage", "mt_monstro_estufa", "mt_robo_soldador", "orshabaal", "salamandra_cadinho", "slag_slime",
     ]);
-    expect(by("ice")).toEqual(["frost_dragon", "ice_witch", "kappa", "lair_kraken", "winter_wolf", "yeti"]);
+    expect(by("ice")).toEqual(["frost_dragon", "ice_witch", "kappa", "lair_kraken", "mt_sapao", "winter_wolf", "yeti"]);
     expect(MONSTERS.necromancer!.undead).toBeUndefined();
     expect(MONSTERS.ferumbras!.undead).toBeUndefined();
   });
@@ -368,5 +371,107 @@ describe("Siderúrgica (ciclo 19)", () => {
     expect(heal.healAllies!.pct).toBeGreaterThan(0);
     // Bicho de fogo da usina: resiste a fogo e é fraco a gelo ("choque térmico").
     expect([damageTakenMult(MONSTERS.gosma_gusa!, "fire"), damageTakenMult(MONSTERS.gosma_gusa!, "ice")]).toEqual([0.5, 1.15]);
+  });
+});
+
+describe("Montadora (ciclo 20)", () => {
+  // [id, level, vida, XP, chefe, sprite, dano final (depois de MONSTER_DAMAGE_TIERS)]: docs/regioes/montadora.md §3.1.
+  const MT = [
+    ["mt_calota", 12, 130, 58, false, "Monster/Larva2/Larva2.png", [9, 20]],
+    ["mt_serpente_fiacao", 16, 170, 96, false, "Monster/Snake/Snake.png", [12, 26]],
+    ["mt_polvo_graxa", 30, 390, 350, false, "Monster/Octopus2/", [34, 67]],
+    ["mt_estampador", 36, 540, 590, false, "Monster/KappaRed/", [43, 88]],
+    ["mt_lagartixa_faisca", 42, 620, 800, false, "monsters/MtSparkLizard.png", [57, 114]],
+    ["mt_robo_soldador", 52, 1050, 1540, false, "Character/RobotCamouflage/", [78, 150]],
+    ["mt_mariposa_tinta", 64, 1350, 2230, false, "Monster/Butterfly/", [93, 180]],
+    ["mt_robo_pintor", 70, 1900, 3330, false, "monsters/MtRobotPainter.png", [112, 216]],
+    ["mt_robo_montador", 84, 3100, 5900, false, "monsters/MtRobotAssembler.png", [160, 304]],
+    ["mt_duble", 92, 4300, 8800, false, "Character/NinjaMasked/", [192, 368]],
+    ["mt_tengu_cromado", 104, 5600, 12100, false, "Boss/TenguBlue/Walk.png", [238, 459]],
+    ["mt_piloto_fantasma", 108, 6000, 13100, false, "Character/Tengu2/", [247, 476]],
+    ["mt_sapao", 26, 4200, 3200, true, "Boss/GiantFrog/Idle40x40.png", [45, 98]],
+    ["mt_monstro_estufa", 74, 21000, 23000, true, "monsters/MtPaintBlob.png", [224, 416]],
+    ["mt_prototipo", 120, 70000, 92000, true, "monsters/MtPrototype.png", [391, 697]],
+  ] as const;
+  // [chefe, prova, ajudante invocado, respawn]
+  const BOSSES = [
+    ["mt_sapao", "mt_coroa_espuma", "runaway_drum", 7_200_000],
+    ["mt_monstro_estufa", "mt_brasa_estufa", "mt_mariposa_tinta", 10_800_000],
+    ["mt_prototipo", "mt_chave_prototipo", "mt_robo_montador", 14_400_000],
+  ] as const;
+
+  it("tabela travada: level, vida, XP, chefe, sprite e dano final; 12 comuns + 3 chefes, ninguém foge", () => {
+    for (const [id, level, hp, xp, boss, sprite, damage] of MT) {
+      const d = MONSTERS[id]!;
+      expect(d, id).toBeDefined();
+      expect([d.level, d.hp, d.xp, !!d.boss, d.fleeAtHpPct], id).toEqual([level, hp, xp, boss, 0]);
+      expect(d.sprite.url, id).toContain(sprite);
+      expect(d.damage, id).toEqual(damage);
+    }
+    const mt = Object.values(MONSTERS).filter((m) => m.id.startsWith("mt_"));
+    expect(mt.map((m) => m.id).sort()).toEqual(MT.map(([id]) => id).sort());
+    expect([mt.filter((m) => !m.boss).length, mt.filter((m) => m.boss).length]).toEqual([12, 3]);
+  });
+
+  it("sprites: recolors sem tinta, tiras dos chefes com o frame real do PNG e nenhum sprite repetido de outro monstro", () => {
+    for (const id of ["mt_lagartixa_faisca", "mt_robo_pintor", "mt_robo_montador", "mt_monstro_estufa", "mt_prototipo"]) {
+      expect(MONSTERS[id]!.sprite.tint, id).toBeUndefined();
+    }
+    // GiantSlime2 310x52 = 5 de 62x52; GiantRedSamurai 576x48 = 6 de 96x48; TenguBlue 820x82 = 10 de 82; GiantFrog 200x40 = 5 de 40.
+    const strips: [string, number, number, number][] = [
+      ["mt_monstro_estufa", 62, 52, 5], ["mt_prototipo", 96, 48, 6], ["mt_tengu_cromado", 82, 82, 10], ["mt_sapao", 40, 40, 5],
+    ];
+    for (const [id, fw, fh, n] of strips) {
+      const s = MONSTERS[id]!.sprite;
+      expect([s.layout, s.frameWidth, s.frameHeight, s.walk!.down.length], id).toEqual(["custom", fw, fh, n]);
+    }
+    for (const [id] of MT) {
+      const url = MONSTERS[id]!.sprite.url;
+      const others = Object.values(MONSTERS).filter((m) => m.id !== id && m.sprite.url === url).map((m) => m.id);
+      expect(others, `${id}: ${url}`).toEqual([]);
+    }
+  });
+
+  it("chefes: prova a 100%, invocam um monstro da região, respawn de 2 a 4 h", () => {
+    for (const [id, proof, helper, respawn] of BOSSES) {
+      const d = MONSTERS[id]!;
+      expect(d.loot!.find((l) => l.itemId === proof)?.chance, id).toBe(1);
+      expect(d.abilities!.find((a) => a.summon)?.summon?.monsterId, id).toBe(helper);
+      expect(MONSTERS[helper], helper).toBeDefined();
+      expect(d.respawnMs, id).toBe(respawn);
+    }
+  });
+
+  it("chefes: XP por vida, dano máximo e ouro por vida entre os chefes vizinhos de level (±10%, regra dos covis)", () => {
+    for (const [id] of BOSSES) {
+      const d = MONSTERS[id]!;
+      const others = Object.values(MONSTERS).filter((m) => m.boss && m.id !== id);
+      const below = others.filter((m) => m.level <= d.level).sort((a, b) => b.level - a.level)[0]!;
+      const above = others.filter((m) => m.level >= d.level).sort((a, b) => a.level - b.level)[0]!;
+      const within = (f: (m: typeof d) => number, what: string) => {
+        const lo = Math.min(f(below), f(above)) * 0.9, hi = Math.max(f(below), f(above)) * 1.1;
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeGreaterThanOrEqual(lo);
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeLessThanOrEqual(hi);
+      };
+      within((m) => m.xp / m.hp, "xp/vida");
+      within((m) => m.damage[1], "dano máximo");
+      within((m) => m.gold![1] / m.hp, "ouro/vida");
+    }
+  });
+
+  it("bando da lagartixa, Robô Pintor cura os aliados primeiro, Piloto Fantasma morto-vivo", () => {
+    expect(MONSTERS.mt_lagartixa_faisca!.pack).toEqual({ family: "faisca", shout: "Faíscas, curto-circuito!" });
+    const heal = MONSTERS.mt_robo_pintor!.abilities![0]!;
+    expect(heal.id).toBe("heal_allies");
+    expect(heal.healAllies).toEqual({ pct: 0.12, radius: 4, belowHpPct: 0.7 });
+    expect(MONSTERS.mt_piloto_fantasma!.undead).toBe(true);
+    expect(damageTakenMult(MONSTERS.mt_piloto_fantasma!, "holy")).toBe(1.25);
+    // Sapão é bicho de gelo (fraco a fogo); Robô Soldador e Monstro da Estufa, de fogo (fracos a gelo).
+    expect(damageTakenMult(MONSTERS.mt_sapao!, "fire")).toBe(1.15);
+    expect(damageTakenMult(MONSTERS.mt_robo_soldador!, "ice")).toBe(1.15);
+  });
+
+  it("a Gosma Azul do Lava-Rápido é o runaway_drum da Oficina, sem mudança", () => {
+    expect(MONSTERS.runaway_drum).toMatchObject({ name: "Gosma Azul", level: 10, hp: 120, xp: 52 });
   });
 });

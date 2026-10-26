@@ -14,7 +14,7 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
   `ui/hud/store.ts`). O cliente nunca decide regra de jogo, só mostra. Assets curados vão para `.public/` no build.
 - Mapa: `tools/mapgen/generate.mjs` (+ `expansion*.mjs`) gera `assets/maps/world.json`, lido pelo servidor e pelo
   cliente. Expansão nunca altera tiles antigos (meta "0 tiles alterados"); spawn/NPC novo entra como objeto no fim.
-  Área nova cresce para baixo (`expansion3.mjs` … `expansion6.mjs` Siderúrgica, mapa 400×722) e nunca acrescenta tileset; provar com `node tools/mapgen/diff-world.mjs <world-antigo.json>` (e o atlas Lemon com
+  Área nova cresce para baixo (`expansion3.mjs` … `expansion6.mjs` Siderúrgica, `expansion7.mjs` Montadora, mapa 400×888) e nunca acrescenta tileset; provar com `node tools/mapgen/diff-world.mjs <world-antigo.json>` (e o atlas Lemon com
   `diff-atlas.mjs <lemon-terrain-antigo.png>`: tiles antigos idênticos). Especificações das regiões em `docs/regioes/`.
   Única exceção autorizada pelo dono: as bocas das 4 caves (`entrances14.mjs`, ciclo 17); provar com
   `diff-world.mjs <antigo> --allow 87,71,92,75 --allow 282,113,285,116 --allow 162,52,164,55 --allow 254,134,256,138`.

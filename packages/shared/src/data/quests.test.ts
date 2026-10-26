@@ -12,7 +12,7 @@ import { REQUEST_BANDS } from "./materialRequest.ts";
 import { MONSTERS } from "./monsters.ts";
 import { NPCS, NPC_RANGE } from "./npcs.ts";
 import { BOUNTY_BANDS, QUESTS, QUEST_LIST, bountyLevelMargin, bountyTitle, pluralPt } from "./quests.ts";
-import { CHEST_LOCK_BOSSES, QUEST_CHESTS, QUEST_CHEST_GROUPS, chestLockText, findQuestObjects } from "./questWorld.ts";
+import { CHEST_LOCK_BOSSES, QUEST_CHESTS, QUEST_CHEST_GROUPS, chestLockText, findQuestLevers, findQuestObjects } from "./questWorld.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const map = JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8")) as TiledMap;
@@ -308,5 +308,90 @@ describe("Siderúrgica (ciclo 19)", () => {
     expect([TITLES.contramestre, TITLES.mestre_convertedor, TITLES.coracao_de_aco]).toEqual(["o Contramestre", "Mestre do Convertedor", "Coração de Aço"]);
     // "Coração de Aço" é da missão: nenhuma conquista o dá.
     expect(ACHIEVEMENTS.filter((x) => x.rewards?.includes("title:coracao_de_aco"))).toEqual([]);
+  });
+});
+
+describe("Montadora (ciclo 20)", () => {
+  // [id, quem dá, level mínimo], na ordem do catálogo (docs/regioes/montadora.md §6).
+  const CHAIN: [string, string, number][] = [
+    ["mt_cracha", "mt_porteiro", 10], ["mt_calotas", "mt_lavador", 12], ["mt_bolhas", "mt_lavador", 15], ["mt_sapao_hunt", "mt_lavador", 22],
+    ["mt_prensa", "mt_prensista", 25], ["mt_chapa", "mt_prensista", 30], ["mt_solda", "mt_soldadora", 40], ["mt_curto", "mt_soldadora", 48],
+    ["mt_nevoa", "mt_pintor", 60], ["mt_estufa_hunt", "mt_pintor", 68], ["mt_linha", "mt_supervisora", 82],
+    ["mt_crash", "mt_piloto", 95], ["mt_cromados", "mt_piloto", 100], ["mt_prototipo_hunt", "mt_piloto", 112],
+  ];
+  const region = QUEST_LIST.filter((d) => d.giver.startsWith("mt_"));
+
+  it("as 14 missões dos NPCs da região, no fim do catálogo e em ordem; do 10 ao 112 sem buraco maior que 15", () => {
+    expect(region.map((d) => [d.id, d.giver, d.minLevel])).toEqual(CHAIN);
+    expect(QUEST_LIST.slice(-CHAIN.length)).toEqual(region);
+    const lv = CHAIN.map(([, , l]) => l).sort((a, b) => a - b);
+    expect([lv[0], lv.at(-1)]).toEqual([10, 112]);
+    for (let i = 1; i < lv.length; i++) expect(lv[i]! - lv[i - 1]!, `${lv[i - 1]} → ${lv[i]}`).toBeLessThanOrEqual(15);
+    // Só o Crachá abre sem pré-requisito; o resto segue a cadeia da especificação.
+    expect(Object.fromEntries(region.map((d) => [d.id, d.requires ?? []]))).toEqual({
+      mt_cracha: [], mt_calotas: ["mt_cracha"], mt_bolhas: ["mt_cracha"], mt_sapao_hunt: ["mt_bolhas"],
+      mt_prensa: ["mt_calotas"], mt_chapa: ["mt_prensa"], mt_solda: ["mt_prensa"], mt_curto: ["mt_solda"],
+      mt_nevoa: ["mt_solda"], mt_estufa_hunt: ["mt_nevoa"], mt_linha: ["mt_nevoa"],
+      mt_crash: ["mt_linha"], mt_cromados: ["mt_linha"], mt_prototipo_hunt: ["mt_cromados"],
+    });
+  });
+
+  it("chefes como passo \"boss\"; a missão final dá Piloto de Testes; o Teste de Pista convoca O Protótipo", () => {
+    const bossSteps = region.flatMap((d) => d.steps.filter((s) => s.kind === "boss").map((s) => [d.id, s.target]));
+    expect(bossSteps).toEqual([["mt_sapao_hunt", "mt_sapao"], ["mt_estufa_hunt", "mt_monstro_estufa"], ["mt_prototipo_hunt", "mt_prototipo"]]);
+    for (const [, boss] of bossSteps) expect(MONSTERS[boss!]?.boss, boss).toBe(true);
+    expect(QUESTS.mt_prototipo_hunt!.rewards.unlock).toBe("title:piloto_testes");
+    expect(isValidUnlockId("title:piloto_testes")).toBe(true);
+    // Chefe: grupo no diálogo (o Protótipo pede cinco ou mais, como a Fornalha Primordial).
+    for (const id of ["mt_sapao_hunt", "mt_estufa_hunt"]) expect(QUESTS[id]!.dialog.offer, id).toMatch(/grupo/);
+    expect(QUESTS.mt_prototipo_hunt!.dialog.offer).toMatch(/cinco ou mais/);
+    expect(eventDef("teste_de_pista")?.boss).toBe("mt_prototipo");
+    expect(QUESTS.mt_prototipo_hunt!.dialog.accept).toMatch(/quarta, à uma da tarde/);
+    // Recompensa na escala das vizinhas de level: o Protótipo (112) entre Orshabaal (110) e Ferumbras (120); a Estufa
+    // (68) como o Yeti (70).
+    expect(QUESTS.mt_prototipo_hunt!.rewards.xp).toBeGreaterThanOrEqual(QUESTS.orshabaal_hunt!.rewards.xp);
+    expect(QUESTS.mt_prototipo_hunt!.rewards.xp).toBeLessThanOrEqual(QUESTS.ferumbras_end!.rewards.xp);
+    expect(QUESTS.mt_estufa_hunt!.rewards.xp).toBe(QUESTS.yeti_hunt!.rewards.xp);
+    const xp = CHAIN.map(([id]) => QUESTS[id]!.rewards.xp);
+    for (let i = 1; i < xp.length; i++) expect(xp[i]!, CHAIN[i]![0]).toBeGreaterThanOrEqual(xp[i - 1]!);
+  });
+
+  it("Crash Test: entrar na sala da alavanca (que não se alcança a pé), não abrir o baú", () => {
+    const step = QUESTS.mt_crash!.steps.find((s) => s.kind === "explore")!;
+    const lever = findQuestLevers(map).find((l) => l.id === "crash_test");
+    expect(lever, "alavanca crash_test no mapa").toBeDefined();
+    const r = lever!.room;
+    expect(step.area).toEqual({ x: r.x0, y: r.y0, w: r.x1 - r.x0 + 1, h: r.y1 - r.y0 + 1 });
+    // A pé (e por portas de level, viagens e portais), nenhum tile da sala: só os destinos da alavanca. O guia aponta
+    // para a placa ao lado da alavanca, que se alcança no level da missão.
+    const seen = reachAt(200);
+    for (const d of lever!.dests) expect(seen[d.y * map.width + d.x], `${d.x},${d.y}`).toBe(0);
+    const at = step.guideAt!;
+    expect(lever!.plates).toContainEqual(at);
+    expect(cheb(at.x, at.y, lever!.x, lever!.y)).toBeLessThanOrEqual(1);
+    expect(reachAt(QUESTS.mt_crash!.minLevel)[at.y * map.width + at.x]).toBe(1);
+    // Só este passo usa guideAt (e sempre junto com uma área).
+    expect(QUEST_LIST.flatMap((d) => d.steps.filter((s) => s.guideAt).map((s) => `${d.id}:${!!s.area}`))).toEqual(["mt_crash:true"]);
+    expect(QUESTS.mt_crash!.steps.map((s) => s.kind)).toEqual(["explore", "kill"]);
+    expect(QUEST_CHEST_GROUPS.crash_test!.minLevel).toBe(QUESTS.mt_crash!.minLevel);
+  });
+
+  it("todo alvo de \"kill\"/\"boss\" é caçável no level mínimo da missão (portas de level da região)", () => {
+    for (const d of region) {
+      for (const s of d.steps) {
+        if (s.kind === "kill" || s.kind === "boss") expect(huntable(s.target, d.minLevel), `${d.id}: ${s.target} no lv ${d.minLevel}`).toBe(true);
+      }
+    }
+  });
+
+  it("conquistas e títulos dos três chefes (pares métrica/alvo inéditos; Piloto de Testes só da missão)", () => {
+    const by = (id: string) => ACHIEVEMENTS.find((x) => x.id === id);
+    expect(by("mt_lava_rapido")).toMatchObject({ metric: "boss:mt_sapao", target: 1, rewards: ["title:lava_rapido"], rare: true });
+    expect(by("mt_secagem")).toMatchObject({ metric: "boss:mt_monstro_estufa", target: 1, rare: true });
+    expect(by("mt_fim_de_linha")).toMatchObject({ metric: "boss:mt_prototipo", target: 1, rare: true });
+    expect([TITLES.lava_rapido, TITLES.piloto_testes]).toEqual(["o Lava-Rápido", "Piloto de Testes"]);
+    expect(ACHIEVEMENTS.filter((x) => x.rewards?.includes("title:piloto_testes"))).toEqual([]);
+    const pairs = ACHIEVEMENTS.map((x) => `${x.metric}:${x.target}`);
+    expect(new Set(pairs).size).toBe(pairs.length);
   });
 });

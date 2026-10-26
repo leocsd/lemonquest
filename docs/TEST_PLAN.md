@@ -141,6 +141,16 @@ corrigido na #56 (uma transação + `synchronous = NORMAL`); medir de novo no pr
 apareceu no `/status` já nessa rodada ("40–59: 24,7 mortes/h" para bots que não se curam, como esperado). O `[status]`
 reportou 0 erros isolados e heap de 32–43 MB.
 
+## Resultados — ciclo 20 (2026-10-26, Montadora)
+
+| Camada | Resultado |
+|---|---|
+| Unitários | 1601 passados (134 arquivos; eram 1552); typecheck limpo. Novos: `montadora.test.ts` (geometria, 15 zonas, 6 portas com saída sem level, atalho, caçável no level da porta e não um abaixo, spawns e chefes, NPCs, alavanca e baús); casos novos em `monsters`, `items` (peças e anéis abaixo do melhor do slot; modelo do Coliseu nunca escolhe peça da Montadora), `refine`/`imbuement` (extra só no refino 7–8 e no encantamento III, cobrança tudo-ou-nada), `questWorld` (dia por alavanca, migração, rollback, texto por alavanca), `events` (quarta 13h), `bounties` (faixa 114, antigas congeladas), `worldIndex` (rota Vila → Pátio de Carros pela cegonha; Estação do Minério pelo Caminhão de Bobinas), `guide` (`guideAt`), `travelInfo` |
+| Mapa e atlas | `diff-world.mjs`: 0 tiles alterados, 1120/1120 objetos antigos, 277 novos, 400×722 → 400×888; `diff-atlas.mjs`: 984/984 tiles antigos idênticos, +622; 15.059/15.059 tiles andáveis alcançáveis (561 só pela alavanca) |
+| Memória do cliente | `tools/mapmem.mjs` (3 rodadas, servidor isolado): heap 65 / 76 / **84 MB** para 400×560 / 722 / 888 com o vazio fora do Phaser (antes: 88 / 100 / 120 MB); carga ~5,4 s em todos |
+| Revisão cruzada | Sem bloqueante. Corrigidos: mapa mundial (M) passava da janela com 888 linhas (escala fracionária), Galeria dobrava as fontes comuns de tier 8 (Colosso no lugar: Tengu+Samurai 22 → 15 no mundo), Rubi no refino dos tiers 5–6 (tirado), "Lava-Jato" → "Lava-Rápido" (evitar leitura política), 3 textos, teste de rota faltando |
+| E2E | `montadora.spec.ts` escrita, não executada localmente. Resultado do CI da PR abaixo |
+
 ## Resultados — ciclo 19 (2026-10-26, Siderúrgica)
 
 | Camada | Resultado |
@@ -149,7 +159,7 @@ reportou 0 erros isolados e heap de 32–43 MB.
 | Mapa e atlas | `diff-world.mjs`: 0 tiles alterados, 851/851 objetos antigos, 269 novos, 400×560 → 400×722; `diff-atlas.mjs`: 555/555 tiles antigos idênticos, +429; `world.json` gzip 106,6 → 126,7 KB; atlas 125 → 199 KB; índice do mundo monta 400×722 em 16 ms |
 | Revisão cruzada | Integração das 3 frentes sem defeito grave/médio (ids mapa↔catálogo nos dois sentidos, as 15 missões alcançáveis no level mínimo pelas portas, ninguém preso no lv 1, viagens sem pular porta, conteúdo limpo). Corrigidos: Viagem dizia "sem monstros" para a Estação do Minério (`levelsNear` agora olha o outro lado de uma porta de level), missão homônima do evento renomeada ("Canal Entupido"), saudação contraditória do Mestre de Turno, Limonada do Turno 1/5 → 1/4 de mana |
 | Memória do cliente | O Phaser passa a receber só as camadas desenhadas (sem `collision` nem objetos, que o cliente lê do JSON cru) e células vazias como `null` (`insertNull`): menos objetos Tile com o mapa 400×722. Medição de heap não feita localmente |
-| E2E | `siderurgica.spec.ts` escrita, não executada localmente (memória da máquina). Resultado do CI da PR abaixo |
+| E2E | `siderurgica.spec.ts` escrita, não executada localmente (memória da máquina). CI da PR #25: typecheck/testes/build, E2E (inclusive `siderurgica.spec`) e Docker verdes |
 
 ## Resultados — ciclo 18 (2026-10-26, social e retenção)
 

@@ -42,6 +42,8 @@ export interface RefineView {
     materialName: string;
     materialCount: number;
     have: number;
+    /** Material extra do +4/+5 (ciclo 20: Frasco de Aço Líquido no tier 7, Cromo Puro no 8), com o que o jogador tem. */
+    extra?: { materialId: string; materialName: string; count: number; have: number };
     /** Chance de sucesso em % (0..100). */
     successPct: number;
     changes: StatChange[];
@@ -63,13 +65,18 @@ export function refineView(c: RefineCandidate, gold: number, have: (defId: strin
   }
   const got = have(cost.materialId);
   const materialName = defOf(cost.materialId)?.name ?? cost.materialId;
+  const extra = cost.extra && {
+    materialId: cost.extra.materialId, materialName: defOf(cost.extra.materialId)?.name ?? cost.extra.materialId,
+    count: cost.extra.count, have: have(cost.extra.materialId),
+  };
   const why = got < cost.materialCount ? `Falta ${cost.materialCount - got}x ${materialName}`
+    : extra && extra.have < extra.count ? `Falta ${extra.count - extra.have}x ${extra.materialName}`
     : gold < cost.gold ? "Ouro insuficiente" : undefined;
   return {
     name, level, maxed: false, why,
     next: {
       level: level + 1, gold: cost.gold, materialId: cost.materialId, materialName, materialCount: cost.materialCount, have: got,
-      successPct: Math.round((1 - cost.failChance) * 100), changes,
+      ...(extra ? { extra } : {}), successPct: Math.round((1 - cost.failChance) * 100), changes,
     },
   };
 }

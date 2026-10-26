@@ -482,7 +482,9 @@ describe("baú de recompensa", () => {
     // Tier 7 (lv 70) no lv 100: a janela desce até o tier mais alto em vez de ficar vazia.
     expect(chestGearPool(100, "knight").map((d) => d.id)).toEqual(expect.arrayContaining(["demon_helmet", "demon_armor", "demon_legs"]));
     expect(chestGearPool(100, "sorcerer").map((d) => d.id)).toEqual(expect.arrayContaining(["ferumbras_armor", "destruction_wand"]));
-    // Sorteio real no lv 100: todo equipamento que sai é do tier 7, incomum ou melhor.
+    // Sorteio real no lv 100: arma e armadura que saem são do tier 7, incomum ou melhor. Ciclo 20: peças de outro slot
+    // que caem de monstro comum acima do lv 70 (Macacão lv 85, Amuleto Cromado lv 100, da Montadora) também entram,
+    // sem subir o piso (ele só olha arma e armadura).
     const rng = seeded(99);
     let gear = 0;
     for (let i = 0; i < 1500; i++) {
@@ -490,7 +492,8 @@ describe("baú de recompensa", () => {
         const d = ITEMS[it.defId]!;
         if (!isEquipable(d)) continue;
         gear++;
-        expect(d.level, it.defId).toBe(70);
+        if (d.slot === "weapon" || d.slot === "armor") expect(d.level, it.defId).toBe(70);
+        else expect(d.level, it.defId).toBeGreaterThanOrEqual(70);
         expect(RARITIES.indexOf(it.rarity)).toBeGreaterThanOrEqual(1);
       }
     }

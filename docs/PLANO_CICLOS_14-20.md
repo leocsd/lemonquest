@@ -272,7 +272,7 @@ entra no ciclo 20, como NPC-objeto acrescentado na Estação do Minério.
 | Setor | Faixa | Destaques |
 |---|---|---|
 | Portaria (PZ) | — | caminhão-cegonha; cantina, depósito, enfermeira (bênção) |
-| Pátio de Carros (+ Lava-Jato) | 10–25 | Calota Rolante, Serpente de Fiação, Gosma Azul; **chefe Sapão do Lava-Jato (26)** |
+| Pátio de Carros (+ Lava-Rápido) | 10–25 | Calota Rolante, Serpente de Fiação, Gosma Azul; **chefe Sapão do Lava-Rápido (26)** |
 | Estamparia | 25–40 | Polvo de Graxa, Estampador Vermelho |
 | Funilaria e Armação | 40–60 | Robô Soldador, Lagartixa de Faísca (bando) |
 | Cabines de Pintura (+ estufa) | 60–80 | Mariposa de Tinta, Robô Pintor (cura aliados); **chefe Monstro da Estufa (74)** |
@@ -282,7 +282,7 @@ entra no ciclo 20, como NPC-objeto acrescentado na Estação do Minério.
 
 12 monstros novos + 3 chefes; 10 materiais (Parafuso Solto 18 … Cromo Puro 3.800), 3 itens de missão, 7 peças de
 equipamento + 4 anéis por vocação no baú do Crash Test (o helper `trinket` passa a aceitar `vocations`). **14 missões**
-(Crachá de Visitante → Calotas Fujonas → Bolhas no Lava-Jato → O Sapão do Lava-Jato [chefe] → Prensa Desregulada →
+(Crachá de Visitante → Calotas Fujonas → Bolhas no Lava-Rápido → O Sapão do Lava-Rápido [chefe] → Prensa Desregulada →
 Chapa Torta → Ponto de Solda → Curto na Armação → Névoa de Tinta → O Monstro da Estufa [chefe] → A Linha Não Pode
 Parar → Crash Test → Cromados → O Protótipo [chefe final, grupo 5+]). 14 NPCs + 6 placas. **Evento**: Teste de Pista,
 **quarta 13h** (O Protótipo, XP ×1,5 e loot +50%). Conquistas e títulos ("o Lava-Rápido", "Piloto de Testes").

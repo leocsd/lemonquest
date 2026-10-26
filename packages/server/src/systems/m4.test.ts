@@ -310,10 +310,35 @@ describe("npcs", () => {
     t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "pierce", tier: 3 });
     expect(t.out.at(-1)!.msg.text).toBe("Perfurante III precisa do level 90.");
     p.level = 90;
+    t.w.inv.addItem(p, makeItem("frasco_aco_liquido", 1)); // ciclo 20: o tier III pede também o material extra
     t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "pierce", tier: 3 });
     expect(t.imbue.get("p1")).toMatchObject({ effect: "pierce", tier: 3 });
     expect(t.w.inv.gold("p1")).toBe(70_000);
     expect(t.w.inv.countItem("p1", "demonic_essence")).toBe(0);
+    expect(t.w.inv.countItem("p1", "frasco_aco_liquido")).toBe(0);
+  });
+
+  it("ciclo 20: tier III sem o material extra não cobra nada nem troca o encantamento; com tudo, consome ouro, essências e extra", () => {
+    const t = npcWorld();
+    const p = t.add("p1", 80, 10);
+    p.level = 90;
+    t.w.inv.addGold(p, 200_000);
+    t.w.inv.addItem(p, makeItem("demonic_essence", 5));
+    t.w.inv.addItem(p, makeItem("mt_cromo", 1));
+    t.npcs.onInteract(p, { npcId: "enchanter" });
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "haste", tier: 3 });
+    expect(t.out.at(-1)!.msg.text).toBe("Faltam materiais: 2x Cromo Puro.");
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "lifesteal", tier: 3 });
+    expect(t.out.at(-1)!.msg.text).toBe("Faltam materiais: 2x Rubi.");
+    expect([t.w.inv.gold("p1"), t.w.inv.countItem("p1", "demonic_essence"), t.w.inv.countItem("p1", "mt_cromo")]).toEqual([200_000, 5, 1]);
+    expect(t.imbue.get("p1")).toBeUndefined();
+    t.w.inv.addItem(p, makeItem("mt_cromo", 2));
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "haste", tier: 3 });
+    expect(t.imbue.get("p1")).toMatchObject({ effect: "haste", tier: 3 });
+    expect([t.w.inv.gold("p1"), t.w.inv.countItem("p1", "demonic_essence"), t.w.inv.countItem("p1", "mt_cromo")]).toEqual([100_000, 0, 1]);
+    // Faltando as duas coisas, o aviso lista as duas.
+    t.npcs.onTrade(p, { npcId: "enchanter", action: "imbuement", effect: "thorns", tier: 3 });
+    expect(t.out.at(-1)!.msg.text).toBe("Faltam materiais: 5x Essência Demoníaca, 2x Cromo Puro.");
   });
 
   it("tier 6-7 (encomenda especial): só 1 por personagem por semana", () => {

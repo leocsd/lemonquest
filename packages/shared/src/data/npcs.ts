@@ -61,6 +61,12 @@ const MALHA_ARRIVAL: TravelDest = { id: "malha", label: "Estação Central da Ma
  * planta da Estação Central. O preço depende de quem vende (Vila 250, Malha 200, Sala de Controle 100).
  */
 const MINERIO_ARRIVAL = { id: "minerio", label: "Estação do Minério", x: 24, y: 594 } as const;
+/**
+ * Chegada na Portaria da Montadora (ciclo 20, tools/mapgen/expansion7.mjs), em frente à cegonha estacionada, dentro da
+ * zona protegida. A cegonha da Vila cobra 250; o Cocheiro Dito e o Caminhão de Bobinas, 200; a Supervisora, 100.
+ * Nenhuma viagem leva para depois das portas de level da região (pularia o caminho).
+ */
+const MONTADORA_ARRIVAL: TravelDest = { id: "montadora", label: "Portaria da Montadora", x: 232, y: 758, price: 250 };
 const sells = (...ids: string[]): NpcShopEntry[] => ids.map((itemId) => ({ itemId }));
 /** Tier 6-7: preço = valor de loot × 1,5 (sink pra ouro acumulado), 1 por semana por personagem. */
 const limited = (...entries: [string, number][]): NpcShopEntry[] =>
@@ -500,9 +506,16 @@ export const NPCS: Record<string, NpcDef> = {
   },
   coach_oficina: {
     id: "coach_oficina", name: "Cocheiro Dito", sprite: C + "Villager2/SpriteSheet.png",
-    greeting: "Carroça de volta pra Vila de Pedra Clara, ou até o Porto pra quem tem pressa e ouro.",
-    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 100 }, PORT_ARRIVAL],
-    idleLines: ["Volta pra Vila! A mula já está encilhada.", "Encomenda eu não levo. Gente, sim."],
+    greeting: "Carroça de volta pra Vila de Pedra Clara, até o Porto pra quem tem pressa e ouro, ou até a portaria da Montadora.",
+    // Ciclo 20: a Montadora fica logo abaixo da Oficina no mapa; o atalho a pé (lv 10) sai do Pátio de Encomendas.
+    travel: [
+      { id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 100 }, PORT_ARRIVAL,
+      { ...MONTADORA_ARRIVAL, price: 200 },
+    ],
+    idleLines: [
+      "Volta pra Vila! A mula já está encilhada.", "Encomenda eu não levo. Gente, sim.",
+      "Montadora? Levo até a portaria. Lá dentro é com as suas pernas.",
+    ],
   },
   // Placas e máquinas (NPCs sem papel, só ambientação). A Geladeira é a única loja de comida da Oficina.
   geladeira: {
@@ -819,6 +832,175 @@ export const NPCS: Record<string, NpcDef> = {
     id: "placa_forno_acordado", name: "Placa: O Forno Está Acordado", sprite: C + "Inspector/SpriteSheet.png",
     greeting: "NÃO ENTRE: O FORNO ESTÁ ACORDADO — CORAÇÃO DO FORNO — lv 100+. Desça em grupo de cinco ou mais.",
     idleLines: ["Coração do Forno — lv 100+.", "Escotilha quente. Não sente."],
+  },
+  // ===== Montadora (ciclo 20): as máquinas da linha criaram vontade própria e tudo sai amarelo-limão. Só fantasia, NPCs
+  // só por papel (tools/mapgen/expansion7.mjs, docs/regioes/montadora.md §7). Chegada pela cegonha da Vila, pelo Cocheiro
+  // Dito, pelo Caminhão de Bobinas e pelo atalho da Oficina; placas com o sprite dos quadros.
+  mt_cegonha_vila: {
+    id: "mt_cegonha_vila", name: "Motorista da Cegonha", sprite: C + "Villager5/SpriteSheet.png",
+    greeting: "Cegonha para a Montadora! Vou buscar carro novo e levo gente na cabine. Até o level 8 é por conta da casa.",
+    travel: [MONTADORA_ARRIVAL],
+    idleLines: [
+      "Carro sai amarelo. Todo. Até o que era para ser azul.",
+      "Cabine tem lugar para três. O quarto vai em cima, no carro.",
+    ],
+  },
+  mt_motorista: {
+    id: "mt_motorista", name: "Motorista da Cegonha", sprite: C + "Villager5/SpriteSheet.png",
+    greeting: "Voltando? A cegonha sai cheia de carro limão e um passageiro. Deixo você na Vila de Pedra Clara ou, no caminho, na Oficina dos Engenhos.",
+    travel: [
+      { id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 250 },
+      { id: "oficina", label: "Oficina dos Engenhos", x: 83, y: 330, price: 150 },
+    ],
+    idleLines: [
+      "Ré com cegonha é arte.",
+      "Não encoste nos carros: a tinta ainda está fresca.",
+    ],
+  },
+  mt_bobinas: {
+    id: "mt_bobinas", name: "Motorista do Caminhão de Bobinas", sprite: C + "LionOrange/SpriteSheet.png",
+    greeting: "Bobina de aço vem da Siderúrgica, eu volto vazio. Quer carona até a Estação do Minério?",
+    travel: [{ ...MINERIO_ARRIVAL, price: 200 }],
+    idleLines: [
+      "Bobina rola. Por isso eu amarro três vezes.",
+      "Da Siderúrgica para cá é chapa; daqui para lá é saudade.",
+    ],
+  },
+  // A outra ponta, no tile reservado da Estação do Minério (Siderúrgica): só o objeto NPC, nenhum tile de lá muda.
+  mt_bobinas_sid: {
+    id: "mt_bobinas_sid", name: "Motorista do Caminhão de Bobinas", sprite: C + "LionOrange/SpriteSheet.png",
+    greeting: "Levo bobina de aço para a Montadora, lá embaixo, onde tudo sai amarelo. Cabe mais um na boleia, entre uma bobina e outra.",
+    travel: [{ ...MONTADORA_ARRIVAL, price: 200 }],
+    idleLines: [
+      "Bobina rola. Por isso eu amarro três vezes.",
+      "Da Siderúrgica para lá é chapa; de lá para cá é saudade.",
+    ],
+  },
+  mt_porteiro: {
+    id: "mt_porteiro", name: "Porteiro da Montadora", sprite: C + "Villager3/SpriteSheet.png",
+    greeting: "Crachá, por favor. Não tem? Então vamos fazer um. Depois da cancela fica o Pátio de Carros; os galpões abrem as portas conforme o level de quem chega.",
+    idleLines: [
+      "Visitante usa crachá amarelo. Funcionário também. Tudo aqui é amarelo.",
+      "A cancela abre sozinha. Ela decidiu isso semana passada.",
+      "Saída de carro à esquerda, entrada de gente à direita. Calota, onde quiser.",
+    ],
+  },
+  mt_cantineira: {
+    id: "mt_cantineira", name: "Cantineira", sprite: C + "Woman/SpriteSheet.png",
+    greeting: "Prato do dia, poção e café. Compro o que você arrancar das máquinas: parafuso, graxa, faísca, até airbag murcho.",
+    shop: {
+      sells: sells(
+        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "beaf", "yakitori", "sushi", "cafe_oficina", "marmita_tampa_vermelha", "limonada_turno", "prato_feito",
+      ),
+      buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
+    },
+    idleLines: [
+      "Hoje tem prato feito. Amanhã também. Sempre tem.",
+      "Lata de tinta não é tempero. Já avisei o Pintor.",
+      "Limonada do turno: a única coisa amarela aqui que não morde.",
+    ],
+  },
+  mt_depot: {
+    id: "mt_depot", name: "Guarda-Volumes da Portaria", sprite: C + "OldMan2/SpriteSheet.png", depot: true,
+    greeting: "O mesmo baú da Vila, aqui na portaria. Etiquete antes de entrar na fábrica.",
+    idleLines: [
+      "Peça sem etiqueta vira peça de reposição.",
+      "Deixe o peso aqui antes da Estamparia.",
+    ],
+  },
+  mt_enfermeira: {
+    id: "mt_enfermeira", name: "Enfermeira do Ambulatório", sprite: C + "Lion/SpriteSheet.png", blessing: true,
+    greeting: "Curativo, termômetro e uma bênção para o próximo tombo. A linha não perdoa.",
+    idleLines: [
+      "Faísca no olho? Óculos, querido. Óculos.",
+      "Quem volta do Crash Test volta mancando.",
+      "Calota no tornozelo é o caso mais comum. Depois vem prensa no dedo.",
+    ],
+  },
+  mt_lavador: {
+    id: "mt_lavador", name: "Lavador-Chefe", sprite: C + "NinjaLeaf/SpriteSheet.png",
+    greeting: "O Lava-Rápido está sem controle: espuma com vida, calota fugindo e um sapo enorme no fundo. Fica no fim do Pátio, de frente aberta. Ajuda aí?",
+    idleLines: [
+      "Lavagem completa ou nada.",
+      "Se a espuma piscar para você, corra.",
+      "Cera é opcional. O Sapão discorda.",
+    ],
+  },
+  mt_prensista: {
+    id: "mt_prensista", name: "Operadora da Prensa", sprite: C + "Pig/SpriteSheet.png",
+    greeting: "A prensa vermelha decidiu carimbar o que quiser. Inclusive a gente.",
+    idleLines: [
+      "Mão longe da prensa. A prensa não pensa.",
+      "Chapa torta não vira carro. Vira escultura.",
+    ],
+  },
+  mt_soldadora: {
+    id: "mt_soldadora", name: "Mestra Soldadora", sprite: C + "CaveLion/SpriteSheet.png",
+    greeting: "Os robôs aprenderam a soldar sozinhos. O problema é o que eles soldam.",
+    idleLines: [
+      "Ponto de solda bonito é ponto de solda frio.",
+      "As lagartixas comem arame. Pelo menos não comem eletrodo. Ainda.",
+    ],
+  },
+  mt_pintor: {
+    id: "mt_pintor", name: "Pintor-Chefe", sprite: C + "LionBoy/SpriteSheet.png",
+    greeting: "Toda tinta aqui virou amarelo-limão, e a que sobrou criou asas.",
+    idleLines: [
+      "Primeira demão: primer. Segunda: limão. Terceira: limão de novo.",
+      "A estufa ronca de noite. Ronca.",
+    ],
+  },
+  // Posto avançado da Montagem Final: só viagem para FORA (dentro da região, a viagem pularia as portas de level).
+  mt_supervisora: {
+    id: "mt_supervisora", name: "Supervisora de Linha", sprite: C + "Villager6/SpriteSheet.png", depot: true,
+    greeting: "A linha não pode parar. Se você parou aqui, é porque a linha parou. Ajude. O baú é o mesmo de sempre, e daqui a cegonha leva você à Vila ou à Portaria.",
+    travel: [
+      { id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 250 },
+      { ...MONTADORA_ARRIVAL, price: 100 },
+    ],
+    idleLines: [
+      "Meta do turno: um carro por minuto. Realizado: um robô por minuto.",
+      "Café na máquina, baú no armário, cegonha lá fora.",
+    ],
+  },
+  mt_piloto: {
+    id: "mt_piloto", name: "Piloto de Testes Veterano", sprite: C + "GreenPig/SpriteSheet.png",
+    greeting: "Trinta anos de pista. Nunca vi carro andar sem motorista. Até esta semana.",
+    idleLines: [
+      "Volta rápida? Não. Volta inteira.",
+      "Toda quarta, depois do almoço, o Protótipo ronca no subsolo. É o Teste de Pista.",
+    ],
+  },
+  mt_placa_patio: {
+    id: "mt_placa_patio", name: "Placa do Pátio", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "PÁTIO DE CARROS — lv 10+. Calotas soltas. Não persiga calota na faixa de pedestre.",
+    idleLines: ["Lv 10+.", "Velocidade máxima: 10. De level."],
+  },
+  mt_placa_estamparia: {
+    id: "mt_placa_estamparia", name: "Placa da Estamparia", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "ESTAMPARIA — lv 25+. Prensa em operação. Ou em rebelião.",
+    idleLines: ["Lv 25+.", "Uso obrigatório de protetor auricular."],
+  },
+  mt_placa_funilaria: {
+    id: "mt_placa_funilaria", name: "Placa da Funilaria", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "FUNILARIA E ARMAÇÃO — lv 40+. Área de solda: faíscas soltas.",
+    idleLines: ["Lv 40+.", "Lagartixa não é mascote."],
+  },
+  mt_placa_pintura: {
+    id: "mt_placa_pintura", name: "Placa das Cabines", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "CABINES DE PINTURA — lv 60+. Tinta fresca em tudo, inclusive no ar.",
+    idleLines: ["Lv 60+.", "Não respire fundo."],
+  },
+  mt_placa_montagem: {
+    id: "mt_placa_montagem", name: "Placa da Montagem", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "MONTAGEM FINAL — lv 80+. Linha em movimento. A linha não para.",
+    idleLines: ["Lv 80+.", "Sala de Descanso no fim da linha, lá a oeste."],
+  },
+  mt_placa_pista: {
+    id: "mt_placa_pista", name: "Placa da Pista", sprite: C + "Inspector/SpriteSheet.png",
+    greeting: "PISTA DE TESTES — lv 90+. Subsolo dos protótipos: lv 110+.",
+    idleLines: ["Lv 90+.", "Proibido ultrapassar o Protótipo."],
   },
 };
 

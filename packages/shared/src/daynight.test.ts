@@ -101,6 +101,16 @@ describe("regras por zona", () => {
     expect(darknessOf(ambientForZone(night, "Estação Central da Malha"))).toBeCloseTo(darknessOf(ambientForZone(night, "Coliseu")), 6);
   });
 
+  it("Montadora: Portaria como a Vila, galpões iluminados, Sala dos Protótipos escura, Pátio e Pista ao ar livre", () => {
+    const night = 32 * MIN;
+    expect(zoneLightMode("Portaria da Montadora")).toBe("town");
+    for (const z of ["Lava-Rápido", "Estamparia", "Funilaria e Armação", "Cabines de Pintura", "Estufa", "Montagem Final", "Sala de Descanso", "Pista do Crash Test", "Boxe dos Troféus"]) expect(zoneLightMode(z), z).toBe("lit");
+    expect(zoneLightMode("Sala dos Protótipos")).toBe("dark");
+    for (const z of ["Montadora", "Pátio de Carros", "Pista de Testes"]) expect(zoneLightMode(z), z).toBe("outdoor");
+    expect(ambientForZone(night, "Sala dos Protótipos")).toEqual(ambientForZone(night, "Cavernas"));
+    expect(darknessOf(ambientForZone(night, "Portaria da Montadora"))).toBeCloseTo(darknessOf(ambientForZone(night, "Vila de Pedra Clara")), 6);
+  });
+
   it("zoneAt escolhe a menor zona que contém o tile", () => {
     const zones = [
       { name: "Grande", x: 0, y: 0, w: 100, h: 100 },

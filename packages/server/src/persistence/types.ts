@@ -94,7 +94,15 @@ export interface CharacterData {
   request?: { week: string; claimed: boolean; band?: number };
   /** Bônus de login: último dia de jogo (troca às 6h de Brasília) e quantos dias seguidos. */
   login?: { day: string; streak: number };
-  /** Alavanca da Aniquilação: dia de jogo (bountyDay, troca às 6h) da última entrada; uma por dia. */
+  /**
+   * Alavancas de grupo (ciclo 20): id da alavanca → dia de jogo (bountyDay, troca às 6h) da última entrada; uma por dia
+   * em cada alavanca. Ler e gravar por `leverDayOf`/`setLeverDayOf` (systems/questWorld.ts).
+   */
+  leverDays?: Record<string, string>;
+  /**
+   * Formato antigo (até o ciclo 19, só a Aniquilação): vale como `leverDays.annihilator`. Ainda gravado junto com ele
+   * para um rollback ao ciclo 19 manter o limite diário.
+   */
   leverDay?: string;
   /** Lista de amigos (nomes de personagem; /amigo): avisos de entrada e saída. */
   friends?: string[];

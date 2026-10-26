@@ -20,7 +20,9 @@ export type AchMetric =
   // Ciclo 18: invasões da Vila defendidas com o prêmio (contribuição mínima; server/systems/invasion.ts).
   | "invasions"
   // Ciclo 19: chefes da Siderúrgica (o servidor já conta `boss:<id>` de qualquer chefe).
-  | "boss:contramestre_fuligem" | "boss:golem_convertedor" | "boss:fornalha_primordial";
+  | "boss:contramestre_fuligem" | "boss:golem_convertedor" | "boss:fornalha_primordial"
+  // Ciclo 20: chefes da Montadora.
+  | "boss:mt_sapao" | "boss:mt_monstro_estufa" | "boss:mt_prototipo";
 
 export interface AchievementDef {
   id: string;
@@ -102,6 +104,9 @@ export const TITLES: Record<string, string> = {
   contramestre: "o Contramestre",
   mestre_convertedor: "Mestre do Convertedor",
   coracao_de_aco: "Coração de Aço",
+  // Ciclo 20: Montadora ("piloto_testes" vem da missão final, O Protótipo).
+  lava_rapido: "o Lava-Rápido",
+  piloto_testes: "Piloto de Testes",
 };
 export const MAX_TITLE_LEN = 24;
 
@@ -239,6 +244,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("convertedor_desligado", "Convertedor Desligado", "Derrote o Golem do Convertedor", "🔥", 40, "boss:golem_convertedor", 1, { rare: true }),
   a("mestre_do_convertedor", "Mestre do Convertedor", "Derrote o Golem do Convertedor 5 vezes", "⚙️", 40, "boss:golem_convertedor", 5, { rewards: ["title:mestre_convertedor"], rare: true }),
   a("fornalha_apagada", "Fornalha Apagada", "Derrote A Fornalha Primordial", "🧯", 60, "boss:fornalha_primordial", 1, { rare: true }),
+  // Montadora (ciclo 20): os três chefes da fábrica. "Piloto de Testes" vem da missão final (O Protótipo).
+  a("mt_lava_rapido", "Lava-Rápido", "Derrote o Sapão do Lava-Rápido", "🫧", 25, "boss:mt_sapao", 1, { rewards: ["title:lava_rapido"], rare: true }),
+  a("mt_secagem", "Secagem Rápida", "Derrote o Monstro da Estufa", "🎨", 35, "boss:mt_monstro_estufa", 1, { rare: true }),
+  a("mt_fim_de_linha", "Fim de Linha", "Derrote O Protótipo", "🏎️", 60, "boss:mt_prototipo", 1, { rare: true }),
 ];
 
 export const ACHIEVEMENTS_BY_ID: Record<string, AchievementDef> = Object.fromEntries(ACHIEVEMENTS.map((x) => [x.id, x]));

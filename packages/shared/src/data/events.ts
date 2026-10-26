@@ -56,6 +56,9 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   // Siderúrgica (ciclo 19): a sangria das cinco de segunda, fim do expediente, como as outras edições das 17h (terça
   // Ferumbras, quarta Apito, quinta Orshabaal); a segunda às 17h estava livre.
   { id: "sangria_do_alto_forno", name: "Sangria do Alto-Forno", desc: "A corrida de gusa acordou o Golem do Convertedor na Aciaria! Loot +50%", xpMult: 1, lootMult: 1.5, day: 1, hour: 17, durationMin: 60, boss: "golem_convertedor" },
+  // Montadora (ciclo 20): quarta às 13h, logo depois da Invasão da Vila (12h15–12h55) e antes do Apito (17h). O chefe
+  // é convocado no spawn dele, o Salão do Protótipo, no subsolo da Pista de Testes.
+  { id: "teste_de_pista", name: "Teste de Pista", desc: "O Protótipo ligou o motor na Sala dos Protótipos! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 3, hour: 13, durationMin: 60, boss: "mt_prototipo" },
 ];
 
 /** Evento em andamento (agendado ou disparado por admin). */

@@ -41,8 +41,12 @@ describe("eventos semanais", () => {
 
   it("próximo evento: o mais cedo depois de agora", () => {
     // Ciclo 11: depois do almoço de quarta (Invasão da Vila desde o ciclo 18) vem o Apito da Locomotiva (17h) e só então o
-    // Yeti (quinta 12h15).
-    const apito = nextScheduled(at(2026, 10, 14, 13, 0))!; // quarta depois da Invasão (12h15–12h55)
+    // Yeti (quinta 12h15). Ciclo 20: entre os dois, o Teste de Pista (13h); às 13h em ponto ele já começou e o agendador
+    // pula o que já começou.
+    const pista = nextScheduled(at(2026, 10, 14, 12, 56))!; // quarta depois da Invasão (12h15–12h55)
+    expect(pista.def.id).toBe("teste_de_pista");
+    expect(pista.at).toBe(at(2026, 10, 14, 13, 0).getTime());
+    const apito = nextScheduled(at(2026, 10, 14, 13, 0))!;
     expect(apito.def.id).toBe("apito_da_locomotiva");
     expect(apito.at).toBe(at(2026, 10, 14, 17, 0).getTime());
     const n = nextScheduled(at(2026, 10, 14, 18, 0))!; // quarta depois do Apito: o próximo é o Yeti, quinta 12h15
@@ -71,7 +75,9 @@ describe("eventos semanais", () => {
 
   it("eventos de chefe: o chefe existe no catálogo e as janelas não se sobrepõem", () => {
     const withBoss = WEEKLY_EVENTS.filter((e) => e.boss);
-    expect(withBoss.map((e) => e.boss).sort()).toEqual(["demodras", "ferumbras", "ferumbras", "goblin_king", "golem_convertedor", "locomotiva_fantasma", "orshabaal", "orshabaal", "swamp_lich", "yeti"]);
+    expect(withBoss.map((e) => e.boss).sort()).toEqual([
+      "demodras", "ferumbras", "ferumbras", "goblin_king", "golem_convertedor", "locomotiva_fantasma", "mt_prototipo", "orshabaal", "orshabaal", "swamp_lich", "yeti",
+    ]);
     for (const e of withBoss) expect(MONSTERS[e.boss!]?.boss, e.boss).toBe(true);
     // Nenhuma janela começa dentro de outra no mesmo dia (scheduledEvent devolve só uma).
     for (const a of WEEKLY_EVENTS) for (const b of WEEKLY_EVENTS) {
@@ -89,15 +95,18 @@ describe("eventos semanais", () => {
 
   it("chefes no horário do almoço: dias úteis entre 12h e 13h, e só um chefe à noite", () => {
     const withBoss = WEEKLY_EVENTS.filter((e) => e.boss);
-    // Fora do almoço, só no fim do expediente (17h–18h): o Apito (ciclo 11), desde o ciclo 12 Ferumbras na terça e
+    // Fora do almoço, no fim do expediente (17h–18h): o Apito (ciclo 11), desde o ciclo 12 Ferumbras na terça e
     // Orshabaal na quinta (antes só no fim de semana, quando ninguém do escritório está online) e, desde o ciclo 19, a
-    // Sangria do Alto-Forno na segunda.
+    // Sangria do Alto-Forno na segunda. Ciclo 20: o Teste de Pista na quarta às 13h, logo depois da Invasão da Vila.
     const weekday = withBoss.filter((e) => e.day >= 1 && e.day <= 5);
-    expect(weekday.filter((e) => e.hour >= 13).map((e) => e.id)).toEqual(["apito_da_locomotiva", "ferumbras_no_expediente", "orshabaal_no_expediente", "sangria_do_alto_forno"]);
+    expect(weekday.filter((e) => e.hour >= 13).map((e) => e.id)).toEqual([
+      "apito_da_locomotiva", "ferumbras_no_expediente", "orshabaal_no_expediente", "sangria_do_alto_forno", "teste_de_pista",
+    ]);
     expect(eventDef("apito_da_locomotiva")).toMatchObject({ day: 3, hour: 17, durationMin: 60, boss: "locomotiva_fantasma" });
     expect(eventDef("ferumbras_no_expediente")).toMatchObject({ day: 2, hour: 17, durationMin: 60, boss: "ferumbras" });
     expect(eventDef("orshabaal_no_expediente")).toMatchObject({ day: 4, hour: 17, durationMin: 60, boss: "orshabaal" });
     expect(eventDef("sangria_do_alto_forno")).toMatchObject({ day: 1, hour: 17, durationMin: 60, boss: "golem_convertedor", lootMult: 1.5 });
+    expect(eventDef("teste_de_pista")).toMatchObject({ day: 3, hour: 13, durationMin: 60, boss: "mt_prototipo", xpMult: 1.5, lootMult: 1.5 });
     const lunch = weekday.filter((e) => e.hour < 13);
     expect(lunch.length).toBe(4);
     for (const e of lunch) {
@@ -113,9 +122,10 @@ describe("eventos semanais", () => {
     expect(eventDef("mare_de_tesouros")).toMatchObject({ day: 4, hour: 13, durationMin: 60, lootMult: 1.5 });
     expect(WEEKLY_EVENTS.filter((e) => e.invasion).map((e) => e.id)).toEqual(["invasao_da_vila"]);
     expect(eventDef("invasao_da_vila")!.boss).toBeUndefined();
-    // Quinta: Yeti 12h15–13h, Maré 13h–14h, Orshabaal 17h; quarta: Invasão 12h15–12h55, Apito 17h.
+    // Quinta: Yeti 12h15–13h, Maré 13h–14h, Orshabaal 17h; quarta: Invasão 12h15–12h55, Teste de Pista 13h (ciclo 20),
+    // Apito 17h.
     const day = (d: number) => WEEKLY_EVENTS.filter((e) => e.day === d).map((e) => `${e.id}@${e.hour * 60 + (e.minute ?? 0)}+${e.durationMin}`).sort();
-    expect(day(3)).toEqual(["apito_da_locomotiva@1020+60", "invasao_da_vila@735+40"]);
+    expect(day(3)).toEqual(["apito_da_locomotiva@1020+60", "invasao_da_vila@735+40", "teste_de_pista@780+60"]);
     expect(day(4)).toEqual(["mare_de_tesouros@780+60", "orshabaal_no_expediente@1020+60", "rugido_do_yeti@735+45"]);
     expect(scheduledEvent(at(2026, 10, 14, 12, 14))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 14, 12, 15))?.id).toBe("invasao_da_vila");
@@ -123,6 +133,10 @@ describe("eventos semanais", () => {
     expect(scheduledEvent(at(2026, 10, 14, 12, 55))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 15, 12, 59))?.id).toBe("rugido_do_yeti");
     expect(scheduledEvent(at(2026, 10, 15, 13, 0))?.id).toBe("mare_de_tesouros");
+    // Quarta (ciclo 20): o intervalo entre a Invasão e o Teste de Pista fica sem evento.
+    expect(scheduledEvent(at(2026, 10, 14, 12, 56))).toBeNull();
+    expect(scheduledEvent(at(2026, 10, 14, 13, 30))).toMatchObject({ id: "teste_de_pista", boss: "mt_prototipo", until: at(2026, 10, 14, 14, 0).getTime() });
+    expect(scheduledEvent(at(2026, 10, 14, 14, 0))).toBeNull();
   });
 
   it("agenda: a semana inteira a partir de agora, em ordem, com o evento em andamento primeiro", () => {
@@ -143,7 +157,7 @@ describe("eventos semanais", () => {
     expect(after[0]!.live).toBe(false);
     expect(after.at(-1)).toMatchObject({ start: at(2026, 10, 21, 12, 15).getTime() });
     expect(after.at(-1)!.def.id).toBe("invasao_da_vila");
-    expect(upcomingEvents(now, 3).map((e) => e.def.id)).toEqual(["invasao_da_vila", "apito_da_locomotiva", "rugido_do_yeti"]);
+    expect(upcomingEvents(now, 3).map((e) => e.def.id)).toEqual(["invasao_da_vila", "teste_de_pista", "apito_da_locomotiva"]);
     expect(upcomingEvents(now, 0)).toEqual([]);
   });
 

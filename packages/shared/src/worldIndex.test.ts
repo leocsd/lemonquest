@@ -128,6 +128,22 @@ describe("índice do mundo (mapa real)", () => {
       expect(door?.minLevel ?? 0).toBeLessThanOrEqual(90);
     }
   });
+
+  it("Montadora (ciclo 20): da Vila ao Pátio de Carros pela cegonha (lv 5 e lv 20); da Estação do Minério, pelo Caminhão de Bobinas", () => {
+    const upTo = (lv: number): PortalFilter => (p) => !p.quest && (!p.minLevel || p.minLevel <= lv);
+    const cap = idx.npcAt("guard_captain")!;
+    const patio = idx.spawnsOf("mt_calota").find((s) => s.zone === "Pátio de Carros")!;
+    expect(patio).toBeDefined();
+    // lv 5 não abre o atalho da Oficina (lv 10); no lv 20 ele abre, mas a cegonha ainda é o caminho mais curto.
+    for (const lv of [5, 20]) {
+      expect(idx.nextHop(cap, patio, upTo(lv)), `lv ${lv}`).toMatchObject({ x: 91, y: 100, kind: "travel" });
+    }
+    expect(idx.npcAt("mt_cegonha_vila")).toMatchObject({ x: 91, y: 100 });
+    // Da Estação do Minério (chegada do trem na Siderúrgica): o caminhão leva direto à Portaria, ao lado do Pátio.
+    const bobinas = idx.npcAt("mt_bobinas_sid")!;
+    expect(bobinas).toMatchObject({ x: 30, y: 605, zone: "Estação do Minério" });
+    expect(idx.nextHop({ x: 24, y: 594 }, patio, upTo(20))).toMatchObject({ x: bobinas.x, y: bobinas.y, kind: "travel" });
+  });
 });
 
 describe("índice do mundo (mapa sintético)", () => {

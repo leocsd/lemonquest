@@ -41,7 +41,7 @@ export function RefineTab() {
   const n = v.next;
   return (
     <div class="refine">
-      <div class="refine-hint">Armas ganham +3 de ataque e armaduras +1 de armadura por nível, até +5. Se falhar, o item não quebra nem perde nível: só o ouro e a gema são gastos.</div>
+      <div class="refine-hint">Armas ganham +3 de ataque e armaduras +1 de armadura por nível, até +5. Do +4 em diante a tentativa pede também um material raro das regiões novas. Se falhar, o item não quebra nem perde nível: só o ouro e os materiais são gastos.</div>
       <ul class="shop-list refine-list" role="listbox" aria-label="Itens para refinar">
         {list.map((c) => {
           const on = c.inst.uid === cur.inst.uid;
@@ -84,6 +84,14 @@ export function RefineTab() {
                 <small class={n.have >= n.materialCount ? "" : "bad"}> + {n.materialCount}x {n.materialName} ({n.have})</small>
               </span>
             </div>
+            {n.extra && (
+              <div class="refine-line">
+                <span class="muted">Material raro</span>
+                <span class="refine-cost">
+                  <small class={n.extra.have >= n.extra.count ? "" : "bad"}>+ {n.extra.count}x {n.extra.materialName} ({n.extra.have})</small>
+                </span>
+              </div>
+            )}
           </>
         ) : (
           <div class="refine-line good">No refino máximo.</div>

@@ -28,6 +28,8 @@ export interface ImbuementTierDef {
   goldPrice: number;
   materialId: string;
   materialCount: number;
+  /** Material extra (ciclo 20: só o tier III, Rubi, Frasco de Aço Líquido ou Cromo Puro), cobrado junto. */
+  extra?: { materialId: string; count: number };
   /** Level mínimo para comprar (0 = qualquer um). */
   minLevel: number;
 }
@@ -42,42 +44,43 @@ export interface ImbuementDef {
 
 /**
  * Tier I = os valores e preços de antes do ciclo 16 (5 mil + 5 materiais de caça baixa). Tier II (lv 60): ~×1,5, 30 mil
- * + 5 materiais de monstro lv 60–90 ligados ao efeito. Tier III (lv 90): ~×2, 100 mil + 5 Essências Demoníacas. Tetos:
- * Veloz fica em 15% (ataque a cada 1,7 s) e Perfurante em 30% da armadura.
+ * + 5 materiais de monstro lv 60–90 ligados ao efeito. Tier III (lv 90): ~×2, 100 mil + 5 Essências Demoníacas e, desde o
+ * ciclo 20, um material das regiões novas (`tier3Extra`: Rubi da Siderúrgica, Frasco de Aço Líquido do Coração do Forno
+ * ou Cromo Puro da Pista de Testes). Tetos: Veloz fica em 15% (ataque a cada 1,7 s) e Perfurante em 30% da armadura.
  */
-function tiers(values: readonly [number, number, number], tier1Material: string, tier2Material: string): Record<ImbuementTier, ImbuementTierDef> {
+function tiers(values: readonly [number, number, number], tier1Material: string, tier2Material: string, tier3Extra: { materialId: string; count: number }): Record<ImbuementTier, ImbuementTierDef> {
   return {
     1: { tier: 1, value: values[0], goldPrice: 5_000, materialId: tier1Material, materialCount: 5, minLevel: 0 },
     2: { tier: 2, value: values[1], goldPrice: 30_000, materialId: tier2Material, materialCount: 5, minLevel: 60 },
-    3: { tier: 3, value: values[2], goldPrice: 100_000, materialId: "demonic_essence", materialCount: 5, minLevel: 90 },
+    3: { tier: 3, value: values[2], goldPrice: 100_000, materialId: "demonic_essence", materialCount: 5, extra: tier3Extra, minLevel: 90 },
   };
 }
 
 export const IMBUEMENTS: Record<ImbuementEffect, ImbuementDef> = {
-  // Necromante (lv 68): necromancia drena a vida.
+  // Necromante (lv 68): necromancia drena a vida. Tier III: Rubi, cor de sangue.
   lifesteal: {
     effect: "lifesteal", name: "Dreno de Vida", text: "{v} do dano causado em monstros volta como vida (metade em magia).",
-    tiers: tiers([0.05, 0.08, 0.10], "wolf_fang", "necro_skull"),
+    tiers: tiers([0.05, 0.08, 0.10], "wolf_fang", "necro_skull", { materialId: "gem_red", count: 2 }),
   },
-  // Olho Maligno (lv 60): olho de novo, como o Olho de Aranha do tier I.
+  // Olho Maligno (lv 60): olho de novo, como o Olho de Aranha do tier I. Tier III: Rubi, como o dreno de vida.
   manasteal: {
     effect: "manasteal", name: "Dreno de Mana", text: "{v} do dano causado em monstros volta como mana (metade em magia).",
-    tiers: tiers([0.04, 0.06, 0.08], "spider_eye", "bonelord_eye"),
+    tiers: tiers([0.04, 0.06, 0.08], "spider_eye", "bonelord_eye", { materialId: "gem_red", count: 2 }),
   },
-  // Dragão (lv 70): escama dura, como o couro do tier I.
+  // Dragão (lv 70): escama dura, como o couro do tier I. Tier III: Cromo Puro, que reflete.
   thorns: {
     effect: "thorns", name: "Espinhos", text: "{v} do dano recebido de golpes de monstro volta para ele.",
-    tiers: tiers([0.08, 0.12, 0.16], "wolf_pelt", "dragon_scale"),
+    tiers: tiers([0.08, 0.12, 0.16], "wolf_pelt", "dragon_scale", { materialId: "mt_cromo", count: 2 }),
   },
-  // Behemoth (lv 90): garra que atravessa armadura.
+  // Behemoth (lv 90): garra que atravessa armadura. Tier III: Aço Líquido, que atravessa tudo.
   pierce: {
     effect: "pierce", name: "Perfurante", text: "Ignora {v} da armadura do monstro (metade em magia).",
-    tiers: tiers([0.15, 0.22, 0.30], "iron_bar", "behemoth_claw"),
+    tiers: tiers([0.15, 0.22, 0.30], "iron_bar", "behemoth_claw", { materialId: "frasco_aco_liquido", count: 1 }),
   },
-  // Herói (lv 72): a pressa de quem vive de duelo.
+  // Herói (lv 72): a pressa de quem vive de duelo. Tier III: Cromo Puro, da Pista de Testes.
   haste: {
     effect: "haste", name: "Veloz", text: "Ataque automático {v} mais rápido contra monstros (não vale em magia).",
-    tiers: tiers([0.08, 0.12, 0.15], "bee_sting", "hero_badge"),
+    tiers: tiers([0.08, 0.12, 0.15], "bee_sting", "hero_badge", { materialId: "mt_cromo", count: 2 }),
   },
 };
 
@@ -92,6 +95,17 @@ export function isImbuementTier(n: unknown): n is ImbuementTier {
 /** Tier de um efeito, com efeito e tier vindos de fora (mensagem, save): undefined se algum for inválido. */
 export function imbuementTier(effect: unknown, tier: unknown): ImbuementTierDef | undefined {
   return isImbuementTier(tier) ? imbuementDef(effect)?.tiers[tier] : undefined;
+}
+
+/** Todos os materiais do tier (o principal e o extra), somados por id: o servidor confere antes de cobrar e a Dona Marta mostra. */
+export function imbuementMaterials(t: Pick<ImbuementTierDef, "materialId" | "materialCount" | "extra">): { materialId: string; count: number }[] {
+  const out = [{ materialId: t.materialId, count: t.materialCount }];
+  if (t.extra) {
+    const same = out.find((m) => m.materialId === t.extra!.materialId);
+    if (same) same.count += t.extra.count;
+    else out.push({ materialId: t.extra.materialId, count: t.extra.count });
+  }
+  return out;
 }
 
 /** "Dreno de Vida II". */

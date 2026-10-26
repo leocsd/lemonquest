@@ -282,9 +282,11 @@ export function WorldMapOverlay() {
       if (!store.ready || !store.base) return;
       const dpr = window.devicePixelRatio || 1;
       const availW = window.innerWidth - 48, availH = window.innerHeight - 150; // título + 2 linhas de legenda
-      // Escala inteira (pixels nítidos) para caber na janela.
-      const scale = Math.max(1, Math.floor(Math.min(availW / store.width, availH / store.height) * dpr)) ;
-      const W = store.width * scale, H = store.height * scale;
+      // Escala inteira (pixels nítidos) quando cabe; se nem 1 px por tile cabe (mapa 400×888 em tela baixa), fracionária,
+      // para o mapa e a legenda não passarem da janela.
+      const fit = Math.min(availW / store.width, availH / store.height) * dpr;
+      const scale = fit >= 1 ? Math.floor(fit) : fit;
+      const W = Math.max(1, Math.round(store.width * scale)), H = Math.max(1, Math.round(store.height * scale));
       if (canvas.width !== W || canvas.height !== H) {
         canvas.width = W; canvas.height = H;
         canvas.style.width = `${W / dpr}px`; canvas.style.height = `${H / dpr}px`;
