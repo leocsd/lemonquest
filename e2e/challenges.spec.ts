@@ -18,7 +18,7 @@ test("desafios da semana: metas da semana, progresso zerado e bônus bloqueado",
   for (const id of ids) {
     const goal = win.locator(`[data-goal="${id}"]`);
     await expect(goal).toBeVisible();
-    await expect(goal).toContainText(/\b0 \/ \d/);
+    await expect(goal).toContainText(/(^|\D)0 \/ \d/); // o título encosta no progresso ("semana0 / 10"): \b não serve
     await expect(goal.getByRole("button", { name: "Resgatar" })).toBeDisabled();
   }
   await expect(win.locator('[data-goal="bonus"]').getByRole("button")).toBeDisabled();

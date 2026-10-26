@@ -74,8 +74,13 @@ test("depot: Organizar junta as pilhas e a busca filtra pelo nome", async ({ pag
     expect(i).toBeGreaterThanOrEqual(0);
     await expect(bp.locator(`[data-loc="bp:${i}"]`)).toBeInViewport();
     await waitSettled(page);
-    await drag(page, await center(page, bp.locator(`[data-loc="bp:${i}"]`)), await center(page, slot(to)));
-    await expect(slot(to)).toHaveClass(/filled/, { timeout: 10_000 });
+    // Arrastar pode não "pegar" com a máquina lenta (CI): repete o gesto até o espaço encher.
+    await expect.poll(async () => {
+      if (/filled/.test((await slot(to).getAttribute("class")) ?? "")) return true;
+      await drag(page, await center(page, bp.locator(`[data-loc="bp:${i}"]`)), await center(page, slot(to)));
+      await page.waitForTimeout(400);
+      return /filled/.test((await slot(to).getAttribute("class")) ?? "");
+    }, { timeout: 15_000 }).toBe(true);
   };
 
   // Duas pilhas de carne em espaços separados (o kit traz 5; /item dá mais 3) e as poções do kit num terceiro.

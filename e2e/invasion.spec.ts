@@ -15,6 +15,9 @@ test("invasão: barra no topo, invasores fora da Vila, contribuição, agenda e 
   test.setTimeout(180_000);
   await enterGame(page, "knight");
   await setLevel(page, 10);
+  // Fora da Vila ANTES de começar: só conta como defensor quem está fora da PZ (ciclo 18); dentro, a onda 1 traz só os
+  // 3 invasores-base, que podem nascer nos outros portões. Lado de fora do portão norte (invasion_n em 72,67 → 72,75).
+  await teleport(page, 72, 72);
 
   await say(page, "/evento invasao_da_vila 10");
   const bar = page.locator('[data-testid="invasion-bar"]');
@@ -31,11 +34,10 @@ test("invasão: barra no topo, invasores fora da Vila, contribuição, agenda e 
   await expect(win.locator('.ag-row[data-event="invasao_da_vila"]').first()).toContainText("invasão");
   await page.keyboard.press("Escape");
 
-  // Vai para o lado de fora do portão norte (o ponto invasion_n fica em 72,67; a coluna marcha até 72,75).
-  await teleport(page, 72, 72);
+  // Invasores por perto (norte, nordeste ou oeste: até ~20 tiles do portão norte).
   await expect.poll(async () => {
     const m = (await me(page))!;
-    return (await monsters(page)).filter((x) => INVADERS.includes(x.defId ?? "") && Math.max(Math.abs(x.x - m.x), Math.abs(x.y - m.y)) <= 10).length;
+    return (await monsters(page)).filter((x) => INVADERS.includes(x.defId ?? "") && Math.max(Math.abs(x.x - m.x), Math.abs(x.y - m.y)) <= 20).length;
   }, { timeout: 30_000 }).toBeGreaterThan(0);
 
   // Nenhum monstro dentro da Vila (a PZ): os invasores param na borda.
