@@ -58,6 +58,9 @@ você escolhe um e os outros ficam vazios. Portas com fechadura pedem level ou u
 volta). Na Cidadela de Ferumbras, a Aniquilação precisa de quatro jogadores de lv 100+ nas placas para alguém puxar a
 alavanca; cada personagem entra uma vez por dia (o dia troca às 6h, como as recompensas diárias).
 
+**Wiki do jogo:** criaturas, itens (quem dropa, quem vende), magias, NPCs, missões, mapa por zona e mecânicas, gerada
+dos dados do próprio jogo, em `/wiki/` (no jogo: `F1` → *Wiki do jogo*).
+
 Itens no chão somem em 10 min (raros ou melhores: 20 min). Eles sobrevivem a um reinício do servidor, mas o tempo com
 o servidor desligado também conta.
 
@@ -133,7 +136,12 @@ npm ci
 npm run dev          # servidor em :2567 + cliente (Vite) em http://localhost:3000
 npm run typecheck
 npm test
+npm run wiki         # gera a wiki em assets/wiki/ a partir dos dados do jogo (tools/wiki)
 ```
+
+Wiki: `npm run wiki` gera `assets/wiki/` (páginas estáticas, sem servidor; dá para abrir o `index.html` direto do disco).
+O build (`tools/build-public.mjs`) gera de novo e copia para o cliente: em produção fica em `/wiki/`; no dev, em
+`http://localhost:3000/wiki/index.html` depois do `npm run wiki`. O gerador falha se achar link interno quebrado.
 
 O Vite escuta só em `localhost`; para testar de outra máquina use `LEMONQUEST_DEV_LAN=1 npm run dev`.
 

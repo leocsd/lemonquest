@@ -1,6 +1,7 @@
 // Gera packages/client/.public com apenas o que o jogo usa em produção
 // (em vez de publicar a pasta assets/ inteira: músicas, gifs, previews, mapgen...).
 // Uso: node tools/build-public.mjs   (o vite.config.ts também chama no `vite build`)
+import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync, existsSync, readFileSync, readdirSync, rmdirSync, statSync } from "node:fs";
 import { dirname, join, basename, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,6 +47,8 @@ function pruneEmptyDirs(dir) {
 export function buildPublic() {
   rmSync(PUBLIC_DIR, { recursive: true, force: true });
   mkdirSync(PUBLIC_DIR, { recursive: true });
+  // Wiki do jogo (tools/wiki): gerada dos dados a cada build, para nunca divergir do jogo; vai para /wiki/.
+  execFileSync(process.execPath, [join(root, "node_modules", "tsx", "dist", "cli.mjs"), join(root, "tools", "wiki", "generate.mts")], { cwd: root, stdio: "inherit" });
 
   const copy = (rel, filter) => {
     const src = join(assets, rel);
@@ -73,6 +76,7 @@ export function buildPublic() {
   copy("monsters", (src) => !/preview/i.test(basename(src))); // variações recoloridas (tools/monsters/recolor.mjs)
   copy("favicon", (src) => !/preview/i.test(basename(src))); // favicons + manifest.webmanifest
   copy("fx", (src) => !/preview/i.test(basename(src))); // efeitos desenhados em código (tools/fx: portal animado)
+  copy("wiki", (src) => basename(src) !== ".wiki-gerada"); // wiki estática gerada acima (tools/wiki/generate.mts)
   // Só o mapa; os previews .png ficam de fora.
   mkdirSync(join(PUBLIC_DIR, "maps"), { recursive: true });
   cpSync(join(assets, "maps", "world.json"), join(PUBLIC_DIR, "maps", "world.json"));

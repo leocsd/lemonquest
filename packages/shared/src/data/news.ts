@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27f",
+    date: "28 de outubro",
+    title: "Wiki do jogo",
+    items: [
+      "Tem wiki! Criaturas, itens (onde caem e onde comprar), magias com os números por level, NPCs, missões, mapa e mecânicas.",
+      "Abra em /wiki/ ou pelo painel de ajuda (F1). Tudo é gerado dos dados do jogo, então os números são os mesmos do servidor.",
+    ],
+  },
+  {
     id: "2026-10-27e",
     date: "28 de outubro",
     title: "Cura como no Tibia, poções por vocação e grupo sem limite",

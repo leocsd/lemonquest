@@ -18,6 +18,7 @@
     "start:bundle": "cross-env NODE_ENV=production NODE_OPTIONS=--disable-warning=ExperimentalWarning node packages/server/dist/server.mjs",
     "smoke": "node tools/smoke.mjs",
     "newbie": "node tools/newbie.mjs",
+    "wiki": "tsx tools/wiki/generate.mts",
     "typecheck": "tsc -p packages/shared && tsc -p packages/server && tsc -p packages/client",
     "test": "vitest run",
     "test:e2e": "playwright test",

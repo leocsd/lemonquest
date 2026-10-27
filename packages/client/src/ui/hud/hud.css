@@ -474,6 +474,8 @@
 .help-keys { display: flex; align-items: center; gap: 2px; width: 100px; flex: none; }
 .help-label { color: #c4c6cf; white-space: nowrap; }
 .help-dash { color: var(--hud-faint); margin: 0 1px; }
+.help-link { color: var(--hud-gold); text-decoration: none; }
+.help-link:hover { text-decoration: underline; }
 kbd {
   display: inline-block; min-width: 12px; padding: 1px 4px; text-align: center; font: inherit; font-size: 10px; line-height: 13px;
   color: var(--hud-text); background: #1b2030; border: 1px solid #343b4e; border-bottom-width: 2px; border-radius: 3px;

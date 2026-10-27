@@ -4,6 +4,9 @@ import { bindOverlay } from "../overlays.ts";
 import { helpOpen } from "./uiState.ts";
 import { newsOpen } from "../news/news.ts";
 
+/** Wiki estática gerada dos dados do jogo (tools/wiki, copiada para /wiki/ no build; no dev, `npm run wiki`). */
+const WIKI_URL = `${import.meta.env.BASE_URL}wiki/index.html`;
+
 // Esc pela pilha de sobreposições: a ajuda fecha como qualquer janela, na ordem em que foi aberta.
 bindOverlay("help", helpOpen, (v) => v, () => helpOpen.set(false));
 
@@ -103,6 +106,15 @@ export function HelpPopover() {
           </ul>
         </section>
       ))}
+      <section class="help-group">
+        <div class="help-sub">Mais</div>
+        <ul class="help-list">
+          <li>
+            <span class="help-keys"><kbd>↗</kbd></span>
+            <a class="help-label help-link" href={WIKI_URL} target="_blank" rel="noopener">Wiki do jogo (criaturas, itens, mapa…)</a>
+          </li>
+        </ul>
+      </section>
       <button class="btn help-news" onClick={() => { helpOpen.set(false); newsOpen.set(true); }}>Novidades</button>
     </div>
   );

@@ -1,5 +1,23 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · wiki do jogo gerada dos dados
+
+Pedido do dono: "uma wiki completa, igual à do Tibia: bichos, skills, itens, onde dropa, onde compra, mapa". Gerador
+estático em `tools/wiki/` (`npm run wiki` → `assets/wiki/`, copiado para o cliente no build e servido em `/wiki/`;
+link "Wiki do jogo" no painel de ajuda F1). Tudo sai dos dados do `shared` e do índice do mundo, então nunca
+diverge do servidor: 735 páginas, 60 imagens, busca com 767 entradas, verificação de links que falha o build.
+- **Criaturas** (108): ficha, comportamento, resistências/fraquezas como no Bestiário, habilidades, loot com %,
+  onde nasce (zona + coordenadas), missões, chefes com evento e respawn.
+- **Itens** (329): por categoria; ficha com atributos, preços reais de compra e venda (`price ?? value`,
+  `npcBuyPrice` 0,3× por raridade), onde cai, onde compra, quem compra, recompensas, baús, refino e encantamento.
+- **Magias** (46): por vocação, com mana/recarga/forma e valores esperados por level calculados pelas fórmulas e
+  pelo `skillEstimate`; famílias prontas.
+- **NPCs** (90) e **Missões** (86): serviços, lojas, viagens, passos, recompensas, cadeias e quests de baú/alavanca.
+- **Mapa**: o mundo inteiro em PNG com as cores do minimapa, rótulos de zona clicáveis, NPCs/portais/chefes; uma
+  página por zona com faixa de level, criaturas, NPCs e portais.
+- **Mecânicas**: vocações, cura e poções, morte, grupo, Coliseu, eventos, refino, encantamento, tingimento,
+  conquistas, desafios, Quadro de Recompensas, atalhos.
+
 ## [Não lançado] — 2026-10-27 · cura como no Tibia, grupo sem limite e arrastar na janela Magias
 
 Pedido do dono depois da análise da cura ("balanceado igual no Tibia: poções para cavaleiro, magos e paladino e cura

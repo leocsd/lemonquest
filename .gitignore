@@ -13,6 +13,8 @@ assets/_download/
 
 # Pasta de assets curada gerada no build (tools/build-public.mjs)
 packages/client/.public/
+# Wiki gerada dos dados do jogo (tools/wiki/generate.mts, `npm run wiki`; o build gera de novo)
+assets/wiki/
 
 # Logs
 *.log
