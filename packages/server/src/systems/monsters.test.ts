@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { S2C, type TiledMap } from "@lemonquest/shared";
+import { MONSTER_REGEN_FULL_MS, S2C, type TiledMap } from "@lemonquest/shared";
 import { RESPAWN_FORCE_AFTER_MS, RESPAWN_FORCE_DIST, RESPAWN_PLAYER_DIST, cheb, parseSafeZones, parseSpawns, type SpawnPoint } from "./monsters.ts";
 import { LEASH_DIST, LOST_TARGET_MS } from "./ai.ts";
 import { def, grid, openGrid, player, world } from "./testkit.ts";
@@ -239,7 +239,7 @@ describe("monster AI", () => {
     expect(cheb(m.s.x, m.s.y, p.x, p.y)).toBeGreaterThan(2);
   });
 
-  it("leash: past 14 tiles from spawn it returns and regenerates fully", () => {
+  it("leash: past 14 tiles from spawn it returns and regenerates gradually (full after MONSTER_REGEN_FULL_MS)", () => {
     const w = world({ grid: openGrid(60, 10), spawns: [sp(5, 5, 1, 1)], defs: () => def({ aggroRange: 8, hp: 100, stepMs: 100 }) });
     w.mm.spawnAll();
     const m = [...w.mm.all()][0];
@@ -249,7 +249,11 @@ describe("monster AI", () => {
     // Jogador foge para longe; o monstro persegue até passar da coleira.
     for (let i = 0; i < 40; i++) { p.x = Math.min(55, p.x + 1); w.run(150); }
     expect(m.mode === "return" || m.mode === "idle").toBe(true);
-    w.run(8000);
+    const hpAtReturn = m.s.hp;
+    w.run(2000);
+    expect(m.s.hp).toBeGreaterThan(hpAtReturn); // já subindo no caminho
+    expect(m.s.hp).toBeLessThan(100); // mas não de uma vez
+    w.run(MONSTER_REGEN_FULL_MS);
     expect(m.mode).toBe("idle");
     expect(cheb(m.s.x, m.s.y, 5, 5)).toBeLessThanOrEqual(1);
     expect(m.s.hp).toBe(100);

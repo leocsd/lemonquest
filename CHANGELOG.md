@@ -1,5 +1,20 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · monstro voltando ao spawn toma dano e cura aos poucos
+
+Pedido do dono: "quando eu luro o bicho para longe, ele volta para o lugar dele, porém não toma dano enquanto está
+voltando e cura tudo de uma vez só; quero que continue tomando dano e cure devagar até voltar". Revisão do 14-1
+(dança da coleira): o monstro que passa da coleira continua voltando sem revidar, trocar de alvo, atender bando ou
+provocação (o que evitava a "dança"), mas o dano agora entra normalmente — conta para XP e loot, e morrer no caminho
+é um abate normal — e a cura deixou de ser instantânea ao chegar.
+- **Regeneração dos monstros** (`MONSTER_REGEN_TICK_MS` 1 s, `MONSTER_REGEN_FULL_MS` 15 s e `monsterRegenAmount` em
+  `shared/formulas.ts`; `regen` em `ai.ts`): fora de combate — voltando ao spawn (por coleira ou por perder o alvo)
+  ou ocioso — recupera 1/15 da vida por segundo até encher; perseguindo ou fugindo não recupera; monstro de arena
+  continua sem cura. Chegar ao spawn (`arrive`) só esquece a luta; a vida termina de subir ocioso. Testes:
+  `combatFormulas.test.ts`, `ai.test.ts` (coleira, dança da coleira, abate voltando, fuga), `monsters.test.ts`
+  (leash) e `monsterHunt.test.ts` (curandeiros: os aliados feridos entram em combate, para a regeneração própria não
+  mascarar a cura do xamã).
+
 ## [Não lançado] — 2026-10-27 · personagens masculinos e femininos
 
 Pedido do dono: "personagem masculino e feminino, mesmos addons, bases dos dois sexos". Mesma lista de 20 roupas e

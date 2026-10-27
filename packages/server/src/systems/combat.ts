@@ -356,11 +356,7 @@ export class CombatSystem {
   damageMonster(m: Monster, sourceId: string, amount: number, kind: DamageKind, now: number,
     o: { creditId?: string; crit?: boolean; ranged?: boolean } = {}): number {
     if (m.s.hp <= 0 || this.o.monsters.get(m.s.id) !== m) return 0;
-    if (m.evading) {
-      // Voltando ao spawn pela coleira: imune (anti "dança da coleira"); o golpe aparece como "errou".
-      this.push({ sourceId, targetId: m.s.id, amount: 0, kind, miss: true, ranged: o.ranged ? true : undefined });
-      return 0;
-    }
+    // Voltando ao spawn pela coleira (m.evading) o dano entra normalmente: ele só não revida (MonsterManager.onDamaged).
     // Resistência elemental: o próprio elemento entra pela metade (shared damageTakenMult). Ponto único: magia,
     // ataque automático, habilidade e invocação passam por aqui.
     const before = amount;

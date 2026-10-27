@@ -77,6 +77,13 @@ export const PLAYER_ATTACK_MS = 2000;
 export const OUT_OF_COMBAT_MS = 6000;
 /** Intervalo da regeneração de HP/mana (ms). */
 export const REGEN_INTERVAL_MS = 2000;
+/**
+ * Monstro fora de combate (voltando ao spawn ou ocioso) recupera a vida aos poucos, a cada MONSTER_REGEN_TICK_MS, e
+ * fica cheio em MONSTER_REGEN_FULL_MS. Antes voltava imune e chegava ao spawn curado de uma vez (ciclo 14); o dono
+ * preferiu que continue tomando dano no caminho e cure devagar (2026-10-27).
+ */
+export const MONSTER_REGEN_TICK_MS = 1000;
+export const MONSTER_REGEN_FULL_MS = 15_000;
 export const CRIT_CHANCE = 0.07;
 export const CRIT_MULT = 1.5;
 export const MISS_CHANCE = 0.05;
@@ -308,6 +315,11 @@ export function splitXp(total: number, damage: Iterable<[string, number]>): Map<
 export function regenAmount(max: number, level: number, inPz: boolean): number {
   const base = Math.max(1, Math.round(max * 0.01 + level * 0.25));
   return inPz ? base * 3 : base;
+}
+
+/** Vida que um monstro fora de combate recupera por tique (MONSTER_REGEN_TICK_MS): cheio em MONSTER_REGEN_FULL_MS. */
+export function monsterRegenAmount(maxHp: number): number {
+  return Math.max(1, Math.ceil((maxHp * MONSTER_REGEN_TICK_MS) / MONSTER_REGEN_FULL_MS));
 }
 
 /**

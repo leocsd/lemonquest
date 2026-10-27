@@ -1,7 +1,7 @@
 // IA dos monstros (ai.ts): dormir/acordar, perseguição, fuga e volta ao spawn, coleira, grito do bando e busca de
 // tile com linha de visão. Mundo do testkit: relógio injetado e RNG semeado (resultado sempre igual).
 import { describe, expect, it } from "vitest";
-import { HELP_RADIUS } from "@lemonquest/shared";
+import { HELP_RADIUS, MONSTER_REGEN_FULL_MS } from "@lemonquest/shared";
 import { FLEE_GIVE_UP_MS, LEASH_DIST, LOST_TARGET_MS, THINK_MS, findLosTilePath } from "./ai.ts";
 import { HELP_FIRST_HIT, HELP_FLEE, HELP_HALF_HP, HELP_SHOUT_MS, SLEEP_DIST, cheb, type Monster } from "./monsters.ts";
 import { def, grid, openGrid, player, world } from "./testkit.ts";
@@ -66,7 +66,7 @@ describe("perseguição", () => {
     expect(first(w2).mode).toBe("idle");
   });
 
-  it("coleira: perseguindo além de LEASH_DIST do spawn desiste, volta e cura", () => {
+  it("coleira: perseguindo além de LEASH_DIST do spawn desiste, volta curando aos poucos e termina de curar ocioso", () => {
     const w = world({ grid: openGrid(80, 40), spawns: [sp(10, 10)], defs: () => def({ aggroRange: 6, stepMs: 100, hp: 100 }) });
     w.mm.spawnAll();
     const m = first(w);
@@ -76,20 +76,27 @@ describe("perseguição", () => {
     m.s.hp = 40;
     p.x = 60; // o alvo "sumiu" para longe: o monstro corre atrás até a coleira
     const modes = new Set<string>();
-    let maxD = 0, arrived: { x: number; y: number; hp: number; targetId: string } | null = null;
+    let maxD = 0, hpChasing = 0, arrived: { x: number; y: number; hp: number; targetId: string } | null = null;
     w.run(12_000, () => {
       modes.add(m.mode);
       maxD = Math.max(maxD, cheb(m.s.x, m.s.y, 10, 10));
+      if (m.mode === "chase") hpChasing = m.s.hp;
       if (!arrived && m.mode === "idle") arrived = { x: m.s.x, y: m.s.y, hp: m.s.hp, targetId: m.s.targetId };
     });
     expect(modes.has("return")).toBe(true);
     expect(maxD).toBeGreaterThan(LEASH_DIST);
     expect(maxD).toBeLessThanOrEqual(LEASH_DIST + 2); // entre um "pensar" e outro dá no máximo um par de passos
+    expect(hpChasing).toBe(40); // perseguindo não recupera nada
     expect(m.mode).toBe("idle");
-    expect(arrived).toEqual({ x: 10, y: 10, hp: 100, targetId: "" }); // chegou no spawn curado (depois pode passear)
+    // Chegou no spawn tendo recuperado uma parte no caminho (não tudo de uma vez) e segue curando ocioso até encher.
+    expect(arrived).toMatchObject({ x: 10, y: 10, targetId: "" });
+    expect(arrived!.hp).toBeGreaterThan(40);
+    expect(arrived!.hp).toBeLessThan(100);
+    w.run(MONSTER_REGEN_FULL_MS);
+    expect(m.s.hp).toBe(100);
   });
 
-  it("dança da coleira (ciclo 14): voltando pela coleira fica imune, não revida e chega ao spawn curado", () => {
+  it("dança da coleira (ciclo 14): voltando pela coleira toma dano, não revida nem volta a perseguir e cura aos poucos", () => {
     const w = world({ grid: openGrid(80, 40), spawns: [sp(10, 10)], defs: () => def({ aggroRange: 6, stepMs: 100, hp: 100 }) });
     w.mm.spawnAll();
     const m = first(w);
@@ -97,22 +104,44 @@ describe("perseguição", () => {
     w.run(THINK_MS * 2);
     m.s.hp = 40;
     p.x = 60; // foge para longe: o monstro passa da coleira e começa a voltar
-    let shots = 0, dealt = 0, chasedAgain = false, arrived: { hp: number } | null = null;
+    let shots = 0, dealt = 0, lastShot = 0, chasedAgain = false, arrived: { hp: number } | null = null;
     w.run(12_000, () => {
-      // Quem ataca de longe continua batendo no monstro que volta (era assim que nunca curava nem revidava).
-      if (m.mode === "return") { shots++; dealt += w.combat.damageMonster(m, "p", 10, "physical", w.now()); }
+      // Quem ataca de longe continua batendo (1 golpe/s) no monstro que volta: o dano entra, mas ele não vira.
+      if (m.mode === "return" && w.now() - lastShot >= 1000) { lastShot = w.now(); shots++; dealt += w.combat.damageMonster(m, "p", 10, "physical", w.now()); }
       if (m.evading && m.mode === "chase") chasedAgain = true;
       if (!arrived && m.mode === "idle" && shots > 0) arrived = { hp: m.s.hp };
     });
     expect(shots).toBeGreaterThan(0);
-    expect(dealt).toBe(0);
+    expect(dealt).toBe(shots * 10);
     expect(chasedAgain).toBe(false);
-    expect(arrived).toEqual({ hp: 100 });
+    expect(m.damageBy.size).toBe(0); // chegou e esqueceu a luta
+    expect(arrived!.hp).toBeLessThan(100); // não chegou curado de uma vez
     expect(m.evading).toBe(false);
+    w.run(MONSTER_REGEN_FULL_MS);
+    expect(m.s.hp).toBe(100); // ocioso no spawn, terminou de curar
     // Voltando por perder o alvo (sem coleira) segue normal: o golpe acerta e ele revida.
     p.x = 13; p.hp = 50_000;
     w.run(THINK_MS * 2);
     expect(w.combat.damageMonster(m, "p", 10, "physical", w.now())).toBeGreaterThan(0);
+  });
+
+  it("morto enquanto volta pela coleira: o abate é normal (crédito de quem bateu)", () => {
+    const w = world({ grid: openGrid(80, 40), spawns: [sp(10, 10)], defs: () => def({ aggroRange: 6, stepMs: 100, hp: 100 }) });
+    w.mm.spawnAll();
+    const m = first(w);
+    const p = w.add(player("p", 15, 10, { hp: 50_000, maxHp: 50_000 }));
+    w.run(THINK_MS * 2);
+    p.x = 60;
+    let killedWhileEvading = false;
+    w.run(12_000, () => {
+      if (!killedWhileEvading && m.evading && m.mode === "return") {
+        expect(w.combat.damageMonster(m, "p", 1000, "physical", w.now())).toBe(100);
+        killedWhileEvading = true;
+      }
+    });
+    expect(killedWhileEvading).toBe(true);
+    expect(w.mm.get(m.s.id)).toBeUndefined();
+    expect(m.damageBy.get("p")).toBe(100);
   });
 
   it("voltando pela coleira ignora a provocação (senão perseguia imune para sempre dentro da coleira)", () => {
@@ -175,10 +204,14 @@ describe("fuga", () => {
     const hpBefore = p.hp;
     w.run(2000);
     expect(p.hp).toBe(hpBefore); // corpo a corpo fugindo não ataca
+    expect(m.s.hp).toBe(29); // fugindo não recupera
     w.players.delete("p");
     const arrived = runUntilIdle(w, m, LOST_TARGET_MS + 6000);
     expect(m.mode).toBe("idle");
-    expect(arrived).toMatchObject({ x: 10, y: 10, hp: 100 });
+    expect(arrived).toMatchObject({ x: 10, y: 10 });
+    expect(arrived!.hp).toBeGreaterThan(29); // já recuperou um pouco no caminho de volta
+    w.run(MONSTER_REGEN_FULL_MS);
+    expect(m.s.hp).toBe(100);
   });
 
   it("fuga com prazo (ciclo 14): 10 s fugindo sem levar dano desiste, volta ao spawn e cura", () => {
@@ -201,7 +234,9 @@ describe("fuga", () => {
     expect(m.mode === "return" || m.mode === "idle" || m.mode === "chase").toBe(true);
     p.x = 59; p.y = 59; // longe do aggro: volta e fica
     const arrived = runUntilIdle(w, m, 20_000);
-    expect(arrived).toMatchObject({ hp: 100 });
+    expect(arrived!.hp).toBeGreaterThan(29);
+    w.run(MONSTER_REGEN_FULL_MS);
+    expect(m.s.hp).toBe(100); // cura aos poucos no caminho e ocioso no spawn
   });
 
   it("com fleeAtHpPct 0 nunca foge, mesmo com 1 de vida", () => {

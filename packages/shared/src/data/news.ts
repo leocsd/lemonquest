@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27h",
+    date: "28 de outubro",
+    title: "Monstro voltando para o canto dele",
+    items: [
+      "Monstro puxado para longe demais desiste e volta: no caminho continua tomando dano (XP e loot normais se morrer), mas não revida nem vira para você até chegar.",
+      "A vida dele não enche mais de uma vez ao chegar: recupera aos poucos (cheia em uns 15 s) enquanto volta e enquanto fica parado lá.",
+    ],
+  },
+  {
     id: "2026-10-27g",
     date: "28 de outubro",
     title: "Personagens femininas",

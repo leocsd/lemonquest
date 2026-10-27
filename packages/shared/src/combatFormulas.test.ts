@@ -3,6 +3,7 @@ import {
   VOCATIONS, baseStats, blessingPrice, deathPenalty, levelForXp, mitigate, playerAttackDamage, playerDamageRange, regenAmount, rollInt, splitXp,
   xpForLevel, XP_STAGES, applyXpStage, xpStage, shieldArmorBonus, keptBySellAll, RARITIES,
   DEATH_PENALTY_STAGES, MANA_SHIELD_ABSORB, RED_SKULL_DEATH_XP_MULT, SPELLS, deathPenaltyPct, deathXpLoss, manaShieldSplit, spellPower,
+  MONSTER_REGEN_FULL_MS, MONSTER_REGEN_TICK_MS, monsterRegenAmount,
 } from "./index.ts";
 
 function seeded(seed: number) {
@@ -120,6 +121,15 @@ describe("combat formulas", () => {
     expect(t.get("a")).toBe(6);
     expect(t.get("b")).toBe(1);
     expect(splitXp(10, [["a", 0]]).size).toBe(0);
+  });
+
+  it("monstro fora de combate recupera a vida aos poucos: cheio em MONSTER_REGEN_FULL_MS, nunca menos de 1 por tique", () => {
+    const ticks = MONSTER_REGEN_FULL_MS / MONSTER_REGEN_TICK_MS;
+    expect(ticks).toBe(15);
+    expect(monsterRegenAmount(100)).toBe(7);
+    expect(monsterRegenAmount(45_000)).toBe(3000);
+    expect(monsterRegenAmount(1)).toBe(1);
+    for (const maxHp of [1, 10, 100, 1234, 45_000]) expect(monsterRegenAmount(maxHp) * ticks).toBeGreaterThanOrEqual(maxHp);
   });
 
   it("regen is at least 1 and 3x in PZ", () => {

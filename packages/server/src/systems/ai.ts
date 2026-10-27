@@ -1,6 +1,6 @@
 // IA de monstros: idle → chase (ataca) → flee → return. Roda a cada tick, mas só "pensa"
 // (varredura de aggro, A*) a cada THINK_MS por monstro, com offsets escalonados.
-import { DIR_DELTA, Dir, canStepTerrain, dirFromDelta } from "@lemonquest/shared";
+import { DIR_DELTA, Dir, MONSTER_REGEN_TICK_MS, canStepTerrain, dirFromDelta, monsterRegenAmount } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { findPath, type Point } from "./pathfinding.ts";
 import { HELP_FLEE, SLEEP_DIST, cheb, type CreatureState, type Monster, type MonsterManager } from "./monsters.ts";
@@ -29,8 +29,9 @@ const ALL_DIRS: Dir[] = [Dir.N, Dir.NE, Dir.E, Dir.SE, Dir.S, Dir.SW, Dir.W, Dir
 
 export function updateMonster(m: Monster, w: MonsterManager, now: number): void {
   if (m.def.stationary) return; // boneco de treino: nunca pensa, anda, foge, volta nem ataca
-  // Provocação (taunt): enquanto durar, o alvo é forçado a ser quem provocou. Voltando pela coleira (imune) não
-  // atende: perseguiria imune dentro da coleira, sem nunca chegar ao spawn para perder a imunidade.
+  regen(m, now);
+  // Provocação (taunt): enquanto durar, o alvo é forçado a ser quem provocou. Voltando pela coleira não atende:
+  // perseguiria de novo dentro da coleira sem nunca chegar ao spawn (a mesma "dança" de quem bate nele voltando).
   if (m.tauntBy && !m.evading && now < (m.tauntUntil ?? 0)) {
     const t = validFor(m, w, m.tauntBy);
     if (t && (m.s.targetId !== t.id || m.mode !== "chase")) { engage(m, t); m.sleeping = false; m.nextThinkAt = now; }
@@ -86,7 +87,20 @@ function thinkIdle(m: Monster, w: MonsterManager, _now: number) {
   if (t) engage(m, t);
 }
 
-/** Volta ao spawn. `evade`: passou da coleira — imune e sem revidar até chegar (Monster.evading). */
+/**
+ * Fora de combate (voltando ao spawn ou ocioso) recupera a vida aos poucos (monsterRegenAmount a cada
+ * MONSTER_REGEN_TICK_MS) em vez de chegar ao spawn curado de uma vez; o 1º tique vem um intervalo depois de sair do
+ * combate. Perseguindo ou fugindo não recupera; monstro de arena nunca (fica ocioso entre membros, sem cura).
+ */
+function regen(m: Monster, now: number) {
+  if (m.bounds || m.s.hp >= m.s.maxHp || (m.mode !== "return" && m.mode !== "idle")) { m.nextRegenAt = 0; return; }
+  if (!m.nextRegenAt) m.nextRegenAt = now + MONSTER_REGEN_TICK_MS;
+  if (now < m.nextRegenAt) return;
+  m.nextRegenAt += MONSTER_REGEN_TICK_MS;
+  m.s.hp = Math.min(m.s.maxHp, m.s.hp + monsterRegenAmount(m.s.maxHp));
+}
+
+/** Volta ao spawn. `evade`: passou da coleira — toma dano mas não revida nem troca de alvo até chegar (Monster.evading). */
 export function startReturn(m: Monster, now: number, evade = false) {
   m.mode = "return";
   m.evading = evade;
@@ -96,15 +110,15 @@ export function startReturn(m: Monster, now: number, evade = false) {
   m.returnSince = now;
 }
 
+/** Chegou ao spawn: esquece a luta (a vida continua subindo aos poucos pelo `regen` enquanto ficar ocioso). */
 function arrive(m: Monster, now: number) {
   m.mode = "idle";
   m.evading = false;
-  m.s.hp = m.s.maxHp;
   m.s.targetId = "";
   m.damageBy.clear();
   m.lastAttackerId = "";
   m.lastCreditId = "";
-  m.helpCalled = 0; // de volta ao spawn e curado: pode pedir reforço de novo na próxima luta
+  m.helpCalled = 0; // de volta ao spawn: pode pedir reforço de novo na próxima luta
   m.path = null;
   m.nextWanderAt = now + 2000;
 }

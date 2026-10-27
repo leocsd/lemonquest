@@ -143,7 +143,7 @@ Os 22 itens da tabela "Ciclo 14" do plano, cada um com teste unitário; revisão
 
 | # | Item | Status | Validação |
 |---|---|---|---|
-| 14-1 | Dança da coleira: volta imune, sem trocar de alvo, bando ou provocação | ✅ | `ai.test.ts` (coleira, provocação) |
+| 14-1 | Dança da coleira: volta sem trocar de alvo, bando ou provocação. **Revisto em 2026-10-27** (dono): toma dano no caminho (XP/loot normais) e cura aos poucos — 1/15 da vida por segundo, também ocioso — em vez de voltar imune e curar de uma vez | ✅ | `ai.test.ts` (coleira, dança da coleira, abate voltando, provocação), `combatFormulas.test.ts` |
 | 14-2 | Respawn de chefe persistido no kv | ✅ | `monsters.test.ts` (reinício) |
 | 14-3 | Porta com level: requisito antes da espera; na espera volta ao tile anterior | ✅ | `portals.test.ts`; E2E `caves.spec.ts` (porta e saída do Vulcão) |
 | 14-4 | Level de poção/comida no uso e na compra; Q/E pela melhor permitida | ✅ | `itemRules`, `inventory`, `m4` |

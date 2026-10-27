@@ -58,11 +58,14 @@ export interface Monster {
   /** Quando começou a voltar ao spawn. */
   returnSince: number;
   /**
-   * Voltando ao spawn por ter passado da coleira (LEASH_DIST): imune a dano, não troca de alvo nem atende bando até
-   * chegar (e lá cura). Sem isso, quem ataca de longe batia no monstro que voltava, ele virava para perseguir, passava
-   * da coleira de novo e recomeçava a volta — nunca curava nem revidava ("dança da coleira", ciclo 14).
+   * Voltando ao spawn por ter passado da coleira (LEASH_DIST): toma dano normalmente, mas não revida, não troca de
+   * alvo nem atende bando ou provocação até chegar. Sem isso, quem ataca de longe batia no monstro que voltava, ele
+   * virava para perseguir, passava da coleira de novo e recomeçava a volta — nunca chegava para curar nem revidava
+   * ("dança da coleira", ciclo 14). A cura é aos poucos, no caminho e depois de chegar (ai.ts `regen`).
    */
   evading?: boolean;
+  /** Próximo tique de regeneração fora de combate (ai.ts `regen`); 0/ausente = ainda não começou. */
+  nextRegenAt?: number;
   /** Último jogador que o feriu (passivos revidam). */
   lastAttackerId: string;
   /** Quem recebe o crédito do último golpe (dono, no caso de invocação): fica com o loot se ninguém estiver perto. */
@@ -624,7 +627,7 @@ export class MonsterManager {
       if (!(flags & HELP_FIRST_HIT)) this.callForHelp(m, attackerId, now, HELP_FIRST_HIT);
       else if (!(flags & HELP_HALF_HP) && (m.s.hp - amount) * 2 < m.s.maxHp) this.callForHelp(m, attackerId, now, HELP_HALF_HP);
     }
-    if (m.evading) return; // voltando pela coleira: não revida (o dano já foi barrado no CombatSystem)
+    if (m.evading) return; // voltando pela coleira: o dano entra (e conta para XP/loot), mas ele segue voltando
     if (m.mode === "idle" || m.mode === "return" || ((m.mode === "chase" || m.mode === "flee") && !this.validTarget(m.s.targetId))) {
       if (this.validTarget(attackerId) && this.allowedFor(m, attackerId)) {
         m.mode = "chase";

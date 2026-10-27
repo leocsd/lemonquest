@@ -6,7 +6,7 @@ import {
 } from "@lemonquest/shared";
 import { rollLoot } from "./loot.ts";
 import { MonsterAbilitySystem } from "./monsterAbilities.ts";
-import { HELP_FIRST_HIT, HELP_HALF_HP } from "./monsters.ts";
+import { HELP_FIRST_HIT, HELP_HALF_HP, type Monster } from "./monsters.ts";
 import { itemsFx } from "./m4kit.ts";
 import { def, openGrid, player, world } from "./testkit.ts";
 
@@ -187,11 +187,17 @@ describe("cura dos aliados (conjuradores)", () => {
     });
     return { ...w, abil, shaman: by("shaman"), orc: by("orc"), far: by("far") };
   };
+  /** Fere o monstro pelo jogador `by`: entra em combate (persegue) e por isso não recupera vida sozinho (ai.ts `regen`). */
+  const hurt = (w: ReturnType<typeof setup>, m: Monster, hp: number, by = "a") => {
+    w.combat.damageMonster(m, by, m.s.hp - hp, "physical", w.now());
+    expect([m.s.hp, m.mode]).toEqual([hp, "chase"]);
+  };
 
   it("cura % da vida de cada aliado ferido no raio (com o efeito em cada um); fora do raio não", () => {
     const w = setup();
     w.add(player("a", 11, 11, { hp: 5000, maxHp: 5000 }));
-    w.orc.s.hp = 100; w.far.s.hp = 100;
+    w.add(player("z", 25, 25, { hp: 5000, maxHp: 5000 })); // o de longe persegue este, para não se aproximar do xamã
+    hurt(w, w.orc, 100); hurt(w, w.far, 100, "z");
     for (let i = 0; i < 200 && w.orc.s.hp === 100; i++) w.run(50);
     expect(w.orc.s.hp).toBe(200); // +20% de 500
     expect(w.far.s.hp).toBe(100);
@@ -209,8 +215,8 @@ describe("cura dos aliados (conjuradores)", () => {
     const summon = w.mm.spawnSummon(d, 9, 11, "a");
     const arena = w.mm.spawnArena(d, 11, 9, { arenaId: 7, bounds, allow: () => true });
     const quest = w.mm.spawnQuest(d, 8, 10, { leverId: "sala", bounds })!;
-    w.orc.s.hp = 100;
-    for (const o of [boss, summon, arena, quest]) o.s.hp = 100;
+    hurt(w, w.orc, 100); hurt(w, boss, 100);
+    for (const o of [summon, arena, quest]) o.s.hp = 100; // invocação e confinados não regeneram sozinhos
     for (let i = 0; i < 200 && w.orc.s.hp === 100; i++) w.run(50);
     expect(w.orc.s.hp).toBe(200);
     expect([boss, summon, arena, quest].map((o) => o.s.hp)).toEqual([100, 100, 100, 100]);
@@ -219,7 +225,7 @@ describe("cura dos aliados (conjuradores)", () => {
   it("ninguém abaixo de 70%: não gasta o turno (ataca normalmente)", () => {
     const w = setup();
     w.add(player("a", 11, 11, { hp: 5000, maxHp: 5000 }));
-    w.orc.s.hp = 400; // 80%
+    hurt(w, w.orc, 400); // 80%
     w.run(6000);
     expect(of(w.sent, S2C.SpellCast)).toHaveLength(0);
     expect(w.orc.s.hp).toBe(400);
