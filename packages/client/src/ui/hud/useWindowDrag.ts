@@ -36,6 +36,8 @@ export interface WindowDrag {
   dragging: boolean;
   /** onPointerDown da .win-title. */
   onTitleDown: (e: PointerEvent) => void;
+  /** Limita a posição salva à tela com a largura atual da janela (janela que ficou mais larga que quando a posição foi salva). */
+  clamp: () => void;
 }
 
 /**
@@ -47,6 +49,11 @@ export function useWindowDrag(key: string, defaultPos?: () => WindowPos): Window
   const stored = useStore(posStore);
   const [dragging, setDragging] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const clamp = () => {
+    const el = ref.current;
+    if (el && posStore.get().x >= 0) posStore.set((p) => clampWindowPos(p.x, p.y, el.offsetWidth));
+  };
 
   // Mantém na tela ao redimensionar.
   useEffect(() => {
@@ -83,5 +90,5 @@ export function useWindowDrag(key: string, defaultPos?: () => WindowPos): Window
 
   const pos = stored.x >= 0 ? stored : defaultPos ? defaultPos() : null;
   const style = pos ? { left: `${pos.x}px`, top: `${pos.y}px`, transform: "none" } : undefined;
-  return { ref, pos, style, dragging, onTitleDown };
+  return { ref, pos, style, dragging, onTitleDown, clamp };
 }
