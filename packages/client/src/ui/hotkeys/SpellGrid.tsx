@@ -17,7 +17,7 @@ export interface TileProps {
 
 export function SpellTile({ item, level, keyOf, active, disabled, onPick }: TileProps) {
   const s = shownSpell(item, level);
-  const locked = item.level > level;
+  const locked = item.spells.length > 0 && item.level > level;
   const fam = item.kind !== "spell";
   const name = `${fam ? "◆ " : ""}${item.name}`;
   return (
@@ -25,7 +25,7 @@ export function SpellTile({ item, level, keyOf, active, disabled, onPick }: Tile
       type="button"
       class={`sw-tile${active ? " active" : ""}${locked ? " locked" : ""}`}
       aria-pressed={!!active}
-      aria-label={`${name}${keyOf ? `, tecla ${keyOf}` : ""}${locked ? `, libera no level ${item.level}` : ""}`}
+      aria-label={`${item.kind === "group" ? "grupo " : item.kind === "family" ? "família " : ""}${item.name}${keyOf ? `, tecla ${keyOf}` : ""}${locked ? `, libera no level ${item.level}` : `, ${subtitle(item, level)}`}`}
       disabled={disabled}
       onClick={() => onPick(item)}
       data-tip={name}
@@ -56,9 +56,12 @@ export function SpellGrid({ blocks, level, keyOf, activeId, disabled, onPick }: 
 }) {
   return (
     <div class="sw-grid" onKeyDown={(e) => arrowNav(e, ".sw-tile:not(:disabled)")}>
-      {blocks.map((b) => (
-        <section key={b.title} class="sw-block" aria-label={b.title}>
-          <h3 class="sw-block-title">{b.title}{b.extra && <span class="sw-block-actions">{b.extra}</span>}</h3>
+      {blocks.map((b, i) => (
+        <section key={b.title} class="sw-block" aria-labelledby={`sw-block-${i}`}>
+          <div class="sw-block-head">
+            <h3 id={`sw-block-${i}`} class="sw-block-title">{b.title}</h3>
+            {b.extra && <span class="sw-block-actions">{b.extra}</span>}
+          </div>
           <div class="sw-tiles">
             {b.items.map((it) => <SpellTile key={it.id} item={it} level={level} keyOf={keyOf(it.id)} active={activeId === it.id} disabled={disabled} onPick={onPick} />)}
             {b.items.length === 0 && <span class="sw-none">{b.empty ?? "Nada aqui."}</span>}
@@ -69,13 +72,15 @@ export function SpellGrid({ blocks, level, keyOf, activeId, disabled, onPick }: 
   );
 }
 
-/** Setas movem o foco entre os botões do contêiner (o Tab entra; ← → ↑ ↓ andam; dá a volta nas pontas). */
+/** Setas movem o foco entre os botões do contêiner (cada botão continua sendo parada de Tab; as setas são o atalho; dá a volta nas pontas). */
 export function arrowNav(e: KeyboardEvent, selector = "button:not(:disabled)"): void {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
   const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
   if (!dir) return;
   const all = [...(e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(selector)];
   const i = all.indexOf(document.activeElement as HTMLElement);
   if (i < 0) return;
   e.preventDefault();
+  e.stopPropagation(); // senão o listener do jogo (game/input.ts, em window) anda com o personagem
   all[(i + dir + all.length) % all.length]?.focus();
 }
