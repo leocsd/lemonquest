@@ -9,8 +9,8 @@ export interface TileProps {
   level: number;
   /** Tecla onde o item já está na barra (selo no canto). */
   keyOf?: string;
-  /** Marcado: está no slot selecionado. */
-  active?: boolean;
+  /** Marcado: está no slot selecionado. undefined = a grade não tem seleção (então nem `aria-pressed`). */
+  active?: boolean | undefined;
   disabled?: boolean;
   onPick: (item: SpellItem) => void;
 }
@@ -24,7 +24,7 @@ export function SpellTile({ item, level, keyOf, active, disabled, onPick }: Tile
     <button
       type="button"
       class={`sw-tile${active ? " active" : ""}${locked ? " locked" : ""}`}
-      aria-pressed={!!active}
+      aria-pressed={active}
       aria-label={`${item.kind === "group" ? "grupo " : item.kind === "family" ? "família " : ""}${item.name}${keyOf ? `, tecla ${keyOf}` : ""}${locked ? `, libera no level ${item.level}` : `, ${subtitle(item, level)}`}`}
       disabled={disabled}
       onClick={() => onPick(item)}
@@ -63,7 +63,7 @@ export function SpellGrid({ blocks, level, keyOf, activeId, disabled, onPick }: 
             {b.extra && <span class="sw-block-actions">{b.extra}</span>}
           </div>
           <div class="sw-tiles">
-            {b.items.map((it) => <SpellTile key={it.id} item={it} level={level} keyOf={keyOf(it.id)} active={activeId === it.id} disabled={disabled} onPick={onPick} />)}
+            {b.items.map((it) => <SpellTile key={it.id} item={it} level={level} keyOf={keyOf(it.id)} active={activeId === undefined ? undefined : activeId === it.id} disabled={disabled} onPick={onPick} />)}
             {b.items.length === 0 && <span class="sw-none">{b.empty ?? "Nada aqui."}</span>}
           </div>
         </section>

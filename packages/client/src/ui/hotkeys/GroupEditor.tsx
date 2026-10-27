@@ -28,9 +28,11 @@ export interface GroupEditorProps {
   onBack: () => void;
   /** Grupo excluído: a janela limpa a seleção, porque o slot do grupo some e o índice passaria a apontar para o vizinho. */
   onDeleted: () => void;
+  /** Grupo recém-criado: o foco vai para o nome (o jogador vai batizá-lo). Senão, só garante que o foco não fique no body. */
+  autofocusName?: boolean;
 }
 
-export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack, onDeleted }: GroupEditorProps) {
+export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack, onDeleted, autofocusName }: GroupEditorProps) {
   const root = useRef<HTMLElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   /** Nome sendo digitado: vazio não é aplicado (senão viraria "Grupo <n>" no meio da digitação). */
@@ -40,8 +42,14 @@ export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack
   const [, tick] = useState(0);
   // Prévia ao vivo ("sai agora" muda com recarga e mana): 4×/s enquanto o editor está aberto.
   useEffect(() => { const t = window.setInterval(() => tick((n) => n + 1), 250); return () => window.clearInterval(t); }, []);
-  // Abrir o editor desmonta o botão que tinha o foco; sem isso o foco cai no body e as teclas vão para o jogo.
-  useEffect(() => { nameRef.current?.focus(); }, [group.id]);
+  // Abrir o editor desmonta o botão que tinha o foco; sem isso o foco cai no body e as teclas vão para o jogo. Só o grupo
+  // recém-criado leva o foco para o nome: em "Editar grupo" (clique) um campo de texto focado engoliria o H e as teclas
+  // da barra, que passariam a renomear o grupo; ali o foco vai para "← Barra" (e só se tiver caído no body).
+  useEffect(() => {
+    if (autofocusName) { nameRef.current?.focus(); return; }
+    const a = document.activeElement;
+    if (!a || a === document.body) root.current?.querySelector<HTMLElement>(".sw-back")?.focus();
+  }, [group.id]);
   // "Excluir grupo" desarma sozinho, como o "Recomendado": um clique esquecido não deixa a exclusão armada.
   useEffect(() => {
     if (!confirmDel) return;
@@ -74,18 +82,22 @@ export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack
   return (
     <section ref={root} class="sw-group" aria-label={`Grupo ${group.name}`}>
       <div class="sw-group-head">
-        <button class="sw-btn" onClick={onBack} aria-label="Voltar à barra">← Barra</button>
+        <button class="sw-btn sw-back" onClick={onBack} aria-label="Voltar à barra">← Barra</button>
         <input
           ref={nameRef} class="sw-group-name" value={draft ?? group.name} maxLength={GROUP_NAME_MAX} aria-label="Nome do grupo"
           onInput={(e) => { const v = (e.currentTarget as HTMLInputElement).value; setDraft(v); if (v.trim()) apply(renameGroup(groups, group.id, v)); }}
-          onBlur={() => setDraft(null)}
+          // Sair do campo com o rascunho vazio vale "Grupo <n>" (regra do servidor: o sanitizador troca "" pelo nome padrão).
+          onBlur={() => { if (draft !== null && !draft.trim()) apply(renameGroup(groups, group.id, "")); setDraft(null); }}
           onKeyDown={(e) => { if (e.key === "Enter") setDraft(null); }}
         />
         {key
           ? <span class="sw-group-onbar">Na tecla <kbd>{hotkeyLabel(key)}</kbd></span>
-          : <button class="sw-btn gold" onClick={() => { const r = placeGroup(list, group.id, hotkeyLabel); say(r.message, r.error); if (!r.error) { setSpellGroups(groups, r.list); refocus(".sw-group-name"); } }}>Pôr na barra</button>}
+          : <button class="sw-btn gold" onClick={() => { const r = placeGroup(list, group.id, hotkeyLabel); say(r.message, r.error); if (!r.error) { setSpellGroups(groups, r.list); refocus(".sw-back"); } }}>Pôr na barra</button>}
       </div>
       <p class="sw-group-how">Ao apertar a tecla: tenta a <b>1ª</b>; se estiver em recarga, sem mana ou fora do alcance, tenta a <b>2ª</b>, e assim por diante.</p>
+      <div class={`sw-preview${now ? "" : " idle"}`} role="status" aria-live="polite">
+        {group.spells.length === 0 ? "Grupo vazio: adicione magias abaixo." : now ? <>Agora sairia: <b>{now.name}</b></> : "Agora nenhuma sairia (recarga, mana ou level)."}
+      </div>
       <div class="sw-label">
         Ordem de prioridade <span>{group.spells.length}/{GROUP_SPELLS_MAX}</span>
         <button class="sw-btn small" disabled={group.spells.length < 2} onClick={() => { apply(sortStrongest(groups, group.id)); say("Ordenado: a mais forte sai primeiro."); }} data-tip="Ordena pelo level (e pela mana em empate)">Mais forte primeiro</button>
@@ -150,9 +162,7 @@ export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack
             </li>
           );
         })}
-        <li class={`sw-drop${dropAt === group.spells.length ? " drop-before" : ""}`} aria-hidden={group.spells.length === 0 ? undefined : "true"}>
-          {group.spells.length === 0 ? "Grupo vazio: adicione magias abaixo." : ""}
-        </li>
+        <li class={`sw-drop${dropAt === group.spells.length ? " drop-before" : ""}`} aria-hidden="true" />
       </ol>
       {/* Grupo cheio não desabilita os tiles: addSpell devolve "No máximo 8 magias por grupo." e o rodapé mostra. */}
       <SpellGrid

@@ -21,7 +21,7 @@ export const C2S = {
   Attack: "attack",
   /** Conjurar magia (atalho da barra ou palavras no chat). */
   Cast: "cast",
-  /** Salva os atalhos de magia do personagem (painel H). */
+  /** Salva os atalhos de magia do personagem (janela "Magias", tecla H). */
   SetHotkeys: "setHotkeys",
   /** Mover item entre mochila/equipamento/depot (arrastar e soltar). */
   MoveItem: "moveItem",

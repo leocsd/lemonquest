@@ -91,6 +91,8 @@ export function SpellsWindow() {
   const [sel, setSel] = useState<Sel>(null);
   /** Id do grupo aberto no editor; null = grade de magias. */
   const [editing, setEditing] = useState<string | null>(null);
+  /** Grupo recém-criado: só nele o foco vai para o nome; em "Editar grupo" as teclas (H, as da barra) continuam sendo atalhos. */
+  const [freshGroup, setFreshGroup] = useState<string | null>(null);
   const [capturing, setCapturing] = useState<number | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [msg, say] = useMessage();
@@ -126,7 +128,7 @@ export function SpellsWindow() {
   // A posição "hotkeysPos" foi salva para o painel antigo de 360 px; a janela tem 720 e podia abrir com o × fora da tela.
   useLayoutEffect(() => { if (open) drag.clamp(); }, [open]);
   // Fechar limpa o estado transitório: a próxima abertura começa do zero.
-  useEffect(() => { if (!open) { setSel(null); setEditing(null); setCapturing(null); setConfirmReset(false); say(undefined); } }, [open]);
+  useEffect(() => { if (!open) { setSel(null); setEditing(null); setFreshGroup(null); setCapturing(null); setConfirmReset(false); say(undefined); } }, [open]);
   useEffect(() => {
     if (!confirmReset) return;
     const t = window.setTimeout(() => setConfirmReset(false), 5000);
@@ -165,6 +167,7 @@ export function SpellsWindow() {
     if (r.error) return;
     setSpellGroups(r.groups);
     setEditing(r.select ?? null);
+    setFreshGroup(r.select ?? null);
   };
   const reset = () => {
     if (!confirmReset) { setConfirmReset(true); return; }
@@ -194,12 +197,23 @@ export function SpellsWindow() {
         <span class="sw-count">{list.length}/{HOTKEY_MAX} atalhos</span>
         <button class="win-close" onClick={() => hotkeysOpen.set(false)} data-tip="Fechar" data-tip-sub="H ou Esc" aria-label="Fechar">×</button>
       </div>
-      <div class="win-body sw-body">
+      {/* Enter num botão da janela não pode ir para o chat (o listener do chat, em window, pega qualquer Enter fora de campo
+          de texto e cancelaria o clique); setas em botões fora da grade/barra não podem andar com o personagem (o listener
+          do jogo também fica em window). Sem preventDefault: o arrowNav interno e os campos de texto mantêm o seu. */}
+      <div
+        class="win-body sw-body"
+        onKeyDown={(e) => {
+          const t = e.target as HTMLElement;
+          if (e.key === "Enter" && t.closest("button")) e.stopPropagation();
+          else if (/^Arrow(Up|Down|Left|Right)$/.test(e.key) && !e.altKey && !e.ctrlKey && !e.metaKey) e.stopPropagation();
+        }}
+      >
         <p class="sw-hint">Clique num slot e escolha o que vai nele. <b>◆</b> = tecla inteligente: solta a 1ª magia pronta da lista.</p>
         <BigBar barRef={barRef} list={list} voc={voc} groups={groups} level={level} sel={slot} onSelect={(s) => { setSel(s); setEditing(null); setCapturing(null); }} />
         {editingGroup ? (
           <GroupEditor
             key={editingGroup.id} group={editingGroup} groups={groups} list={list} voc={voc} level={level} mana={me.mana} say={say}
+            autofocusName={editingGroup.id === freshGroup}
             onBack={() => { setEditing(null); focusBar(); }}
             onDeleted={() => { setSel(null); setEditing(null); focusBar(); }}
           />
@@ -209,7 +223,7 @@ export function SpellsWindow() {
               slot={slot} item={currentItem} keyText={current ? hotkeyLabel(current.key) : ""} capturing={capturing !== null} error={capturing !== null && msg?.error ? msg.text : null}
               onCapture={() => { say(undefined); setCapturing(slot as number); }}
               onRemove={() => { setHotkeys(removeRow(list, slot as number)); setSel(null); focusBar(); say("Atalho tirado da barra."); }}
-              onEdit={() => setEditing(current!.spellId)}
+              onEdit={() => { setEditing(current!.spellId); setFreshGroup(null); }}
             />
             <SpellGrid
               blocks={[

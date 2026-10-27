@@ -60,7 +60,7 @@
 .sw-tile-icon img { width: 32px; height: 32px; image-rendering: pixelated; }
 .sw-tile.locked .sw-tile-icon img { filter: grayscale(1) brightness(0.6); }
 .sw-tile-none { font-size: 22px; color: var(--hud-muted); }
-.sw-tile-fam { position: absolute; right: -2px; top: -2px; font-size: 12px; color: var(--hud-gold); text-shadow: 0 1px 0 #000; }
+.sw-tile-fam { position: absolute; right: -2px; top: -2px; font-size: 12.5px; color: var(--hud-gold); text-shadow: 0 1px 0 #000; }
 .spells-win .sw-tile-key { position: absolute; left: -6px; top: -4px; font-size: 12.5px; min-width: 18px; padding: 0 4px; }
 .sw-tile-name { font-size: 12.5px; line-height: 1.2; text-align: center; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .sw-tile.locked .sw-tile-name { color: var(--hud-muted); }
@@ -76,6 +76,9 @@
 .sw-group-onbar { font-size: 13.5px; color: var(--hud-muted); white-space: nowrap; }
 .sw-group-how { margin: 0; padding: 6px 10px; font-size: 13px; line-height: 1.4; color: var(--hud-text); background: rgba(127, 216, 143, 0.08); border: 1px solid rgba(127, 216, 143, 0.35); border-radius: 4px; }
 .sw-group-how b { color: #9fe8ac; }
+.sw-preview { padding: 6px 10px; font-size: 13px; color: var(--hud-text); background: rgba(127, 216, 143, 0.08); border: 1px solid rgba(127, 216, 143, 0.35); border-radius: 4px; }
+.sw-preview.idle { color: var(--hud-muted); background: var(--hud-well); border-color: var(--hud-line); }
+.sw-preview b { color: #9fe8ac; }
 .sw-label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hud-muted); }
 .sw-label > span { font-weight: 400; text-transform: none; letter-spacing: 0; }
 .sw-label .sw-btn { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
@@ -97,8 +100,7 @@
 .sw-lock { color: #ff9a8f; font-weight: 600; }
 .sw-cd { color: #8fb8ff; }
 .sw-row-actions { display: flex; gap: 4px; }
-.sw-drop { position: relative; min-height: 6px; font-size: 13px; color: var(--hud-muted); text-align: center; }
-.sw-drop:not(:empty) { padding: 12px 0; border: 1px dashed var(--hud-line-hi); border-radius: 4px; }
+.sw-drop { position: relative; min-height: 6px; }
 .sw-group-foot { display: flex; justify-content: flex-end; }
 
 /* Rodapé */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SpellGroup } from "@lemonquest/shared";
+import { spellsFor, type SpellGroup } from "@lemonquest/shared";
 import { itemFor, itemsFor, shownSpell, subtitle } from "./spellsModel.ts";
 
 const G: SpellGroup[] = [
@@ -30,13 +30,14 @@ describe("modelo da janela Magias", () => {
     expect(shownSpell(fam, 1)!.id).toBe("fireball");
     expect(shownSpell(itemFor("fam:my:1", "sorcerer", G)!, 10)!.id).toBe("fireball");
     expect(shownSpell(itemFor("fam:my:2", "sorcerer", G)!, 100)).toBeNull();
+    expect(shownSpell(fam, 0)!.id).toBe("fireball"); // nenhuma liberada: a última (mais fraca)
   });
 
   it("blocos da grade: grupos, famílias e magias por level; legendas", () => {
     const b = itemsFor("sorcerer", G);
     expect(b.groups.map((i) => i.name)).toEqual(["Meu combo", "Vazio"]);
     expect(b.families.map((i) => i.id)).toEqual(["fam:sorcerer:target", "fam:sorcerer:area", "fam:sorcerer:wave"]);
-    expect(b.spells).toHaveLength(13);
+    expect(b.spells).toHaveLength(spellsFor("sorcerer").length);
     const levels = b.spells.map((i) => i.level);
     expect(levels).toEqual([...levels].sort((x, y) => x - y));
     expect(subtitle(b.spells[0]!, 1)).toMatch(/^lv 1 · \d+ mana$/);

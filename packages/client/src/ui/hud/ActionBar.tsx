@@ -1,5 +1,5 @@
 // Barra de ações (um slot por atalho de magia) centralizada na área visível, com overlay radial de cooldown e o botão
-// que abre o painel de atalhos (H). Magia (ou família) ainda bloqueada no level não aparece: o atalho continua salvo e
+// que abre a janela Magias (H). Magia (ou família) ainda bloqueada no level não aparece: o atalho continua salvo e
 // o slot surge quando ela libera. Magias de alvo mostram o alcance: avermelhada longe do alvo, apagada sem alvo.
 import { spellDef, spellMana } from "@lemonquest/shared";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -103,10 +103,18 @@ function ActionSlot({ index, action, cd, now, flash, shake, level, mana, range }
       onDragStart={(e) => { e.dataTransfer?.setData("text/plain", String(index)); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }}
       onDragOver={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "move"; setOver(true); }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { e.preventDefault(); setOver(false); const from = Number(e.dataTransfer?.getData("text/plain")); if (Number.isInteger(from)) swapSlots(from, index); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        // Uma linha do editor de grupo (outro tipo de dado) solta aqui dava Number("") === 0 e trocava o slot 1.
+        const raw = e.dataTransfer?.getData("text/plain");
+        if (!raw) return;
+        const from = Number(raw);
+        if (Number.isInteger(from)) swapSlots(from, index);
+      }}
       onAnimationEnd={(e) => (e.currentTarget as HTMLElement).classList.remove("flash", "shake")}
       data-tip={action ? action.label : "Atalho vazio"}
-      data-tip-sub={action ? `${sub} · tecla ${key}${rangeTip ? ` · ${rangeTip}` : ""}` : "Configure no painel de atalhos (H)"}
+      data-tip-sub={action ? `${sub} · tecla ${key}${rangeTip ? ` · ${rangeTip}` : ""}` : "Configure na janela Magias (H)"}
       aria-label={action ? `${action.label}${rangeTip ? ` (${rangeTip.toLowerCase()})` : ""}` : "Atalho vazio"}
       data-tip-words={action?.words}
       data-tip-desc={action?.desc ? (locked ? `${action.desc} (Requer level ${action.level})` : action.desc) : undefined}

@@ -23,7 +23,7 @@ Rodar o jogo isolado para testes manuais (não toca no banco real):
 | Typecheck | ok |
 | Unitários | `npx vitest run`: 136 arquivos, 1617 testes, 0 falhas, 0 pulados (+5 novos: `addSlot`, `sortStrongest`, `spellsModel` ×3) |
 | E2E | CI da PR: aguardando (o E2E não roda localmente); `hotkeys.spec.ts` reescrito (5 cenários: tecla G/Q, tirar e pôr pelo +, arrastar na barra, família no level, grupo com "Mais forte primeiro") |
-| Capturas | a conferir no CI (`E2E_SNAPS`) antes do deploy: `spells-window.png`, `spells-group-editor.png`, `spell-family.png` (14 px, botões ≥ 32 px, foco visível) |
+| Capturas | gerar com `E2E_SNAPS=1` num servidor E2E e conferir antes do deploy: `spells-window.png`, `spells-group-editor.png`, `spell-family.png` (14 px, botões ≥ 32 px, foco visível) |
 | Texto maior (1,3) em 1366×768 | a conferir à mão antes do deploy: a janela deve caber e o corpo rolar |
 
 ## Resultados — ciclo 1 (2026-10-14)

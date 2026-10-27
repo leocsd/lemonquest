@@ -81,7 +81,7 @@ export function placeGroup(list: readonly Hotkey[], id: string, label: (k: strin
   const own = out.find((h) => h.spellId === id);
   if (own) return { list: out, message: `Já está na tecla ${label(own.key)}.` };
   const key = out.length < HOTKEY_MAX ? nextFreeKey(out.map((h) => h.key)) : null;
-  if (!key) return { list: out, error: true, message: `A barra está cheia (${HOTKEY_MAX}). Tire um atalho nos Atalhos (H).` };
+  if (!key) return { list: out, error: true, message: `A barra está cheia (${HOTKEY_MAX}): tire um atalho.` };
   out.push({ key, spellId: id });
   return { list: out, message: `Na barra, tecla ${label(key)}.` };
 }

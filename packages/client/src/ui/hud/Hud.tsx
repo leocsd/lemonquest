@@ -83,7 +83,7 @@ function useHudKeys() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping() || e.ctrlKey || e.altKey || e.metaKey) return;
-      // Select do HUD focado (ex.: magia no painel H) não troca de opção por digitação: solta o foco antes.
+      // Select do HUD focado (ex.: Bestiário, Excursões, Conquistas) não troca de opção por digitação: solta o foco antes. A janela Magias (H) não tem select, mas a regra vale para as outras janelas.
       const ae = document.activeElement;
       if (ae instanceof HTMLSelectElement && ae.closest("#ui") && !/^(Arrow|Enter|Space|Tab)/.test(e.code)) { e.preventDefault(); ae.blur(); }
       // Atalhos de magia (janela Magias, tecla H). Teclas do jogo nunca viram atalho (shared/hotkeys.ts), então não há disputa.

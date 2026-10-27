@@ -60,7 +60,7 @@ export function castableBy(id: string, vocation: Vocation, groups: readonly { id
 }
 
 // --- Grupos do jogador ---------------------------------------------------------------------------------------------
-// Famílias montadas pelo próprio jogador (painel "Grupos de magia"): nome e magias escolhidos por ele, na ordem de
+// Famílias montadas pelo próprio jogador (editor de grupo da janela "Magias"): nome e magias escolhidos por ele, na ordem de
 // prioridade dele. Mesma regra das famílias prontas: sai a primeira da lista que estiver pronta. Salvos no personagem
 // junto com os atalhos (C2S.SetHotkeys), e o id vai no atalho como o de uma família ("fam:my:<n>").
 

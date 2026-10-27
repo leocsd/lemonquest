@@ -55,5 +55,6 @@ describe("edição dos grupos de magia", () => {
     // Ids desconhecidos (magia removida numa atualização) contam como level 0 e mantêm a ordem entre si.
     expect(sortStrongest([{ id: "fam:my:1", name: "x", spells: ["zz", "yy", "fireball"] }], "fam:my:1")[0]!.spells).toEqual(["fireball", "zz", "yy"]);
     expect(sortStrongest(gs, "fam:my:9")).toEqual(gs);
+    expect(sortStrongest([{ id: "fam:my:1", name: "x", spells: ["fireball", "light_heal"] }], "fam:my:1")[0]!.spells).toEqual(["light_heal", "fireball"]); // mesmo level 1: mana 20 antes de 8
   });
 });

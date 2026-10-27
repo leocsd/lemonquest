@@ -120,7 +120,7 @@ export function placeUnlocked(
     const grp = groups.find((g) => g.spells.includes(s.id) && out.some((h) => h.spellId === g.id));
     if (grp) { notes.push(`Nova magia: ${s.name}, já na tecla ${label(out.find((h) => h.spellId === grp.id)!.key)} (${grp.name}).`); continue; }
     const key = out.length < HOTKEY_MAX ? nextFreeKey(out.map((h) => h.key)) : null;
-    if (!key) { notes.push(`Nova magia: ${s.name}. A barra está cheia: abra os atalhos (H) para pôr numa tecla.`); continue; }
+    if (!key) { notes.push(`Nova magia: ${s.name}. A barra está cheia: abra a janela Magias (H) para pôr numa tecla.`); continue; }
     const useFam = fam && !fam.spells.some((id) => out.some((h) => h.spellId === id));
     out.push({ key, spellId: useFam ? fam.id : s.id });
     notes.push(useFam ? `Nova magia: ${s.name} na tecla ${label(key)} (${fam.name}).` : `Nova magia: ${s.name} na tecla ${label(key)}.`);

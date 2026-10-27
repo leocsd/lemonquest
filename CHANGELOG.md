@@ -16,6 +16,8 @@ tecla e magia lentas de escolher, letras e botões pequenos). Especificação em
   o foco na barra e na grade, `aria-live` nas mensagens; entra no "texto maior" do jogo.
 - Servidor, protocolo e regras de validade não mudam (`edit.ts` ganha `addSlot`, `groupsEdit.ts` ganha
   `sortStrongest`; modelo puro `spellsModel.ts`). E2E `hotkeys.spec.ts` reescrito (5 cenários).
+- O painel antigo tinha filtro por tipo de magia e arrastar da paleta para uma posição: saíram (a grade com ícones e
+  as setas ↑↓ cobrem o uso); a prévia "Agora sairia / nenhuma sairia" continua no editor.
 
 ## [Não lançado] — 2026-10-27 · divisão automática do loot no grupo e janela de NPC mais larga
 
