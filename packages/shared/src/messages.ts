@@ -445,7 +445,7 @@ export interface LootMsg {
   x: number; y: number; monsterName: string; items: ItemInstance[]; gold: number;
   /** Loot de grupo: caiu no chão onde o monstro morreu (qualquer um pega). */
   onGround?: boolean;
-  /** Loot de grupo: item raro+ que a divisão automática do grupo pôs na sua mochila. */
+  /** Loot de grupo: a sua parte da divisão automática (itens comuns/incomuns em rodízio e o ouro dividido), já na mochila. */
   partySplit?: boolean;
   /** Itens perdidos (mochila cheia e sem espaço no chão). */
   lostFull?: number;

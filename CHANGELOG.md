@@ -1,15 +1,17 @@
 # Changelog
 
-## [Não lançado] — 2026-10-27 · divisão automática do loot raro no grupo e janela de NPC mais larga
+## [Não lançado] — 2026-10-27 · divisão automática do loot no grupo e janela de NPC mais larga
 
-Pedido do dono: "dividir o loot automaticamente durante a pt, apenas loot raro que cai no chão".
-- **Loot de grupo**: o item raro, épico ou lendário de um abate em grupo não cai mais no chão: vai direto para a mochila
-  do próximo participante do rodízio do grupo (`loot.ts` `PARTY_SPLIT_RARITIES`, `nextSharer`), na ordem de entrada no
-  grupo. Participante = a mesma regra da XP compartilhada (vivo, a até 12 tiles, bateu no monstro ou atacou/curou nos
-  últimos 60 s; `party.lootSharers`), sem a regra de level. Quem está sem espaço é pulado; sem ninguém com espaço (ou
-  sem participante), o item cai no chão reservado ao grupo por 15 s, como antes. Quem recebe vê o cartão do loot com
-  "(divisão do grupo)" e o grupo inteiro vê no chat "Divisão do grupo: Ana recebeu Colete (Raro)". Itens comuns e
-  incomuns e o ouro continuam caindo no chão reservado ao grupo (GD-21).
+Pedido do dono: dividir o loot do grupo automaticamente, ouro incluído; só o raro, épico ou lendário continua caindo no
+chão, para o grupo decidir quem leva.
+- **Loot de grupo**: ouro e itens comuns/incomuns de um abate em grupo não caem mais no chão: o ouro é dividido em
+  partes iguais entre quem participou (o resto da divisão fica com quem matou) e cada item vai para a mochila do próximo
+  participante do rodízio do grupo (`loot.ts` `nextSharer`), na ordem de entrada no grupo. Participante = a mesma regra
+  da XP compartilhada (vivo, a até 12 tiles, bateu no monstro ou atacou/curou nos últimos 60 s; `party.lootSharers`),
+  sem a regra de level. Quem está sem espaço é pulado; sem ninguém com espaço (ou sem participante), cai no chão
+  reservado ao grupo por 15 s, como antes. Cada um vê o seu cartão de loot "(divisão do grupo)". O raro+
+  (`PARTY_GROUND_RARITIES`) continua caindo no chão reservado ao grupo por 15 s (GD-21), com a linha no chat do grupo
+  quando um membro pega.
 - **Janela de NPC** 372 → 440 px (limitada ao espaço livre ao lado da barra lateral): com 4–5 abas os rótulos quebravam
   dentro do botão e nome, preço e "Comprar" caíam em duas linhas. Abas nunca partem o rótulo (vão para a linha de baixo
   se não couberem), nome do NPC com reticências em vez de empurrar o ouro e o fechar, grade do encantamento com a coluna

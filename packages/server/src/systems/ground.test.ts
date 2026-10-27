@@ -523,14 +523,13 @@ describe("loot de grupo: cai no chão reservado ao grupo por 15 s, depois qualqu
     });
     loot.onKill({ s: { id: "m1", x: 9, y: 8, ownerId: "" }, def: md, damageBy: new Map([[killer.id, 10]]) } as unknown as Monster);
   };
-  // Mesmo abate, mas com a divisão do raro+ ligada: `sharers` = quem participou (na ordem do grupo). Devolve o sistema
-  // para encadear abates no mesmo rodízio.
-  const splitLoot = (t: ReturnType<typeof groundWorld>, players: Map<string, PlayerState>, sharers: () => PlayerState[], rng = () => 0.95) =>
+  // Mesmo abate, mas com a divisão ligada: `sharers` = quem participou (na ordem do grupo). Devolve o sistema para
+  // encadear abates no mesmo rodízio.
+  const splitLoot = (t: ReturnType<typeof groundWorld>, players: Map<string, PlayerState>, sharers: () => PlayerState[], rng = () => 0) =>
     new LootSystem({
       inventory: t.w.inv, getPlayer: (id) => players.get(id), ground: t.ground, rng, now: t.w.now,
       send: (to, type, msg) => t.w.sent.push({ to, type, msg }), broadcast: () => {},
       partyIdOf: () => "P1", lootSharers: sharers,
-      partyMembers: (p) => [...players.values()].filter((q) => q.partyId === p.partyId).map((q) => q.id),
     });
   const killWith = (loot: LootSystem, killer: PlayerState) =>
     loot.onKill({ s: { id: "m1", x: 9, y: 8, ownerId: "" }, def: md, damageBy: new Map([[killer.id, 10]]) } as unknown as Monster);
@@ -608,7 +607,7 @@ describe("loot de grupo: cai no chão reservado ao grupo por 15 s, depois qualqu
     expect(partyChat(t)).toHaveLength(2);
   });
 
-  it("divisão automática: o raro+ vai direto à mochila dos participantes em rodízio (ordem do grupo), com linha no chat; o ouro cai no chão", () => {
+  it("divisão automática: ouro em partes iguais (o resto para quem matou) e comum em rodízio direto na mochila (ordem do grupo), sem linha no chat", () => {
     const t = groundWorld();
     const killer = t.add("k", 9, 7, { name: "Kiko", partyId: "P1" }), ally = t.add("a", 8, 8, { name: "Ana", partyId: "P1" }), idle = t.add("i", 8, 7, { name: "Ivo", partyId: "P1" });
     const players = new Map([["k", killer], ["a", ally], ["i", idle]]);
@@ -616,48 +615,64 @@ describe("loot de grupo: cai no chão reservado ao grupo por 15 s, depois qualqu
     killWith(loot, killer);
     killWith(loot, killer);
     killWith(loot, killer);
-    // 1º raro para o primeiro da ordem do grupo, 2º para o seguinte, 3º dá a volta.
+    // 1º colete para o primeiro da ordem do grupo, 2º para o seguinte, 3º dá a volta. Ouro 7: 3 para cada, o 1 que sobra para quem matou.
     expect(t.bp("k").filter((x) => x?.defId === "vest")).toHaveLength(2);
     expect(t.bp("a").filter((x) => x?.defId === "vest")).toHaveLength(1);
     expect(t.bp("i").filter(Boolean)).toHaveLength(0);
-    expect(t.onTile(9, 8).map((e) => [e.item.defId, e.item.count, e.owner])).toEqual([["gold_coin", 21, "P1"]]);
-    // Quem recebeu vê o cartão do loot marcado como divisão; quem matou vê só o ouro no chão.
+    expect([t.w.inv.gold("k"), t.w.inv.gold("a"), t.w.inv.gold("i")]).toEqual([12, 9, 0]);
+    expect(t.onTile(9, 8)).toEqual([]);
+    // Cada participante vê o seu cartão da divisão (itens e a sua parte do ouro); nada no chat do grupo.
     expect(lootMsgs(t).map((m) => [m.to, m.items.map((i: { defId: string }) => i.defId), m.gold, !!m.partySplit, !!m.onGround])).toEqual([
-      ["k", ["vest"], 0, true, false], ["k", [], 7, false, true],
-      ["a", ["vest"], 0, true, false], ["k", [], 7, false, true],
-      ["k", ["vest"], 0, true, false], ["k", [], 7, false, true],
+      ["k", ["vest"], 4, true, false], ["a", [], 3, true, false],
+      ["k", [], 4, true, false], ["a", ["vest"], 3, true, false],
+      ["k", ["vest"], 4, true, false], ["a", [], 3, true, false],
     ]);
-    // O grupo inteiro (até quem não participou) fica sabendo.
-    expect(partyChat(t).slice(0, 3)).toEqual([
-      "k:Divisão do grupo: Kiko recebeu Colete (Raro)", "a:Divisão do grupo: Kiko recebeu Colete (Raro)", "i:Divisão do grupo: Kiko recebeu Colete (Raro)",
-    ]);
-    expect(partyChat(t).filter((l) => l.includes("Ana recebeu"))).toHaveLength(3);
+    expect(partyChat(t)).toEqual([]);
   });
 
-  it("divisão automática: só raro+ (comum cai no chão); quem está sem espaço é pulado; ninguém com espaço → chão reservado ao grupo", () => {
+  it("divisão automática: raro+ não entra no rodízio, cai no chão reservado ao grupo (o ouro continua dividido)", () => {
+    const t = groundWorld();
+    const killer = t.add("k", 9, 7, { partyId: "P1" }), ally = t.add("a", 8, 8, { partyId: "P1" }), stranger = t.add("s", 10, 8);
+    const players = new Map([["k", killer], ["a", ally], ["s", stranger]]);
+    const t0 = t.w.now();
+    killWith(splitLoot(t, players, () => [killer, ally], () => 0.95), killer);
+    const [vest, ...rest] = t.onTile(9, 8);
+    expect(rest).toEqual([]); // o ouro não foi para o chão
+    expect([vest!.item.defId, vest!.item.rarity, vest!.owner, vest!.ownerUntil]).toEqual(["vest", "rare", "P1", t0 + PARTY_LOOT_PRIORITY_MS]);
+    expect([t.w.inv.gold("k"), t.w.inv.gold("a")]).toEqual([4, 3]);
+    expect(t.bp("k").filter(Boolean)).toHaveLength(0);
+    // Cartões: a parte do ouro para cada um e, para quem matou, o raro no chão.
+    expect(lootMsgs(t).map((m) => [m.to, m.items.map((i: { defId: string }) => i.defId), m.gold, !!m.partySplit, !!m.onGround])).toEqual([
+      ["k", [], 4, true, false], ["a", [], 3, true, false], ["k", ["vest"], 0, false, true],
+    ]);
+    // Quem é de fora espera os 15 s; membro pega na hora e o grupo fica sabendo (regra que já existia).
+    t.ground.onPickup(stranger, { groundId: vest!.state.id });
+    expect(t.w.notices()).toEqual([partyLootMsg(15)]);
+    t.ground.onPickup(ally, { groundId: vest!.state.id });
+    expect(t.bp("a").some((x) => x?.defId === "vest")).toBe(true);
+    expect(partyChat(t)).toEqual(["k:A pegou Colete (Raro)", "a:A pegou Colete (Raro)"]);
+  });
+
+  it("divisão automática: quem está sem espaço é pulado; ninguém com espaço → chão reservado ao grupo; sem participante → tudo no chão como antes", () => {
     const t = groundWorld();
     const killer = t.add("k", 9, 7, { partyId: "P1" }), ally = t.add("a", 8, 8, { partyId: "P1" });
     const players = new Map([["k", killer], ["a", ally]]);
-    // Comum (rng 0): continua no chão, para o grupo.
-    killWith(splitLoot(t, players, () => [killer, ally], () => 0), killer);
-    expect(t.onTile(9, 8).map((e) => [e.item.defId, e.owner])).toEqual([["vest", "P1"], ["gold_coin", "P1"]]);
-    expect(t.bp("k").filter(Boolean)).toHaveLength(0);
-    expect(partyChat(t)).toEqual([]);
-    // Mochila do primeiro do rodízio cheia (escudos não empilham): o raro vai para o seguinte.
+    // Mochila do primeiro do rodízio cheia (escudos não empilham): o colete vai para o seguinte; o ouro não depende de espaço.
     for (let i = 0; i < BACKPACK_SIZE; i++) t.w.inv.addItem(killer, makeItem("shield", 1));
     const loot = splitLoot(t, players, () => [killer, ally]);
     killWith(loot, killer);
     expect(t.bp("a").filter((x) => x?.defId === "vest")).toHaveLength(1);
-    // Ninguém com espaço: cai no chão, reservado ao grupo (como antes da divisão).
+    expect([t.w.inv.gold("k"), t.w.inv.gold("a")]).toEqual([4, 3]);
+    // Ninguém com espaço: cai no chão, reservado ao grupo.
     for (let i = 0; i < BACKPACK_SIZE; i++) t.w.inv.addItem(ally, makeItem("shield", 1));
     killWith(loot, killer);
-    const vest = t.onTile(9, 8).find((e) => e.item.defId === "vest" && e.item.rarity === "rare")!;
-    expect(vest.owner).toBe("P1");
-    expect(partyChat(t)).toHaveLength(2); // só a linha da Ana (uma por membro)
-    // Sem participante (ex.: quem matou ficou longe): tudo no chão, como antes.
+    expect(t.onTile(9, 8).map((e) => [e.item.defId, e.owner])).toEqual([["vest", "P1"]]);
+    expect([t.w.inv.gold("k"), t.w.inv.gold("a")]).toEqual([8, 6]);
+    // Sem participante (ex.: quem matou ficou longe): item e ouro no chão, como antes.
     t.step();
     killWith(splitLoot(t, players, () => []), killer);
-    expect(t.onTile(9, 8).filter((e) => e.item.defId === "vest")).toHaveLength(3);
+    expect(t.onTile(9, 8).map((e) => [e.item.defId, e.item.count, e.owner])).toEqual([["vest", 1, "P1"], ["vest", 1, "P1"], ["gold_coin", 7, "P1"]]);
+    expect([t.w.inv.gold("k"), t.w.inv.gold("a")]).toEqual([8, 6]);
   });
 
   it("ouro do grupo não entra numa pilha livre (nem o contrário); pilhas do mesmo grupo somam e estendem a reserva", () => {

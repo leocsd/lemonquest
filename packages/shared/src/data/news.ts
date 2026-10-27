@@ -14,12 +14,12 @@ export const NEWS: readonly NewsEntry[] = [
   {
     id: "2026-10-27a",
     date: "27 de outubro",
-    title: "Loot raro dividido no grupo",
+    title: "Loot do grupo dividido na hora",
     items: [
-      "Em grupo, o item raro, épico ou lendário de um abate vai direto para a mochila de um participante, em rodízio. O chat do grupo mostra quem recebeu.",
+      "Em grupo, o ouro de cada abate é dividido em partes iguais entre quem participou, e os itens comuns e incomuns vão direto para a mochila de um participante, em rodízio.",
       "Participante é quem bateu no monstro ou atacou/curou nos últimos 60 s, a até 12 sqm do abate (a regra de level da XP não entra).",
       "Quem está com a mochila cheia é pulado; se ninguém tiver espaço, o item cai no chão reservado ao grupo por 15 s, como antes.",
-      "Itens comuns e incomuns e o ouro continuam caindo no chão onde o monstro morreu, reservados ao grupo por 15 s.",
+      "Itens raros, épicos e lendários continuam caindo no chão onde o monstro morreu, reservados ao grupo por 15 s: o grupo decide quem leva.",
       "A janela dos NPCs ficou mais larga: as abas e os nomes dos itens não quebram mais no meio.",
     ],
   },

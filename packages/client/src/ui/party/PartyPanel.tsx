@@ -37,7 +37,7 @@ function PartyBody({ party }: { party: PartyInfo }) {
       <div
         class={`party-share ${share.active ? "on" : "off"}`}
         data-tip={share.active ? shareBonusText() : "XP compartilhada inativa"}
-        data-tip-sub={`Divide entre quem atacou/curou nos últimos ${PARTY_ACTIVE_MS / 1000} s a até ${PARTY_SHARE_RANGE} sqm do abate. Menor level ≥ 2/3 do maior. Loot raro+ vai em rodízio para a mochila desses participantes (sem a regra de level).`}
+        data-tip-sub={`Divide entre quem atacou/curou nos últimos ${PARTY_ACTIVE_MS / 1000} s a até ${PARTY_SHARE_RANGE} sqm do abate. Menor level ≥ 2/3 do maior. Ouro e itens comuns/incomuns são divididos entre esses participantes (sem a regra de level); raro+ cai no chão para o grupo.`}
       >
         <span class="party-share-dot" aria-hidden="true" />
         {shareText}
