@@ -1,7 +1,8 @@
 /* Wiki do The Lemon Quest com a cara do jogo (pedido do dono, 2026-10-27): a página é uma "janela do HUD" aberta sobre o
    mapa do mundo. Mesmas fontes, cores e molduras de packages/client/src/ui/hud/hud.css e styles.css — Pixelify Sans em
    tudo, painéis escuros translúcidos com borda de 1 px e brilho interno, cabeçalhos de seção em caixa alta com o
-   triângulo ▸, dourado só onde o jogo usa (títulos, números, links) e o mapa (mapa.png, gerado aqui) pixelado ao fundo.
+   triângulo ▸, dourado só onde o jogo usa (títulos, números, links) e fundo de cor sólida com grain (ruído SVG, sem
+   imagem: o dono preferiu ao mapa do mundo ao fundo).
    Classes para as páginas: .lead .muted .tag(.boss .pz .gold) .badge.k-<dano> .r-<raridade> .infobox .cards .cols
    .item-grid .npc-list .mapview .legend; tabelas pelo helper table() (html.mts). */
 :root {
@@ -35,13 +36,13 @@ html { background: var(--bg); }
 body {
   position: relative; min-height: 100vh; margin: 0; color: var(--text);
   font: 16px/1.6 "Pixelify Sans", "Courier New", monospace;
-  /* O mundo ao fundo: 2 px por tile no mapa.png, mostrado a 4 px (pixelado, como o jogo), parado enquanto a página rola. */
-  background: var(--bg) url("mapa.png") center top / 1600px auto no-repeat fixed;
-  image-rendering: pixelated;
+  background: var(--bg);
 }
+/* Grain: ruído fractal em SVG (sem arquivo), em cinza e bem fraco, fixo na tela — textura de filme sobre a cor sólida. */
 body::before {
-  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(180deg, rgba(11, 13, 19, 0.88), rgba(11, 13, 19, 0.94) 40%, rgba(11, 13, 19, 0.97));
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.11;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
 }
 ::selection { background: rgba(217, 164, 65, 0.35); color: #fff; }
 .wrap { max-width: 1100px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }

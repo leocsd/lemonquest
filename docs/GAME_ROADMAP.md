@@ -18,7 +18,7 @@ Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono):
 | # | Item | Status | Validação |
 |---|---|---|---|
 | WK-1 | Wiki gerada dos dados (`npm run wiki`, servida em `/wiki/`, link no F1) — PR #35 | ✅ (2026-10-27) | build falha com link quebrado; 735 páginas conferidas por amostra |
-| WK-2 | Dono: "uma carinha mais do Lemon Quest". Visual do HUD: Pixelify Sans, painel-janela sobre o `mapa.png`, cabeçalhos de seção com ▸, infobox como o painel Personagem, tabelas em poço | ✅ (2026-10-27) | capturas (início, criatura, item, NPC, missão, mapa, mecânica) |
+| WK-2 | Dono: "uma carinha mais do Lemon Quest". Visual do HUD: Pixelify Sans, painel-janela sobre fundo de cor sólida com grain (o dono dispensou o mapa ao fundo), cabeçalhos de seção com ▸, infobox como o painel Personagem, tabelas em poço | ✅ (2026-10-27) | capturas (início, criatura, item, NPC, missão, mapa, mecânica) |
 | WK-3 | Números do servidor copiados na wiki (Baú de Recompensa, pesca, cassino): mover para o `shared` para nunca divergirem | ⏳ | — |
 
 ## Mochila automática e capacidade por vocação (2026-10-27)

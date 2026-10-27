@@ -4,10 +4,10 @@
 
 Pedido do dono: "deixe a wiki com uma carinha mais do Lemon Quest". Só `tools/wiki/wiki.css`, o `layout()` de
 `html.mts` e 4 linhas do `wiki.js`; nenhuma página mudou de conteúdo.
-- **A página é uma janela do HUD** aberta sobre o mundo: Pixelify Sans (a fonte do jogo, do Google Fonts como no
-  cliente), o `mapa.png` da própria wiki pixelado e escurecido ao fundo (parado enquanto a página rola), o conteúdo
-  num painel escuro quase opaco com a borda e o brilho interno das molduras do HUD, e a trilha ("Criaturas › Dragão")
-  colada em cima como faixa de título. Barra de cima como a `.win-title` (título dourado em caixa alta com o limão do
+- **A página é uma janela do HUD**: Pixelify Sans (a fonte do jogo, do Google Fonts como no cliente), o conteúdo num
+  painel escuro quase opaco com a borda e o brilho interno das molduras do HUD, e a trilha ("Criaturas › Dragão")
+  colada em cima como faixa de título. O fundo é a cor sólida do HUD com grain (ruído SVG inline, sem imagem) — a
+  primeira versão punha o `mapa.png` pixelado ao fundo e o dono preferiu a cor sólida. Barra de cima como a `.win-title` (título dourado em caixa alta com o limão do
   favicon, selo "WIKI", menu em abas de 11 px espaçadas, campo de busca como o do login).
 - **Cabeçalhos de seção** como os painéis laterais (`.hud-section-head`): caixa alta, espaçamento de 1,5 px e o
   triângulo ▸ dourado; a infobox virou o painel "Personagem" (cabeçalho com ▾, retrato num poço, linhas separadas).
