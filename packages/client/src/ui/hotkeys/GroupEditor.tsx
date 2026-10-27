@@ -40,7 +40,6 @@ export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack
   const [, tick] = useState(0);
   // Prévia ao vivo ("sai agora" muda com recarga e mana): 4×/s enquanto o editor está aberto.
   useEffect(() => { const t = window.setInterval(() => tick((n) => n + 1), 250); return () => window.clearInterval(t); }, []);
-  useEffect(() => { setConfirmDel(false); setDraft(null); }, [group.id]);
   // Abrir o editor desmonta o botão que tinha o foco; sem isso o foco cai no body e as teclas vão para o jogo.
   useEffect(() => { nameRef.current?.focus(); }, [group.id]);
   // "Excluir grupo" desarma sozinho, como o "Recomendado": um clique esquecido não deixa a exclusão armada.
@@ -145,7 +144,7 @@ export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack
                 <button
                   class="sw-btn icon danger sw-x" aria-label={`Tirar ${s.name} do grupo`} data-tip="Tirar do grupo"
                   // A linha seguinte assume o índice i depois da remoção (:nth-child é 1-based e as linhas são os primeiros filhos do <ol>).
-                  onClick={() => { apply(removeSpell(groups, group.id, id)); refocus(`.sw-row:nth-child(${i + 1}) .sw-x`, `.sw-row:nth-child(${i}) .sw-x`, ".sw-tile"); }}
+                  onClick={() => { apply(removeSpell(groups, group.id, id)); refocus(`.sw-row:nth-child(${i + 1}) .sw-x`, `.sw-row:nth-child(${i}) .sw-x`, ".sw-tile", ".sw-group-name"); }}
                 >✕</button>
               </span>
             </li>
@@ -165,7 +164,7 @@ export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack
           say(r.message, r.error);
           if (r.error) return;
           apply(r.groups);
-          refocus(`.sw-tiles .sw-tile:nth-child(${idx + 1})`, ".sw-tile");
+          refocus(`.sw-tiles .sw-tile:nth-child(${idx + 1})`, ".sw-tile", ".sw-group-name");
         }}
       />
       <div class="sw-group-foot">

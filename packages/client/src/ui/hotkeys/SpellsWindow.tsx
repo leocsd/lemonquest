@@ -25,7 +25,9 @@ const W = 720;
 const hudRight = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hud-right")) || 0;
 const defaultPos = () => clampWindowPos((window.innerWidth - hudRight() - W) / 2, 70, W);
 // Esc pela pilha de sobreposições (a última janela aberta fecha primeiro); mesma chave "hotkeys" do painel antigo.
-bindOverlay("hotkeys", hotkeysOpen, (v) => v, () => hotkeysOpen.set(false));
+// Um campo de texto focado dentro da janela (o nome do grupo) não pode engolir o Esc: o nome já é aplicado a cada
+// tecla, então fechar não perde nada.
+bindOverlay("hotkeys", hotkeysOpen, (v) => v, () => hotkeysOpen.set(false), ".spells-win");
 
 /** Slot selecionado: índice na lista de atalhos, "new" (o slot "+") ou nenhum. */
 export type Sel = number | "new" | null;

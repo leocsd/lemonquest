@@ -144,8 +144,8 @@ test("grupos: montar o próprio grupo no editor numerado, 'Mais forte primeiro',
   // Clique adiciona no fim; "Mais forte primeiro" põe a Onda de Fogo (lv 35) na frente da Bola de Fogo (lv 1).
   await editor.getByRole("button", { name: /^Bola de Fogo/ }).click();
   await editor.getByRole("button", { name: /^Onda de Fogo/ }).click();
-  // Nomes na ordem (sem o selo "sai agora", que fica dentro do nome).
-  const names = async () => (await editor.locator(".sw-row .sw-row-name").allInnerTexts()).map((n) => n.replace("sai agora", "").trim());
+  // Nomes na ordem (o selo "sai agora" é irmão de .sw-row-name, não entra no texto do nome).
+  const names = async () => (await editor.locator(".sw-row .sw-row-name").allInnerTexts()).map((n) => n.trim());
   await expect.poll(names).toEqual(["Bola de Fogo", "Onda de Fogo"]);
   await editor.getByRole("button", { name: "Mais forte primeiro" }).click();
   await expect.poll(names).toEqual(["Onda de Fogo", "Bola de Fogo"]);
