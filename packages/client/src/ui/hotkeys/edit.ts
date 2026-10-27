@@ -65,6 +65,21 @@ export function addRow(list: readonly Hotkey[], vocation: Vocation): EditResult 
   return { list: out };
 }
 
+/**
+ * Slot "+" da janela Magias: `spellId` (magia, família ou grupo) na próxima tecla livre. Já na barra = erro dizendo a
+ * tecla (o tile mostra onde está); barra cheia = erro.
+ */
+export function addSlot(list: readonly Hotkey[], spellId: string, label: (k: string) => string): EditResult {
+  const out = list.map((h) => ({ ...h }));
+  const own = out.find((h) => h.spellId === spellId);
+  if (own) return { list: out, error: true, message: `Já está na tecla ${label(own.key)}.` };
+  if (out.length >= HOTKEY_MAX) return { list: out, error: true, message: `A barra está cheia (${HOTKEY_MAX}): tire um atalho.` };
+  const key = nextFreeKey(out.map((h) => h.key));
+  if (!key) return { list: out, error: true, message: "Não sobrou tecla livre." };
+  out.push({ key, spellId });
+  return { list: out, message: `Na tecla ${label(key)}.` };
+}
+
 /** Tecla do evento no formato dos atalhos ("Shift+KeyF"); null com Ctrl/Alt/Meta (não são atalhos). */
 export function keyFromEvent(e: Pick<KeyboardEvent, "code" | "shiftKey" | "ctrlKey" | "altKey" | "metaKey">): string | null {
   if (e.ctrlKey || e.altKey || e.metaKey || !e.code) return null;

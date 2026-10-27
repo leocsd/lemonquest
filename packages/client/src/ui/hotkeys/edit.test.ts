@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HOTKEY_MAX, keyLabel, type Hotkey } from "@lemonquest/shared";
-import { addRow, assignKey, hotkeyIndex, keyFromEvent, nextFreeKey, placeUnlocked, removeRow, setRowSpell, swapHotkeySpells } from "./edit.ts";
+import { addRow, addSlot, assignKey, hotkeyIndex, keyFromEvent, nextFreeKey, placeUnlocked, removeRow, setRowSpell, swapHotkeySpells } from "./edit.ts";
 
 const L: Hotkey[] = [{ key: "Digit1", spellId: "fireball" }, { key: "Digit2", spellId: "energy_wave" }];
 const ev = (code: string, o: Partial<KeyboardEvent> = {}) => ({ code, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, ...o });
@@ -48,6 +48,16 @@ describe("edição dos atalhos", () => {
     expect(addRow(list, "druid").error).toBe(true);
     expect(new Set(list.map((h) => h.key)).size).toBe(HOTKEY_MAX);
     expect(nextFreeKey(["Digit1"])).toBe("Digit2");
+  });
+
+  it("addSlot (slot +): próxima tecla livre com aviso; já na barra ou barra cheia é erro", () => {
+    const r = addSlot(L, "inferno", keyLabel);
+    expect(r.list.at(-1)).toEqual({ key: "Digit3", spellId: "inferno" });
+    expect(r.message).toBe("Na tecla 3.");
+    expect(L).toHaveLength(2); // não muta a original
+    expect(addSlot(L, "fireball", keyLabel)).toMatchObject({ error: true, message: "Já está na tecla 1." });
+    const full = Array.from({ length: HOTKEY_MAX }, (_, i) => ({ key: `Key${"BCFGTUVXYZNP"[i]}`, spellId: `s${i}` }));
+    expect(addSlot(full, "inferno", keyLabel)).toMatchObject({ error: true, message: `A barra está cheia (${HOTKEY_MAX}): tire um atalho.` });
   });
 
   it("sem magia repetida: escolher a magia de outra linha troca as duas; com todas já em atalhos, não adiciona", () => {
