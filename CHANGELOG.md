@@ -1,5 +1,16 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · mão de arrastar só nas bolinhas e guarda contra foco preso
+
+- **Cursor** (dono: "mãozinha nas bolinhas para arrastar o HUD, em vez de pointer em tudo"): o cabeçalho das seções da
+  barra lateral e a alça do minimapa passam a cursor normal; só as bolinhas (`.drag-grip`, com um `::after` que amplia
+  a pegada) mostram a mão de arrastar (`grab`; `grabbing` durante o arraste, como antes). Clicar no cabeçalho continua
+  dobrando a seção e arrastar por ele continua reordenando.
+- **Guarda em `isTyping()`** (relato do dono: "tem hora o jogo buga e não consigo abrir e fechar as missões nem a seta
+  do mapa"): todas as teclas do HUD (L, M, H, K…) e o botão do mapa (que dispara a tecla M) são ignorados enquanto um
+  campo de texto tem o foco. Se o campo focado não está mais na tela (escondido ou fora do DOM), o foco é solto e a
+  tecla passa — hipótese mais provável do travamento; causa exata ainda em investigação (ROADMAP LO-5).
+
 ## [Não lançado] — 2026-10-27 · login salvo no navegador, olho em pixel art e painel Online reorganizado
 
 Pedidos do dono: "organizar melhor a lista de onlines e melhorar os botões", "tirar o botão de olho da senha ou deixar

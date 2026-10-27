@@ -21,6 +21,8 @@ Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono):
 | LO-2 | Dono: "tirar o olho da senha ou pôr um pixel art". Olho aberto/fechado em `PixelIcon` | ✅ (2026-10-27) | captura da tela de login |
 | LO-3 | Dono: "organizar melhor a lista de onlines e melhorar os botões". Blocos Seu grupo/Amigos/No mundo, rosto da vocação, botões de 22 px com ícones em pixel art | ✅ (2026-10-27) | `onlineLogic.test.ts` (blocos); E2E `mural.spec.ts` (seletores mantidos); captura no harness |
 | LO-4 | Sessão de 30 dias num PC compartilhado do escritório: se virar problema, "Sair da conta" automático ao fechar a aba ou aviso no login | 🧭 | — |
+| LO-5 | Relato do dono: "tem hora o jogo buga e não consigo abrir e fechar as missões nem a seta do mapa". Guarda em `isTyping()` (foco preso em campo escondido solta e deixa a tecla passar). Falta confirmar a causa: pedir ao dono o que ainda funciona na hora (andar, chat, clique) e o que destrava (Esc, clique no mapa, F5) | ⏳ | — |
+| LO-6 | Dono: "mãozinha nas bolinhas para arrastar o HUD, em vez de pointer em tudo": cabeçalhos com cursor normal, só o `.drag-grip` com `grab` | ✅ (2026-10-27) | visual |
 
 ## Wiki do jogo (2026-10-27)
 

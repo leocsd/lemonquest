@@ -94,11 +94,15 @@
 
 /* ---------- Reordenar / fixar painéis ---------- */
 .hud-section-headrow, .minimap-handle { touch-action: none; }
+/* As bolinhas são o único lugar com a mão de arrastar (dono, 2026-10-27: "mãozinha nas bolinhas, não pointer em tudo");
+   o ::after dá uma área de pegada maior que os 5×10 px desenhados. Arrastar pelo resto do cabeçalho continua valendo. */
 .drag-grip {
-  position: absolute; left: 1px; top: 8px; width: 5px; height: 10px; opacity: 0; pointer-events: none;
+  position: absolute; left: 1px; top: 8px; width: 5px; height: 10px; opacity: 0; cursor: grab;
   background: radial-gradient(circle, var(--hud-muted) 0.9px, transparent 1.2px) 0 0 / 3px 3px; transition: opacity 120ms;
 }
+.drag-grip::after { content: ""; position: absolute; inset: -6px -7px; }
 .hud-section-headrow:hover .drag-grip, .minimap-card:hover .drag-grip { opacity: 0.7; }
+.drag-grip:hover { opacity: 1; }
 .drag-grip.h { left: 50%; top: 5px; width: 18px; height: 5px; margin-left: -9px; }
 .hud-section .hud-section-head { padding-right: 26px; }
 /* Com controles (Batalha): eles ficam à direita do título no fluxo, deixando lugar para o pin. */
@@ -115,7 +119,7 @@
 .pin-btn.on { color: var(--hud-gold) !important; }
 .pin-btn.on .px-icon { filter: drop-shadow(0 0 3px rgba(217, 164, 65, 0.5)); }
 .pin-btn:not(.on) .px-icon { transform: rotate(35deg); }
-.minimap-handle { position: relative; height: 14px; cursor: grab; border-bottom: 1px solid transparent; transition: border-color 120ms, background-color 120ms; }
+.minimap-handle { position: relative; height: 14px; border-bottom: 1px solid transparent; transition: border-color 120ms, background-color 120ms; }
 .minimap-card:hover .minimap-handle { border-bottom-color: var(--hud-line-soft); background: rgba(255, 255, 255, 0.025); }
 .minimap-handle .pin-btn { right: 2px; top: 0; width: 14px; height: 14px; }
 
@@ -177,7 +181,7 @@
 /* Seções dobráveis */
 .hud-section { flex: none; position: relative; }
 .hud-section-head {
-  width: 100%; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; cursor: pointer;
+  width: 100%; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; cursor: default;
   background: none; border: 0; text-align: left;
   font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-muted) !important;
   transition: color 120ms;
