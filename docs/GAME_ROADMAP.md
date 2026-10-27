@@ -13,6 +13,12 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Janela "Magias" (2026-10-27) — usabilidade e acessibilidade dos atalhos e grupos
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| JM-1 | Dono: "melhore a usabilidade e acessibilidade de gerenciar skills". Decisão (🧭 2026-10-27): caminho A — uma janela só em volta da barra, no lugar de "Atalhos" e "Grupos de magia" (`SpellsWindow.tsx`, `GroupEditor.tsx`, `SpellGrid.tsx`, `spellsModel.ts`); grade com ícones, editor numerado com "Mais forte primeiro", 14 px, botões ≥ 32 px, teclado completo. Spec: `docs/superpowers/specs/2026-10-27-janela-magias-design.md` | ✅ (2026-10-27) | `edit.test.ts`, `groupsEdit.test.ts`, `spellsModel.test.ts`, E2E `hotkeys.spec.ts` (CI) |
+
 ## Ciclo 20 (2026-10-26) — região Montadora
 
 Especificação: [regioes/montadora.md](regioes/montadora.md). Último ciclo do plano 14–20.

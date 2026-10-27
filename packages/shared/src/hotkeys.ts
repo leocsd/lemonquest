@@ -1,4 +1,4 @@
-// Atalhos de magia (painel "Atalhos", tecla H): cada linha liga uma tecla a uma magia. Salvos no personagem (servidor).
+// Atalhos de magia (janela "Magias", tecla H): cada linha liga uma tecla a uma magia. Salvos no personagem (servidor).
 // A tecla é o KeyboardEvent.code (independe do layout do teclado), com "Shift+" opcional. Ctrl/Alt ficam de fora: o
 // navegador usa Ctrl+1–8 para trocar de aba e Alt abre menus.
 import { castableBy, familiesFor, familyLevel, familyOf, type SpellGroup } from "./data/spellFamilies.ts";
@@ -40,7 +40,7 @@ export const RESERVED_KEYS: Readonly<Record<string, string>> = {
   Enter: "Chat", NumpadEnter: "Chat", Escape: "Fechar janelas / limpar alvo", Tab: "Navegação",
   F1: "Ajuda", F2: "Modo ofensivo", F3: "Modo equilibrado", F4: "Modo defensivo", F8: "Seguir o alvo", F9: "Ataque automático",
   KeyQ: "Poção de vida", KeyE: "Poção de mana", KeyI: "Equipamento e mochila", KeyK: "Habilidades", KeyO: "Roupas",
-  KeyL: "Diário de missões", KeyJ: "Conquistas", KeyR: "Ranking", KeyB: "Bestiário", KeyM: "Mapa", KeyH: "Atalhos",
+  KeyL: "Diário de missões", KeyJ: "Conquistas", KeyR: "Ranking", KeyB: "Bestiário", KeyM: "Mapa", KeyH: "Magias",
 };
 
 /**

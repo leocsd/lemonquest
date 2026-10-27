@@ -27,7 +27,7 @@ export function ActionBar() {
         if (a && level < (a.unlockLevel ?? a.level ?? 0)) return null;
         return <ActionSlot key={i} index={i} action={a} cd={cds[i]} now={now} flash={flashes[i]} shake={shakes[i]} level={level} mana={me?.mana ?? 0} range={ranges[i] ?? null} />;
       })}
-      <button class="action-config" onClick={toggleHotkeys} aria-label="Configurar atalhos" data-tip="Atalhos de magia" data-tip-sub="Escolha a tecla de cada magia · H">⚙</button>
+      <button class="action-config" onClick={toggleHotkeys} aria-label="Magias: atalhos e grupos" data-tip="Magias" data-tip-sub="Tecla de cada magia e grupos · H">⚙</button>
     </div>
   );
 }

@@ -86,7 +86,7 @@ function useHudKeys() {
       // Select do HUD focado (ex.: magia no painel H) não troca de opção por digitação: solta o foco antes.
       const ae = document.activeElement;
       if (ae instanceof HTMLSelectElement && ae.closest("#ui") && !/^(Arrow|Enter|Space|Tab)/.test(e.code)) { e.preventDefault(); ae.blur(); }
-      // Atalhos de magia (painel H). Teclas do jogo nunca viram atalho (shared/hotkeys.ts), então não há disputa.
+      // Atalhos de magia (janela Magias, tecla H). Teclas do jogo nunca viram atalho (shared/hotkeys.ts), então não há disputa.
       // Com o diálogo de quantidade aberto as teclas são dele (o Esc continua fechando, mais abaixo).
       const slot = dialogStore.get() ? -1 : hotkeyIndex(effectiveHotkeys(meStore.get()?.vocation as Vocation | undefined), keyFromEvent(e));
       if (slot >= 0) {

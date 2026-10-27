@@ -21,7 +21,7 @@ const GROUPS: { title: string; rows: { keys: string[]; label: string }[] }[] = [
     title: "Combate",
     rows: [
       { keys: ["1", "–", "0"], label: "Magias da barra (teclas configuráveis em H)" },
-      { keys: ["H"], label: "Atalhos de magia (escolher a tecla de cada magia)" },
+      { keys: ["H"], label: "Magias (tecla de cada magia e grupos)" },
       { keys: ["Q", "E"], label: "Poção de vida / mana" },
       { keys: ["F2", "F3", "F4"], label: "Modo de luta (ofensivo · equilibrado · defensivo)" },
       { keys: ["F8"], label: "Seguir o alvo" },

@@ -1,5 +1,5 @@
-// Edição dos grupos de magia (painel "Grupos de magia"; puro, sem DOM: testável). As regras de validade são as do
-// servidor (shared/data/spellFamilies.ts: sanitizeSpellGroups); aqui só as operações do painel.
+// Edição dos grupos de magia (editor da janela "Magias"; puro, sem DOM: testável). As regras de validade são as do
+// servidor (shared/data/spellFamilies.ts: sanitizeSpellGroups); aqui só as operações do editor.
 import {
   GROUP_MAX, GROUP_SPELLS_MAX, HOTKEY_MAX, cleanGroupName, nextFreeKey, nextGroupId, spellDef,
   type Hotkey, type SpellFamily, type SpellGroup,

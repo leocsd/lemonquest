@@ -1,4 +1,4 @@
-// Atalhos de magia do personagem (tecla → magia). Vêm do servidor ao entrar (S2C.Hotkeys); mudanças no painel (H) ou
+// Atalhos de magia do personagem (tecla → magia). Vêm do servidor ao entrar (S2C.Hotkeys); mudanças na janela Magias (H) ou
 // arrastando na barra são aplicadas na hora e enviadas (C2S.SetHotkeys). Primeira vez (servidor manda null): migra a
 // ordem antiga da barra (navegador) para as teclas 1–8, para ninguém perder a barra que já tinha arrumado.
 import {
@@ -15,7 +15,7 @@ export { hotkeyIndex, keyFromEvent, swapHotkeySpells } from "./edit.ts";
 /** Atalhos atuais; null = ainda não chegaram do servidor (a barra usa o padrão da vocação). */
 export const hotkeysStore = createStore<Hotkey[] | null>(null);
 export const hotkeysOpen = createStore(false);
-/** Grupos de magia do jogador (painel "Grupos de magia"); vão e voltam junto com os atalhos. */
+/** Grupos de magia do jogador (editor da janela "Magias"); vão e voltam junto com os atalhos. */
 export const groupsStore = createStore<SpellGroup[]>([]);
 export const toggleHotkeys = () => hotkeysOpen.set((v) => !v);
 

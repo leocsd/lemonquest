@@ -1,5 +1,22 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · janela "Magias": atalhos e grupos numa tela só
+
+Pedido do dono: "melhore a usabilidade e acessibilidade de gerenciar skills, achei ruim" (ordem dos grupos confusa,
+tecla e magia lentas de escolher, letras e botões pequenos). Especificação em
+`docs/superpowers/specs/2026-10-27-janela-magias-design.md`.
+- **Uma janela só** (`H` ou ⚙ da barra) no lugar de "Atalhos" e "Grupos de magia": a barra desenhada em grande no
+  topo (tecla, ícone, ◆, cadeado, nome embaixo, slot "+"); clicar num slot e escolher numa **grade de magias com
+  ícones** (famílias prontas e grupos seus com ◆; o tile mostra a tecla onde já está). "Trocar tecla" com faixa
+  visível; "Tirar da barra"; "Recomendado" pede um segundo clique.
+- **Editor de grupo** na mesma janela: lista numerada "1º, 2º…" com ↑ ↓ ✕ grandes, a frase fixa do que a tecla faz,
+  **"Mais forte primeiro"** (ordena por level, depois mana) e "Adicionar ao grupo" pelos mesmos tiles. Arrastar
+  continua, mas não é necessário.
+- **Legibilidade**: 14 px no corpo, 12,5 px no secundário, botões ≥ 32 px, tiles ≥ 64 px, foco visível, setas movem
+  o foco na barra e na grade, `aria-live` nas mensagens; entra no "texto maior" do jogo.
+- Servidor, protocolo e regras de validade não mudam (`edit.ts` ganha `addSlot`, `groupsEdit.ts` ganha
+  `sortStrongest`; modelo puro `spellsModel.ts`). E2E `hotkeys.spec.ts` reescrito (5 cenários).
+
 ## [Não lançado] — 2026-10-27 · divisão automática do loot no grupo e janela de NPC mais larga
 
 Pedido do dono: dividir o loot do grupo automaticamente, ouro incluído; só o raro, épico ou lendário continua caindo no

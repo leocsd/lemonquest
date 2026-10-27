@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27b",
+    date: "27 de outubro (tarde)",
+    title: "Janela de magias nova",
+    items: [
+      "Aperte H: a sua barra aparece em grande. Clique num slot e escolha a magia numa grade com ícones; famílias e grupos têm o ◆.",
+      "Trocar a tecla ficou claro: um botão, uma faixa 'Aperte a nova tecla' e o motivo quando a tecla é do jogo.",
+      "Grupos: a lista de prioridade é numerada (1º, 2º…), com botões grandes e 'Mais forte primeiro' para ordenar num clique.",
+      "Tudo maior e legível, e funciona só com o teclado (setas, Enter, Esc).",
+    ],
+  },
+  {
     id: "2026-10-27a",
     date: "27 de outubro",
     title: "Loot do grupo dividido na hora",
