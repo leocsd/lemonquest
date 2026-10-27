@@ -560,7 +560,7 @@ describe("WorldRoom: robustez (morte, caveira vermelha, recompensas, permanênci
   it("baú de quest com a mochila cheia: o item cai no chão e grava personagem + chão juntos", () => {
     const r = makeRoom();
     const p = join(r, "Lia", "l1");
-    for (let i = 0; i < backpackCapacity(p.level); i++) r.inventory.addItem(p, makeItem("fire_sword"));
+    for (let i = 0; i < backpackCapacity(p.level, p.vocation); i++) r.inventory.addItem(p, makeItem("fire_sword"));
     expect(r.inventory.roomFor("l1", "stonecutter_axe")).toBe(0);
     r.quests.claimChest(p, questChestDef("anni_armor")!);
     const fell = [...r.ground.all()].filter((e: any) => e.item.defId === "stonecutter_axe");

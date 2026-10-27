@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BACKPACK_SIZE, S2C } from "@lemonquest/shared";
+import { backpackCapacity, S2C } from "@lemonquest/shared";
 import { makeItem } from "./inventory.ts";
 import {
   DECAY_MS, DROP_RANGE, MAX_LIFE_MULT, GROUND_MSG, GROUND_RATE, GroundSystem, MAX_GROUND_ITEMS, MAX_PER_TILE, PARTY_LOOT_PRIORITY_MS, SAVE_DEBOUNCE_MS,
@@ -188,7 +188,7 @@ describe("ground: pickup", () => {
     expect(t.bp("a")[0]).toBeNull();
   });
 
-  it("merges stacks, goes to the requested slot / equip slot", () => {
+  it("merges stacks, goes to the first free slot (the requested backpack slot is ignored) / equip slot", () => {
     const t = groundWorld();
     const p = t.add("p1", 5, 5);
     t.w.inv.addItem(p, makeItem("bone", 30));
@@ -196,9 +196,11 @@ describe("ground: pickup", () => {
     t.ground.onPickup(p, { groundId: t.onTile(5, 6)[0]!.state.id });
     expect(t.bp("p1")[0]!.count).toBe(50);
     expect(t.bp("p1")[1]).toBeNull();
+    // A mochila se organiza sozinha: solto em qualquer quadrado, entra no primeiro vazio.
     t.ground.place(makeItem("hp_pot", 2), 5, 6);
     t.step(); t.ground.onPickup(p, { groundId: t.onTile(5, 6)[0]!.state.id, to: { where: "backpack", index: 7 } });
-    expect(t.bp("p1")[7]).toMatchObject({ defId: "hp_pot", count: 2 });
+    expect(t.bp("p1")[1]).toMatchObject({ defId: "hp_pot", count: 2 });
+    expect(t.bp("p1")[7]).toBeNull();
     t.ground.place(makeItem("vest"), 4, 4);
     t.step(); t.ground.onPickup(p, { groundId: t.onTile(4, 4)[0]!.state.id, to: { where: "equip", slot: "armor" } });
     expect(t.w.inv.get("p1")!.equipment.armor?.defId).toBe("vest");
@@ -221,7 +223,7 @@ describe("ground: pickup", () => {
   it("no room → stays on the ground + notice; partial stack leaves the rest", () => {
     const t = groundWorld();
     const p = t.add("p1", 5, 5);
-    for (let k = 0; k < BACKPACK_SIZE; k++) t.w.inv.addItem(p, makeItem("sword"));
+    for (let k = 0; k < backpackCapacity(p.level, p.vocation); k++) t.w.inv.addItem(p, makeItem("sword"));
     const id = t.ground.place(makeItem("vest"), 5, 5)!;
     t.ground.onPickup(p, { groundId: id });
     expect(t.ground.get(id)).toBeDefined();
@@ -230,7 +232,7 @@ describe("ground: pickup", () => {
     const t2 = groundWorld();
     const q = t2.add("q", 5, 5);
     t2.w.inv.addItem(q, makeItem("bone", 95));
-    for (let k = 1; k < BACKPACK_SIZE; k++) t2.w.inv.addItem(q, makeItem("sword"));
+    for (let k = 1; k < backpackCapacity(q.level, q.vocation); k++) t2.w.inv.addItem(q, makeItem("sword"));
     const bid = t2.ground.place(makeItem("bone", 20), 5, 5)!;
     t2.ground.onPickup(q, { groundId: bid });
     expect(t2.bp("q")[0]!.count).toBe(100);
@@ -356,7 +358,7 @@ describe("ground: loot overflow", () => {
     const t = groundWorld();
     const killer = t.add("k", 4, 4, { name: "Kiko" });
     const other = t.add("o", 5, 4);
-    for (let k = 0; k < BACKPACK_SIZE; k++) t.w.inv.addItem(killer, makeItem("sword"));
+    for (let k = 0; k < backpackCapacity(killer.level, killer.vocation); k++) t.w.inv.addItem(killer, makeItem("sword"));
     const players = new Map([["k", killer], ["o", other]]);
     const loot = new LootSystem({
       inventory: t.w.inv, getPlayer: (id) => players.get(id), ground: t.ground,
@@ -658,13 +660,13 @@ describe("loot de grupo: cai no chão reservado ao grupo por 15 s, depois qualqu
     const killer = t.add("k", 9, 7, { partyId: "P1" }), ally = t.add("a", 8, 8, { partyId: "P1" });
     const players = new Map([["k", killer], ["a", ally]]);
     // Mochila do primeiro do rodízio cheia (escudos não empilham): o colete vai para o seguinte; o ouro não depende de espaço.
-    for (let i = 0; i < BACKPACK_SIZE; i++) t.w.inv.addItem(killer, makeItem("shield", 1));
+    for (let i = 0; i < backpackCapacity(killer.level, killer.vocation); i++) t.w.inv.addItem(killer, makeItem("shield", 1));
     const loot = splitLoot(t, players, () => [killer, ally]);
     killWith(loot, killer);
     expect(t.bp("a").filter((x) => x?.defId === "vest")).toHaveLength(1);
     expect([t.w.inv.gold("k"), t.w.inv.gold("a")]).toEqual([4, 3]);
     // Ninguém com espaço: cai no chão, reservado ao grupo.
-    for (let i = 0; i < BACKPACK_SIZE; i++) t.w.inv.addItem(ally, makeItem("shield", 1));
+    for (let i = 0; i < backpackCapacity(ally.level, ally.vocation); i++) t.w.inv.addItem(ally, makeItem("shield", 1));
     killWith(loot, killer);
     expect(t.onTile(9, 8).map((e) => [e.item.defId, e.owner])).toEqual([["vest", "P1"]]);
     expect([t.w.inv.gold("k"), t.w.inv.gold("a")]).toEqual([8, 6]);
@@ -700,7 +702,7 @@ describe("loot de grupo: cai no chão reservado ao grupo por 15 s, depois qualqu
     expect(t.onTile(9, 8)).toHaveLength(0);
     expect(t.bp("k").some((x) => x?.defId === "vest")).toBe(true);
     expect(t.w.inv.gold("k")).toBe(7);
-    for (let i = 0; i < BACKPACK_SIZE; i++) t.w.inv.addItem(killer, makeItem("sword"));
+    for (let i = 0; i < backpackCapacity(killer.level, killer.vocation); i++) t.w.inv.addItem(killer, makeItem("sword"));
     t.step();
     kill(t, killer, new Map([["k", killer]]));
     const fell = t.onTile(9, 7)[0]!;

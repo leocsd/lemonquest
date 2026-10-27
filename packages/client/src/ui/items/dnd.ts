@@ -54,7 +54,12 @@ function computeValid(from: DragFrom, inst: ItemInstance): Pick<DragState, "vali
   const meReq = me ? { level: me.level, vocation: me.vocation } : null;
   const fromKey = locKey(from);
   const bpSize = inv?.backpack.length ?? BACKPACK_SIZE;
-  for (let i = 0; i < bpSize; i++) if (`bp:${i}` !== fromKey) valid.add(`bp:${i}`);
+  for (let i = 0; i < bpSize; i++) {
+    // A mochila se organiza sozinha: de fora, qualquer quadrado serve (o servidor empilha ou usa o primeiro vazio);
+    // dentro dela não há o que reordenar.
+    if (from.where === "backpack") reasons.set(`bp:${i}`, "A mochila se organiza sozinha");
+    else valid.add(`bp:${i}`);
+  }
   for (const slot of EQUIP_SLOTS) {
     const key = `eq:${slot}`;
     if (from.where === "equip") { reasons.set(key, "Escolha um slot da mochila"); continue; }

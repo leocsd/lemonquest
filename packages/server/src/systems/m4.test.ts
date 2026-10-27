@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { BACKPACK_SIZE, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, NPC_BUY_RATIO, RARITIES, S2C, STANCE_DEALT, STANCE_TAKEN, npcBuyPrice, type Rarity } from "@lemonquest/shared";
+import { backpackCapacity, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, NPC_BUY_RATIO, RARITIES, S2C, STANCE_DEALT, STANCE_TAKEN, npcBuyPrice, type Rarity } from "@lemonquest/shared";
 import { makeItem } from "./inventory.ts";
 import { LootSystem, RARITY_WEIGHTS, bonusPool, rollBonuses, rollLoot, rollRarity } from "./loot.ts";
 import { ImbuementSystem } from "./imbuement.ts";
@@ -54,7 +54,7 @@ describe("loot", () => {
     const w = invWorld();
     const p1 = w.mk("p1", { name: "Ana" }), p2 = w.mk("p2", { name: "Bia" });
     const players = new Map([["p1", p1], ["p2", p2]]);
-    for (let k = 0; k < BACKPACK_SIZE - 1; k++) w.inv.addItem(p2, makeItem("sword"));
+    for (let k = 0; k < backpackCapacity(p2.level, p2.vocation) - 1; k++) w.inv.addItem(p2, makeItem("sword"));
     const out: { to: string; type: string; msg: any }[] = [];
     const loot = new LootSystem({
       inventory: w.inv, getPlayer: (id) => players.get(id),
@@ -127,7 +127,7 @@ describe("npcs", () => {
     expect(t.w.inv.gold("p1")).toBe(105);
     expect(t.w.inv.get("p1")!.backpack[2]).toBeNull();
     // Mochila cheia bloqueia a compra.
-    for (let k = 0; k < BACKPACK_SIZE; k++) t.w.inv.addItem(p, makeItem("sword"));
+    for (let k = 0; k < backpackCapacity(p.level, p.vocation); k++) t.w.inv.addItem(p, makeItem("sword"));
     t.npcs.onTrade(p, { npcId: "shop", action: "buy", itemId: "vest", count: 1 });
     expect(t.out.at(-1)!.msg.text).toBe("Mochila cheia.");
     expect(t.w.inv.gold("p1")).toBe(105);
@@ -203,7 +203,7 @@ describe("npcs", () => {
     const p = t.add("p1", 70, 10);
     t.w.inv.addGold(p, 10_000);
     t.w.inv.addItem(p, makeItem("iron_bar", 3)); // pilha com espaço do 1º material do pool
-    for (let k = 1; k < BACKPACK_SIZE; k++) t.w.inv.addItem(p, makeItem("sword"));
+    for (let k = 1; k < backpackCapacity(p.level, p.vocation); k++) t.w.inv.addItem(p, makeItem("sword"));
     expect(t.w.inv.get("p1")!.backpack.every(Boolean)).toBe(true);
     t.npcs.onInteract(p, { npcId: "casino" });
     t.npcs.onTrade(p, { npcId: "casino", action: "casino" });

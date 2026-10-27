@@ -13,6 +13,15 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Mochila automática e capacidade por vocação (2026-10-27)
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| MO-1 | Dono: "organizar a mochila sozinho". Decisão: sempre automático, sem interruptor — a cada flush o servidor junta pilhas iguais e ordena como o Organizar do depot; arrastar dentro da mochila não faz nada (cliente explica) | ✅ (2026-10-27) | `inventory.test.ts` (organiza no flush); E2E `panels.spec.ts` |
+| MO-2 | "Puxar o item para qualquer quadrado e ele entra no lugar vazio": depot e chão → pilha igual ou primeiro vazio, seja onde for solto; equipamento mantém a troca com item equipável | ✅ (2026-10-27) | `inventory.test.ts`, `ground.test.ts`; E2E `ground.spec.ts` |
+| MO-3 | "Aumentar a capacidade de cada vocação". Decisão: como no Tibia — cavaleiro 30 → 60, paladino 26 → 52, magos 24 → 48, +1 a cada 4 levels (era 20 → 40 igual para todos); grade de 5 por linha | ✅ (2026-10-27) | `inventory.test.ts` (fórmula), `panelSize.test.ts`; wiki com tabela |
+| MO-4 | Acompanhar se alguém sente falta de arrumar a mochila na mão (o depot continua manual, com Organizar); se pedirem, um interruptor "Organizar sozinha" por personagem | 🧭 | — |
+
 ## Personagens masculinos e femininos (2026-10-27)
 
 | # | Item | Status | Validação |

@@ -1,5 +1,6 @@
-// Inventário (M4): equipamento (8 slots), mochila (backpackCapacity(level): 20 no lv 1 até BACKPACK_MAX), ouro e depot
-// (DEPOT_SIZE, só com o NPC aberto).
+// Inventário (M4): equipamento (8 slots), mochila (backpackCapacity(level, vocação): 24–30 no lv 1 até 48–60), ouro e
+// depot (DEPOT_SIZE, só com o NPC aberto). A mochila se organiza sozinha (organizeItems em cada flush): a posição dos
+// itens nela não é escolha do jogador — mover para dentro dela empilha/ocupa o primeiro vazio, seja qual for o slot.
 // Valida equipar (slot, vocação, level, duas mãos), empilha/divide, usa poções (cooldown compartilhado),
 // calcula os atributos do equipamento e envia S2C.Inventory/S2C.Depot (uma vez por tick, em flush()).
 import { randomBytes } from "node:crypto";
@@ -100,11 +101,11 @@ function loadArray(raw: unknown, size: number, defs: ItemDefs): (ItemInstance | 
 }
 
 /**
- * Mochila do tamanho da capacidade do level: completa com espaços vazios; acima dela só tira espaços VAZIOS do fim
- * (level menor por comando de dev, ou mochila salva maior): item nenhum some.
+ * Mochila do tamanho da capacidade do level e da vocação: completa com espaços vazios; acima dela só tira espaços
+ * VAZIOS do fim (level menor por comando de dev, ou mochila salva maior): item nenhum some.
  */
-export function fitBackpack(inv: Pick<Inventory, "backpack">, level: number): void {
-  const cap = backpackCapacity(level);
+export function fitBackpack(inv: Pick<Inventory, "backpack">, level: number, vocation: Vocation): void {
+  const cap = backpackCapacity(level, vocation);
   while (inv.backpack.length < cap) inv.backpack.push(null);
   while (inv.backpack.length > cap && inv.backpack[inv.backpack.length - 1] === null) inv.backpack.pop();
 }
@@ -219,7 +220,7 @@ export class InventorySystem {
       }
     }
     inv.backpack = loadArray(data.backpack, BACKPACK_MAX, this.defs);
-    fitBackpack(inv, p.level);
+    fitBackpack(inv, p.level, p.vocation);
     inv.depot = loadArray(data.depot, DEPOT_SIZE, this.defs);
     inv.gold = Number.isFinite(data.gold) ? Math.max(0, Math.floor(data.gold!)) : 0;
     this.inv.set(p.id, inv);
@@ -263,14 +264,14 @@ export class InventorySystem {
 
   /** maxHp/maxMana = baseStats + bônus. `fill` = enche vida/mana (level up); senão só limita ao novo máximo. */
   /**
-   * Ajusta a mochila à capacidade do level (cresce no level up; só encolhe espaços vazios do fim, nunca some item).
-   * Retorna quantos espaços ganhou (0 = nada mudou ou encolheu).
+   * Ajusta a mochila à capacidade do level e da vocação (cresce no level up; só encolhe espaços vazios do fim, nunca
+   * some item). Retorna quantos espaços ganhou (0 = nada mudou ou encolheu).
    */
   fitBackpack(p: PlayerState): number {
     const inv = this.inv.get(p.id);
     if (!inv) return 0;
     const before = inv.backpack.length;
-    fitBackpack(inv, p.level);
+    fitBackpack(inv, p.level, p.vocation);
     if (inv.backpack.length !== before) this.dirty.add(p.id);
     return Math.max(0, inv.backpack.length - before);
   }
@@ -475,26 +476,16 @@ export class InventorySystem {
   }
 
   /**
-   * Coloca um item vindo do chão: no slot pedido se der (vazio/mesma pilha/equipável livre), senão como addItem.
-   * Ouro vira contador. Retorna quantas unidades NÃO couberam.
+   * Coloca um item vindo do chão: num slot de equipamento livre se foi pedido e dá; senão como addItem (a mochila se
+   * organiza sozinha, então o quadrado em que foi solto não importa). Ouro vira contador. Retorna quantas unidades NÃO
+   * couberam.
    */
   placePickup(p: PlayerState, item: ItemInstance, to?: PickupTo): number {
     const inv = this.inv.get(p.id);
     const d = this.defs(item.defId);
     if (!inv || !d) return item.count;
     if (d.id === GOLD_ID) { this.addGold(p, item.count); return 0; }
-    if (to?.where === "backpack" && isInt(to.index) && to.index >= 0 && to.index < inv.backpack.length) {
-      const cur = inv.backpack[to.index];
-      const max = maxStackOf(d);
-      if (!cur && item.count <= max) { inv.backpack[to.index] = item; this.dirty.add(p.id); return 0; }
-      if (cur && d.stackable && cur.defId === item.defId && cur.rarity === item.rarity && cur.count < max) {
-        const mv = Math.min(item.count, max - cur.count);
-        cur.count += mv;
-        this.dirty.add(p.id);
-        if (mv === item.count) return 0;
-        return this.addItem(p, { ...item, count: item.count - mv });
-      }
-    } else if (to?.where === "equip" && EQUIP_SLOTS.includes(to.slot) && item.count === 1 && !inv.equipment[to.slot]) {
+    if (to?.where === "equip" && EQUIP_SLOTS.includes(to.slot) && item.count === 1 && !inv.equipment[to.slot]) {
       const conflict = (to.slot === "weapon" && d.twoHanded && inv.equipment.shield)
         || (to.slot === "shield" && inv.equipment.weapon && this.defs(inv.equipment.weapon.defId)?.twoHanded);
       if (!this.canEquip(p, d, to.slot) && !conflict) {
@@ -565,6 +556,7 @@ export class InventorySystem {
   /** Envia Inventory (e Depot, se aberto) a quem mudou neste tick. */
   flush(): void {
     for (const id of this.dirty) {
+      this.organizeBackpack(id);
       const msg = this.inventoryMsg(id);
       if (msg) this.o.send(id, S2C.Inventory, msg);
     }
@@ -574,6 +566,18 @@ export class InventorySystem {
       if (inv && this.o.depotOpen?.(id)) this.o.send(id, S2C.Depot, { items: inv.depot } satisfies DepotMsg);
     }
     this.depotDirty.clear();
+  }
+
+  /**
+   * A mochila se organiza sozinha (dono, 2026-10-27): a cada envio junta as pilhas iguais e ordena como o "Organizar" do
+   * depot. Só aqui, no flush — dentro de um mesmo tick os índices que o cliente mandou continuam valendo (addItem e as
+   * operações só preenchem vazios/pilhas, nunca deslocam o que já está lá).
+   */
+  private organizeBackpack(id: string): void {
+    const inv = this.inv.get(id);
+    if (!inv) return;
+    const sorted = organizeItems(inv.backpack, this.defs);
+    for (let i = 0; i < inv.backpack.length; i++) inv.backpack[i] = sorted[i] ?? null;
   }
 
   markDirty(id: string): void { this.dirty.add(id); }
@@ -681,8 +685,18 @@ export class InventorySystem {
     const it = src[si];
     if (!it || (src === dst && si === di)) return;
     const n = count === undefined ? it.count : Math.min(count, it.count);
-    const target = dst[di];
     const d = this.defs(it.defId);
+    if (dst === inv.backpack) {
+      // Dentro da mochila não há o que mover (ela se organiza sozinha; dividir pilha seria juntado de volta no flush).
+      if (src === dst) return;
+      // Depot → mochila, solto em qualquer quadrado: entra na pilha igual com espaço ou no primeiro vazio (dono, 2026-10-27).
+      if (!d) return;
+      const moved = this.spill(src, si, dst, n, d);
+      if (moved < n) this.warn(p, MSG.full);
+      if (moved > 0) this.touched(p, inv, src, dst);
+      return;
+    }
+    const target = dst[di];
     if (!target) {
       if (n === it.count) { dst[di] = it; src[si] = null; }
       else { dst[di] = { ...it, uid: newUid(), count: n, bonuses: it.bonuses.map((b) => ({ ...b })) }; it.count -= n; }

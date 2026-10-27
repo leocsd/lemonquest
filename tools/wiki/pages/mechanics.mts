@@ -6,7 +6,7 @@ import { join } from "node:path";
 import {
   ACHIEVEMENTS, ARENA_BOSS_EVERY, ARENA_BREAK_MS, ARENA_COMPLETE_GOLD, ARENA_COMPLETE_XP_PCT, ARENA_COUNT, ARENA_LOBBY_RANGE,
   ARENA_MAX_WAVE, ARENA_MILESTONE_GOLD, ARENA_MILESTONE_WAVE, ARENA_MODS, ARENA_MOD_FROM_WAVE, ARENA_MOD_ORDER,
-  ARENA_PAUSE_HEAL, ARENA_SHOP_PAUSE_MS, ARENA_WAVES, ARENA_XP_MULT, BACKPACK_LEVELS_PER_SLOT, BACKPACK_MAX, BACKPACK_SIZE,
+  ARENA_PAUSE_HEAL, ARENA_SHOP_PAUSE_MS, ARENA_WAVES, ARENA_XP_MULT, BACKPACK_BY_VOCATION, BACKPACK_LEVELS_PER_SLOT,
   BLESSING_GOLD_PER_LEVEL, BOUNTIES_PER_DAY, BOUNTY_BANDS, BOUNTY_CHEST_ID, BOUNTY_NPC, BOUNTY_RESET_HOUR, CHALLENGES,
   CHALLENGES_PER_WEEK, CHALLENGE_BONUS_PRIZE, CHALLENGE_BONUS_XP_PCT, CRIT_CHANCE, CRIT_MULT, DEATH_PENALTY_STAGES,
   FOOD_MAX_MS, FOOD_TICK_MS, HEALTH_POTION_CD_MS, IMBUEMENTS, IMBUEMENT_EFFECTS, IMBUEMENT_TIERS, IMBUE_DURATION_MS,
@@ -193,7 +193,8 @@ function experiencia(): WikiPage {
   parts.push(`<p>A XP de caça (abates e ondas do Coliseu) e a do Quadro de Recompensas cai a partir de certos levels. Missões e desafios da semana dão a XP cheia.</p>`);
   parts.push(table(["A partir do level", "XP de caça"], XP_STAGES.map((s) => [s.fromLevel, pct(s.mult, 0)])));
   parts.push(`<h2 id="mochila">Mochila</h2>`);
-  parts.push(`<p>A mochila começa com ${BACKPACK_SIZE} espaços e ganha 1 a cada ${BACKPACK_LEVELS_PER_SLOT} levels, até ${BACKPACK_MAX}.</p>`);
+  parts.push(`<p>A mochila se organiza sozinha (pilhas iguais juntam; equipamento, poções, comida, materiais e o resto, nessa ordem) e ganha 1 espaço a cada ${BACKPACK_LEVELS_PER_SLOT} levels, até o teto da vocação:</p>`);
+  parts.push(table(["Vocação", "Level 1", "Máximo"], VOCATIONS.map((v) => [vocName[v], BACKPACK_BY_VOCATION[v].base, `${BACKPACK_BY_VOCATION[v].max} (lv ${1 + (BACKPACK_BY_VOCATION[v].max - BACKPACK_BY_VOCATION[v].base) * BACKPACK_LEVELS_PER_SLOT})`])));
   return page("experiencia", parts.join("\n"));
 }
 

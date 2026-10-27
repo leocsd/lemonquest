@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27i",
+    date: "28 de outubro",
+    title: "Mochila maior e que se organiza sozinha",
+    items: [
+      "A mochila se organiza sozinha: pilhas iguais juntam e os itens ficam por tipo (equipamento, poções, comida, materiais…). Não dá mais para arrastar dentro dela.",
+      "Solte o item em qualquer quadrado da mochila (do depot ou do chão) que ele entra na pilha igual ou no primeiro espaço vazio.",
+      "Mais espaço, por vocação: cavaleiro 30 (até 60), paladino 26 (até 52), feiticeiro e druida 24 (até 48); +1 a cada 4 levels. Era 20 até 40 para todos.",
+    ],
+  },
+  {
     id: "2026-10-27h",
     date: "28 de outubro",
     title: "Monstro voltando para o canto dele",

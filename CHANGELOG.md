@@ -1,5 +1,28 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · mochila que se organiza sozinha e maior por vocação
+
+Pedido do dono: "organizar a mochila sozinho, aumentar a capacidade de cada vocação e poder puxar o item para
+qualquer quadrado da bag, que ele entra no lugar que tiver vazio". Decisões: organização sempre automática (sem
+interruptor) e capacidade por vocação como no Tibia (cavaleiro carrega mais).
+- **Mochila automática** (`InventorySystem.organizeBackpack`, em cada `flush`): junta as pilhas iguais e ordena com a
+  mesma regra do "Organizar" do depot (equipamento na ordem do corpo → poções → comida → materiais → chaves/missão).
+  Só no flush: dentro de um tick os índices que o cliente mandou continuam valendo. Arrastar dentro da mochila deixa
+  de fazer qualquer coisa (o cliente nem marca os quadrados como alvo válido e explica "A mochila se organiza
+  sozinha"); dividir pilha dentro dela não existe mais (seria juntada de volta).
+- **Qualquer quadrado serve**: do depot (`moveContainer` → `spill`) e do chão (`placePickup`) o item entra na pilha
+  igual com espaço ou no primeiro vazio, seja onde for solto; "Mochila cheia" só se nada coube. Do equipamento
+  continua a troca com um item equipável no quadrado (senão o primeiro vazio).
+- **Capacidade por vocação** (`BACKPACK_BY_VOCATION`, `backpackCapacity(level, vocation)`, `BACKPACK_LEVELS_PER_SLOT`
+  4): cavaleiro 30 → 60 (lv 121), paladino 26 → 52 (lv 105), feiticeiro e druida 24 → 48 (lv 97); era 20 → 40 igual
+  para todos. Saves antigos crescem sozinhos ao entrar (`fitBackpack`). A grade da mochila passou a 5 por linha
+  (38 px; `panelSize` com linha de 42 px) para 60 espaços não ficarem compridos. Wiki (Experiência e levels → Mochila)
+  com a tabela por vocação.
+- Testes: `inventory.test.ts` (fórmula por vocação, organização no flush, depot → mochila em qualquer quadrado,
+  mochila cheia, divisão/troca só no depot), `ground.test.ts` (pegar do chão ignora o quadrado pedido),
+  `panelSize.test.ts`; os que enchem a mochila usam `backpackCapacity(p.level, p.vocation)`. E2E `panels.spec.ts`
+  (arrastar dentro da mochila não move) e `ground.spec.ts` (item do chão entra onde a ordenação mandar).
+
 ## [Não lançado] — 2026-10-27 · monstro voltando ao spawn toma dano e cura aos poucos
 
 Pedido do dono: "quando eu luro o bicho para longe, ele volta para o lugar dele, porém não toma dano enquanto está

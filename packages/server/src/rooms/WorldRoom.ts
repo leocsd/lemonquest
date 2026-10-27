@@ -426,7 +426,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         this.inventory.applyStats(p, true);
         const slots = this.inventory.fitBackpack(p);
         if (slots > 0) {
-          const total = backpackCapacity(p.level), id = p.id;
+          const total = backpackCapacity(p.level, p.vocation), id = p.id;
           this.combat.later(() => this.clients.getById(id)?.send(S2C.Notice, { text: `Sua mochila cresceu: agora tem ${total} espaços.`, kind: "good" } satisfies NoticeMsg));
         }
         if (p.level >= FEED_LEVEL_MIN) {

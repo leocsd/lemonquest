@@ -73,11 +73,13 @@ test("mochila rola por dentro e rola sozinha ao arrastar um item perto da borda"
   await page.mouse.move(from.x + 8, from.y + 8, { steps: 3 });
   await page.mouse.move(box.x + box.width / 2, box.y + box.height - 4, { steps: 6 });
   await expect.poll(async () => { const m = await metrics(); return m.top >= m.max - 1; }, { timeout: 8000 }).toBe(true);
-  // Solta no último slot (agora visível): o item vai para lá.
-  const last = page.locator('[data-loc="bp:19"]');
+  // Solta no último slot (agora visível): a mochila se organiza sozinha, então nada muda de lugar.
+  const n = (await inventory(page))!.backpack.length;
+  const last = page.locator(`[data-loc="bp:${n - 1}"]`);
   const lc = await center(page, last);
   await page.mouse.move(lc.x, lc.y, { steps: 4 });
   await page.mouse.up();
-  await expect.poll(async () => (await inventory(page))?.backpack[19]?.defId).toBe("health_potion");
-  expect((await inventory(page))!.backpack[0]).toBeNull();
+  await page.waitForTimeout(500);
+  expect((await inventory(page))!.backpack[0]?.defId).toBe("health_potion");
+  expect((await inventory(page))!.backpack[n - 1]).toBeNull();
 });

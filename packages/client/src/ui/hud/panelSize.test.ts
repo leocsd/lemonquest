@@ -32,10 +32,10 @@ describe("panelSize", () => {
     expect(normalizeSizes({ battle: "a" })).toEqual({ battle: 5, backpack: 3 });
   });
 
-  it("rowsToPx: múltiplos da linha (mochila: 3*40 + 2*5 + 4 de respiro)", () => {
+  it("rowsToPx: múltiplos da linha (mochila: 3*38 + 2*3 + 4 de respiro)", () => {
     expect(rowsToPx("battle", 5)).toBe(5 * SIZE_SPEC.battle.row);
-    expect(rowsToPx("backpack", 3)).toBe(3 * 40 + 2 * 5 + 4);
-    expect(rowsToPx("backpack", 5)).toBe(5 * 40 + 4 * 5 + 4);
+    expect(rowsToPx("backpack", 3)).toBe(3 * 38 + 2 * 3 + 4);
+    expect(rowsToPx("backpack", 5)).toBe(5 * 38 + 4 * 3 + 4);
   });
 
   it("rowsFromDrag faz snap em linhas inteiras e respeita limites", () => {

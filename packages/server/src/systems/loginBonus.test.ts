@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BACKPACK_SIZE, S2C, challengeGold, itemDef } from "@lemonquest/shared";
+import { backpackCapacity, S2C, challengeGold, itemDef } from "@lemonquest/shared";
 import { LOGIN_REWARDS, continuesStreak, grantLoginBonus, isWeekendDay, nextLoginState, previousDay, rewardForStreak } from "./loginBonus.ts";
 import { bountyDay } from "./bounties.ts";
 import { makeItem } from "./inventory.ts";
@@ -106,7 +106,7 @@ describe("grantLoginBonus", () => {
   it("mochila cheia: o ouro entra, o item é pulado e o aviso diz", () => {
     const s = setup();
     grantLoginBonus(s.host(day(15)), s.p, s.rec);
-    for (let i = 0; i < BACKPACK_SIZE; i++) s.w.inv.addItem(s.p, makeItem("vest"));
+    for (let i = 0; i < backpackCapacity(s.p.level, s.p.vocation); i++) s.w.inv.addItem(s.p, makeItem("vest"));
     grantLoginBonus(s.host(day(16)), s.p, s.rec); // dia 2: só itens
     expect(s.w.inv.countItem("p", "health_potion")).toBe(0);
     const last = s.out.at(-1)!;

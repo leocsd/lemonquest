@@ -20,7 +20,7 @@ export const SIZE_SPEC: Record<SizableId, SizeSpec> = {
   // Batalha: linha de 32 px + gap de 2.
   battle: { row: 34, pad: 0, def: 5, min: 2, max: 12 },
   // Mochila: slot 40 + gap 5, grade 4x5; 2 px de respiro no topo e na base.
-  backpack: { row: 45, pad: -1, def: 3, min: 2, max: 5 },
+  backpack: { row: 41, pad: 1, def: 3, min: 2, max: 5 }, // 5 por linha: 38 px + 3 de vão (hud.css .bag-grid) + 4 de respiro
 };
 
 export type Sizes = Record<SizableId, number>;

@@ -96,7 +96,8 @@ test("itens no chão: largar arrastando e outro jogador pega (direito, Ctrl, dup
     await bpSlot(b, empty).scrollIntoViewIfNeeded();
     await waitSettled(b);
     await drag(b, await tileToClient(b, drop.x, drop.y), await center(b, bpSlot(b, empty)));
-    await expect.poll(async () => (await inventory(b))!.backpack[empty]?.defId, { timeout: 10_000 }).toBe(items[3]);
+    // A mochila se organiza sozinha: o item entra, mas a posição é a da ordenação.
+    await expect.poll(async () => (await inventory(b))!.backpack.some((s) => s?.defId === items[3]), { timeout: 10_000 }).toBe(true);
     await expect.poll(async () => (await ground(a)).filter((g) => g.x === drop.x && g.y === drop.y).length, { timeout: 10_000 }).toBe(0); // o patch do chão chega a A depois
   } finally {
     await ca.close();

@@ -414,7 +414,7 @@ export interface ConditionsMsg {
 export interface SkillUpMsg { skill: SkillId; level: number }
 export interface InventoryMsg {
   equipment: Partial<Record<EquipSlot, ItemInstance>>;
-  backpack: (ItemInstance | null)[];   // tamanho = capacidade do level (backpackCapacity)
+  backpack: (ItemInstance | null)[];   // tamanho = capacidade do level e da vocação (backpackCapacity); sempre organizada
   gold: number;
   /** Totais efetivos (equipamento + bônus) para o HUD. */
   stats: Stats;

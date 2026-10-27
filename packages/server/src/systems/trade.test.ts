@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BACKPACK_SIZE, S2C, TRADE_INVITE_MS, TRADE_KEEP_RANGE, TRADE_START_RANGE, type TradeStateMsg } from "@lemonquest/shared";
+import { backpackCapacity, S2C, TRADE_INVITE_MS, TRADE_KEEP_RANGE, TRADE_START_RANGE, type TradeStateMsg } from "@lemonquest/shared";
 import { makeItem } from "./inventory.ts";
 import { invWorld } from "./m4kit.ts";
 import { TradeSystem } from "./trade.ts";
@@ -114,7 +114,7 @@ describe("trade: oferta e troca", () => {
   });
 
   it("mochila cheia: nada muda, a janela continua aberta e avisa", () => {
-    for (let i = 0; i < BACKPACK_SIZE; i++) s.w.inv.addItem(s.b, makeItem("vest")); // enche a mochila de B
+    for (let i = 0; i < backpackCapacity(s.b.level, s.b.vocation); i++) s.w.inv.addItem(s.b, makeItem("vest")); // enche a mochila de B
     const sword = bpOf("a")[0]!;
     s.trade.onMessage(s.a, { action: "offer", items: [{ uid: sword.uid, count: 1 }], gold: 0 });
     const before = JSON.stringify(bpOf("b"));
@@ -129,7 +129,7 @@ describe("trade: oferta e troca", () => {
 
   it("mochila cheia só de um lado, mas liberada pela própria oferta, vale", () => {
     // B cheia, mas oferece uma peça: o espaço que ela libera recebe o item de A.
-    for (let i = 0; i < BACKPACK_SIZE - 1; i++) s.w.inv.addItem(s.b, makeItem("vest"));
+    for (let i = 0; i < backpackCapacity(s.b.level, s.b.vocation) - 1; i++) s.w.inv.addItem(s.b, makeItem("vest"));
     const vest = bpOf("b").find((i) => i?.defId === "vest")!;
     const sword = bpOf("a")[0]!;
     s.trade.onMessage(s.a, { action: "offer", items: [{ uid: sword.uid, count: 1 }], gold: 0 });

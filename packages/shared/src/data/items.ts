@@ -94,17 +94,31 @@ export interface LootEntry {
   max?: number;
 }
 
-/** Espaços da mochila no level 1. A capacidade cresce com o level (backpackCapacity). */
-export const BACKPACK_SIZE = 20;
-/** Teto de espaços da mochila (alcançado no level 101). */
-export const BACKPACK_MAX = 40;
-/** A mochila ganha um espaço a cada tantos levels. */
-export const BACKPACK_LEVELS_PER_SLOT = 5;
+/**
+ * Espaços da mochila por vocação: `base` no level 1 e `max` (teto). Como no Tibia, o cavaleiro carrega mais; os magos,
+ * menos (decisão do dono, 2026-10-27; antes eram 20 → 40 para todos). A mochila se organiza sozinha (servidor).
+ */
+export const BACKPACK_BY_VOCATION: Readonly<Record<Vocation, { base: number; max: number }>> = {
+  knight: { base: 30, max: 60 },
+  paladin: { base: 26, max: 52 },
+  sorcerer: { base: 24, max: 48 },
+  druid: { base: 24, max: 48 },
+};
+/** A mochila ganha um espaço a cada tantos levels, até o teto da vocação. */
+export const BACKPACK_LEVELS_PER_SLOT = 4;
+/** Menor mochila (magos no level 1): mochila vazia do cliente antes do inventário chegar e dos testes de interface. */
+export const BACKPACK_SIZE = 24;
+/** Maior mochila (cavaleiro no teto): limite do que se carrega do banco. */
+export const BACKPACK_MAX = 60;
 
-/** Espaços da mochila no level: 20 no lv 1, +1 a cada 5 levels, até 40 (lv 25 → 24, lv 50 → 29, lv 100 → 39). */
-export function backpackCapacity(level: number): number {
+/**
+ * Espaços da mochila no level e vocação: base + 1 a cada BACKPACK_LEVELS_PER_SLOT levels, até o teto da vocação
+ * (cavaleiro 30 → 60 no lv 121; paladino 26 → 52 no lv 105; magos 24 → 48 no lv 97). Vocação desconhecida = magos.
+ */
+export function backpackCapacity(level: number, vocation: Vocation): number {
+  const v = BACKPACK_BY_VOCATION[vocation] ?? BACKPACK_BY_VOCATION.sorcerer;
   const lv = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
-  return Math.min(BACKPACK_MAX, BACKPACK_SIZE + Math.floor((lv - 1) / BACKPACK_LEVELS_PER_SLOT));
+  return Math.min(v.max, v.base + Math.floor((lv - 1) / BACKPACK_LEVELS_PER_SLOT));
 }
 export const DEPOT_SIZE = 60;
 

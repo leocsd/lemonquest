@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BACKPACK_SIZE, S2C } from "@lemonquest/shared";
+import { backpackCapacity, S2C } from "@lemonquest/shared";
 import { FISHER_CHEST_EVERY, FISH_CAST_MS, FISH_MAX_CHANCE, FISH_RANGE, FishingSystem, biteChance, rollFish } from "./fishing.ts";
 import { makeItem } from "./inventory.ts";
 import { invWorld } from "./m4kit.ts";
@@ -54,7 +54,7 @@ describe("pesca: lançar", () => {
     t.fishing.onMessage(t.p, null as any);
     expect(t.fishing.casting("p")).toBe(false);
     const f = setup();
-    for (let i = 0; i < BACKPACK_SIZE; i++) f.w.inv.addItem(f.p, makeItem("vest"));
+    for (let i = 0; i < backpackCapacity(f.p.level, f.p.vocation); i++) f.w.inv.addItem(f.p, makeItem("vest"));
     f.fish();
     expect(f.notices().at(-1)).toContain("cheia");
     const a = setup([0, 0.5], { inArena: true });
@@ -158,7 +158,7 @@ describe("pesca: Baú do Pescador (ciclo 18)", () => {
 
   it("mochila cheia: o baú vai ao chão (ou se perde sem chão) e o aviso diz", () => {
     const fill = (s: ReturnType<typeof setup>) => {
-      for (let k = 0; k < BACKPACK_SIZE - 2; k++) s.w.inv.addItem(s.p, makeItem("vest")); // vara + 1 espaço para o peixe
+      for (let k = 0; k < backpackCapacity(s.p.level, s.p.vocation) - 2; k++) s.w.inv.addItem(s.p, makeItem("vest")); // vara + 1 espaço para o peixe
     };
     const g = setup([0.0, 0.5], { caught: FISHER_CHEST_EVERY - 1, ground: true });
     fill(g);
