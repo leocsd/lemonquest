@@ -7,7 +7,7 @@
 .imbue-status b { color: #d9b8ff; }
 .imbue-status small { font-size: 11px; color: var(--hud-muted); }
 .imbue-confirm { font-size: 12px; line-height: 1.4; color: #ffb3a8; }
-.imbue-grid { display: grid; grid-template-columns: 74px repeat(3, minmax(0, 1fr)); gap: 4px; align-items: stretch; }
+.imbue-grid { display: grid; grid-template-columns: 92px repeat(3, minmax(0, 1fr)); gap: 4px; align-items: stretch; } /* 92 px: "Dreno de Vida" numa linha */
 .imbue-col { text-align: center; font-size: 11px; font-weight: 600; color: var(--hud-muted); letter-spacing: 0.04em; }
 .imbue-name { align-self: center; font-size: 12px; line-height: 1.2; cursor: help; }
 .imbue-cell {

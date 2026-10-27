@@ -1,14 +1,16 @@
-/* Janela de NPC */
-.npc-window { left: 24px; top: 72px; width: 372px; max-height: calc(100vh - 150px); }
+/* Janela de NPC. 440 px (era 372: com 4–5 abas os rótulos quebravam dentro do botão e nome/preço/botão da loja caíam em
+   duas linhas); em tela estreita cede ao espaço livre à esquerda da barra lateral. */
+.npc-window { left: 24px; top: 72px; width: min(440px, calc(100vw - var(--hud-right, 0px) - 48px)); max-height: calc(100vh - 150px); }
 .hud-card.npc-window { background: rgba(17, 20, 28, 0.93); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
 .npc-title { cursor: default; }
-.npc-title > span:nth-child(2) { flex: 1; color: var(--hud-text); text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 600; }
-.npc-gold { font-size: 12px; margin-right: 2px; }
+.npc-title > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--hud-text); text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 600; }
+.npc-gold { flex: none; font-size: 12px; margin-right: 2px; }
 .npc-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 10px; min-height: 0; overflow-y: auto; }
 .npc-say { position: relative; padding: 7px 10px; font-size: 13px; line-height: 1.45; color: #d9d7cc; cursor: pointer; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; min-height: 18px; }
 .npc-say-rest { visibility: hidden; }
-.npc-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--hud-line); padding-bottom: 6px; }
-.npc-tab { padding: 4px 12px; background: transparent; border-color: transparent; color: var(--hud-muted) !important; }
+/* Abas inteiras numa linha; se não couberem, a sobra vai para a linha de baixo (nunca o rótulo partido no meio). */
+.npc-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--hud-line); padding-bottom: 6px; }
+.npc-tab { flex: none; padding: 4px 10px; white-space: nowrap; background: transparent; border-color: transparent; color: var(--hud-muted) !important; }
 .npc-tab.active { background: rgba(217, 164, 65, 0.12); border-color: rgba(217, 164, 65, 0.5); color: var(--hud-gold) !important; }
 
 .shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }

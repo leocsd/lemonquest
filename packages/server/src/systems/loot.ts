@@ -1,8 +1,10 @@
 // Loot (M4): ao matar um monstro rola a tabela (chances independentes), o ouro e a raridade/bônus dos
 // equipáveis; entrega ao jogador online que mais causou dano. S2C.Loot para ele; S2C.Feed para drops épicos/lendários e chefes.
+// Em grupo, o raro+ é dividido automaticamente (rodízio entre quem participou, direto na mochila); o resto cai no chão
+// reservado ao grupo por 15 s.
 import {
   ELITE, RARITIES, RARITY_LABEL, S2C, eliteName, isEquipable, rollInt,
-  type FeedMsg, type ItemDef, type ItemInstance, type LootMsg, type MonsterDef, type NoticeMsg, type Rarity, type StatId,
+  type ChatMessage, type FeedMsg, type ItemDef, type ItemInstance, type LootMsg, type MonsterDef, type NoticeMsg, type Rarity, type StatId,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { PARTY_LOOT_PRIORITY_MS, type GroundReserve } from "./ground.ts";
@@ -121,14 +123,26 @@ export interface LootOptions {
    * Ausente/undefined = sozinho (direto na mochila).
    */
   partyIdOf?: (p: PlayerState, m: Monster) => string | undefined;
+  /**
+   * Divisão do loot raro+ (PARTY_SPLIT_RARITIES) do abate em grupo: quem participou (vivo, perto, bateu neste monstro ou
+   * atacou/curou há pouco), na ordem do grupo. Ausente/vazio = o raro cai no chão para o grupo, como o resto.
+   */
+  lootSharers?: (p: PlayerState, m: Monster) => PlayerState[];
+  /** Ids dos membros do grupo de `p` (inclui ele): avisados no chat do grupo de quem recebeu o raro+ na divisão. */
+  partyMembers?: (p: PlayerState) => string[];
 }
 
-
+/** Raridades que a divisão automática do grupo entrega direto na mochila (rodízio entre os participantes). */
+export const PARTY_SPLIT_RARITIES: Rarity[] = ["rare", "epic", "legendary"];
+/** Último a receber raro+ por grupo: só os grupos mais recentes ficam na memória (id de grupo nunca se repete). */
+const SPLIT_MEMORY = 256;
 
 export const FEED_RARITIES: Rarity[] = ["epic", "legendary"];
 
 export class LootSystem {
   private readonly rng: () => number;
+  /** Grupo → id de quem recebeu o último raro+ na divisão (o próximo da ordem do grupo recebe o seguinte). */
+  private readonly lastSplit = new Map<string, string>();
 
   constructor(private readonly o: LootOptions) {
     this.rng = o.rng ?? Math.random;
@@ -197,13 +211,27 @@ export class LootSystem {
   }
 
   /**
-   * Em grupo, o loot (itens e ouro) cai no chão onde o monstro morreu, reservado ao grupo por PARTY_LOOT_PRIORITY_MS
-   * (GD-21: quem passa correndo não leva o raro do grupo); depois fica sem dono como o resto do chão.
-   * O que não couber no chão vai para a mochila de quem matou.
+   * Em grupo, o raro+ é dividido na hora: vai direto para a mochila do próximo participante do rodízio do grupo
+   * (`lootSharers`, na ordem do grupo; quem está sem espaço é pulado) e o grupo fica sabendo pelo chat. O resto (itens
+   * comuns/incomuns e ouro) cai no chão onde o monstro morreu, reservado ao grupo por PARTY_LOOT_PRIORITY_MS (GD-21: quem
+   * passa correndo não leva o loot do grupo); depois fica sem dono como o resto do chão. O que não couber no chão vai
+   * para a mochila de quem matou.
    */
   private dropForParty(p: PlayerState, m: Monster, items: ItemInstance[], gold: number, partyId: string): void {
     const { x, y } = m.s;
-    const all = gold > 0 ? [...items, makeItem(GOLD_ID, gold)] : items;
+    const monsterName = m.elite ? eliteName(m.def.name) : m.def.name;
+    const sharers = this.o.lootSharers?.(p, m) ?? [];
+    const toGround: ItemInstance[] = [];
+    for (const it of items) {
+      const to = PARTY_SPLIT_RARITIES.includes(it.rarity) ? this.nextSharer(partyId, sharers, it) : undefined;
+      if (!to) { toGround.push(it); continue; }
+      this.o.inventory.addItem(to, it);
+      this.o.send(to.id, S2C.Loot, { x, y, monsterName, items: [it], gold: 0, partySplit: true } satisfies LootMsg);
+      const name = this.o.inventory.defs(it.defId)?.name ?? it.defId;
+      const chat: ChatMessage = { from: "", text: `Divisão do grupo: ${to.name} recebeu ${name} (${RARITY_LABEL[it.rarity]})`, channel: "party", ts: (this.o.now ?? Date.now)() };
+      for (const id of this.o.partyMembers?.(p) ?? [to.id]) this.o.send(id, S2C.Chat, chat);
+    }
+    const all = gold > 0 ? [...toGround, makeItem(GOLD_ID, gold)] : toGround;
     const onGround: ItemInstance[] = [];
     let groundGold = 0;
     const reserve: GroundReserve = { owner: partyId, ownerUntil: (this.o.now ?? Date.now)() + PARTY_LOOT_PRIORITY_MS };
@@ -221,8 +249,26 @@ export class LootSystem {
       if (d && FEED_RARITIES.includes(it.rarity)) this.feed(`🔥 ${p.name} dropou ${d.name} (${RARITY_LABEL[it.rarity]})`, "drop", it.rarity);
     }
     if (onGround.length || groundGold > 0) {
-      this.o.send(p.id, S2C.Loot, { x, y, monsterName: m.elite ? eliteName(m.def.name) : m.def.name, items: onGround, gold: groundGold, onGround: true } satisfies LootMsg);
+      this.o.send(p.id, S2C.Loot, { x, y, monsterName, items: onGround, gold: groundGold, onGround: true } satisfies LootMsg);
     }
+  }
+
+  /**
+   * Próximo do rodízio do grupo que tem espaço para `item`: começa em quem vem depois do último que recebeu (na ordem
+   * do grupo) e dá a volta; undefined = ninguém participou ou ninguém tem espaço (o item cai no chão para o grupo).
+   */
+  private nextSharer(partyId: string, sharers: readonly PlayerState[], item: ItemInstance): PlayerState | undefined {
+    if (!sharers.length) return undefined;
+    const start = sharers.findIndex((s) => s.id === this.lastSplit.get(partyId)) + 1; // -1 + 1 = 0: começa do primeiro
+    for (let i = 0; i < sharers.length; i++) {
+      const to = sharers[(start + i) % sharers.length]!;
+      if (this.o.inventory.roomFor(to.id, item.defId) < item.count) continue;
+      this.lastSplit.delete(partyId);
+      this.lastSplit.set(partyId, to.id);
+      if (this.lastSplit.size > SPLIT_MEMORY) this.lastSplit.delete(this.lastSplit.keys().next().value!);
+      return to;
+    }
+    return undefined;
   }
 
   feed(text: string, kind: FeedMsg["kind"], rarity?: Rarity): void {

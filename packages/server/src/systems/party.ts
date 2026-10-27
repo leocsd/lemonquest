@@ -1,6 +1,7 @@
 // Grupo (party) estilo Tibia: convite/aceite, líder (expulsar, passar liderança, desfazer), sair, chat do grupo e
 // experiência compartilhada (+20% por membro extra, dividida entre os membros ativos perto do abate, se a diferença de
-// level permitir). Só em memória: sair do jogo (depois da janela de reconexão) tira a pessoa do grupo.
+// level permitir). Os mesmos participantes entram na divisão do loot raro+ (systems/loot.ts). Só em memória: sair do jogo
+// (depois da janela de reconexão) tira a pessoa do grupo.
 import {
   PARTY_ACTIVE_MS, PARTY_INVITE_MS, PARTY_MAX, PARTY_SHARE_RANGE, S2C, partyLevelsOk, partyMinLevel, partyShareEach,
   type ChatMessage, type NoticeMsg, type PartyActionMsg, type PartyInviteMsg, type PartyShareReason, type PartyStateMsg,
@@ -97,11 +98,7 @@ export class PartySystem {
       if (!party || done.has(party)) continue;
       done.add(party);
       if (!this.shareStatus(party).active) continue;
-      const eligible = party.members.filter((id) => {
-        const p = this.o.getPlayer(id);
-        if (!p || p.hp <= 0 || cheb(p.x, p.y, x, y) > PARTY_SHARE_RANGE) return false;
-        return shares.has(id) || this.isActive(id, now);
-      });
+      const eligible = this.participants(party, shares, x, y, now).map((p) => p.id);
       if (eligible.length < 2) continue;
       let total = 0;
       for (const id of party.members) {
@@ -111,6 +108,26 @@ export class PartySystem {
       const vocations = new Set(eligible.map((id) => this.o.getPlayer(id)?.vocation)).size;
       const each = partyShareEach(total, eligible.length, vocations);
       for (const id of eligible) out.set(id, each);
+    }
+    return out;
+  }
+
+  /**
+   * Quem entra na divisão do loot raro+ de um abate do grupo de `playerId` (systems/loot.ts): os mesmos participantes da
+   * XP compartilhada, mas sem a regra de level (o loot não depende dela). Sem grupo: [].
+   */
+  lootSharers(playerId: string, hitters: ReadonlyMap<string, number>, x: number, y: number, now = this.now()): PlayerState[] {
+    const party = this.partyOf.get(playerId);
+    return party ? this.participants(party, hitters, x, y, now) : [];
+  }
+
+  /** Membros vivos a até PARTY_SHARE_RANGE de (x,y) que deram dano neste monstro ou atacaram/curaram nos últimos 60 s. */
+  private participants(party: Party, hitters: ReadonlyMap<string, number>, x: number, y: number, now: number): PlayerState[] {
+    const out: PlayerState[] = [];
+    for (const id of party.members) {
+      const p = this.o.getPlayer(id);
+      if (!p || p.hp <= 0 || cheb(p.x, p.y, x, y) > PARTY_SHARE_RANGE) continue;
+      if (hitters.has(id) || this.isActive(id, now)) out.push(p);
     }
     return out;
   }

@@ -392,7 +392,7 @@ novo lv 45–48 (precisa de sprite e de um lugar no mapa — um spawn novo na li
 
 | Item | O que mudou | Status |
 |---|---|---|
-| Atrito social do loot de grupo sem dono | Funciona como desenhado (qualquer um pega/move o que está no chão), mas numa rede de ~10 colegas pode gerar reclamação que nenhum teste automatizado capta | 🧭 revisitar só se houver reclamação real |
+| Atrito social do loot de grupo sem dono | Funciona como desenhado (qualquer um pega/move o que está no chão), mas numa rede de ~10 colegas pode gerar reclamação que nenhum teste automatizado capta | ✅ (2026-10-27) pedido do dono: raro+ do abate em grupo vai direto à mochila em rodízio entre quem participou (`loot.ts` `PARTY_SPLIT_RARITIES`, `party.lootSharers`; linha no chat do grupo); comum/incomum e ouro seguem no chão reservado 15 s. `ground.test.ts`, `party.test.ts` |
 
 Configuração de produção:
 

@@ -183,6 +183,27 @@ describe("party: convites e gestão", () => {
     expect(w.party.partyMembersNear("c", 10, 10, 50).map((p) => p.id)).toEqual(["a", "c"]);
     expect(w.party.partyMembersNear("d", 10, 10, 5).map((p) => p.id)).toEqual(["d"]);
   });
+
+  it("lootSharers: quem bateu no monstro ou atacou/curou há pouco, vivo e perto, na ordem do grupo; sem grupo: ninguém", () => {
+    const w = setup();
+    const a = w.add("a"), b = w.add("b", { x: 12 }), c = w.add("c", { x: 14 }), d = w.add("d", { x: 40 });
+    const hit = new Map([["a", 50]]);
+    expect(w.party.lootSharers("a", hit, 10, 10)).toEqual([]); // sem grupo
+    w.join(a, b); w.join(a, c); w.join(a, d);
+    // b só está perto (não bateu, não atacou): fica de fora; c atacou há pouco; d está longe demais.
+    w.party.markActive("c");
+    w.party.markActive("d");
+    expect(w.party.lootSharers("a", hit, 10, 10).map((p) => p.id)).toEqual(["a", "c"]);
+    // Ativo há mais de 60 s não conta; bater neste monstro conta sempre; morto nunca.
+    w.tick(PARTY_ACTIVE_MS);
+    expect(w.party.lootSharers("a", new Map([["a", 50], ["b", 1]]), 10, 10).map((p) => p.id)).toEqual(["a", "b"]);
+    a.hp = 0;
+    expect(w.party.lootSharers("b", new Map([["a", 50], ["b", 1]]), 10, 10).map((p) => p.id)).toEqual(["b"]);
+    // A regra de level da XP não entra na divisão do loot.
+    a.hp = 100; a.level = 100; b.level = 10;
+    expect(w.party.shareStatus(w.party.partyFor("a")!).active).toBe(false);
+    expect(w.party.lootSharers("a", new Map([["a", 50], ["b", 1]]), 10, 10).map((p) => p.id)).toEqual(["a", "b"]);
+  });
 });
 
 describe("party: chat do grupo", () => {

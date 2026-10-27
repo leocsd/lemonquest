@@ -443,8 +443,10 @@ export interface LookItemMsg { groundId: string; item: ItemInstance }
 export interface MoveGroundItemMsg { groundId: string; x: number; y: number; count?: number | null }
 export interface LootMsg {
   x: number; y: number; monsterName: string; items: ItemInstance[]; gold: number;
-  /** Loot de grupo: tudo caiu no chão onde o monstro morreu (qualquer um pega). */
+  /** Loot de grupo: caiu no chão onde o monstro morreu (qualquer um pega). */
   onGround?: boolean;
+  /** Loot de grupo: item raro+ que a divisão automática do grupo pôs na sua mochila. */
+  partySplit?: boolean;
   /** Itens perdidos (mochila cheia e sem espaço no chão). */
   lostFull?: number;
   /** Itens que não couberam e caíram no chão (no seu tile; qualquer um pega). */

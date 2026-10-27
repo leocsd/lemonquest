@@ -352,6 +352,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.loot = new LootSystem({
       inventory: this.inventory, getPlayer, send, broadcast, ground: this.ground, lootMult: () => this.events?.lootMult() ?? 1,
       partyIdOf: (p, m) => this.partyLootId(p, m.s.x, m.s.y),
+      // Raro+ do abate em grupo: rodízio entre quem participou (mesma regra da XP compartilhada), avisado no chat do grupo.
+      lootSharers: (p, m) => this.party.lootSharers(p.id, m.damageBy, m.s.x, m.s.y).filter((s) => !this.lingering.has(s.id)),
+      partyMembers: (p) => this.party.membersOf(p.id),
     });
     this.regen = new RegenSystem({
       inCombat: (id, now) => this.combat.inCombat(id, now),
