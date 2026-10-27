@@ -196,7 +196,11 @@ export function SpellsWindow() {
         <p class="sw-hint">Clique num slot e escolha o que vai nele. <b>◆</b> = tecla inteligente: solta a 1ª magia pronta da lista.</p>
         <BigBar barRef={barRef} list={list} voc={voc} groups={groups} level={level} sel={slot} onSelect={(s) => { setSel(s); setEditing(null); setCapturing(null); }} />
         {editingGroup ? (
-          <GroupEditor group={editingGroup} groups={groups} list={list} voc={voc} level={level} mana={me.mana} say={say} onBack={() => setEditing(null)} />
+          <GroupEditor
+            key={editingGroup.id} group={editingGroup} groups={groups} list={list} voc={voc} level={level} mana={me.mana} say={say}
+            onBack={() => { setEditing(null); focusBar(); }}
+            onDeleted={() => { setSel(null); setEditing(null); focusBar(); }}
+          />
         ) : (
           <>
             <SlotPanel

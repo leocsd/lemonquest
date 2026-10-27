@@ -89,9 +89,10 @@
 .sw-row-icon { width: 28px; height: 28px; image-rendering: pixelated; }
 .sw-row-icon.locked { filter: grayscale(1) brightness(0.6); }
 .sw-row-info { display: flex; flex-direction: column; min-width: 0; }
+.sw-row-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .sw-row-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sw-row.locked .sw-row-name { color: var(--hud-muted); }
-.sw-now { margin-left: 8px; padding: 1px 6px; font-size: 12.5px; font-style: normal; font-weight: 700; color: #0b0d13; background: #7fd88f; border-radius: 3px; }
+.sw-now { padding: 1px 6px; font-size: 12.5px; font-style: normal; font-weight: 700; color: #0b0d13; background: #7fd88f; border-radius: 3px; }
 .sw-row-sub { font-size: 12.5px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
 .sw-lock { color: #ff9a8f; font-weight: 600; }
 .sw-cd { color: #8fb8ff; }

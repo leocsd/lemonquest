@@ -8,6 +8,9 @@ import { enterGame, meState, monsters, playFromList, setLevel, snap, targetNeare
 /** Floresta ao norte da vila (fora da PZ: a regen de mana é baixa e o gasto da magia aparece). */
 const FOREST = { x: 70, y: 62 };
 
+/** Rótulo da tecla dentro de uma RegExp (⇧, +, . etc.). */
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 test("magias: trocar a tecla da Cura para G, recusar Q, lançar com G e manter depois de recarregar", async ({ page }) => {
   const p = await enterGame(page, "druid");
   await setLevel(page, 20);
@@ -66,7 +69,7 @@ test("magias: tirar um atalho da barra e pôr de volta pelo slot +", async ({ pa
   // O "+" recebe a magia na próxima tecla livre (a que acabou de vagar) e o slot volta selecionado.
   await win.getByRole("option", { name: "Atalho novo" }).click();
   await win.getByRole("button", { name: /^Pés Ligeiros/ }).click();
-  await expect(win.getByRole("option", { name: new RegExp(`^Tecla ${key}: Pés Ligeiros\\b`) })).toHaveAttribute("aria-selected", "true");
+  await expect(win.getByRole("option", { name: new RegExp(`^Tecla ${esc(key)}: Pés Ligeiros\\b`) })).toHaveAttribute("aria-selected", "true");
   await expect(win).toContainText(`Na tecla ${key}.`);
 });
 
@@ -156,7 +159,7 @@ test("grupos: montar o próprio grupo no editor numerado, 'Mais forte primeiro',
   await page.keyboard.press("Escape");
   await expect(win).toBeHidden();
 
-  const slot = page.locator(".action-slot", { has: page.locator(".action-key", { hasText: new RegExp(`^${key}$`) }) });
+  const slot = page.locator(".action-slot", { has: page.locator(".action-key", { hasText: new RegExp(`^${esc(key)}$`) }) });
   await expect(slot).toHaveAttribute("data-tip", /Onda de Fogo/);
   const mana0 = (await meState(page))!.mana as number;
   await canvas.hover({ position: { x: 300, y: 300 } });
