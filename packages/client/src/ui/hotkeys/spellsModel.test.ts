@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { spellsFor, type SpellGroup } from "@lemonquest/shared";
-import { itemFor, itemsFor, shownSpell, subtitle } from "./spellsModel.ts";
+import { spellDef, spellsFor, type SpellGroup } from "@lemonquest/shared";
+import { itemFor, itemsFor, KIND_LABEL, kindOf, shownSpell, subtitle } from "./spellsModel.ts";
 
 const G: SpellGroup[] = [
   { id: "fam:my:1", name: "Meu combo", spells: ["fire_wave", "fireball"] }, // lv 35 e lv 1
@@ -40,10 +40,25 @@ describe("modelo da janela Magias", () => {
     expect(b.spells).toHaveLength(spellsFor("sorcerer").length);
     const levels = b.spells.map((i) => i.level);
     expect(levels).toEqual([...levels].sort((x, y) => x - y));
-    expect(subtitle(b.spells[0]!, 1)).toMatch(/^lv 1 · \d+ mana$/);
+    const fireball = b.spells.find((i) => i.id === "fireball")!;
+    expect(subtitle(fireball, 1)).toMatch(/^No alvo · lv 1 · \d+ mana$/);
+    expect(subtitle(fireball, 1, false)).toMatch(/^lv 1 · \d+ mana$/); // o tile mostra a categoria num chip à parte
     expect(subtitle(b.families[0]!, 50)).toBe("4 magias · lv 1");
     expect(subtitle(b.groups[0]!, 50)).toBe("2 magias · lv 1");
     expect(subtitle(b.groups[1]!, 50)).toBe("vazio");
     expect(itemsFor("knight", []).groups).toEqual([]);
+  });
+
+  it("categoria da magia: cura, no alvo, onda, área e outras (buffs)", () => {
+    const kind = (id: string) => kindOf(spellDef(id)!);
+    expect(kind("light_heal")).toBe("cura");
+    expect(kind("fireball")).toBe("alvo");
+    expect(kind("fire_wave")).toBe("onda");
+    expect(kind("inferno")).toBe("area");
+    expect(kind("swift_feet")).toBe("outras");
+    expect(kind("mana_shield")).toBe("outras");
+    expect(KIND_LABEL).toEqual({ alvo: "No alvo", area: "Área", onda: "Onda", cura: "Cura", outras: "Outras" });
+    // Toda magia do jogo cai numa categoria com rótulo (a legenda nunca mostra "undefined").
+    for (const s of spellsFor("sorcerer")) expect(KIND_LABEL[kindOf(s)]).toBeTruthy();
   });
 });

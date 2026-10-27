@@ -1,6 +1,6 @@
 /* Card "Online" da barra lateral (ciclo 18). A lista rola a partir de ~9 linhas para não empurrar a mochila. */
 .online { display: flex; flex-direction: column; gap: 6px; }
-.online-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 230px; overflow-y: auto; }
+.online-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 230px; overflow-y: auto; scrollbar-gutter: stable; padding-right: 2px; } /* 2 px: a barra de 6 px não encosta na borda das linhas, sem roubar muito da coluna de 220 px */
 .online-row { display: flex; align-items: center; gap: 4px; min-height: 24px; padding: 1px 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.18); border: 1px solid transparent; }
 .online-row.friend { border-color: rgba(217, 164, 65, 0.28); }
 .online-row.party { border-color: rgba(157, 255, 138, 0.3); }

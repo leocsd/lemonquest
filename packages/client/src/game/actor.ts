@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { BASE_STEP_MS, TILE_SIZE, type Dir, type Facing } from "@lemonquest/shared";
 import { dirToFacing } from "./facing.ts";
 import { playSegments, type Segment } from "./segments.ts";
-import { ADDON_ORIGIN_Y, walkAnimKey, type CharacterLook } from "./sprites.ts";
+import { ADDON_ORIGIN_Y, tonedSheet, walkAnimKey, type CharacterLook } from "./sprites.ts";
 import { TEX } from "./textures.ts";
 import { textRes } from "./textRes.ts";
 
@@ -158,6 +158,7 @@ export class Actor {
     opts: ActorOpts = {},
   ) {
     const { scene } = deps;
+    this.look = look = withTone(scene, look);
     this.name = name;
     this.tileX = x; this.tileY = y;
     this.rx = x * TILE_SIZE; this.ry = y * TILE_SIZE;
@@ -317,8 +318,9 @@ export class Actor {
     for (const o of this.overlays) o.spr.setTintFill(0xffffff);
   }
 
-  /** Troca o visual (roupa/addons) sem recriar o ator. */
+  /** Troca o visual (roupa/addons/tom) sem recriar o ator. */
   setLook(look: CharacterLook) {
+    look = withTone(this.deps.scene, look);
     const sig = (l: CharacterLook) => `${l.sheet.key}|${(l.addons ?? []).map((a) => a.sheet.key).join(",")}|${l.tint}`;
     if (sig(look) === sig(this.look)) return;
     const frame = Number(this.sprite.frame.name);
@@ -599,6 +601,18 @@ export class Actor {
     this.barGhost.destroy();
     this.barFill.destroy();
   }
+}
+
+/**
+ * Look com o tom de tingimento já nas sheets (texturas tingidas + animações de caminhada próprias). O resultado não tem
+ * mais `tone`, então aplicar de novo não tinge duas vezes.
+ */
+function withTone(scene: Phaser.Scene, look: CharacterLook): CharacterLook {
+  const tone = look.tone ?? 0xffffff;
+  if (tone === 0xffffff) return look;
+  const sheet = tonedSheet(scene, look.sheet, tone);
+  createCharacterAnims(scene, [sheet]);
+  return { ...look, sheet, tone: undefined, addons: look.addons?.map((a) => ({ ...a, sheet: tonedSheet(scene, a.sheet, tone) })) };
 }
 
 /** Registra as animações de caminhada de todos os sheets (uma vez por cena). */

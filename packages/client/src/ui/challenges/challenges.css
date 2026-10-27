@@ -1,7 +1,8 @@
 /* Desafios da semana. */
 .challenges-window { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 32; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: rgba(16, 19, 28, 0.97); }
-/* Corpo rolável (o "Texto maior" escala só ele; o título com o × fica fixo). */
-.ch-body { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+/* Corpo rolável (o "Texto maior" escala só ele; o título com o × fica fixo). Calha da barra (6 px) + 4 px de folga moram no
+   padding da janela (margem negativa): os cartões mantêm a largura e o alinhamento com o título. */
+.ch-body { min-height: 0; overflow: auto; scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; margin-right: -10px; }
 .ch-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: #ffe066; }
 .ch-x { width: 26px; height: 26px; padding: 0; font-size: 18px; line-height: 1; }
 .ch-sub { font-size: 11.5px; color: #9aa6c8; }

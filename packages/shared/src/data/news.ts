@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27c",
+    date: "27 de outubro (fim do dia)",
+    title: "Mapa com zoom, tons de roupa novos e telas mais legíveis",
+    items: [
+      "Mapa do mundo (M): arraste para mover, roda do mouse ou +/− para dar zoom, duplo clique aproxima, 0 ajusta, C centra em você.",
+      "Roupas: os tons de tingimento ficaram mais bonitos (a cor respeita o brilho da roupa e a pele não tinge) e a paleta tem 14 tons; a janela não muda mais de tamanho.",
+      "Magias: cada magia mostra a sua categoria (No alvo, Área, Onda, Cura, Outras) para você montar os grupos com segurança.",
+      "Listas com rolagem ganharam respiro, e botões que ficavam brancos ou apagados agora têm contraste.",
+    ],
+  },
+  {
     id: "2026-10-27b",
     date: "27 de outubro (tarde)",
     title: "Janela de magias nova",

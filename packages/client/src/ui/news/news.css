@@ -2,7 +2,8 @@
 .news-window { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 33; width: min(480px, calc(100vw - 24px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(16, 19, 28, 0.97); border-color: rgba(255, 212, 71, 0.5); }
 .news-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: #ffe066; }
 .news-x { width: 26px; height: 26px; padding: 0; font-size: 18px; line-height: 1; }
-.news-body { overflow: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+/* A calha da barra (6 px) mora no padding da janela (margem negativa): o texto mantém a largura e a barra não encosta nele (4 px). */
+.news-body { overflow: auto; scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; margin-right: -6px; }
 .news-entry h3 { margin: 0 0 4px; font-size: 13px; color: #e4e8f5; }
 .news-entry:not(.latest) h3 { color: #9aa6c8; }
 .news-date { font-weight: 400; font-size: 11px; color: #7d86a3; margin-left: 6px; }

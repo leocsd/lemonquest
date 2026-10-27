@@ -1,5 +1,29 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · ajustes de interface: listas, botões, categorias, Roupas e mapa
+
+Pedidos do dono depois de usar a janela Magias: "o scroll come a borda da opção", "nome da categoria de cada skill",
+"na troca de addon o card fica com tamanhos diferentes", "melhore as cores dos personagens", "no mapa (M) quero mexer,
+dar zoom, movimentar", "botões brancos sem contraste".
+- **Listas com rolagem** (Bestiário, Diário, Conquistas, Ranking, Agenda, Coliseu, Desafios, Novidades, lojas, depot,
+  Online, troca, obra, ajuda): `scrollbar-gutter: stable` e respiro de 2–4 px, para a barra não cobrir a borda nem o
+  contorno do item selecionado.
+- **Botões e controles sem contraste**: `#ui button { color: inherit }` (especificidade de id) vencia a cor das classes
+  — `.btn` do login, botão da tela de morte e "Guiando" ficavam com texto claro sobre dourado (1,1–1,8:1); botões do
+  grupo/Online, os "×" de Desafios/Novidades/Troca e a busca do depot não tinham fundo (brancos). Tudo com o visual do
+  HUD; `color-scheme: dark` e `accent-color` dourado nos controles nativos.
+- **Magias**: cada magia avulsa mostra a categoria (No alvo · Área · Onda · Cura · Outras) num selo no tile e na
+  linha do grupo, e no nome acessível.
+- **Roupas**: a janela não muda de tamanho ao trocar roupa ou addon (alturas reservadas para 2 addons, tons e caixa
+  de compra; células da grade iguais). **Tons de tingimento** refeitos: a cor é aplicada preservando o brilho do sprite
+  (sombras escuras, meios-tons na cor, claros até o branco; pele não tinge) na prévia **e no mundo** (textura tingida
+  por folha em `sprites.ts`/`actor.ts`, no lugar do `setTint` multiplicativo que escurecia tudo); paleta com 14 tons
+  (ids antigos mantidos; "Azul-Marinho" virou "Safira"; novos: Verde-Limão, Turquesa, Castanho, Prata, Carvão,
+  Celeste); amostras de 28 px ordenadas por matiz com o nome ao passar o mouse.
+- **Mapa do mundo (M)**: arrastar para mover, roda do mouse/duplo clique/+/− para zoom na posição do cursor (pixels
+  nítidos em escalas inteiras), setas movem, `0` ajusta o mapa inteiro, `C` ou "Centrar em mim"; clique direito segue
+  pondo marcador; arrastar não fecha o mapa.
+
 ## [Não lançado] — 2026-10-27 · janela "Magias": atalhos e grupos numa tela só
 
 Pedido do dono: "melhore a usabilidade e acessibilidade de gerenciar skills, achei ruim" (ordem dos grupos confusa,

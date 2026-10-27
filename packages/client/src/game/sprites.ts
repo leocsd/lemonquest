@@ -1,8 +1,10 @@
 // Configuração ÚNICA de sprites de personagem. Trocar o pack de arte = mexer só aqui.
+import type Phaser from "phaser";
 import {
   ADDON_FRAME, ADDON_OFFSET_Y, OUTFIT_LIST, activeAddons, resolveOutfit, toneColor,
   type Facing, type OutfitDef,
 } from "@lemonquest/shared";
+import { colorizedCanvas } from "../ui/outfit/colorize.ts";
 
 export interface CharacterSheet {
   /** Chave da textura no Phaser (uma por arquivo). */
@@ -27,8 +29,13 @@ export interface AddonLayer {
 
 export interface CharacterLook {
   sheet: CharacterSheet;
-  /** Tint multiplicativo (0xffffff = sem tint). */
+  /** Tint multiplicativo (monstros; 0xffffff = sem tint). */
   tint: number;
+  /**
+   * Tom de tingimento da roupa (jogadores; cor de toneColor, 0xffffff/ausente = natural). Não é tint: o Actor troca as
+   * sheets por texturas tingidas (tonedSheet), com a mesma conta da prévia da janela de roupas.
+   */
+  tone?: number;
   /** Addons (jogadores). Ordem = ordem de desenho dentro da camada. */
   addons?: AddonLayer[];
   /** Px acima do topo da base ocupados pelos addons (nome/barra sobem). */
@@ -85,7 +92,28 @@ export function outfitLook(outfit: string | undefined, addons: number, vocation:
     if (s.back) layers.push({ sheet: s.back, back: true });
     layers.push({ sheet: s.front, back: false });
   }
-  return { sheet: OUTFIT_SHEETS[o.id], tint: toneColor(tone), addons: layers, extraTop: Math.max(0, ...on.map((a) => a.extraTop)) };
+  return {
+    sheet: OUTFIT_SHEETS[o.id], tint: 0xffffff, tone: toneColor(tone), addons: layers, extraTop: Math.max(0, ...on.map((a) => a.extraTop)),
+  };
+}
+
+/**
+ * Sheet tingida pelo tom: textura própria (`chave~rrggbb`) gerada uma vez a partir do PNG já carregado, com colorizePixel
+ * (ui/outfit/colorize.ts, igual à prévia). O multiply do setTint escurecia pele e brilhos. Sem a textura base (falhou ao
+ * carregar) ou sem tom, devolve a sheet original.
+ */
+export function tonedSheet(scene: Phaser.Scene, sheet: CharacterSheet, tone: number): CharacterSheet {
+  if (tone === 0xffffff || !scene.textures.exists(sheet.key)) return sheet;
+  const key = `${sheet.key}~${tone.toString(16).padStart(6, "0")}`;
+  if (!scene.textures.exists(key)) {
+    const src = scene.textures.get(sheet.key).getSourceImage();
+    if (!(src instanceof HTMLImageElement || src instanceof HTMLCanvasElement)) return sheet;
+    const canvas = colorizedCanvas(src, sheet.key, tone);
+    const tex = scene.textures.create(key, canvas, canvas.width, canvas.height);
+    if (!tex) return sheet;
+    scene.textures.addSpriteSheet(key, tex, { frameWidth: sheet.frameWidth, frameHeight: sheet.frameHeight });
+  }
+  return { ...sheet, key };
 }
 
 /** Compatibilidade: visual padrão da vocação, sem addons. */

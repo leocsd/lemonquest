@@ -2,8 +2,9 @@
 .agenda-window { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 32; width: min(460px, calc(100vw - 24px)); max-height: calc(100vh - 40px); display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: rgba(16, 19, 28, 0.97); }
 .ag-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: #ffe066; }
 .ag-x { width: 26px; height: 26px; padding: 0; font-size: 18px; line-height: 1; }
-/* Corpo rolável (o "Texto maior" escala só ele; o título com o × fica fixo). */
-.ag-body { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+/* Corpo rolável (o "Texto maior" escala só ele; o título com o × fica fixo). A calha da barra (6 px) mora no padding da
+   janela (margem negativa): os cartões mantêm a largura e o alinhamento com o título, e a barra não encosta neles (4 px). */
+.ag-body { min-height: 0; overflow: auto; scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; margin-right: -6px; }
 .ag-empty { font-size: 12px; color: #7d86a3; padding: 8px 0; }
 .ag-card { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); font-size: 13px; color: #e4e8f5; }
 .ag-card.live { border-color: rgba(127, 216, 143, 0.6); background: rgba(127, 216, 143, 0.08); }

@@ -64,6 +64,14 @@
 .spells-win .sw-tile-key { position: absolute; left: -6px; top: -4px; font-size: 12.5px; min-width: 18px; padding: 0 4px; }
 .sw-tile-name { font-size: 12.5px; line-height: 1.2; text-align: center; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .sw-tile.locked .sw-tile-name { color: var(--hud-muted); }
+/* Categoria da magia (No alvo, Área, Onda, Cura, Outras): chip com cor de apoio; o texto sozinho já diz, a cor só ajuda a varrer a grade.
+   Todas as cores passam de 4,5:1 sobre o fundo do tile (--hud-well). */
+.sw-tile-kind { font-size: 12.5px; line-height: 1; padding: 1px 6px; border-radius: 8px; color: var(--hud-muted); border: 1px solid var(--hud-line); }
+.sw-tile-kind.alvo { color: #ffb37a; border-color: rgba(255, 179, 122, 0.45); }
+.sw-tile-kind.area { color: #ff8a8a; border-color: rgba(255, 138, 138, 0.45); }
+.sw-tile-kind.onda { color: #8fb8ff; border-color: rgba(143, 184, 255, 0.45); }
+.sw-tile-kind.cura { color: #9fe8ac; border-color: rgba(159, 232, 172, 0.45); }
+.sw-tile-kind.outras { color: var(--hud-muted); }
 .sw-tile-sub { font-size: 12.5px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
 .sw-tile-sub.lock { color: #ff9a8f; font-weight: 600; }
 .sw-none { font-size: 13px; color: var(--hud-muted); }

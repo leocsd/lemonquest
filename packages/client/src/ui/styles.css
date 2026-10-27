@@ -59,13 +59,14 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 #ui :where(button, a, select, summary, input[type="checkbox"], input[type="radio"], input[type="range"]):focus-visible {
   outline: 2px solid #d9a441; outline-offset: 2px;
 }
+/* color com !important: o "#ui button { color: inherit }" (hud.css) vence classe simples e deixava o texto claro sobre o dourado (1,8:1). */
 .btn {
-  font: inherit; font-size: 16px; padding: 9px 12px; cursor: pointer; color: #11141c;
+  font: inherit; font-size: 16px; padding: 9px 12px; cursor: pointer; color: #11141c !important;
   background: #d9a441; border: 1px solid #d9a441; border-radius: 4px;
 }
 .btn:hover:not(:disabled) { filter: brightness(1.1); }
 .btn:disabled { opacity: 0.5; cursor: default; }
-.btn.ghost { background: transparent; color: #a9adbb; border-color: #2c3242; }
+.btn.ghost { background: transparent; color: #a9adbb !important; border-color: #2c3242; }
 .hint { margin: 0; font-size: 13px; color: #8a8fa0; text-align: center; }
 .error { color: #ff8a7a; font-size: 14px; text-align: center; }
 
@@ -266,7 +267,7 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 .login-step.danger { color: #ff8a7a; }
 .login-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .login-dialog-actions .btn { flex: 1; }
-.btn.danger { background: #b5473d; border-color: #b5473d; color: #fff3ef; }
+.btn.danger { background: #b5473d; border-color: #b5473d; color: #fff3ef !important; }
 
 /* ---------- Anúncio de admin (/anuncio) ---------- */
 .announce {

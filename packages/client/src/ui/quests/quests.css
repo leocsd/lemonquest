@@ -1,5 +1,5 @@
 /* Missões: aba do NPC, quadro de recompensas, rastreador, diário e cartão de conclusão. */
-.quest-offers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; }
+.quest-offers { list-style: none; margin: 0; padding: 0 4px 0 0; display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; scrollbar-gutter: stable; } /* 4 px: a barra de 6 px não encosta nos cartões */
 .quest-card { padding: 7px 8px; background: rgba(0, 0, 0, 0.22); border: 1px solid var(--hud-line-soft); border-radius: 5px; display: flex; flex-direction: column; gap: 5px; }
 .quest-card.st-ready, .quest-card.ready { border-color: rgba(255, 212, 71, 0.55); }
 .quest-card.st-done { opacity: 0.6; }
@@ -73,7 +73,7 @@
 .hud-card.quest-log { background: rgba(17, 20, 28, 0.94); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
 .quest-log .win-title > span:nth-child(2) { color: var(--hud-text); }
 .ql-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px 1fr; }
-.ql-list { border-right: 1px solid var(--hud-line); overflow-y: auto; padding: 6px; }
+.ql-list { border-right: 1px solid var(--hud-line); overflow-y: auto; scrollbar-gutter: stable; padding: 6px; }
 .ql-group { margin: 6px 2px 3px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-faint); }
 .ql-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 6px; text-align: left; font-size: 12px; background: transparent !important; border: 1px solid transparent !important; border-radius: 4px; color: #d9d7cc !important; }
 .ql-item:hover { background: rgba(255, 255, 255, 0.04) !important; }
@@ -81,11 +81,13 @@
 .ql-item.done { color: var(--hud-muted) !important; }
 .ql-item .quest-mark { font-size: 12px; width: 12px; }
 .ql-item.soon { color: var(--hud-faint) !important; }
+.ql-item.soon.sel { color: var(--hud-muted) !important; } /* o fundo dourado do selecionado derrubava o tom "faint" para 4,2:1 */
 .ql-item.soon .quest-mark { color: var(--hud-faint); }
 .ql-lv { margin-left: auto; flex: none; font-size: 10px; color: var(--hud-faint); font-variant-numeric: tabular-nums; }
 .ql-lock { font-size: 12px; line-height: 1.45; color: #ff9a6b; }
 .ql-hint { font-size: 12px; line-height: 1.45; color: #ffd447; }
-.ql-detail { overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+/* Direita com 6 px a menos: a calha estável da barra (6 px) completa os 12 px e o texto continua alinhado dos dois lados. */
+.ql-detail { overflow-y: auto; scrollbar-gutter: stable; padding: 10px 6px 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .ql-detail h3 { margin: 0; font-size: 15px; color: var(--hud-text); }
 .ql-meta { font-size: 11px; color: var(--hud-muted); }
 .ql-summary { font-size: 12px; line-height: 1.5; color: #cfccbf; }
@@ -109,6 +111,7 @@
 /* Botão "Guiar" do rastreador (ciclo 17): seta-guia até o próximo passo. */
 .qt-head { display: flex; align-items: center; gap: 6px; }
 .qt-head > .qt-name { flex: 1; min-width: 0; }
-.qt-guide { flex: none; height: 16px; padding: 0 5px; font: inherit; font-size: 10px; line-height: 14px; color: var(--hud-muted); background: #1a1f2e; border: 1px solid var(--hud-line); border-radius: 3px; cursor: pointer; }
-.qt-guide:hover { color: #ffd447; border-color: var(--hud-line-hi); }
-.qt-guide.on { color: #10131c; background: #ffd447; border-color: #ffd447; }
+/* color com !important: o "#ui button { color: inherit }" (hud.css) vence classe simples e deixava o "Guiando" com texto claro sobre o amarelo (1,1:1). */
+.qt-guide { flex: none; height: 16px; padding: 0 5px; font: inherit; font-size: 10px; line-height: 14px; color: var(--hud-muted) !important; background: #1a1f2e; border: 1px solid var(--hud-line); border-radius: 3px; cursor: pointer; }
+.qt-guide:hover { color: #ffd447 !important; border-color: var(--hud-line-hi); }
+.qt-guide.on { color: #10131c !important; background: #ffd447; border-color: #ffd447; }

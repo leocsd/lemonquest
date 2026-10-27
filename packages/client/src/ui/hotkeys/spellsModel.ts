@@ -46,9 +46,29 @@ export function itemsFor(voc: Vocation, groups: readonly SpellGroup[]): { groups
   };
 }
 
-/** Legenda do tile: "lv 20 · 40 mana" na magia; "3 magias · lv 1" na família/grupo; "vazio" no grupo sem magias. */
-export function subtitle(item: SpellItem, level: number): string {
-  if (item.kind === "spell") { const s = item.spells[0]!; return `lv ${s.level} · ${spellMana(s, level)} mana`; }
+/** Tipo da magia, para a legenda do tile e da linha do grupo (o jogador vê o que ela faz sem abrir o tooltip). */
+export type SpellKind = "alvo" | "area" | "onda" | "cura" | "outras";
+
+export const KIND_LABEL: Record<SpellKind, string> = { alvo: "No alvo", area: "Área", onda: "Onda", cura: "Cura", outras: "Outras" };
+
+/** Cura vem antes do dano (uma magia com os dois conta como cura); sem dano nem cura (buff, invocação, provocar) é "Outras". */
+export function kindOf(s: SpellDef): SpellKind {
+  if (s.heal) return "cura";
+  if (!s.damage) return "outras";
+  if (s.target === "wave") return "onda";
+  if (s.target === "area_self" || s.target === "area_target") return "area";
+  return "alvo";
+}
+
+/**
+ * Legenda do tile: "No alvo · lv 20 · 40 mana" na magia; "3 magias · lv 1" na família/grupo; "vazio" no grupo sem magias.
+ * `withKind = false` tira a categoria da magia: o tile mostra a categoria num chip à parte e não pode repeti-la.
+ */
+export function subtitle(item: SpellItem, level: number, withKind = true): string {
+  if (item.kind === "spell") {
+    const s = item.spells[0]!;
+    return `${withKind ? `${KIND_LABEL[kindOf(s)]} · ` : ""}lv ${s.level} · ${spellMana(s, level)} mana`;
+  }
   if (!item.spells.length) return "vazio";
   return `${item.spells.length} ${item.spells.length === 1 ? "magia" : "magias"} · lv ${item.level}`;
 }

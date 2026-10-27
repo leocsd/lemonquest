@@ -437,6 +437,10 @@ guardado na tabela `kv` já existente (`account.tones.<id>`), sem migração de 
 o campo `tint` que `CharacterLook`/`Actor` já aplicavam só em monstro (`outfitLook` ganhou um 4º parâmetro). No preview
 da janela (canvas 2D puro, sem Phaser) foi preciso um tingimento manual (multiply + recorte pelo alpha original,
 cacheado por imagem+cor). Testes: `outfit.test.ts` (validação do tom e `addAccountTone`/`getAccountTones`).
+Atualização 2026-10-27 (pedido do dono: "melhore as cores dos personagens"): o multiply escurecia e sujava tudo. A cor
+passou a ser aplicada preservando o brilho (`colorizePixel` em `outfitTones.ts`: sombras escuras, meios-tons na cor,
+claros até o branco; pele em `TONE_KEEP` não tinge), igual na prévia (`outfit/colorize.ts`) e no mundo (textura
+tingida por folha em `sprites.ts`/`actor.ts`, `tint` só para monstro). Paleta com 14 tons (ids antigos mantidos).
 
 **Marca de Caça** (moeda nova, opcional, liga tarefas aos sinks sem imprimir mais ouro): descartada nesta rodada de
 construção. Tarefas de caça e missões recorrentes pagam ouro direto, mais simples de construir e manter. Fica

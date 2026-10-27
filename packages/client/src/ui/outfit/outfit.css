@@ -1,13 +1,27 @@
 /* Janela de roupas (tecla O) */
 .outfit-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(5, 6, 10, 0.35); pointer-events: auto; }
-.outfit-win { position: relative; width: min(600px, 96vw); max-height: 94vh; animation: hud-pop 160ms var(--hud-ease); }
+/*
+ * Altura FIXA enquanto aberta: cada bloco da coluna da prévia tem altura própria (addons, tons, compra), então a soma
+ * (--outfit-stage-h) não muda ao trocar de roupa, addon ou tom. --tone-rows vem do TSX (nº de linhas de amostras).
+ */
+.outfit-win {
+  --addon-h: 40px; --swatch: 28px; --swatch-gap: 6px; --buy-h: 68px;
+  --outfit-stage-h: calc(184px + 22px + 22px + 2 * var(--addon-h) + 5px
+    + var(--tone-rows, 3) * var(--swatch) + (var(--tone-rows, 3) - 1) * var(--swatch-gap) + var(--buy-h) + 6 * 8px);
+  position: relative; width: min(600px, 96vw); max-height: 94vh; animation: hud-pop 160ms var(--hud-ease);
+}
 .hud-card.outfit-win { background: rgba(17, 20, 28, 0.96); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
-.outfit-win .win-title { cursor: default; }
-.outfit-body { display: flex; gap: 12px; padding: 12px; min-height: 0; overflow: auto; }
+.outfit-win .win-title { cursor: default; flex: none; }
+/* Encolhe (e rola por dentro) só quando a tela é mais baixa que a janela: o max-height de 94vh continua valendo. */
+.outfit-body {
+  display: flex; gap: 12px; padding: 12px; box-sizing: border-box;
+  height: calc(var(--outfit-stage-h) + 24px); flex: 0 1 auto; min-height: 0; overflow: auto;
+}
 
-.outfit-stage { flex: 0 0 176px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.outfit-stage { flex: 0 0 176px; height: var(--outfit-stage-h); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.outfit-stage > * { flex: none; }
 .outfit-preview {
-  width: 176px; height: 184px; display: grid; place-items: center; cursor: pointer; border-radius: 5px;
+  width: 176px; height: 184px; box-sizing: border-box; display: grid; place-items: center; cursor: pointer; border-radius: 5px;
   border: 1px solid var(--hud-line-soft);
   background:
     radial-gradient(ellipse 46px 10px at 50% 86%, rgba(0, 0, 0, 0.35), transparent 70%),
@@ -15,7 +29,7 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), inset 0 -24px 30px rgba(0, 0, 0, 0.18);
 }
 .outfit-preview canvas { display: block; }
-.outfit-rotate { display: flex; align-items: center; gap: 8px; }
+.outfit-rotate { height: 22px; display: flex; align-items: center; gap: 8px; }
 .outfit-arrow {
   width: 26px; height: 22px; padding: 0; cursor: pointer; font-size: 10px; line-height: 1;
   background: rgba(0, 0, 0, 0.3); border: 1px solid var(--hud-line); border-radius: 4px; color: var(--hud-muted) !important;
@@ -26,13 +40,19 @@
 .outfit-arrow:hover { border-color: var(--hud-gold); color: var(--hud-gold) !important; }
 .outfit-arrow:active { transform: translateY(1px); }
 .outfit-facing { min-width: 64px; text-align: center; font-size: 11px; color: var(--hud-faint); text-transform: uppercase; letter-spacing: 1px; }
-.outfit-name { font-family: "Pixelify Sans", system-ui, sans-serif; font-size: 18px; color: var(--hud-gold); text-shadow: 0 1px 0 #000; }
+.outfit-name {
+  height: 22px; line-height: 22px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: "Pixelify Sans", system-ui, sans-serif; font-size: 18px; color: var(--hud-gold); text-shadow: 0 1px 0 #000;
+}
 
-.outfit-addons { width: 100%; display: flex; flex-direction: column; gap: 5px; }
+/* Sempre 2 linhas de altura fixa; nome longo corta com reticências (o nome inteiro sai no balão). */
+.outfit-addons { width: 100%; height: calc(2 * var(--addon-h) + 5px); display: flex; flex-direction: column; gap: 5px; }
 .outfit-addon {
-  display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
+  height: var(--addon-h); box-sizing: border-box; min-width: 0;
+  display: flex; align-items: center; gap: 8px; padding: 0 8px; cursor: pointer; user-select: none;
   background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; font-size: 13px;
 }
+.outfit-addon .outfit-lock { position: static; margin-left: auto; flex: none; }
 .outfit-addon:hover { border-color: var(--hud-line-hi); }
 .outfit-addon.on { border-color: rgba(217, 164, 65, 0.55); background: rgba(217, 164, 65, 0.08); }
 .outfit-addon input { position: absolute; opacity: 0; pointer-events: none; }
@@ -43,23 +63,38 @@
   border: solid #1a1408; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .outfit-addon input:focus-visible + .outfit-check { outline: 1px solid var(--hud-gold); outline-offset: 1px; }
-.outfit-addon-name { display: flex; flex-direction: column; line-height: 1.15; }
+.outfit-addon-name { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+.outfit-addon-name > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outfit-addon-name small { font-size: 10px; color: var(--hud-faint); text-transform: uppercase; letter-spacing: 1px; }
 
-.outfit-tones { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
-.outfit-tone {
-  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--hud-line-soft); cursor: pointer;
-  padding: 0; display: flex; align-items: center; justify-content: center;
+/* Amostras: 5 por linha. Liberado = borda contínua; à venda = borda tracejada + cadeado; escolhido = anel dourado. */
+.outfit-tones {
+  width: 100%; display: grid; grid-template-columns: repeat(5, var(--swatch)); justify-content: space-between;
+  gap: var(--swatch-gap) 0;
 }
-.outfit-tone:hover { border-color: var(--hud-line-hi); }
-.outfit-tone.sel { border-color: var(--hud-gold); box-shadow: 0 0 0 1px var(--hud-gold); }
-.outfit-tone.locked { opacity: 0.55; }
-.outfit-tone .outfit-lock { position: static; filter: drop-shadow(0 0 1px #000); }
-/* Compra do tom em prévia: 1º clique arma (vermelho, como .sw-btn.confirm), 2º compra. */
-.outfit-buy { width: 100%; display: flex; flex-direction: column; gap: 5px; }
-.outfit-buy-note { font-size: 11px; color: var(--hud-faint); line-height: 1.25; }
+.outfit-tone {
+  width: var(--swatch); height: var(--swatch); box-sizing: border-box; border-radius: 50%; padding: 0; cursor: pointer;
+  display: grid; place-items: center; border: 2px solid rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: transform 90ms var(--hud-ease);
+}
+.outfit-tone:hover { transform: scale(1.08); outline: 1px solid var(--hud-line-hi); outline-offset: 2px; }
+.outfit-tone:focus-visible { outline: 2px dashed var(--hud-gold); outline-offset: 2px; }
+.outfit-tone.locked { border: 2px dashed rgba(255, 255, 255, 0.7); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.outfit-tone.sel { outline: 2px solid var(--hud-gold); outline-offset: 2px; transform: scale(1.08); }
+.outfit-tone .outfit-lock {
+  position: static; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%;
+  background: rgba(8, 10, 14, 0.72); filter: none;
+}
+/* Compra do tom em prévia: 1º clique arma (vermelho, como .sw-btn.confirm), 2º compra. Altura reservada sempre. */
+.outfit-buy { width: 100%; height: var(--buy-h); display: flex; flex-direction: column; gap: 5px; font-size: 12px; line-height: 14px; }
+.outfit-buy-note {
+  font-size: 11px; line-height: 14px; max-height: 28px; overflow: hidden; color: var(--hud-faint);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
 .outfit-buy-note b { color: var(--hud-text); font-weight: 600; }
-.outfit-btn.outfit-buy-btn { width: 100%; min-width: 0; }
+/* Fonte no contêiner (.outfit-buy): o "#ui button { font: inherit }" do hud.css vence a classe. Até 2 linhas. */
+.outfit-btn.outfit-buy-btn { width: 100%; min-width: 0; height: auto; min-height: 28px; padding: 3px 6px; }
 .outfit-btn.outfit-buy-btn.confirm { color: #fff !important; background: var(--hud-red); border-color: var(--hud-red); }
 .outfit-btn.outfit-buy-btn:disabled { opacity: 0.55; cursor: default; }
 
@@ -68,17 +103,32 @@
   display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px;
 }
 .outfit-cell {
-  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 5px; cursor: pointer;
+  position: relative; width: 100%; height: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 5px; cursor: pointer;
   background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; font-size: 11px; color: var(--hud-muted) !important;
 }
 .outfit-cell canvas { display: block; }
 .outfit-cell:hover { border-color: var(--hud-line-hi); color: var(--hud-text) !important; }
 .outfit-cell.cur { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
-.outfit-cell.cur span::after { content: " •"; color: var(--hud-faint); }
+/* Nome em até 2 linhas de altura fixa: todas as células com a mesma altura. Fonte no span: o "#ui button { font: inherit }"
+   do hud.css vence o font-size do .outfit-cell. */
+.outfit-cell-name {
+  width: 100%; height: 28px; font-size: 13px; line-height: 14px; text-align: center; overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+/* Roupa atual: pontinho no canto (fora do fluxo, não empurra o nome). O cadeado fica no canto oposto. */
+.outfit-cell.cur::before {
+  content: ""; position: absolute; top: 5px; left: 5px; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--hud-text); opacity: 0.75; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
 .outfit-cell.sel { border-color: var(--hud-gold); background: rgba(217, 164, 65, 0.12); color: var(--hud-gold) !important; }
 
-.outfit-foot { display: flex; align-items: center; gap: 8px; padding: 8px 12px 10px; border-top: 1px solid var(--hud-line); }
-.outfit-hint { flex: 1; font-size: 11px; color: var(--hud-faint); }
+.outfit-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px 10px; border-top: 1px solid var(--hud-line); }
+/* Até 2 linhas (cabem na altura dos botões): a dica trocar de texto não muda a altura do rodapé. */
+.outfit-hint {
+  flex: 1; min-width: 0; font-size: 11px; line-height: 14px; max-height: 28px; overflow: hidden; color: var(--hud-faint);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
 .outfit-btn {
   min-width: 82px; height: 28px; padding: 0 12px; cursor: pointer; font-size: 13px;
   background: rgba(255, 255, 255, 0.04); border: 1px solid var(--hud-line-hi); border-radius: 5px; color: var(--hud-text) !important;
@@ -91,6 +141,7 @@
 @media (max-width: 560px) {
   .outfit-body { flex-direction: column; align-items: stretch; }
   .outfit-stage { flex: none; }
+  .outfit-grid { flex: none; }
 }
 
 /* Menu de contexto (botão direito no mundo) */

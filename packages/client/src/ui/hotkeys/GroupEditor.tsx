@@ -11,7 +11,7 @@ import { spellIcon } from "../hud/spellIcons.ts";
 import { addSpell, deleteGroup, moveSpell, placeGroup, removeSpell, renameGroup, sortStrongest } from "./groupsEdit.ts";
 import { hotkeyLabel, setSpellGroups } from "./hotkeys.ts";
 import { SpellGrid } from "./SpellGrid.tsx";
-import { itemFor, type SpellItem } from "./spellsModel.ts";
+import { itemFor, KIND_LABEL, kindOf, type SpellItem } from "./spellsModel.ts";
 
 /** Dado do arrastar: índice da linha na lista. */
 const DND = "application/x-lq-spell-row";
@@ -140,7 +140,7 @@ export function GroupEditor({ group, groups, list, voc, level, mana, say, onBack
                   {now?.id === id && <em class="sw-now">sai agora</em>}
                 </span>
                 <span class="sw-row-sub">
-                  lv {s.level} · {spellMana(s, level)} mana · {Math.round(s.cooldownMs / 100) / 10} s
+                  {KIND_LABEL[kindOf(s)]} · lv {s.level} · {spellMana(s, level)} mana · {Math.round(s.cooldownMs / 100) / 10} s
                   {locked ? <b class="sw-lock"> · libera no level {s.level}</b> : cd > 0 ? <span class="sw-cd"> · recarga {Math.ceil(cd / 1000)} s</span> : null}
                 </span>
               </span>

@@ -53,7 +53,7 @@
 .death-sub b { color: #ffe0b0; font-weight: 600; }
 .death-xp { color: #ff8a7a; }
 .death-btn {
-  margin-top: 12px; font: inherit; font-size: 18px; padding: 8px 28px; cursor: pointer; color: #11141c;
+  margin-top: 12px; font: inherit; font-size: 18px; padding: 8px 28px; cursor: pointer; color: #11141c !important; /* !important: o "#ui button" vence classe simples */
   background: #d9a441; border: 0; border-radius: 6px; opacity: 0.35; transition: opacity 300ms, transform 120ms;
 }
 .death-btn.ready { opacity: 1; }

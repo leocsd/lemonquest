@@ -140,13 +140,15 @@ body.item-dragging, body.item-dragging * { cursor: grabbing !important; user-sel
 }
 .dlg-num::-webkit-inner-spin-button { display: none; }
 .dlg-num:focus { border-color: var(--hud-gold); }
-.dlg-step, .dlg-btn, .qty button, .shop-btn, .npc-tab, .arena-btn {
+/* Visual padrão dos botões do HUD. Todo botão de classe própria precisa estar aqui ou ter background próprio: o
+   "#ui button" (hud.css) não define fundo, e sem ele o botão sai com o cinza-claro do navegador (party-btn/mini saíam brancos). */
+.dlg-step, .dlg-btn, .qty button, .shop-btn, .npc-tab, .arena-btn, .party-btn, .party-mini, .online-mini {
   font: inherit; font-size: 12px; cursor: pointer; color: var(--hud-text) !important; background: #1b2030;
   border: 1px solid #343b4e; border-radius: 4px; transition: background-color 120ms, border-color 120ms;
 }
 .dlg-step { width: 26px; height: 28px; padding: 0; font-size: 15px; }
 .dlg-step.wide { width: auto; padding: 0 8px; font-size: 12px; }
-.dlg-step:hover, .dlg-btn:hover, .qty button:hover, .shop-btn:hover:not(:disabled), .npc-tab:hover, .arena-btn:hover:not(:disabled) { background: #262d42; border-color: var(--hud-line-hi); }
+.dlg-step:hover, .dlg-btn:hover, .qty button:hover, .shop-btn:hover:not(:disabled), .npc-tab:hover, .arena-btn:hover:not(:disabled), .party-btn:hover:not(:disabled), .party-mini:hover, .online-mini:hover { background: #262d42; border-color: var(--hud-line-hi); }
 .dlg-range { width: 100%; accent-color: var(--hud-gold); margin: 0; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 6px; }
 .dlg-btn { padding: 5px 12px; }

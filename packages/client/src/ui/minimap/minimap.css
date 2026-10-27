@@ -13,12 +13,30 @@
 
 /* ---------- Mapa do mundo ---------- */
 .worldmap {
-  position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 14px 24px 16px; box-sizing: border-box;
   background: rgba(4, 5, 8, .92); cursor: pointer;
 }
+.worldmap-head { flex: none; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 18px; }
 .worldmap-title { font-size: 26px; font-weight: 600; letter-spacing: 2px; color: #d9a441; }
-.worldmap-canvas { display: block; border: 2px solid #2c3242; border-radius: 4px; box-shadow: 0 0 40px rgba(0, 0, 0, .8); cursor: default; image-rendering: pixelated; }
-.worldmap-legend { font-size: 13px; color: #8a8fa0; display: flex; align-items: center; gap: 8px; }
+/* Botões no visual dos poços do HUD. A cor vai no contêiner: `#ui button { color: inherit }` vence a classe do botão. */
+.worldmap-tools { display: flex; gap: 6px; font-size: 13px; color: var(--hud-text); cursor: default; }
+.wm-btn { height: 28px; padding: 0 10px; background: var(--hud-well); border: 1px solid var(--hud-line-hi); border-radius: 4px; cursor: pointer; }
+.wm-btn:hover { border-color: #d9a441; }
+.wm-btn:focus-visible { outline: 2px solid #d9a441; outline-offset: 1px; }
+/* A vista ocupa a sobra da coluna (largura − 48 px; altura sem título e legendas, que podem quebrar linha). O canvas mede
+   esta caixa, então a legenda nunca empurra o mapa para fora da janela. */
+.worldmap-view {
+  position: relative; flex: 1 1 auto; min-height: 0; align-self: stretch; overflow: hidden; cursor: default;
+  background: #07080c; border: 2px solid #2c3242; border-radius: 4px; box-shadow: 0 0 40px rgba(0, 0, 0, .8);
+}
+.worldmap-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; image-rendering: pixelated; }
+.worldmap-canvas.grabbing { cursor: grabbing; }
+.worldmap-zoom {
+  position: absolute; right: 8px; bottom: 6px; padding: 1px 6px; border-radius: 3px; pointer-events: none;
+  font-size: 12px; font-variant-numeric: tabular-nums; color: #c4c6cf; background: rgba(7, 8, 12, .75);
+}
+.worldmap-legend { flex: none; font-size: 13px; color: #8a8fa0; display: flex; align-items: center; gap: 8px; }
 .worldmap-legend .sep { opacity: .5; }
 .worldmap-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
 .worldmap-legend .dot-me { background: #fff; box-shadow: 0 0 0 1px #000; }

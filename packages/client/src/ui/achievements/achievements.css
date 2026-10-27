@@ -19,7 +19,8 @@
 }
 .ach-filter:hover { border-color: var(--hud-line-hi); color: var(--hud-text) !important; }
 .ach-filter.on { border-color: var(--hud-gold); color: var(--hud-gold) !important; background: rgba(217, 164, 65, 0.1); }
-.ach-list { list-style: none; margin: 0; padding: 0 12px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+/* Direita com 6 px a menos: a calha estável da barra (6 px) completa os 12 px e os cartões ficam simétricos. */
+.ach-list { list-style: none; margin: 0; padding: 0 6px 12px 12px; overflow-y: auto; scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 6px; }
 .ach-row { display: flex; gap: 10px; padding: 7px 9px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
 .ach-row.done { border-color: rgba(217, 164, 65, 0.45); background: rgba(217, 164, 65, 0.07); }
 .ach-icon { flex: 0 0 30px; height: 30px; display: grid; place-items: center; font-size: 20px; filter: grayscale(1) opacity(0.55); }
@@ -39,7 +40,7 @@
 .ach-chip.got { color: var(--hud-gold); border-color: rgba(217, 164, 65, 0.5); }
 .ach-empty { padding: 14px; text-align: center; color: var(--hud-faint); font-size: 12px; list-style: none; }
 
-.rank-body { padding: 0 12px; overflow-y: auto; }
+.rank-body { padding: 0 6px 0 12px; overflow-y: auto; scrollbar-gutter: stable; } /* idem .ach-list */
 .rank-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rank-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--hud-faint); padding: 3px 6px; }
 .rank-table td { padding: 4px 6px; border-top: 1px solid var(--hud-line-soft); color: var(--hud-text); }

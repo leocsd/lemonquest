@@ -2,7 +2,7 @@
 // selecionado e, no editor de grupo, para adicionar magias ao grupo. `arrowNav`: setas movem o foco entre botões.
 import type { ComponentChildren } from "preact";
 import { spellIcon } from "../hud/spellIcons.ts";
-import { shownSpell, subtitle, type SpellItem } from "./spellsModel.ts";
+import { KIND_LABEL, kindOf, shownSpell, subtitle, type SpellItem } from "./spellsModel.ts";
 
 export interface TileProps {
   item: SpellItem;
@@ -20,12 +20,16 @@ export function SpellTile({ item, level, keyOf, active, disabled, onPick }: Tile
   const locked = item.spells.length > 0 && item.level > level;
   const fam = item.kind !== "spell";
   const name = `${fam ? "◆ " : ""}${item.name}`;
+  // Categoria só na magia avulsa: família e grupo juntam magias de tipos diferentes.
+  const kind = fam || !s ? null : kindOf(s);
+  // Destravada, a legenda falada já traz a categoria; travada, ela é trocada por "libera no level N" e a categoria vai antes.
+  const spoken = locked ? `${kind ? `, ${KIND_LABEL[kind]}` : ""}, libera no level ${item.level}` : `, ${subtitle(item, level)}`;
   return (
     <button
       type="button"
       class={`sw-tile${active ? " active" : ""}${locked ? " locked" : ""}`}
       aria-pressed={active}
-      aria-label={`${item.kind === "group" ? "grupo " : item.kind === "family" ? "família " : ""}${item.name}${keyOf ? `, tecla ${keyOf}` : ""}${locked ? `, libera no level ${item.level}` : `, ${subtitle(item, level)}`}`}
+      aria-label={`${item.kind === "group" ? "grupo " : item.kind === "family" ? "família " : ""}${item.name}${keyOf ? `, tecla ${keyOf}` : ""}${spoken}`}
       disabled={disabled}
       onClick={() => onPick(item)}
       data-tip={name}
@@ -37,7 +41,8 @@ export function SpellTile({ item, level, keyOf, active, disabled, onPick }: Tile
         {keyOf && <kbd class="sw-tile-key">{keyOf}</kbd>}
       </span>
       <span class="sw-tile-name">{item.name}</span>
-      <span class={`sw-tile-sub${locked ? " lock" : ""}`}>{locked ? `lv ${item.level}` : subtitle(item, level)}</span>
+      {kind && <span class={`sw-tile-kind ${kind}`}>{KIND_LABEL[kind]}</span>}
+      <span class={`sw-tile-sub${locked ? " lock" : ""}`}>{locked ? `lv ${item.level}` : subtitle(item, level, false)}</span>
     </button>
   );
 }

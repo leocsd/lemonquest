@@ -1,7 +1,8 @@
 /* Coliseu: janela de lobbies, barra da partida, faixa de onda, contagem e resultado. */
 .arena-window { left: 24px; top: 72px; width: 360px; max-height: calc(100vh - 150px); }
 .hud-card.arena-window { background: rgba(17, 20, 28, 0.93); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
-.arena-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow-y: auto; min-height: 0; }
+/* Direita com 6 px a menos: a calha estável da barra (6 px) completa os 10 px e o conteúdo fica simétrico. */
+.arena-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 4px 10px 10px; overflow-y: auto; scrollbar-gutter: stable; min-height: 0; }
 .arena-info { font-size: 13px; color: var(--hud-text); }
 .arena-info b { color: var(--hud-gold); }
 .arena-hint { font-size: 11px; color: var(--hud-muted); line-height: 1.4; }

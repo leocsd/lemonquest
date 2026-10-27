@@ -1,6 +1,7 @@
 // Janela de roupas estilo Tibia: prévia animada grande, grade de roupas, 2 addons, OK/Cancelar.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { OUTFIT_LIST, OUTFIT_TONES, OUTFIT_TONE_PRICE, resolveOutfit, toneColor, unlockRequirement, type Facing } from "@lemonquest/shared";
+import { NATURAL_SWATCH, swatchBackground, swatchOrder } from "./colorize.ts";
 import { useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { meStore } from "../hud/world.ts";
@@ -24,6 +25,11 @@ const FACING_LABEL: Record<Facing, string> = { down: "frente", left: "esquerda",
 const WALK_MS = 150;
 /** Gira sozinho a cada N ms (até o jogador usar as setas). */
 const ROTATE_MS = 2400;
+/** Tons na ordem do arco-íris, neutros no fim (a lista do shared só cresce no fim). */
+const TONES_SHOWN = swatchOrder(OUTFIT_TONES);
+/** Linhas de amostras (Natural + tons, 5 por linha): entra na altura fixa da janela (outfit.css). */
+const TONE_ROWS = Math.ceil((TONES_SHOWN.length + 1) / 5);
+const PRICE = OUTFIT_TONE_PRICE.toLocaleString("pt-BR");
 
 export function OutfitWindow() {
   const open = useStore(outfitOpen);
@@ -96,7 +102,7 @@ function OutfitDialog() {
 
   return (
     <div class="outfit-backdrop" onPointerDown={(e) => { if (e.target === e.currentTarget) closeOutfit(); }}>
-      <div ref={winRef} class="hud-card hud-window outfit-win" role="dialog" aria-label="Roupas">
+      <div ref={winRef} class="hud-card hud-window outfit-win" role="dialog" aria-label="Roupas" style={{ "--tone-rows": TONE_ROWS } as never}>
         {/* Modal centralizada com fundo escurecido: não arrasta, então não tem grip (outfit.css já tira o cursor de mão). */}
         <div class="win-title">
           <span>Roupas</span>
@@ -105,14 +111,15 @@ function OutfitDialog() {
         <div class="outfit-body">
           <div class="outfit-stage">
             <div class="outfit-preview" onClick={() => setWalk((w) => !w)} data-tip={walk ? "Parar" : "Andar"}>
-              <OutfitCanvas outfit={outfit} addons={effAddons} facing={facing} row={walk ? row : 0} scale={6} tint={toneColor(tone)} />
+              <OutfitCanvas outfit={outfit} addons={effAddons} facing={facing} row={walk ? row : 0} scale={6} tone={toneColor(tone)} />
             </div>
             <div class="outfit-rotate">
               <button class="outfit-arrow" onClick={() => rotate(-1)} aria-label="Girar para a esquerda" data-tip="Girar" data-tip-sub="Seta ←"><span class="outfit-tri left" aria-hidden="true" /></button>
               <span class="outfit-facing">{FACING_LABEL[facing]}</span>
               <button class="outfit-arrow" onClick={() => rotate(1)} aria-label="Girar para a direita" data-tip="Girar" data-tip-sub="Seta →"><span class="outfit-tri" aria-hidden="true" /></button>
             </div>
-            <div class="outfit-name">{outfit.name}</div>
+            <div class="outfit-name" title={outfit.name}>{outfit.name}</div>
+            {/* Alturas fixas daqui para baixo (addons, tons, compra): trocar roupa, addon ou tom não mexe no tamanho da janela. */}
             <div class="outfit-addons">
               {outfit.addons.map((a, i) => {
                 const bit = 1 << i;
@@ -121,36 +128,37 @@ function OutfitDialog() {
                   <label
                     key={a.id}
                     class={`outfit-addon${effAddons & bit ? " on" : ""}${okA ? "" : " locked"}`}
-                    data-tip={okA ? undefined : a.name}
+                    data-tip={a.name}
                     data-tip-sub={okA ? undefined : unlockRequirement(outfit.id, bit as 1 | 2)}
                   >
                     <input type="checkbox" checked={(effAddons & bit) !== 0} disabled={!okA} onChange={() => toggleAddon(bit)} />
                     <span class="outfit-check" aria-hidden="true" />
-                    <span class="outfit-addon-name"><small>Addon {i + 1}</small>{a.name}</span>
-                    {!okA && <span class="outfit-lock" style={{ position: "static", marginLeft: "auto" }}><PixelIcon name="lock" size={14} /></span>}
+                    <span class="outfit-addon-name"><small>Addon {i + 1}</small><span>{a.name}</span></span>
+                    {!okA && <span class="outfit-lock"><PixelIcon name="lock" size={14} /></span>}
                   </label>
                 );
               })}
             </div>
             <div class="outfit-tones" role="listbox" aria-label="Tons de tingimento">
               <button
-                class={`outfit-tone${tone === "" ? " sel" : ""}`}
-                style={{ background: "#fff" }}
+                class={`outfit-tone natural${tone === "" ? " sel" : ""}`}
+                style={{ background: NATURAL_SWATCH }}
                 onClick={() => pickTone("")}
                 data-tip="Natural"
+                data-tip-sub="Cores originais da roupa"
                 aria-label="Natural"
                 aria-selected={tone === ""}
               />
-              {OUTFIT_TONES.map((t) => {
+              {TONES_SHOWN.map((t) => {
                 const unlocked = unlockedTones.includes(t.id);
                 return (
                   <button
                     key={t.id}
-                    class={`outfit-tone${tone === t.id ? " sel" : ""}${unlocked ? "" : " locked"}`}
-                    style={{ background: `#${t.color.toString(16).padStart(6, "0")}` }}
+                    class={`outfit-tone${tone === t.id ? " sel" : ""}${unlocked ? " owned" : " locked"}`}
+                    style={{ background: swatchBackground(t.color) }}
                     onClick={() => pickTone(t.id)}
-                    data-tip={unlocked ? t.name : `${t.name} · ${OUTFIT_TONE_PRICE.toLocaleString("pt-BR")} de ouro`}
-                    data-tip-sub={unlocked ? undefined : "Clique para ver no boneco"}
+                    data-tip={unlocked ? t.name : `${t.name} · ${PRICE} de ouro`}
+                    data-tip-sub={unlocked ? "Liberado na conta" : "Clique para ver no boneco"}
                     aria-label={t.name}
                     aria-selected={tone === t.id}
                   >
@@ -159,19 +167,26 @@ function OutfitDialog() {
                 );
               })}
             </div>
-            {toneSt !== "owned" && (
-              <div class="outfit-buy">
-                <span class="outfit-buy-note">Prévia de <b>{toneName}</b>. Comprado, vale para a conta toda.</span>
-                <button
-                  class={`outfit-btn outfit-buy-btn${confirmBuy ? " confirm" : ""}`}
-                  onClick={buy}
-                  onBlur={() => setConfirmBuy(false)}
-                  disabled={toneSt === "poor"}
-                >
-                  {buyLabel(toneSt, confirmBuy)}
-                </button>
-              </div>
-            )}
+            <div class="outfit-buy">
+              {toneSt === "owned" ? (
+                <span class="outfit-buy-note">
+                  {tone ? <><b>{toneName}</b> · liberado na conta, vale para todos os personagens.</>
+                    : <>Tingir custa <b>{PRICE} de ouro</b> por tom, uma vez por conta.</>}
+                </span>
+              ) : (
+                <>
+                  <span class="outfit-buy-note">Prévia de <b>{toneName}</b>. Comprado, vale para a conta toda.</span>
+                  <button
+                    class={`outfit-btn outfit-buy-btn${confirmBuy ? " confirm" : ""}`}
+                    onClick={buy}
+                    onBlur={() => setConfirmBuy(false)}
+                    disabled={toneSt === "poor"}
+                  >
+                    {buyLabel(toneSt, confirmBuy)}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <ul class="outfit-grid" role="listbox" aria-label="Roupas disponíveis">
             {OUTFIT_LIST.map((o) => {
@@ -189,7 +204,7 @@ function OutfitDialog() {
                   data-locked={locked ? "true" : undefined}
                 >
                   <OutfitCanvas outfit={o} addons={o.id === outfit.id ? effAddons : 0} scale={2} tight />
-                  <span>{o.name}</span>
+                  <span class="outfit-cell-name">{o.name}</span>
                   {locked && <span class="outfit-lock" aria-label="Bloqueada"><PixelIcon name="lock" size={12} /></span>}
                 </button>
               </li>
