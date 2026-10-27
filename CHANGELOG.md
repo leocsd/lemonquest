@@ -1,5 +1,22 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · wiki com a cara do jogo
+
+Pedido do dono: "deixe a wiki com uma carinha mais do Lemon Quest". Só `tools/wiki/wiki.css`, o `layout()` de
+`html.mts` e 4 linhas do `wiki.js`; nenhuma página mudou de conteúdo.
+- **A página é uma janela do HUD** aberta sobre o mundo: Pixelify Sans (a fonte do jogo, do Google Fonts como no
+  cliente), o `mapa.png` da própria wiki pixelado e escurecido ao fundo (parado enquanto a página rola), o conteúdo
+  num painel escuro quase opaco com a borda e o brilho interno das molduras do HUD, e a trilha ("Criaturas › Dragão")
+  colada em cima como faixa de título. Barra de cima como a `.win-title` (título dourado em caixa alta com o limão do
+  favicon, selo "WIKI", menu em abas de 11 px espaçadas, campo de busca como o do login).
+- **Cabeçalhos de seção** como os painéis laterais (`.hud-section-head`): caixa alta, espaçamento de 1,5 px e o
+  triângulo ▸ dourado; a infobox virou o painel "Personagem" (cabeçalho com ▾, retrato num poço, linhas separadas).
+  Tabelas em poço escuro como a lista de Batalha, com cabeçalho em caixa alta e, nas colunas numéricas, alinhado à
+  direita (o `wiki.js` marca `th.n` pela 1ª linha). Selos, sumário e passos de missão com a moldura dos `count-chip`.
+- Dourado só onde o jogo usa (títulos, números grandes, links; hover em amarelo-limão), entrada da janela com o
+  `hud-pop` de 180 ms (desligado em `prefers-reduced-motion`). Capturas conferidas: início, criatura, item, NPC,
+  missão, mapa e mecânica.
+
 ## [Não lançado] — 2026-10-27 · mochila que se organiza sozinha e maior por vocação
 
 Pedido do dono: "organizar a mochila sozinho, aumentar a capacidade de cada vocação e poder puxar o item para

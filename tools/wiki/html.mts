@@ -221,11 +221,14 @@ export function layout(p: { title: string; body: string; depth: number; nav?: st
 <title>${esc(p.title)} · Wiki · The Lemon Quest</title>
 <meta name="theme-color" content="#11141c">
 <link rel="icon" type="image/png" href="${u}../favicon/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap">
 <link rel="stylesheet" href="${u}wiki.css">
 </head>
 <body data-root="${u}">
 <header class="top"><div class="wrap">
-<a class="logo" href="${u}index.html"><span class="lemon" aria-hidden="true"></span>The Lemon Quest <b>· Wiki</b></a>
+<a class="logo" href="${u}index.html"><img class="lemon" src="${u}../favicon/favicon-32.png" alt="" width="20" height="20">The Lemon Quest <b>Wiki</b></a>
 <nav class="menu" aria-label="Seções">${menu}</nav>
 ${searchBox()}
 </div></header>

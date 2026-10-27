@@ -1,9 +1,13 @@
-/* Wiki do The Lemon Quest: tema escuro com as cores do HUD do jogo (packages/client/src/ui/hud/hud.css).
+/* Wiki do The Lemon Quest com a cara do jogo (pedido do dono, 2026-10-27): a página é uma "janela do HUD" aberta sobre o
+   mapa do mundo. Mesmas fontes, cores e molduras de packages/client/src/ui/hud/hud.css e styles.css — Pixelify Sans em
+   tudo, painéis escuros translúcidos com borda de 1 px e brilho interno, cabeçalhos de seção em caixa alta com o
+   triângulo ▸, dourado só onde o jogo usa (títulos, números, links) e o mapa (mapa.png, gerado aqui) pixelado ao fundo.
    Classes para as páginas: .lead .muted .tag(.boss .pz .gold) .badge.k-<dano> .r-<raridade> .infobox .cards .cols
    .item-grid .npc-list .mapview .legend; tabelas pelo helper table() (html.mts). */
 :root {
   --bg: #11141c;
-  --panel: #171b26;
+  --panel: rgba(17, 20, 28, 0.975);
+  --panel-solid: #171b26;
   --panel-hi: #1b2030;
   --well: #0b0d13;
   --line: #2c3242;
@@ -14,91 +18,143 @@
   --muted: #9ba0b0;
   --faint: #7d8396;
   --gold: #d9a441;
+  --gold-soft: #f0cf8b;
   --link: #e7c16a;
   --red: #d9534f;
+  --blue: #4a7dd9;
+  --green: #4fe36a;
   --lemon: #f2e14a;
+  --radius: 6px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Brilho interno das molduras do HUD (hud.css .slot). */
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 -1px 0 rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line-hi) var(--well); }
+html { background: var(--bg); }
 body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
+  position: relative; min-height: 100vh; margin: 0; color: var(--text);
+  font: 16px/1.6 "Pixelify Sans", "Courier New", monospace;
+  /* O mundo ao fundo: 2 px por tile no mapa.png, mostrado a 4 px (pixelado, como o jogo), parado enquanto a página rola. */
+  background: var(--bg) url("mapa.png") center top / 1600px auto no-repeat fixed;
+  image-rendering: pixelated;
 }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(11, 13, 19, 0.88), rgba(11, 13, 19, 0.94) 40%, rgba(11, 13, 19, 0.97));
+}
+::selection { background: rgba(217, 164, 65, 0.35); color: #fff; }
 .wrap { max-width: 1100px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
-a { color: var(--link); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a { color: var(--link); text-decoration: none; transition: color 120ms; }
+a:hover { color: var(--lemon); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 a.missing { color: var(--red); text-decoration: underline dotted; }
 img { max-width: 100%; }
+b, strong { font-weight: 600; }
 
-/* ---------- cabeçalho ---------- */
-header.top { background: var(--well); border-bottom: 1px solid var(--line); }
-header.top .wrap { display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; min-height: 54px; padding-top: 8px; padding-bottom: 8px; }
-.logo { font-weight: 700; color: var(--text); white-space: nowrap; font-size: 16px; }
-.logo b { color: var(--gold); }
-.logo:hover { text-decoration: none; }
-.lemon {
-  display: inline-block; width: 15px; height: 13px; margin-right: 8px; vertical-align: -1px;
-  background: var(--lemon); border-radius: 50%; box-shadow: inset -2px -2px 0 #c9b42a, 0 0 8px rgba(242, 225, 74, 0.35);
+/* ---------- barra de título (como .win-title do HUD) ---------- */
+header.top {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(11, 13, 19, 0.94); border-bottom: 1px solid var(--line); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(4px);
 }
-.menu { display: flex; flex-wrap: wrap; gap: 2px; }
-.menu a { color: var(--muted); padding: 5px 9px; border-radius: 6px; font-size: 14px; }
-.menu a:hover { color: var(--text); background: var(--panel-hi); text-decoration: none; }
-.menu a[aria-current] { color: var(--gold); background: var(--panel-hi); }
+header.top .wrap { display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap; min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
+.logo {
+  display: inline-flex; align-items: center; gap: 9px; white-space: nowrap;
+  font-size: 15px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gold);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+.logo:hover { color: var(--gold-soft); text-decoration: none; }
+.logo b {
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px; padding: 1px 6px; color: var(--muted);
+  background: var(--well); border: 1px solid var(--line-hi); border-radius: 4px; box-shadow: var(--bevel);
+}
+.lemon { width: 20px; height: 20px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.6)); }
+.menu { display: flex; flex-wrap: wrap; gap: 0 2px; align-self: stretch; }
+.menu a {
+  display: inline-flex; align-items: center; padding: 0 9px; border-bottom: 2px solid transparent;
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+}
+.menu a:hover { color: var(--text); text-decoration: none; }
+.menu a[aria-current] { color: var(--gold); border-bottom-color: var(--gold); }
 
-/* ---------- busca ---------- */
-.search { position: relative; margin-left: auto; flex: 0 1 240px; min-width: 180px; }
+/* ---------- busca (campo como .field input do login) ---------- */
+.search { position: relative; margin-left: auto; flex: 0 1 250px; min-width: 180px; }
 .search input {
   width: 100%; padding: 7px 10px; font: inherit; font-size: 14px; color: var(--text);
-  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  background: var(--well); border: 1px solid var(--line); border-radius: 4px; box-shadow: var(--bevel);
 }
-.search input:focus { outline: none; border-color: var(--gold); }
+.search input::placeholder { color: var(--faint); }
+.search input:focus { outline: none; border-color: var(--gold); box-shadow: var(--bevel), 0 0 0 2px rgba(217, 164, 65, 0.18); }
 .search .results {
   position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; margin: 0; padding: 4px; list-style: none;
-  max-height: 65vh; overflow: auto; background: #0f121a; border: 1px solid var(--line-hi); border-radius: 6px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  max-height: 65vh; overflow: auto; background: #0f121a; border: 1px solid var(--line-hi); border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
 }
 .search .results a { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 8px; border-radius: 4px; color: var(--text); }
-.search .results a:hover, .search .results a.sel { background: var(--panel-hi); text-decoration: none; }
-.search .results small { color: var(--faint); white-space: nowrap; }
+.search .results a:hover, .search .results a.sel { background: rgba(217, 164, 65, 0.1); color: var(--gold-soft); text-decoration: none; }
+.search .results small { color: var(--faint); white-space: nowrap; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
 .search .results .none { padding: 6px 8px; color: var(--muted); }
 .search.big { margin: 18px 0 4px; max-width: 640px; flex: none; }
 .search.big input { padding: 12px 14px; font-size: 17px; }
 
+/* ---------- a janela (main) e a trilha ---------- */
+@keyframes hud-pop { from { opacity: 0; transform: translateY(4px); } }
+/* A trilha é a faixa de título da janela: cola em cima do painel, com o mesmo fundo (sem ela, o painel começa no topo). */
+.crumbs {
+  margin-top: 16px; padding: 6px 16px 5px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint);
+  background: rgba(11, 13, 19, 0.94); border: 1px solid var(--line); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0;
+  animation: hud-pop 180ms var(--ease);
+}
+.crumbs a { color: var(--muted); }
+.crumbs a:hover { color: var(--gold); }
+main.wrap {
+  margin-top: 16px; margin-bottom: 28px; padding: 22px 28px 30px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55), var(--bevel);
+  animation: hud-pop 180ms var(--ease);
+}
+.crumbs + main.wrap { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+@media (prefers-reduced-motion: reduce) { main.wrap, .crumbs { animation: none; } }
+
 /* ---------- texto ---------- */
-main { padding-top: 18px; padding-bottom: 40px; }
-.crumbs { padding-top: 12px; font-size: 13px; color: var(--muted); }
-h1 { font-size: 28px; line-height: 1.2; margin: 6px 0 12px; }
-h2 { font-size: 20px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
-h3 { font-size: 16px; margin: 22px 0 8px; color: var(--gold); }
+h1 { margin: 4px 0 12px; font-size: 30px; line-height: 1.2; font-weight: 600; letter-spacing: 1px; color: var(--gold); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6); }
+/* Cabeçalho de seção do HUD: caixa alta, espaçado, com o triângulo ▸ (hud.css .hud-section-head/.hud-caret). */
+h2 {
+  display: flex; align-items: center; gap: 8px; margin: 34px 0 12px; padding-bottom: 6px;
+  font-size: 14px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+h2::before { content: ""; width: 0; height: 0; border-left: 5px solid var(--gold); border-top: 4px solid transparent; border-bottom: 4px solid transparent; opacity: 0.9; }
+h3 { margin: 22px 0 8px; font-size: 16px; font-weight: 600; color: var(--gold); }
 p, ul, ol { margin: 8px 0 12px; }
 li { margin: 3px 0; }
-.lead { font-size: 16px; color: var(--text-soft); }
+.lead { font-size: 17px; color: var(--text-soft); }
 .muted { color: var(--muted); }
-small { font-size: 12.5px; }
+small { font-size: 13px; }
 code {
   padding: 0 5px; font: 13px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
-  background: var(--panel-hi); border: 1px solid #2a3042; border-radius: 4px;
+  color: var(--text-soft); background: var(--well); border: 1px solid var(--line-soft); border-radius: 4px;
 }
 kbd {
-  display: inline-block; min-width: 14px; padding: 0 5px; text-align: center; font: inherit; font-size: 12px; line-height: 18px;
-  color: var(--text); background: var(--panel-hi); border: 1px solid #343b4e; border-bottom-width: 2px; border-radius: 4px;
+  display: inline-block; min-width: 16px; padding: 0 5px; text-align: center; font: inherit; font-size: 12px; line-height: 18px;
+  color: var(--text); background: var(--well); border: 1px solid var(--line-hi); border-bottom-width: 2px; border-radius: 4px;
 }
-footer { padding-top: 14px; padding-bottom: 30px; font-size: 13px; color: var(--faint); border-top: 1px solid var(--line); }
+footer { padding-top: 6px; padding-bottom: 34px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); }
 .facts { color: var(--text-soft); }
 
-/* ---------- tabelas (table() em html.mts) ---------- */
-.table-wrap { margin: 10px 0 16px; overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
-table.wt { width: 100%; border-collapse: collapse; font-size: 14px; }
+/* ---------- tabelas (table() em html.mts): poço escuro como a lista de Batalha ---------- */
+.table-wrap { margin: 10px 0 16px; overflow-x: auto; background: var(--well); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel); }
+table.wt { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .wt th {
-  padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 12.5px; font-weight: 600; letter-spacing: 0.3px;
-  color: var(--muted); background: #1a1f2c; border-bottom: 1px solid var(--line);
+  padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); background: #0f121a; border-bottom: 1px solid var(--line);
 }
 .wt td { padding: 6px 10px; vertical-align: middle; border-bottom: 1px solid var(--line-soft); }
-.wt tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.025); }
-.wt tbody tr:hover { background: rgba(217, 164, 65, 0.07); }
+.wt tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+.wt tbody tr:hover { background: rgba(217, 164, 65, 0.08); }
 .wt tbody tr:last-child td { border-bottom: 0; }
 .wt td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wt th.n { text-align: right; } /* coluna numérica (wiki.js marca pelo 1º corpo): o título fica em cima dos números */
 .wt[data-sortable] th { cursor: pointer; user-select: none; }
 .wt[data-sortable] th:hover { color: var(--text); }
 .wt th[data-dir="asc"]::after { content: " ▲"; color: var(--gold); }
@@ -106,54 +162,61 @@ table.wt { width: 100%; border-collapse: collapse; font-size: 14px; }
 .wt.compact { font-size: 13.5px; }
 .wt.compact td { padding: 4px 8px; }
 .wt.controls td:first-child { width: 36%; color: var(--text-soft); }
+.wt code { white-space: nowrap; }
 /* Tela larga: a tabela cabe e o cabeçalho gruda no topo ao rolar (com rolagem horizontal o sticky não funcionaria). */
 @media (min-width: 900px) {
   .table-wrap { overflow: visible; }
-  .wt thead th { position: sticky; top: 0; z-index: 1; }
+  .wt thead th { position: sticky; top: 48px; z-index: 1; }
 }
 
 /* ---------- ícones e sprites (itemIcon/creatureIcon/npcIcon) ---------- */
 .icon { display: inline-block; flex: none; vertical-align: middle; background-repeat: no-repeat; image-rendering: pixelated; }
 .icon.missing { background: repeating-linear-gradient(45deg, #2c3242 0 4px, #1b2030 4px 8px); border-radius: 3px; }
 
-/* ---------- selos ---------- */
+/* ---------- selos (como .count-chip do HUD) ---------- */
 .tag {
-  display: inline-block; padding: 0 7px; font-size: 11px; line-height: 17px; white-space: nowrap; vertical-align: 1px;
-  color: var(--muted); border: 1px solid var(--line-hi); border-radius: 9px;
+  display: inline-block; padding: 0 7px; font-size: 11px; line-height: 18px; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; vertical-align: 1px;
+  color: var(--muted); background: var(--well); border: 1px solid var(--line-hi); border-radius: 4px;
 }
-.tag.boss { color: #f08a7a; border-color: #7a3a33; }
+.tag.boss { color: #ff8a7a; border-color: #7a3a33; }
 .tag.pz { color: #7fd18f; border-color: #2f6a3c; }
 .tag.gold { color: var(--gold); border-color: #7a5c22; }
-.badge { display: inline-block; padding: 0 7px; font-size: 12px; line-height: 19px; border-radius: 4px; background: var(--panel-hi); border-left: 3px solid currentColor; }
+.badge { display: inline-block; padding: 0 7px; font-size: 12.5px; line-height: 19px; border-radius: 4px; background: var(--well); border: 1px solid var(--line-soft); border-left: 3px solid currentColor; }
 .k-physical { color: #c9ccd6; } .k-fire { color: #f0864a; } .k-ice { color: #7cc8ef; } .k-energy { color: #c084f5; }
 .k-earth { color: #7cc05a; } .k-holy { color: #f0d060; } .k-death { color: #b07ac0; } .k-heal { color: #5fd17a; } .k-mana { color: #6a9cf0; }
 .r-common { color: #b5b9c6; } .r-uncommon { color: #5fd17a; } .r-rare { color: #4a9df0; } .r-epic { color: #b36cf0; } .r-legendary { color: #f0a33a; }
 
-/* ---------- infobox (páginas de criatura/item/NPC) ---------- */
+/* ---------- infobox: o painel "Personagem" do HUD (páginas de criatura/item/NPC) ---------- */
 .infobox {
-  float: right; width: 300px; margin: 0 0 16px 22px; padding: 12px 14px; font-size: 14px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  float: right; width: 300px; margin: 0 0 16px 22px; padding: 0 0 10px; font-size: 14px;
+  background: var(--well); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel);
 }
-.infobox h3 { margin: 0 0 8px; }
-.infobox .portrait { display: flex; justify-content: center; align-items: center; min-height: 80px; margin-bottom: 10px; padding: 10px; background: var(--well); border-radius: 6px; }
-.infobox dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
-.infobox dt { color: var(--muted); }
-.infobox dd { margin: 0; }
+.infobox h3 {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 12px; height: 28px;
+  font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line);
+}
+.infobox h3::before { content: ""; width: 0; height: 0; border-left: 4px solid currentColor; border-top: 3px solid transparent; border-bottom: 3px solid transparent; transform: rotate(90deg); opacity: 0.8; }
+.infobox .portrait { display: flex; justify-content: center; align-items: center; min-height: 88px; margin: 10px 12px; padding: 10px; background: #07080c; border: 1px solid var(--line-soft); border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6); }
+.infobox dl { display: grid; grid-template-columns: auto 1fr; gap: 0 12px; margin: 0 12px; }
+.infobox dt { padding: 3px 0; color: var(--muted); border-bottom: 1px solid var(--line-soft); }
+.infobox dd { margin: 0; padding: 3px 0; border-bottom: 1px solid var(--line-soft); }
+.infobox dt:nth-last-of-type(1), .infobox dd:nth-last-of-type(1) { border-bottom: 0; }
 .clear { clear: both; }
 @media (max-width: 760px) { .infobox { float: none; width: auto; margin: 0 0 16px; } }
 
 /* ---------- página inicial ---------- */
-.hero { padding: 8px 0 4px; }
-.hero h1 { font-size: 32px; }
+.hero { padding: 4px 0 4px; }
+.hero h1 { font-size: 36px; letter-spacing: 2px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; margin: 18px 0; }
 .card {
   display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; color: var(--text);
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; transition: border-color 120ms, transform 120ms;
+  background: var(--well); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel);
+  transition: border-color 120ms, transform 120ms var(--ease), box-shadow 120ms;
 }
-.card:hover { border-color: var(--gold); text-decoration: none; transform: translateY(-1px); }
-.card b { font-size: 28px; line-height: 1.1; color: var(--gold); }
-.card span { font-size: 16px; font-weight: 600; }
-.card small { color: var(--muted); }
+.card:hover { color: var(--text); border-color: var(--gold); text-decoration: none; transform: translateY(-2px); box-shadow: var(--bevel), 0 8px 18px rgba(0, 0, 0, 0.45); }
+.card b { font-size: 30px; line-height: 1.1; font-weight: 600; color: var(--gold); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6); }
+.card span { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-soft); }
+.card small { color: var(--muted); font-size: 13px; line-height: 1.45; }
 .cards.small { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin-top: 8px; }
 .card.voc span { color: var(--gold); }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
@@ -167,15 +230,15 @@ ol.quests li { margin-bottom: 10px; }
 .item-grid { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .item-grid > span { white-space: nowrap; }
 .npc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; padding: 0; list-style: none; }
-.npc-list li { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.npc-list li { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 10px; background: var(--well); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel); }
 .npc-list li > span:last-child { display: flex; flex-direction: column; }
 .npc-list small { color: var(--muted); }
 .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; padding: 0; list-style: none; }
 .swatches li { display: flex; align-items: center; gap: 10px; margin: 0; }
-.swatches span { width: 30px; height: 30px; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.swatches span { width: 30px; height: 30px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
 
 /* ---------- mapa ---------- */
-.mapview { position: relative; width: 100%; margin: 10px 0; overflow: hidden; background: #07080c; border: 1px solid var(--line); border-radius: 6px; }
+.mapview { position: relative; width: 100%; margin: 10px 0; overflow: hidden; background: #07080c; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel); }
 .mapview img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 .mapview.world { max-width: 800px; margin: 10px auto; } /* 2 px por tile: o tamanho nativo do mapa.png */
 .mk { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.75); z-index: 1; }
@@ -196,51 +259,51 @@ ol.quests li { margin-bottom: 10px; }
 /* ---------- celular ---------- */
 @media (max-width: 640px) {
   header.top .search { flex: 1 1 100%; margin-left: 0; }
+  main.wrap { padding: 16px 14px 22px; }
   h1 { font-size: 24px; }
   .hero h1 { font-size: 26px; }
   table.wt { font-size: 13px; }
   .wt th, .wt td { padding: 5px 7px; }
+  .zl { font-size: 9px; }
 }
-.wt code { white-space: nowrap; }
-@media (max-width: 640px) { .zl { font-size: 9px; } }
 
 /* ---------- cabeçalho de página de entidade, ficha, nota e sumário ---------- */
 .page-head { display: flex; align-items: center; gap: 16px; margin: 6px 0 12px; }
-.page-head > .icon { padding: 6px; background: var(--well); border: 1px solid var(--line); border-radius: 8px; box-sizing: content-box; }
+.page-head > .icon { padding: 6px; background: #07080c; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6); box-sizing: content-box; }
 .page-head h1 { margin: 0 0 4px; }
 .page-head .lead { margin: 0; }
 .wt.kv { width: auto; min-width: 320px; }
 .wt.kv td:first-child { color: var(--muted); white-space: nowrap; }
-.note { padding: 8px 12px; color: var(--text-soft); background: var(--panel); border-left: 3px solid var(--gold); border-radius: 0 6px 6px 0; }
+.note { padding: 8px 12px; color: var(--text-soft); background: var(--well); border: 1px solid var(--line-soft); border-left: 3px solid var(--gold); border-radius: 0 var(--radius) var(--radius) 0; }
 .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
-.toc a { padding: 3px 10px; font-size: 13px; color: var(--text-soft); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.toc a { padding: 2px 10px; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-soft); background: var(--well); border: 1px solid var(--line-hi); border-radius: 4px; box-shadow: var(--bevel); }
 .toc a:hover { color: var(--gold); border-color: var(--gold); text-decoration: none; }
 
 /* ---------- NPCs e missões: diálogos, passos, cadeias, recompensas, falas de ambientação ---------- */
 .quote {
   margin: 10px 0 14px; padding: 10px 14px; font-style: italic; color: var(--text-soft);
-  background: var(--panel); border-left: 3px solid var(--gold); border-radius: 0 6px 6px 0;
+  background: var(--well); border: 1px solid var(--line-soft); border-left: 3px solid var(--gold); border-radius: 0 var(--radius) var(--radius) 0;
 }
 .quote::before { content: "“"; margin-right: 2px; color: var(--gold); font-style: normal; }
 .quote::after { content: "”"; margin-left: 2px; color: var(--gold); font-style: normal; }
 .steps { padding-left: 0; list-style: none; counter-reset: passo; }
 .steps > li {
   position: relative; margin: 6px 0; padding: 7px 12px 7px 42px; counter-increment: passo;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  background: var(--well); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel);
 }
 .steps > li::before {
-  content: counter(passo); position: absolute; left: 10px; top: 7px; width: 22px; height: 22px; line-height: 22px;
-  text-align: center; font-size: 12px; font-weight: 700; color: var(--bg); background: var(--gold); border-radius: 50%;
+  content: counter(passo); position: absolute; left: 10px; top: 8px; width: 22px; height: 22px; line-height: 22px;
+  text-align: center; font-size: 12px; font-weight: 600; color: var(--bg); background: var(--gold); border-radius: 4px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
 }
 .chain { padding-left: 0; list-style: none; }
 .chain li { margin: 5px 0; line-height: 1.7; }
-.chain > li { padding: 6px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.chain > li { padding: 6px 12px; background: var(--well); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel); }
 .chain ul { margin: 4px 0 2px; padding-left: 22px; list-style: none; border-left: 1px dashed var(--line-hi); }
 .chain small { color: var(--muted); }
 .rewards { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
 .rewards li {
   display: flex; align-items: center; gap: 6px; margin: 0; padding: 5px 12px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  background: var(--well); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--bevel);
 }
 .rewards b { color: var(--gold); }
 .idle { margin: 18px 0; color: var(--muted); font-size: 14px; }

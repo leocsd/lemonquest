@@ -12,6 +12,14 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27j",
+    date: "28 de outubro",
+    title: "Wiki com a cara do jogo",
+    items: [
+      "A wiki (F1 → Wiki do jogo) agora tem o visual do Lemon Quest: a fonte do jogo, painéis do HUD e o mapa do mundo ao fundo. O conteúdo é o mesmo.",
+    ],
+  },
+  {
     id: "2026-10-27i",
     date: "28 de outubro",
     title: "Mochila maior e que se organiza sozinha",

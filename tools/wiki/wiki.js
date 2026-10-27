@@ -9,6 +9,11 @@
     const m = t.replace(/\./g, "").replace(",", ".").match(/-?\d+(\.\d+)?/);
     return m ? parseFloat(m[0]) : NaN;
   };
+  // Coluna numérica (1ª linha do corpo com td.n): o cabeçalho alinha à direita, em cima dos números (wiki.css .wt th.n).
+  for (const tb of document.querySelectorAll("table.wt")) {
+    const first = tb.tBodies[0]?.rows[0];
+    if (first) tb.querySelectorAll("thead th").forEach((th, i) => { if (first.cells[i]?.classList.contains("n")) th.classList.add("n"); });
+  }
   for (const tb of document.querySelectorAll("table[data-sortable]")) {
     tb.querySelectorAll("thead th").forEach((th, i) => {
       th.tabIndex = 0;
