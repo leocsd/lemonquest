@@ -4,7 +4,7 @@
 // Console: __ut.loot("epic"), __ut.feed("boss"), __ut.npc("depot")
 import {
   BACKPACK_SIZE, C2S, DEPOT_SIZE, EQUIP_SLOTS, ITEMS, instanceStats, itemDef,
-  type EquipSlot, type FeedMsg, type InventoryMsg, type ItemDef, type ItemInstance, type ItemLocation, type LootMsg, type NpcOpenMsg, type NpcTradeMsg, type Rarity, type StatId,
+  type EquipSlot, type FeedMsg, type InventoryMsg, type ItemDef, type ItemInstance, type ItemLocation, type LootMsg, type NpcOpenMsg, type NpcTradeMsg, type Rarity, type SetOutfitMsg, type StatId,
 } from "@lemonquest/shared";
 import { session } from "../../session.ts";
 import { setBattleEntries } from "../hud/battle.ts";
@@ -175,8 +175,11 @@ export function startUiTest(): void {
         break;
       }
       case C2S.SetOutfit: {
-        const o = m as { outfit: string; addons: number };
-        setTimeout(() => { me.outfit = o.outfit; me.addons = o.addons; publishMe(); notice(`roupa: ${o.outfit} (addons ${o.addons})`); }, 60);
+        const o = m as unknown as SetOutfitMsg;
+        setTimeout(() => {
+          me.outfit = o.outfit; me.addons = o.addons; me.sex = o.sex ?? me.sex;
+          publishMe(); notice(`roupa: ${o.outfit} (addons ${o.addons}, sexo ${me.sex ?? "m"})`);
+        }, 60);
         return;
       }
       case C2S.FightMode: {

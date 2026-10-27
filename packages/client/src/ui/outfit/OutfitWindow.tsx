@@ -1,6 +1,8 @@
-// Janela de roupas estilo Tibia: prévia animada grande, grade de roupas, 2 addons, OK/Cancelar.
+// Janela de roupas estilo Tibia: prévia animada grande, sexo (♂/♀), grade de roupas, 2 addons, OK/Cancelar.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { OUTFIT_LIST, OUTFIT_TONES, OUTFIT_TONE_PRICE, resolveOutfit, toneColor, unlockRequirement, type Facing } from "@lemonquest/shared";
+import {
+  OUTFIT_LIST, OUTFIT_TONES, OUTFIT_TONE_PRICE, outfitName, resolveOutfit, toneColor, unlockRequirement, type Facing, type Sex,
+} from "@lemonquest/shared";
 import { NATURAL_SWATCH, swatchBackground, swatchOrder } from "./colorize.ts";
 import { useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
@@ -21,6 +23,11 @@ bindOverlay("outfit", outfitOpen, (v) => v, closeOutfit);
 
 const FACINGS: Facing[] = ["down", "left", "up", "right"];
 const FACING_LABEL: Record<Facing, string> = { down: "frente", left: "esquerda", up: "costas", right: "direita" };
+/** Botões de sexo (troca de graça: vale ao dar OK, como a roupa). */
+const SEX_OPTS: { sex: Sex; sym: string; label: string }[] = [
+  { sex: "m", sym: "♂", label: "Masculino" },
+  { sex: "f", sym: "♀", label: "Feminino" },
+];
 /** ms por frame da caminhada na prévia. */
 const WALK_MS = 150;
 /** Gira sozinho a cada N ms (até o jogador usar as setas). */
@@ -45,6 +52,7 @@ function OutfitDialog() {
   const [sel, setSel] = useState(current.id);
   const [addons, setAddons] = useState(me?.outfit === current.id ? me?.addons ?? 0 : 0);
   const [tone, setTone] = useState(me?.tone ?? "");
+  const [sex, setSex] = useState<Sex>(me?.sex ?? "m");
   const [face, setFace] = useState(0);
   const [auto, setAuto] = useState(true);
   const [row, setRow] = useState(0);
@@ -78,7 +86,7 @@ function OutfitDialog() {
   }, [auto]);
 
   const rotate = (d: number) => { setAuto(false); setFace((f) => (f + d + 4) % 4); };
-  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, wearTone); closeOutfit(); };
+  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, wearTone, sex); closeOutfit(); };
   const buy = () => {
     if (toneSt !== "buy") return;
     const r = buyClick(confirmBuy);
@@ -111,14 +119,31 @@ function OutfitDialog() {
         <div class="outfit-body">
           <div class="outfit-stage">
             <div class="outfit-preview" onClick={() => setWalk((w) => !w)} data-tip={walk ? "Parar" : "Andar"}>
-              <OutfitCanvas outfit={outfit} addons={effAddons} facing={facing} row={walk ? row : 0} scale={6} tone={toneColor(tone)} />
+              <OutfitCanvas outfit={outfit} addons={effAddons} facing={facing} row={walk ? row : 0} scale={6} tone={toneColor(tone)} sex={sex} />
+              {/* No canto da prévia (absoluto): não mexe na altura fixa da coluna. */}
+              <div class="outfit-sex" role="radiogroup" aria-label="Sexo">
+                {SEX_OPTS.map((o) => (
+                  <button
+                    key={o.sex}
+                    class={`outfit-sex-btn${sex === o.sex ? " sel" : ""}`}
+                    role="radio"
+                    aria-checked={sex === o.sex}
+                    aria-label={o.label}
+                    data-tip={o.label}
+                    data-tip-sub="Troca de graça · vale no OK"
+                    onClick={(e) => { e.stopPropagation(); setSex(o.sex); }}
+                  >
+                    {o.sym}
+                  </button>
+                ))}
+              </div>
             </div>
             <div class="outfit-rotate">
               <button class="outfit-arrow" onClick={() => rotate(-1)} aria-label="Girar para a esquerda" data-tip="Girar" data-tip-sub="Seta ←"><span class="outfit-tri left" aria-hidden="true" /></button>
               <span class="outfit-facing">{FACING_LABEL[facing]}</span>
               <button class="outfit-arrow" onClick={() => rotate(1)} aria-label="Girar para a direita" data-tip="Girar" data-tip-sub="Seta →"><span class="outfit-tri" aria-hidden="true" /></button>
             </div>
-            <div class="outfit-name" title={outfit.name}>{outfit.name}</div>
+            <div class="outfit-name" title={outfitName(outfit, sex)}>{outfitName(outfit, sex)}</div>
             {/* Alturas fixas daqui para baixo (addons, tons, compra): trocar roupa, addon ou tom não mexe no tamanho da janela. */}
             <div class="outfit-addons">
               {outfit.addons.map((a, i) => {
@@ -198,13 +223,13 @@ function OutfitDialog() {
                   role="option"
                   aria-selected={o.id === outfit.id}
                   onClick={() => { if (o.id !== sel) { setSel(o.id); setAddons(o.id === current.id ? me?.addons ?? 0 : addons); } }}
-                  onDblClick={() => { if (!locked) { sendOutfit(o.id, o.id === outfit.id ? effAddons : 0, wearTone); closeOutfit(); } }}
-                  data-tip={o.name}
+                  onDblClick={() => { if (!locked) { sendOutfit(o.id, o.id === outfit.id ? effAddons : 0, wearTone, sex); closeOutfit(); } }}
+                  data-tip={outfitName(o, sex)}
                   data-tip-sub={locked ? unlockRequirement(o.id, 0) : o.id === current.id ? "Roupa atual" : "Clique para ver · duplo clique veste"}
                   data-locked={locked ? "true" : undefined}
                 >
-                  <OutfitCanvas outfit={o} addons={o.id === outfit.id ? effAddons : 0} scale={2} tight />
-                  <span class="outfit-cell-name">{o.name}</span>
+                  <OutfitCanvas outfit={o} addons={o.id === outfit.id ? effAddons : 0} scale={2} tight sex={sex} />
+                  <span class="outfit-cell-name">{outfitName(o, sex)}</span>
                   {locked && <span class="outfit-lock" aria-label="Bloqueada"><PixelIcon name="lock" size={12} /></span>}
                 </button>
               </li>

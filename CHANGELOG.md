@@ -1,5 +1,24 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · personagens masculinos e femininos
+
+Pedido do dono: "personagem masculino e feminino, mesmos addons, bases dos dois sexos". Mesma lista de 20 roupas e
+os mesmos addons para os dois sexos; o sexo é escolhido ao criar o personagem (dois botões ♂ Masculino / ♀ Feminino
+com prévia) e pode ser trocado de graça na janela Roupas (botões ♂/♀ no canto da prévia). Personagens antigos ficam
+masculinos (`CharacterData.sex` ausente = "m", sem migração); o servidor valida o sexo na criação e na troca de roupa.
+- **Arte**: 8 roupas fechadas (elmo/capuz/máscara) usam a mesma sheet; 6 pares vêm do pack (Cidadã = Woman, Nobre =
+  Princess, Invocadora = SorcererBlack, Bárbara = Cavegirl2, Druida = Cavegirl, Pirata = EggGirl); 6 são geradas por
+  `tools/addons/generate.mjs` (Maga, Mendiga — a OldWoman do pack só tem 2 linhas e foi completada —, Oriental,
+  Domadora de Feras, Peregrina e Monja, com turbante, crânio/juba, chapéu de palha e hábito recolhidos das roupas
+  masculinas). Os overlays dos addons ganharam versão feminina (`_f`) onde a cabeça da base é 1–2 px mais alta
+  (Cavegirl2, EggGirl), para o chapéu não deixar cabelo de fora; a pele da Princess entrou em `TONE_KEEP` (o tom não
+  tinge o rosto).
+- **Dados**: `OutfitDef.female/facesetF/nameF`, helpers `outfitSheet/outfitFaceset/outfitName/outfitAvailable`
+  (`shared/data/outfits.ts`); `Sex` e `PlayerView.sex`; `sex` opcional em `CreateCharacterRequest`, `SetOutfitMsg` e
+  `CharacterSummary`. Mundo, retrato do painel e lista de personagens desenham a sheet do sexo; texturas tingidas são
+  separadas por sexo. Testes: `outfits.test.ts` (toda sheet feminina existe e tem 64×112), `outfit.test.ts`,
+  `auth.test.ts`, `sprites.test.ts` (novo).
+
 ## [Não lançado] — 2026-10-27 · wiki do jogo gerada dos dados
 
 Pedido do dono: "uma wiki completa, igual à do Tibia: bichos, skills, itens, onde dropa, onde compra, mapa". Gerador

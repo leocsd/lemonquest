@@ -912,6 +912,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const look = loadOutfit(rec);
     p.outfit = look.outfit;
     p.addons = look.addons;
+    p.sex = look.sex;
     const unlockedTones = getAccountTones(rec.accountId);
     p.tone = rec.data.tone && unlockedTones.includes(rec.data.tone) ? rec.data.tone : "";
     this.skills.load(p, rec.data.skills);
@@ -1365,6 +1366,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     rec.data.outfit = p.outfit;
     rec.data.addons = p.addons;
     rec.data.tone = p.tone;
+    rec.data.sex = p.sex;
     const quests = this.quests.serialize(sessionId);
     if (quests) rec.data.quests = quests;
     rec.data.play = this.telemetry.serialize(sessionId, p.level) ?? rec.data.play;

@@ -41,3 +41,28 @@ export const ADDON_EXTRA_TOP: Record<string, number> = {
   monge_contas: 0,
   monge_bastao: 5,
 };
+/** Addons com overlay próprio para a sheet feminina (addons/<id>_f.png): px acima da cabeça dela. */
+export const ADDON_FEMALE_EXTRA_TOP: Record<string, number> = {
+  cidadao_chapeu: 3,
+  cidadao_mochila: 0,
+  mago_chapeu: 8,
+  mago_cajado: 3,
+  nobre_capa: 0,
+  nobre_pena: 4,
+  barbaro_elmo: 3,
+  barbaro_clava: 1,
+  druida_coroa: 0,
+  druida_cajado: 1,
+  oriental_joia: 4,
+  oriental_cimitarra: 0,
+  pirata_chapeu: 2,
+  pirata_papagaio: 0,
+  mendigo_bengala: 0,
+  mendigo_trouxa: 0,
+  domador_pele: 0,
+  domador_chicote: 0,
+  peregrino_lanterna: 0,
+  peregrino_cabaca: 0,
+  monge_contas: 0,
+  monge_bastao: 5,
+};

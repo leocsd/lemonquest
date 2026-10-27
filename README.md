@@ -42,7 +42,7 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Eventos da semana | botão **Agenda** (calendário) no trilho à direita, ou o selo "Próximo: …" no topo; no chat (todos): `/agenda` (a semana, um dia por linha) e `/evento` (o que vale agora e o próximo). Aviso no chat e no título da aba 10 min antes de cada evento |
 | Modo de luta | `F2` ofensivo, `F3` equilibrado, `F4` defensivo (`F5` continua sendo o "atualizar" do navegador) |
 | Mapa | `M` |
-| Janelas | `I` equipamento/mochila · `K` habilidades · `O` roupas · `L` missões · `J` conquistas · `R` ranking · `B` bestiário |
+| Janelas | `I` equipamento/mochila · `K` habilidades · `O` roupas (com ♂/♀: o sexo escolhido na criação pode ser trocado aqui) · `L` missões · `J` conquistas · `R` ranking · `B` bestiário |
 | Volume / mudo | botão ♪ na barra de botões à direita |
 | Painéis da barra lateral | arraste o cabeçalho para reordenar; 📌 fixa o painel (fica visível com a barra recolhida); a borda de baixo de Batalha/Mochila muda a altura (duplo clique: padrão) |
 | Minimapa | roda do mouse: zoom; clique no relógio: efeitos de luz (dia/noite) |

@@ -24,6 +24,7 @@ export function startFxTest(scene: WorldScene, spawn: { x: number; y: number }, 
     hp: 160, maxHp: 200, mana: 80, maxMana: 100, xp: 400, targetId: "",
     magicLevel: 2, skillMelee: 18, skillDistance: 10, skillShield: 16, magicPct: 30, meleePct: 40, distancePct: 0, shieldPct: 10, speedPct: 100, stance: "balanced", chase: false,
     outfit: new URLSearchParams(location.search).get("outfit") ?? "", addons: Number(new URLSearchParams(location.search).get("addons") ?? 0), title: "",
+    sex: new URLSearchParams(location.search).get("sex") === "f" ? "f" : "m",
   };
   (window as unknown as Record<string, unknown>).__scene = scene;
   scene.setLocalId(ME);
@@ -36,8 +37,8 @@ export function startFxTest(scene: WorldScene, spawn: { x: number; y: number }, 
   // Troca de roupa (janela O): o "servidor" falso aplica direto.
   setItemTransport((type, m) => {
     if (type !== "setOutfit") return;
-    const o = m as { outfit: string; addons: number };
-    me.outfit = o.outfit; me.addons = o.addons;
+    const o = m as { outfit: string; addons: number; sex?: "m" | "f" };
+    me.outfit = o.outfit; me.addons = o.addons; me.sex = o.sex ?? me.sex;
     scene.onPlayerChange(ME, me);
     publish();
   });

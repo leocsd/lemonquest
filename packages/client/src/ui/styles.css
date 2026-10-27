@@ -91,6 +91,21 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 }
 .char-outfit canvas { display: block; margin-bottom: -4px; }
 .voc-card:focus-visible { outline: 2px solid #d9a441; outline-offset: 2px; }
+/* Sexo do personagem novo: dois botões grandes com a roupa padrão da vocação escolhida (a prévia muda junto). */
+.sex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sex-card {
+  font: inherit; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+  background: #0b0d13; border: 1px solid #2c3242; border-radius: 4px;
+}
+.sex-card:hover { background: #151925; }
+.sex-card.selected { border-color: #d9a441; box-shadow: 0 0 0 1px #d9a441; }
+.sex-preview {
+  width: 40px; height: 48px; flex: none; display: grid; place-items: end center; overflow: hidden; border-radius: 4px;
+  background: linear-gradient(#1b2030, #151925); border: 1px solid #2c3242;
+}
+.sex-preview canvas { display: block; margin-bottom: -4px; }
+.sex-label { font-size: 16px; font-weight: 600; color: #e8e6d9; }
+.sex-card.selected .sex-label { color: #d9a441; }
 
 /* Passos do login (conta → personagens → novo personagem) */
 .login-card.step-new, .login-card.step-chars { width: min(460px, 94vw); }

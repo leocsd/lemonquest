@@ -1,5 +1,5 @@
 import { Schema, MapSchema, type } from "@colyseus/schema";
-import type { FightStance, Skull, GroundItemView, MonsterView, PlayerView, Vocation } from "@lemonquest/shared";
+import type { FightStance, Skull, GroundItemView, MonsterView, PlayerView, Sex, Vocation } from "@lemonquest/shared";
 
 /** Deve espelhar PlayerView (packages/shared/src/types.ts). */
 export class PlayerState extends Schema implements PlayerView {
@@ -43,6 +43,8 @@ export class PlayerState extends Schema implements PlayerView {
   @type("boolean") blessed = false;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; "" = cor natural). */
   @type("string") tone = "";
+  /** Sexo ("m" | "f"): escolhe a sheet da roupa. */
+  @type("string") sex: Sex = "m";
   // Encantamento: fora do schema desde o ciclo 16 (systems/imbuement.ts; o tempo vai na faixa de condições).
 }
 

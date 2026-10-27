@@ -9,14 +9,24 @@
       "name": "Chapéu com pena",
       "front": "addons/cidadao_chapeu.png",
       "back": null,
-      "extraTop": 3
+      "extraTop": 3,
+      "female": {
+        "front": "addons/cidadao_chapeu_f.png",
+        "back": null,
+        "extraTop": 3
+      }
     },
     "cidadao_mochila": {
       "outfit": "cidadao",
       "name": "Mochila de viagem",
       "front": "addons/cidadao_mochila.png",
       "back": "addons/cidadao_mochila_back.png",
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/cidadao_mochila_f.png",
+        "back": "addons/cidadao_mochila_f_back.png",
+        "extraTop": 0
+      }
     },
     "cacador_chapeu": {
       "outfit": "cacador",
@@ -37,14 +47,24 @@
       "name": "Chapéu de mago",
       "front": "addons/mago_chapeu.png",
       "back": null,
-      "extraTop": 8
+      "extraTop": 8,
+      "female": {
+        "front": "addons/mago_chapeu_f.png",
+        "back": null,
+        "extraTop": 8
+      }
     },
     "mago_cajado": {
       "outfit": "mago",
       "name": "Cajado arcano",
       "front": "addons/mago_cajado.png",
       "back": null,
-      "extraTop": 2
+      "extraTop": 2,
+      "female": {
+        "front": "addons/mago_cajado_f.png",
+        "back": null,
+        "extraTop": 3
+      }
     },
     "cavaleiro_pluma": {
       "outfit": "cavaleiro",
@@ -65,14 +85,24 @@
       "name": "Capa de nobre",
       "front": "addons/nobre_capa.png",
       "back": "addons/nobre_capa_back.png",
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/nobre_capa_f.png",
+        "back": "addons/nobre_capa_f_back.png",
+        "extraTop": 0
+      }
     },
     "nobre_pena": {
       "outfit": "nobre",
       "name": "Pena no chapéu",
       "front": "addons/nobre_pena.png",
       "back": null,
-      "extraTop": 4
+      "extraTop": 4,
+      "female": {
+        "front": "addons/nobre_pena_f.png",
+        "back": null,
+        "extraTop": 4
+      }
     },
     "invocador_diadema": {
       "outfit": "invocador",
@@ -107,28 +137,48 @@
       "name": "Elmo de chifres",
       "front": "addons/barbaro_elmo.png",
       "back": "addons/barbaro_elmo_back.png",
-      "extraTop": 3
+      "extraTop": 3,
+      "female": {
+        "front": "addons/barbaro_elmo_f.png",
+        "back": "addons/barbaro_elmo_f_back.png",
+        "extraTop": 3
+      }
     },
     "barbaro_clava": {
       "outfit": "barbaro",
       "name": "Clava cravejada",
       "front": "addons/barbaro_clava.png",
       "back": null,
-      "extraTop": 2
+      "extraTop": 2,
+      "female": {
+        "front": "addons/barbaro_clava_f.png",
+        "back": null,
+        "extraTop": 1
+      }
     },
     "druida_coroa": {
       "outfit": "druida",
       "name": "Coroa de folhas",
       "front": "addons/druida_coroa.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/druida_coroa_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "druida_cajado": {
       "outfit": "druida",
       "name": "Cajado de galho",
       "front": "addons/druida_cajado.png",
       "back": null,
-      "extraTop": 2
+      "extraTop": 2,
+      "female": {
+        "front": "addons/druida_cajado_f.png",
+        "back": null,
+        "extraTop": 1
+      }
     },
     "bruxo_manto": {
       "outfit": "bruxo",
@@ -149,28 +199,48 @@
       "name": "Joia do turbante",
       "front": "addons/oriental_joia.png",
       "back": null,
-      "extraTop": 4
+      "extraTop": 4,
+      "female": {
+        "front": "addons/oriental_joia_f.png",
+        "back": null,
+        "extraTop": 4
+      }
     },
     "oriental_cimitarra": {
       "outfit": "oriental",
       "name": "Cimitarra",
       "front": "addons/oriental_cimitarra.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/oriental_cimitarra_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "pirata_chapeu": {
       "outfit": "pirata",
       "name": "Chapéu de pirata",
       "front": "addons/pirata_chapeu.png",
       "back": null,
-      "extraTop": 2
+      "extraTop": 2,
+      "female": {
+        "front": "addons/pirata_chapeu_f.png",
+        "back": null,
+        "extraTop": 2
+      }
     },
     "pirata_papagaio": {
       "outfit": "pirata",
       "name": "Papagaio",
       "front": "addons/pirata_papagaio.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/pirata_papagaio_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "assassino_cachecol": {
       "outfit": "assassino",
@@ -205,28 +275,48 @@
       "name": "Bengala torta",
       "front": "addons/mendigo_bengala.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/mendigo_bengala_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "mendigo_trouxa": {
       "outfit": "mendigo",
       "name": "Trouxa no ombro",
       "front": "addons/mendigo_trouxa.png",
       "back": "addons/mendigo_trouxa_back.png",
-      "extraTop": 1
+      "extraTop": 1,
+      "female": {
+        "front": "addons/mendigo_trouxa_f.png",
+        "back": "addons/mendigo_trouxa_f_back.png",
+        "extraTop": 0
+      }
     },
     "domador_pele": {
       "outfit": "domador",
       "name": "Pele de fera",
       "front": "addons/domador_pele.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/domador_pele_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "domador_chicote": {
       "outfit": "domador",
       "name": "Chicote",
       "front": "addons/domador_chicote.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/domador_chicote_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "cacador_demonios_chifres": {
       "outfit": "cacador_demonios",
@@ -247,14 +337,24 @@
       "name": "Cajado com lanterna",
       "front": "addons/peregrino_lanterna.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/peregrino_lanterna_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "peregrino_cabaca": {
       "outfit": "peregrino",
       "name": "Cabaça de viagem",
       "front": "addons/peregrino_cabaca.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/peregrino_cabaca_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "senhor_guerra_capa": {
       "outfit": "senhor_guerra",
@@ -275,14 +375,24 @@
       "name": "Contas de oração",
       "front": "addons/monge_contas.png",
       "back": null,
-      "extraTop": 0
+      "extraTop": 0,
+      "female": {
+        "front": "addons/monge_contas_f.png",
+        "back": null,
+        "extraTop": 0
+      }
     },
     "monge_bastao": {
       "outfit": "monge",
       "name": "Bastão de monge",
       "front": "addons/monge_bastao.png",
       "back": null,
-      "extraTop": 5
+      "extraTop": 5,
+      "female": {
+        "front": "addons/monge_bastao_f.png",
+        "back": null,
+        "extraTop": 5
+      }
     }
   }
 }

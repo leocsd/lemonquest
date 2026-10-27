@@ -43,10 +43,10 @@ export const toneColor = (id: string | undefined | null): number => toneDef(id)?
 export const TONE_PIVOT = 0.6;
 
 /**
- * Pele do pack Ninja Adventure (base e sombra clara): fica natural, senão o rosto sai azul junto com a roupa. Os
- * overlays de addon não usam essas cores.
+ * Pele do pack Ninja Adventure (base, clara, sombra da clara e a morena da Princess): fica natural, senão o rosto sai azul
+ * junto com a roupa. Os overlays de addon não usam essas cores.
  */
-export const TONE_KEEP: ReadonlySet<number> = new Set([0xef914f, 0xf2ad7d]);
+export const TONE_KEEP: ReadonlySet<number> = new Set([0xef914f, 0xf2ad7d, 0xcf736d, 0xa3754e]);
 
 /** Luminância perceptual (0..1) de um RGB 0..255. */
 export const pixelLuminance = (r: number, g: number, b: number): number => (0.299 * r + 0.587 * g + 0.114 * b) / 255;

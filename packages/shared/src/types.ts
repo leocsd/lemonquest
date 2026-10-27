@@ -20,6 +20,13 @@ export type Facing = "down" | "up" | "left" | "right";
 export type Vocation = "knight" | "paladin" | "sorcerer" | "druid";
 export const VOCATIONS: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
 
+/** Sexo do personagem (só cosmético: escolhe a sheet de cada roupa, ver data/outfits.ts). */
+export type Sex = "m" | "f";
+export const SEXES: Sex[] = ["m", "f"];
+export const isSex = (v: unknown): v is Sex => v === "m" || v === "f";
+/** Sexo salvo: ausente ou inválido = masculino (personagens de antes da escolha). */
+export const sexOf = (v: unknown): Sex => (v === "f" ? "f" : "m");
+
 /** Postura de combate (estilo Tibia). */
 export type FightStance = "offensive" | "balanced" | "defensive";
 
@@ -92,6 +99,8 @@ export interface PlayerView {
   blessed?: boolean;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; "" = cor natural). Comprado uma vez por conta. */
   tone?: string;
+  /** Sexo ("m" | "f"; ausente = "m"): escolhe a sheet da roupa. Trocado de graça na janela de roupas. */
+  sex?: Sex;
 }
 
 /** Espelho de MonsterState (packages/server/src/state.ts). */

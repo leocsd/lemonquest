@@ -1,6 +1,8 @@
 // Desenha uma roupa (base + addons) num <canvas>, pixel a pixel, para a janela de roupas e a lista de personagens.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { ADDON_FRAME, ADDON_OFFSET_X, ADDON_OFFSET_Y, activeAddons, type Facing, type OutfitDef } from "@lemonquest/shared";
+import {
+  ADDON_FRAME, ADDON_OFFSET_X, ADDON_OFFSET_Y, activeAddons, addonLayers, outfitSheet, type Facing, type OutfitDef, type Sex,
+} from "@lemonquest/shared";
 import { colorizedCanvas } from "./colorize.ts";
 
 const COL: Record<Facing, number> = { down: 0, up: 1, left: 2, right: 3 };
@@ -42,10 +44,12 @@ export interface OutfitCanvasProps {
   tight?: boolean;
   /** Cor do tom de tingimento (toneColor; ausente/0xffffff = cor natural). */
   tone?: number;
+  /** Sexo: sheet feminina e overlays dela, se a roupa tiver (ausente = masculino). */
+  sex?: Sex;
   class?: string;
 }
 
-export function OutfitCanvas({ outfit, addons, facing = "down", row = 0, scale = 4, tight, tone = 0xffffff, class: cls }: OutfitCanvasProps) {
+export function OutfitCanvas({ outfit, addons, facing = "down", row = 0, scale = 4, tight, tone = 0xffffff, sex, class: cls }: OutfitCanvasProps) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [, bump] = useState(0);
   const crop = tight ? { x: 6, y: 4, w: 20, h: 26 } : CROP;
@@ -57,9 +61,9 @@ export function OutfitCanvas({ outfit, addons, facing = "down", row = 0, scale =
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, cv.width, cv.height);
     const redraw = () => bump((n) => n + 1);
-    const on = activeAddons(outfit, addons);
+    const on = activeAddons(outfit, addons).map((a) => addonLayers(a, sex));
     const backs = on.filter((a) => a.backSheet).map((a) => image(a.backSheet!, redraw));
-    const base = image(outfit.sheet, redraw);
+    const base = image(outfitSheet(outfit, sex), redraw);
     const fronts = on.map((a) => image(a.sheet, redraw));
     if (!base || backs.includes(null) || fronts.includes(null)) return;
     const col = COL[facing], r = Math.max(0, Math.min(6, row));

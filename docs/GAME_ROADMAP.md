@@ -13,6 +13,14 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Personagens masculinos e femininos (2026-10-27)
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| MF-1 | Dono: "masculino e feminino, mesmos addons". Opção A: mesmo id de roupa, sheet por sexo (`OutfitDef.female`), `CharacterData.sex` opcional (ausente = "m"), escolha na criação e troca livre na janela Roupas; 6 pares do pack + 6 sheets geradas (`tools/addons/generate.mjs`, inclusive as 4 barbudas por recolor, decisão do dono) + 8 fechadas iguais; overlays `_f` onde a cabeça feminina é mais alta | ✅ (2026-10-27) | `outfits.test.ts`, `outfit.test.ts`, `auth.test.ts`, `sprites.test.ts`; prévia 20×2 conferida |
+| MF-2 | Nomes femininos só onde a roupa muda (as 8 fechadas mantêm o nome, como no Tibia); conferir com o dono se quer "Cavaleira", "Guerreira" etc. | 🧭 | — |
+| MF-3 | Jogadoras reutilizam 6 sheets que já são NPCs (Woman = Hanna, Princess = Dona Marta…); se incomodar, gerar variações de cor para as NPCs | ⏳ | — |
+
 ## Cura como no Tibia (2026-10-27) — poções por vocação, Cura por ML, grupo sem limite
 
 | # | Item | Status | Validação |

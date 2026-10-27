@@ -85,6 +85,8 @@ describe("colorizePixel", () => {
   });
 
   it("pele do pack e o tom natural (0xffffff) passam intactos; o alpha nem entra na conta", () => {
+    // inclui a pele morena da Princess (Nobre/Oriental femininas) e a sombra da pele clara (Woman, Cavegirl2...)
+    for (const c of [0xef914f, 0xf2ad7d, 0xcf736d, 0xa3754e]) expect(TONE_KEEP.has(c), c.toString(16)).toBe(true);
     for (const c of TONE_KEEP) expect(colorizePixel(...rgb(c), toneColor("azure"))).toEqual(rgb(c));
     expect(colorizePixel(12, 200, 99, 0xffffff)).toEqual([12, 200, 99]);
     // cor qualquer que não é pele: tinge

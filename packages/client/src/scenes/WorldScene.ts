@@ -103,7 +103,7 @@ export class WorldScene extends Phaser.Scene {
   private myId = "";
   private actors = new Map<string, Actor>();
   private known = new Map<string, Known>();
-  /** Roupa/addons já aplicados por jogador ("outfit|addons"). */
+  /** Roupa/addons/tom/sexo já aplicados por jogador ("outfit|addons|tom|sexo"). */
   private lookSig = new Map<string, string>();
   private creatures = new Map<string, Actor>();
   private creatureKnown = new Map<string, Known>();
@@ -416,8 +416,8 @@ export class WorldScene extends Phaser.Scene {
   addPlayer(id: string, p: PlayerView) {
     if (this.actors.has(id)) return;
     const isMe = id === this.myId;
-    const actor = new Actor(this.actorDeps(), outfitLook(p.outfit, p.addons, p.vocation, p.tone), p.name, isMe, p.x, p.y, p.dir, { hpName: true });
-    this.lookSig.set(id, `${p.outfit}|${p.addons}|${p.tone}`);
+    const actor = new Actor(this.actorDeps(), outfitLook(p.outfit, p.addons, p.vocation, p.tone, p.sex), p.name, isMe, p.x, p.y, p.dir, { hpName: true });
+    this.lookSig.set(id, `${p.outfit}|${p.addons}|${p.tone}|${p.sex}`);
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
     actor.setHp(p.hp, p.maxHp, true);
@@ -451,8 +451,8 @@ export class WorldScene extends Phaser.Scene {
     actor.setHp(p.hp, p.maxHp);
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
-    const sig = `${p.outfit}|${p.addons}|${p.tone}`;
-    if (this.lookSig.get(id) !== sig) { this.lookSig.set(id, sig); actor.setLook(outfitLook(p.outfit, p.addons, p.vocation, p.tone)); }
+    const sig = `${p.outfit}|${p.addons}|${p.tone}|${p.sex}`;
+    if (this.lookSig.get(id) !== sig) { this.lookSig.set(id, sig); actor.setLook(outfitLook(p.outfit, p.addons, p.vocation, p.tone, p.sex)); }
     const moved = p.x !== k.x || p.y !== k.y;
     const turned = p.dir !== k.dir;
     k.x = p.x; k.y = p.y; k.dir = p.dir; k.stepMs = p.stepMs;

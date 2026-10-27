@@ -50,6 +50,8 @@ export interface CharacterData {
   addons?: number;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; precisa estar liberado na conta). Ausente = cor natural. */
   tone?: string;
+  /** Sexo escolhido na criação (troca de graça na janela de roupas). Ausente = "m" (personagens de antes; sem migração). */
+  sex?: "m" | "f";
   /**
    * Encantamento ativo (systems/imbuement.ts): efeito (IMBUEMENTS), tier 1–3 e combate PvE restante. Ausente = nenhum.
    */

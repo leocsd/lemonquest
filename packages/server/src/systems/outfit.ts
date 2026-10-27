@@ -1,5 +1,7 @@
-// Roupas (outfits), addons e tom de tingimento: validação, carga/gravação no registro e troca (C2S.SetOutfit).
-import { ADDON_BITS, OUTFITS, OUTFIT_TONES, isUnlockedIn, resolveOutfit, type SetOutfitMsg } from "@lemonquest/shared";
+// Roupas (outfits), addons, tom de tingimento e sexo: validação, carga/gravação no registro e troca (C2S.SetOutfit).
+import {
+  ADDON_BITS, OUTFITS, OUTFIT_TONES, isSex, isUnlockedIn, outfitAvailable, resolveOutfit, sexOf, type SetOutfitMsg, type Sex,
+} from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CharacterRecord } from "../persistence/types.ts";
 
@@ -18,25 +20,36 @@ export function sanitizeAddons(v: unknown): number {
   return typeof v === "number" && Number.isInteger(v) ? v & ADDON_BITS : 0;
 }
 
-/** Roupa do registro (legado sem o campo, ou id desconhecido → padrão da vocação). */
-export function loadOutfit(rec: CharacterRecord): { outfit: string; addons: number } {
-  const o = resolveOutfit(rec.data.outfit, rec.vocation);
+/**
+ * Roupa e sexo do registro (legado sem o campo, ou id desconhecido → padrão da vocação; sem sexo → "m"). Roupa que não
+ * existe no sexo (outfitAvailable) volta para a padrão da vocação, sem addons.
+ */
+export function loadOutfit(rec: CharacterRecord): { outfit: string; addons: number; sex: Sex } {
+  const sex = sexOf(rec.data.sex);
+  let o = resolveOutfit(rec.data.outfit, rec.vocation);
+  if (!outfitAvailable(o, sex)) o = resolveOutfit(undefined, rec.vocation);
   const addons = o.id === rec.data.outfit ? sanitizeAddons(rec.data.addons) : 0;
-  return { outfit: o.id, addons };
+  return { outfit: o.id, addons, sex };
 }
 
-/** Valida um pedido de troca. null = inválido (id desconhecido, bits fora do intervalo, bloqueado, tom não liberado). */
+/**
+ * Valida um pedido de troca. null = inválido (id desconhecido, bits fora do intervalo, bloqueado, tom não liberado,
+ * sexo inválido ou roupa que não existe no sexo). Sem `sex` no pedido, vale o sexo atual do registro.
+ */
 export function validateSetOutfit(
   m: unknown, rec?: CharacterRecord, unlockedTones: readonly string[] = [],
-): { outfit: string; addons: number; tone: string } | null {
+): { outfit: string; addons: number; tone: string; sex: Sex } | null {
   if (!m || typeof m !== "object") return null;
-  const { outfit, addons, tone } = m as Partial<SetOutfitMsg>;
+  const { outfit, addons, tone, sex } = m as Partial<SetOutfitMsg>;
   if (typeof outfit !== "string" || outfit.length > 32 || !Object.hasOwn(OUTFITS, outfit)) return null;
   if (typeof addons !== "number" || !Number.isInteger(addons) || addons < 0 || addons > ADDON_BITS) return null;
   if (!isOutfitUnlocked(rec, outfit, 0)) return null;
   for (const bit of [1, 2] as const) if ((addons & bit) && !isOutfitUnlocked(rec, outfit, bit)) return null;
   if (tone !== undefined && tone !== "" && (!OUTFIT_TONES.some((t) => t.id === tone) || !unlockedTones.includes(tone))) return null;
-  return { outfit, addons, tone: tone ?? "" };
+  if (sex !== undefined && !isSex(sex)) return null;
+  const s = sex ?? sexOf(rec?.data.sex);
+  if (!outfitAvailable(OUTFITS[outfit]!, s)) return null;
+  return { outfit, addons, tone: tone ?? "", sex: s };
 }
 
 /** Aplica a troca no estado (todos veem) e no registro (persistido no próximo save). */
@@ -46,6 +59,7 @@ export function applySetOutfit(p: PlayerState, rec: CharacterRecord | undefined,
   p.outfit = v.outfit;
   p.addons = v.addons;
   p.tone = v.tone;
-  if (rec) { rec.data.outfit = v.outfit; rec.data.addons = v.addons; rec.data.tone = v.tone; }
+  p.sex = v.sex;
+  if (rec) { rec.data.outfit = v.outfit; rec.data.addons = v.addons; rec.data.tone = v.tone; rec.data.sex = v.sex; }
   return true;
 }

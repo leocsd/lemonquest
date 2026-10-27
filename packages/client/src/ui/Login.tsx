@@ -7,13 +7,18 @@ import { session } from "../session.ts";
 import { loading } from "./loading.ts";
 import { VOCATION_META, vocationMeta } from "./hud/vocations.ts";
 import { OutfitCanvas } from "./outfit/OutfitCanvas.tsx";
-import { resolveOutfit } from "@lemonquest/shared";
+import { resolveOutfit, type Sex } from "@lemonquest/shared";
 
 const VOCS: { id: Vocation; desc: string }[] = [
   { id: "knight", desc: "Resistente, luta de perto com espada." },
   { id: "paladin", desc: "Ágil, acerta de longe com arco." },
   { id: "sorcerer", desc: "Frágil, magias de fogo devastadoras." },
   { id: "druid", desc: "Cura aliados e domina a natureza." },
+];
+/** Escolha de sexo na criação (os dois botões grandes com a prévia). */
+const SEXES_SHOWN: { sex: Sex; sym: string; label: string }[] = [
+  { sex: "m", sym: "♂", label: "Masculino" },
+  { sex: "f", sym: "♀", label: "Feminino" },
 ];
 
 const SKILL_LABEL: Record<SkillId, string> = { melee: "Corpo a corpo", distance: "Distância", magic: "Magic Level", shield: "Escudo" };
@@ -117,6 +122,7 @@ export function Login() {
   const [sel, setSel] = useState(0);
   const [newName, setNewName] = useState("");
   const [vocation, setVocation] = useState<Vocation | null>(null);
+  const [sex, setSex] = useState<Sex>("m");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [resetCode, setResetCode] = useState("");
@@ -231,7 +237,7 @@ export function Login() {
 
   const createChar = () => run(async () => {
     if (!vocation) { setError("Escolha uma vocação."); return; }
-    const r = await session.createCharacter({ name: newName, vocation });
+    const r = await session.createCharacter({ name: newName, vocation, sex });
     if (!r.ok) {
       if (r.error === "invalid_session") setStep("account");
       setError(errorText(r));
@@ -374,7 +380,7 @@ export function Login() {
                 onDblClick={() => play(c)}
               >
                 <span class="char-face char-outfit" aria-hidden="true">
-                  <OutfitCanvas outfit={resolveOutfit(c.outfit, c.vocation)} addons={c.addons ?? 0} scale={2} tight />
+                  <OutfitCanvas outfit={resolveOutfit(c.outfit, c.vocation)} addons={c.addons ?? 0} scale={2} tight sex={c.sex} />
                 </span>
                 <div class="char-info">
                   <span class="char-name">{c.name}</span>
@@ -468,6 +474,25 @@ export function Login() {
             );
           })}
         </div>
+        {/* Sexo: a prévia é a roupa padrão da vocação escolhida (cavaleiro enquanto nenhuma), no sexo de cada botão. */}
+        <div class="sex-grid" role="radiogroup" aria-label="Sexo">
+          {SEXES_SHOWN.map((o) => (
+            <button
+              key={o.sex}
+              class={`sex-card${sex === o.sex ? " selected" : ""}`}
+              role="radio"
+              aria-checked={sex === o.sex}
+              onClick={() => setSex(o.sex)}
+              onKeyDown={onFieldKey(createChar)}
+            >
+              <span class="sex-preview" aria-hidden="true">
+                <OutfitCanvas outfit={resolveOutfit(undefined, vocation ?? "knight")} addons={0} scale={2} tight sex={o.sex} />
+              </span>
+              <span class="sex-label">{o.sym} {o.label}</span>
+            </button>
+          ))}
+        </div>
+        <p class="hint left">Dá para trocar depois, de graça, na janela de roupas (O).</p>
         <button class="btn" disabled={busy || !vocation || newName.trim().length < 3} onClick={createChar}>
           {busy ? "Criando..." : "Criar personagem"}
         </button>

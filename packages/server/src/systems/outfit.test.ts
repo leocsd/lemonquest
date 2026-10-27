@@ -41,8 +41,8 @@ describe("outfit: validação", () => {
   it("aceita ids do catálogo e bits 0..3; recusa o resto", () => {
     const rec = createAccount("Validador", "h", "s", "sorcerer");
     rec.data.unlocks = ["addon:mago:1", "addon:mago:2"];
-    expect(validateSetOutfit({ outfit: "mago", addons: 3 }, rec)).toEqual({ outfit: "mago", addons: 3, tone: "" });
-    expect(validateSetOutfit({ outfit: "cidadao", addons: 0 }, rec)).toEqual({ outfit: "cidadao", addons: 0, tone: "" });
+    expect(validateSetOutfit({ outfit: "mago", addons: 3 }, rec)).toEqual({ outfit: "mago", addons: 3, tone: "", sex: "m" });
+    expect(validateSetOutfit({ outfit: "cidadao", addons: 0 }, rec)).toEqual({ outfit: "cidadao", addons: 0, tone: "", sex: "m" });
     for (const bad of [
       null, 1, "mago", {}, { outfit: "mago" }, { outfit: "xx", addons: 0 }, { outfit: "mago", addons: 4 },
       { outfit: "mago", addons: -1 }, { outfit: "mago", addons: 1.5 }, { outfit: "mago", addons: "3" },
@@ -65,7 +65,7 @@ describe("outfit: validação", () => {
     expect(isOutfitUnlocked(rec, "mago", 1)).toBe(false);
     expect(isOutfitUnlocked(rec, "inexistente", 0)).toBe(false);
     expect(isOutfitUnlocked(undefined, "mago", 0)).toBe(false);
-    expect(validateSetOutfit({ outfit: "pirata", addons: 0 }, rec)).toEqual({ outfit: "pirata", addons: 0, tone: "" });
+    expect(validateSetOutfit({ outfit: "pirata", addons: 0 }, rec)).toEqual({ outfit: "pirata", addons: 0, tone: "", sex: "m" });
     expect(validateSetOutfit({ outfit: "pirata", addons: 1 }, rec)).toBeNull(); // addon bloqueado
     expect(validateSetOutfit({ outfit: "nobre", addons: 0 }, rec)).toBeNull(); // roupa bloqueada
   });
@@ -74,8 +74,8 @@ describe("outfit: validação", () => {
     const rec = createAccount("Tingidor", "h", "s", "knight");
     expect(validateSetOutfit({ outfit: "cavaleiro", addons: 0, tone: "crimson" }, rec, [])).toBeNull(); // não liberado
     expect(validateSetOutfit({ outfit: "cavaleiro", addons: 0, tone: "inexistente" }, rec, ["inexistente"])).toBeNull(); // nem no catálogo
-    expect(validateSetOutfit({ outfit: "cavaleiro", addons: 0, tone: "" }, rec, [])).toEqual({ outfit: "cavaleiro", addons: 0, tone: "" });
-    expect(validateSetOutfit({ outfit: "cavaleiro", addons: 0, tone: "crimson" }, rec, ["crimson"])).toEqual({ outfit: "cavaleiro", addons: 0, tone: "crimson" });
+    expect(validateSetOutfit({ outfit: "cavaleiro", addons: 0, tone: "" }, rec, [])).toEqual({ outfit: "cavaleiro", addons: 0, tone: "", sex: "m" });
+    expect(validateSetOutfit({ outfit: "cavaleiro", addons: 0, tone: "crimson" }, rec, ["crimson"])).toEqual({ outfit: "cavaleiro", addons: 0, tone: "crimson", sex: "m" });
   });
 
   it("tons por conta: addAccountTone é idempotente e getAccountTones reflete a conta certa", () => {
@@ -89,14 +89,38 @@ describe("outfit: validação", () => {
     expect(getAccountTones(b.accountId)).toEqual([]); // conta separada
   });
 
+  it("sexo: ausente = mantém o do registro; \"m\" | \"f\" troca (de graça, qualquer roupa); outro valor recusa", () => {
+    const rec = createAccount("Sexo", "h", "s", "sorcerer");
+    rec.data.unlocks = ["addon:mago:1"];
+    expect(validateSetOutfit({ outfit: "mago", addons: 1, sex: "f" }, rec)).toEqual({ outfit: "mago", addons: 1, tone: "", sex: "f" });
+    expect(validateSetOutfit({ outfit: "cidadao", addons: 0, sex: "m" }, rec)).toEqual({ outfit: "cidadao", addons: 0, tone: "", sex: "m" });
+    rec.data.sex = "f";
+    expect(validateSetOutfit({ outfit: "mago", addons: 0 }, rec)).toMatchObject({ sex: "f" }); // sem sexo no pedido: o atual
+    for (const bad of ["F", "x", "", 1, null, true, "masculino"]) {
+      expect(validateSetOutfit({ outfit: "mago", addons: 0, sex: bad }, rec), JSON.stringify(bad)).toBeNull();
+    }
+    // a roupa bloqueada continua bloqueada nos dois sexos
+    expect(validateSetOutfit({ outfit: "pirata", addons: 0, sex: "f" }, rec)).toBeNull();
+  });
+
+  it("sexo salvo: ausente (personagens de antes) ou lixo = \"m\"; \"f\" fica", () => {
+    const rec = createAccount("Antiga", "h", "s", "druid");
+    rec.data = { outfit: "druida", addons: 1 };
+    expect(loadOutfit(rec)).toEqual({ outfit: "druida", addons: 1, sex: "m" });
+    rec.data = { outfit: "druida", addons: 1, sex: "f" };
+    expect(loadOutfit(rec)).toEqual({ outfit: "druida", addons: 1, sex: "f" });
+    rec.data = { outfit: "druida", sex: "x" as never };
+    expect(loadOutfit(rec).sex).toBe("m");
+  });
+
   it("personagem legado (sem campo) usa a roupa padrão da vocação; id inválido também", () => {
     const rec = createAccount("Velho", "h", "s", "sorcerer");
     rec.data = {};
-    expect(loadOutfit(rec)).toEqual({ outfit: "mago", addons: 0 });
+    expect(loadOutfit(rec)).toEqual({ outfit: "mago", addons: 0, sex: "m" });
     rec.data = { outfit: "sumiu", addons: 3 };
-    expect(loadOutfit(rec)).toEqual({ outfit: "mago", addons: 0 });
+    expect(loadOutfit(rec)).toEqual({ outfit: "mago", addons: 0, sex: "m" });
     rec.data = { outfit: "pirata", addons: 7 };
-    expect(loadOutfit(rec)).toEqual({ outfit: "pirata", addons: 3 });
+    expect(loadOutfit(rec)).toEqual({ outfit: "pirata", addons: 3, sex: "m" });
   });
 });
 
@@ -107,9 +131,23 @@ describe("outfit: criação de personagem", () => {
     for (const [name, voc] of [["Kai", "knight"], ["Pala", "paladin"], ["Sora", "sorcerer"], ["Dru", "druid"]] as const) {
       const r = handleCreateCharacter({ session: a.session, name, vocation: voc });
       if (!r.ok) throw new Error(r.error);
-      expect(getCharacterByName(name)!.data).toMatchObject({ outfit: DEFAULT_OUTFIT[voc], addons: 0 });
-      expect(r.characters.find((c) => c.name === name)).toMatchObject({ outfit: DEFAULT_OUTFIT[voc], addons: 0 });
+      expect(getCharacterByName(name)!.data).toMatchObject({ outfit: DEFAULT_OUTFIT[voc], addons: 0, sex: "m" });
+      expect(r.characters.find((c) => c.name === name)).toMatchObject({ outfit: DEFAULT_OUTFIT[voc], addons: 0, sex: "m" });
     }
+  });
+
+  it("sexo escolhido na criação vai para o registro e para o resumo; ausente = \"m\"; inválido recusa", async () => {
+    const a = await handleLogin({ account: "conta2", password: "segredo1", create: true });
+    if (!a.ok) throw new Error("login");
+    const r = handleCreateCharacter({ session: a.session, name: "Bruna", vocation: "sorcerer", sex: "f" });
+    if (!r.ok) throw new Error(r.error);
+    expect(getCharacterByName("Bruna")!.data).toMatchObject({ outfit: "mago", sex: "f" });
+    expect(r.characters.find((c) => c.name === "Bruna")).toMatchObject({ outfit: "mago", sex: "f" });
+    for (const bad of ["x", "F", 0, null]) {
+      expect(handleCreateCharacter({ session: a.session, name: "Outra", vocation: "druid", sex: bad as never }), String(bad))
+        .toEqual({ ok: false, error: "invalid_request" });
+    }
+    expect(getCharacterByName("Outra")).toBeFalsy();
   });
 });
 
@@ -138,6 +176,30 @@ describe("outfit: sala", () => {
     const c2 = fakeClient(r, "s2");
     r.onJoin(c2, {}, auth("Leo"));
     expect(r.state.players.get("s2")).toMatchObject({ outfit: "mago", addons: 3 });
+  });
+
+  it("sexo: entra com o salvo, a troca vale para todos, persiste; legado sem o campo entra \"m\"", () => {
+    const r = makeRoom();
+    const lia = createAccount("Lia", "h", "s", "knight");
+    lia.data.sex = "f";
+    saveCharacter(lia);
+    const c = fakeClient(r, "l1");
+    r.onJoin(c, {}, auth("Lia"));
+    const p = r.state.players.get("l1");
+    expect(p.sex).toBe("f");
+    send(r, c, C2S.SetOutfit, { outfit: "cavaleiro", addons: 0, sex: "m" });
+    expect(p.sex).toBe("m");
+    send(r, c, C2S.SetOutfit, { outfit: "cavaleiro", addons: 0, sex: "z" }); // inválido: ignora
+    expect(p.sex).toBe("m");
+    r.onLeave(c, 4000);
+    expect(getCharacterByName("Lia")!.data.sex).toBe("m");
+
+    const velho = createAccount("Velho2", "h", "s", "druid");
+    velho.data = { hp: 10 };
+    saveCharacter(velho);
+    const c2 = fakeClient(r, "v1");
+    r.onJoin(c2, {}, auth("Velho2"));
+    expect(r.state.players.get("v1").sex).toBe("m");
   });
 
   it("legado sem roupa entra com a padrão da vocação", () => {

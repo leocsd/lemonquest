@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27g",
+    date: "28 de outubro",
+    title: "Personagens femininas",
+    items: [
+      "Ao criar um personagem você escolhe ♂ ou ♀; na janela Roupas (O) dá para trocar de graça quando quiser.",
+      "As 20 roupas e todos os addons valem para os dois: Cidadã, Nobre, Invocadora, Bárbara, Druida, Pirata, Maga, Mendiga, Oriental, Domadora de Feras, Peregrina e Monja têm arte própria; as de elmo e capuz são iguais.",
+      "Personagens já criados continuam masculinos até você trocar.",
+    ],
+  },
+  {
     id: "2026-10-27f",
     date: "28 de outubro",
     title: "Wiki do jogo",

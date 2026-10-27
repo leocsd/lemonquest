@@ -1,4 +1,4 @@
-import type { ChatChannel, ChatMessage, CombatEvent, Dir, FightStance, Vocation } from "./types.ts";
+import type { ChatChannel, ChatMessage, CombatEvent, Dir, FightStance, Sex, Vocation } from "./types.ts";
 import type { ConditionId, SpellFx } from "./data/spells.ts";
 import type { SkillId } from "./skills.ts";
 import type { Hotkey } from "./hotkeys.ts";
@@ -120,8 +120,11 @@ export type PartyActionMsg =
   | { action: "lead"; targetId: string }
   | { action: "disband" };
 
-/** `tone` ausente ou "" = cor natural; senão precisa estar liberado na conta (ver OutfitTonesMsg). */
-export interface SetOutfitMsg { outfit: string; addons: number; tone?: string }
+/**
+ * `tone` ausente ou "" = cor natural; senão precisa estar liberado na conta (ver OutfitTonesMsg). `sex` ausente = mantém
+ * o atual (trocar de sexo é de graça, pela janela de roupas).
+ */
+export interface SetOutfitMsg { outfit: string; addons: number; tone?: string; sex?: Sex }
 export interface BuyOutfitToneMsg { toneId: string }
 /** S2C.OutfitTones: tons liberados NA CONTA (valem pra qualquer personagem). */
 export interface OutfitTonesMsg { unlocked: string[] }
@@ -545,6 +548,8 @@ export interface CharacterSummary {
   /** Roupa atual (retrato na lista de personagens). */
   outfit?: string;
   addons?: number;
+  /** Sexo (ausente = "m"): escolhe a sheet da roupa no retrato. */
+  sex?: Sex;
   /** Treinando offline agora (ao entrar, recebe o progresso). */
   training?: { skill: SkillId; sinceMs: number };
   online?: boolean;
@@ -564,7 +569,8 @@ export type AuthFail = {
 };
 /** Sessão da conta (curta, em memória no servidor; expira em 30 min sem uso). */
 export type AccountSession = { ok: true; session: string; account: string; characters: CharacterSummary[] } | AuthFail;
-export interface CreateCharacterRequest { session: string; name: string; vocation: Vocation }
+/** `sex` ausente = "m" (clientes antigos e scripts); valor fora de "m" | "f" é recusado. */
+export interface CreateCharacterRequest { session: string; name: string; vocation: Vocation; sex?: Sex }
 export interface PlayRequest { session: string; name: string }
 export type PlayResponse = { ok: true; token: string; name: string; vocation: Vocation } | AuthFail;
 /**

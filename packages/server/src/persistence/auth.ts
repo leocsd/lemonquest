@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { promisify } from "node:util";
 import { Router, type Response } from "express";
 import {
-  MAX_CHARACTERS_PER_ACCOUNT, MAX_NAME_LEN, VOCATIONS,
+  MAX_CHARACTERS_PER_ACCOUNT, MAX_NAME_LEN, VOCATIONS, isSex, type Sex,
   type AccountSession, type AuthFail, type CharacterSummary, type CreateCharacterRequest, type DeleteCharacterRequest,
   type LoginRequest, type PlayRequest, type PlayResponse, type ResetPasswordRequest,
 } from "@lemonquest/shared";
@@ -210,7 +210,7 @@ function dropSession(token: string) {
 
 export function summarize(rec: CharacterRecord): CharacterSummary {
   const look = loadOutfit(rec);
-  const s: CharacterSummary = { name: rec.name, vocation: rec.vocation, level: rec.level, outfit: look.outfit, addons: look.addons };
+  const s: CharacterSummary = { name: rec.name, vocation: rec.vocation, level: rec.level, outfit: look.outfit, addons: look.addons, sex: look.sex };
   const t = rec.data.offlineTraining;
   if (t && typeof t.skill === "string" && typeof t.sinceMs === "number") s.training = { skill: t.skill, sinceMs: t.sinceMs };
   if (online.has(nameKey(rec.name))) s.online = true;
@@ -310,6 +310,9 @@ export function handleCreateCharacter(req: CreateCharacterRequest, ctx: LoginCon
   const name = normalizeName(req.name);
   if (!name || !isPlainNewName(name)) return fail("invalid_name");
   if (!VOCATIONS.includes(req.vocation)) return fail("invalid_request");
+  // Sexo: ausente = "m" (clientes antigos, scripts de teste); qualquer outro valor é pedido inválido.
+  if (req.sex !== undefined && !isSex(req.sex)) return fail("invalid_request");
+  const sex: Sex = req.sex ?? "m";
   // Nome de admin livre (admin excluiu/ainda não criou o personagem) não pode ser pego por qualquer conta: admin é
   // decidido pelo nome. Responde "name_taken" para não revelar quem é admin.
   if (!e2eMode() && isReservedAdminName(name) && !adminAccounts().has(nameKey(s.account))) {
@@ -319,11 +322,11 @@ export function handleCreateCharacter(req: CreateCharacterRequest, ctx: LoginCon
   if (getCharacterByName(name)) return fail("name_taken");
   let rec;
   try {
-    rec = createCharacter(s.accountId, name, req.vocation, starterKit(req.vocation));
+    rec = createCharacter(s.accountId, name, req.vocation, { ...starterKit(req.vocation), sex });
   } catch {
     return fail("name_taken");
   }
-  console.log(`[auth] personagem criado: ${rec.name} (${rec.vocation}) na conta ${s.account}`);
+  console.log(`[auth] personagem criado: ${rec.name} (${rec.vocation}, ${sex}) na conta ${s.account}`);
   return sessionResponse(req.session, s);
 }
 

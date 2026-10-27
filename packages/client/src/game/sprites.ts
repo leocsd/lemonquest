@@ -1,8 +1,8 @@
 // Configuração ÚNICA de sprites de personagem. Trocar o pack de arte = mexer só aqui.
 import type Phaser from "phaser";
 import {
-  ADDON_FRAME, ADDON_OFFSET_Y, OUTFIT_LIST, activeAddons, resolveOutfit, toneColor,
-  type Facing, type OutfitDef,
+  ADDON_FRAME, ADDON_OFFSET_Y, OUTFIT_LIST, activeAddons, addonLayers, resolveOutfit, toneColor,
+  type AddonDef, type AddonSheets, type Facing, type Sex,
 } from "@lemonquest/shared";
 import { colorizedCanvas } from "../ui/outfit/colorize.ts";
 
@@ -66,34 +66,51 @@ export function gridSheet(key: string, url: string, frameWidth: number, frameHei
 const OUTFIT_SHEETS: Record<string, CharacterSheet> = Object.fromEntries(
   OUTFIT_LIST.map((o) => [o.id, ninjaAdventure(`outfit_${o.id}`, o.sheet)]),
 );
-/** Overlays (frente/trás) de cada addon. */
+/**
+ * Sheet feminina (chave própria `outfit_<id>_f`, então a textura tingida `chave~tom` também fica por sexo). Roupa sem
+ * versão feminina usa a mesma sheet (e a mesma textura) dos dois sexos.
+ */
+const OUTFIT_SHEETS_F: Record<string, CharacterSheet> = Object.fromEntries(
+  OUTFIT_LIST.map((o) => [o.id, o.female ? ninjaAdventure(`outfit_${o.id}_f`, o.female) : OUTFIT_SHEETS[o.id]!]),
+);
+const addonPair = (key: string, s: AddonSheets) => ({
+  front: gridSheet(key, s.sheet, ADDON_FRAME, ADDON_FRAME),
+  back: s.backSheet ? gridSheet(`${key}_back`, s.backSheet, ADDON_FRAME, ADDON_FRAME) : undefined,
+});
+/** Chave do addon no sexo: `<id>` ou `<id>_f` (overlay redesenhado para a sheet feminina, se houver). */
+const addonKey = (a: AddonDef, sex: Sex | undefined) => (sex === "f" && a.female ? `${a.id}_f` : a.id);
+/** Overlays (frente/trás) de cada addon, e os femininos que o gerador redesenhou. */
 const ADDON_SHEETS: Record<string, { front: CharacterSheet; back?: CharacterSheet }> = Object.fromEntries(
-  OUTFIT_LIST.flatMap((o) => o.addons).map((a) => [a.id, {
-    front: gridSheet(`addon_${a.id}`, a.sheet, ADDON_FRAME, ADDON_FRAME),
-    back: a.backSheet ? gridSheet(`addon_${a.id}_back`, a.backSheet, ADDON_FRAME, ADDON_FRAME) : undefined,
-  }]),
+  OUTFIT_LIST.flatMap((o) => o.addons).flatMap((a) => [
+    [a.id, addonPair(`addon_${a.id}`, a)] as const,
+    ...(a.female ? [[`${a.id}_f`, addonPair(`addon_${a.id}_f`, a.female)] as const] : []),
+  ]),
 );
 
 /** Origem Y (0..1) dos overlays: o pé da base (linha 16 do frame base) dentro do frame 32x32. */
 export const ADDON_ORIGIN_Y = (ADDON_OFFSET_Y + 16) / ADDON_FRAME;
 
-/** Sheets base das roupas (animações de caminhada são criadas para estas). */
-export const ALL_SHEETS: CharacterSheet[] = Object.values(OUTFIT_SHEETS);
+/** Sheets base das roupas nos dois sexos, sem repetir (animações de caminhada são criadas para estas). */
+export const ALL_SHEETS: CharacterSheet[] = [...new Set([...Object.values(OUTFIT_SHEETS), ...Object.values(OUTFIT_SHEETS_F)])];
 /** Overlays de addon (só carregados; o frame segue a base). */
 export const ADDON_SHEET_LIST: CharacterSheet[] = Object.values(ADDON_SHEETS).flatMap((s) => (s.back ? [s.front, s.back] : [s.front]));
 
-/** Visual de um jogador: roupa + addons ativos + tom de tingimento (roupa desconhecida/ausente → padrão da vocação). */
-export function outfitLook(outfit: string | undefined, addons: number, vocation: string, tone?: string): CharacterLook {
+/**
+ * Visual de um jogador: roupa + addons ativos + tom de tingimento, no sexo (ausente = masculino). Roupa
+ * desconhecida/ausente → padrão da vocação.
+ */
+export function outfitLook(outfit: string | undefined, addons: number, vocation: string, tone?: string, sex?: Sex): CharacterLook {
   const o = resolveOutfit(outfit, vocation);
   const on = activeAddons(o, addons ?? 0);
   const layers: AddonLayer[] = [];
   for (const a of on) {
-    const s = ADDON_SHEETS[a.id];
+    const s = ADDON_SHEETS[addonKey(a, sex)]!;
     if (s.back) layers.push({ sheet: s.back, back: true });
     layers.push({ sheet: s.front, back: false });
   }
   return {
-    sheet: OUTFIT_SHEETS[o.id], tint: 0xffffff, tone: toneColor(tone), addons: layers, extraTop: Math.max(0, ...on.map((a) => a.extraTop)),
+    sheet: (sex === "f" ? OUTFIT_SHEETS_F : OUTFIT_SHEETS)[o.id]!, tint: 0xffffff, tone: toneColor(tone), addons: layers,
+    extraTop: Math.max(0, ...on.map((a) => addonLayers(a, sex).extraTop)),
   };
 }
 
@@ -119,11 +136,6 @@ export function tonedSheet(scene: Phaser.Scene, sheet: CharacterSheet, tone: num
 /** Compatibilidade: visual padrão da vocação, sem addons. */
 export function lookFor(vocation: string): CharacterLook {
   return outfitLook(undefined, 0, vocation);
-}
-
-/** Retrato (Faceset 38x38 do pack) da roupa. */
-export function outfitFaceset(o: OutfitDef): string {
-  return o.faceset ?? o.sheet.replace(/SpriteSheet\.png$/, "Faceset.png");
 }
 
 /** Nome da animação de caminhada de um sheet para um lado. */

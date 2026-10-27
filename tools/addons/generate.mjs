@@ -8,9 +8,12 @@
 // balanço da caminhada e capas seguem o corpo nos 4 lados. Saída por addon:
 //   <id>.png       camada da FRENTE (desenhada por cima da base)
 //   <id>_back.png  camada de TRÁS (desenhada atrás da base) — só se o addon tiver algo atrás
+//   <id>_f.png / <id>_f_back.png  o mesmo addon redesenhado sobre a sheet FEMININA da roupa, quando sai diferente
 // Layout = o das sheets do pack (4 colunas = baixo/cima/esquerda/direita, 7 linhas), com frames 32x32
 // e o frame 16x16 da base posicionado em (OX, OY).
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+// Também gera as bases próprias (base_mago.png e as femininas base_<id>_f.png, com retratos) e preview_sexo.png
+// (os dois sexos lado a lado).
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
@@ -925,6 +928,201 @@ function generateBases() {
   }
 }
 
+// ---------------------------------------------------------------- bases femininas (OutfitDef.female)
+// Cada roupa tem uma sheet por sexo. As que o pack tem (Woman, Princess, Cavegirl...) entram direto no catálogo; as que
+// não tem saem daqui, a partir de uma sheet feminina do pack (`src`):
+//   1) troca de paleta (`all` na sheet toda; `head` acima do pescoço das âncoras, `body` dali para baixo), mantendo o
+//      sombreado do pack;
+//   2) `hat`: o que cobre a cabeça na roupa masculina (turbante, crânio de leão, chapéu de palha) é copiado frame a frame
+//      da sheet dele — só os pixels nas cores do chapéu (e o contorno encostado neles) nas `rows` linhas do topo,
+//      balançando com a cabeça DELA; o cabelo dela acima some e o das últimas `keep` linhas fica (escapa pelos lados),
+//      e o contorno de 1 px é fechado onde faltar.
+// O retrato (38x38) passa pelo mesmo processo com cortes fixos: `split` (cabeça/corpo), `clearTo` (acima, só o chapéu)
+// e `pasteTo` (até aqui o chapéu cobre; entre os dois, o cabelo dela aparece onde o chapéu não tem pixel).
+// Escolhas de arte: Maga = Woman de cabelo branco e vestido azul-violeta (cores da túnica do base_mago; a alça dourada
+// fica); Mendiga = OldWoman (só 2 linhas no pack: caminhada 0,1,0,1); Oriental = Princess com o turbante do Sultan2 e
+// saia vinho/vermelha (blusa já dourada como a capa dele); Domadora = Cavegirl com o crânio do ShamanLion, cabelo vinho
+// de juba e saia oliva; Peregrina = OldWoman de cabelo branco (a barba dele) com o chapéu de palha do OldMan3 e manto
+// escuro; Monja = Woman de cabelo escuro e túnica verde com faixa rosa (cores do Monk).
+const PACK = "ninja/Actor/Character/";
+const OLDWOMAN_ROWS = [0, 1, 0, 1, 0, 1, 0];
+const WOMAN_MAGA = { "#f1c471": "#f2eaf1", "#d78b4a": "#d6d8dc" };
+const WOMAN_MONJA = { "#f1c471": "#4e484a", "#d78b4a": "#3b3643" };
+const OLD_WHITE = { "#d3a2c0": "#f2eaf1", "#a5608b": "#d6d8dc", "#f2eaf1": "#ffffff" };
+const FEMALE_BASES = {
+  mago: {
+    src: "Woman",
+    head: { ...WOMAN_MAGA, "#79b8ce": "#7b86dc", "#548789": "#5560b8" },
+    body: { "#79b8ce": "#7b86dc", "#548789": "#5560b8" },
+    face: { split: 28 },
+  },
+  mendigo: { src: "OldWoman", rows: OLDWOMAN_ROWS },
+  oriental: {
+    src: "Princess",
+    body: { "#8d977f": "#8f3e56", "#abc2bc": "#e0394c" },
+    hat: { from: "Sultan2", colors: ["#fce2ca", "#c8966b", "#e0394c", "#8f3e56"], rows: 8, keep: 2 },
+    face: { split: 27, hat: { colors: ["#fce2ca", "#c8966b", "#e0394c", "#8f3e56", "#543c52"], clearTo: 13, pasteTo: 21 } },
+  },
+  domador: {
+    src: "Cavegirl",
+    all: { "#56864c": "#8f3e56", "#345a52": "#5a2a3e", "#a3754e": "#a8a129", "#965340": "#56864c" },
+    head: { "#4e484a": "#5a2a3e" },
+    body: { "#4e484a": "#345a52" },
+    hat: { from: "ShamanLion", colors: ["#fce2ca", "#c8966b"], rows: 6, keep: 2 },
+    face: { split: 32, hat: { colors: ["#fce2ca", "#c8966b", "#5f7160"], clearTo: 8, pasteTo: 19, holes: true } },
+  },
+  peregrino: {
+    src: "OldWoman", rows: OLDWOMAN_ROWS,
+    all: OLD_WHITE,
+    body: { "#548789": "#4e484a", "#2d697b": "#3b3643", "#4e484a": "#965340" },
+    hat: { from: "OldMan3", colors: ["#f1c471", "#d78b4a", "#e3f1f5"], rows: 9, keep: 2 },
+    face: { split: 30, hat: { colors: ["#f1c471", "#d78b4a", "#e3f1f5"], clearTo: 10, pasteTo: 16 } },
+  },
+  monge: {
+    src: "Woman",
+    head: { ...WOMAN_MONJA, "#79b8ce": "#56864c", "#548789": "#345a52" },
+    body: { "#79b8ce": "#56864c", "#548789": "#345a52", "#f1c471": "#d3a2c0", "#d78b4a": "#a5608b" },
+    face: { split: 28 },
+  },
+};
+/** Retratos femininos do pack fora de 38x38 (o da Cavegirl2 tem 37 de largura: falta a 1ª coluna, só fundo). */
+const FEMALE_FACE_PAD = { barbaro: "Cavegirl2" };
+const OUTLINE_HEX = rgbHex(...OUTLINE);
+const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+/** Sheet do pack; `rows` remonta as linhas (OldWoman tem 64x32: vira 64x112 repetindo as 2 que existem). */
+function packSheet(name, rows) {
+  const png = readSheet(join(root, "assets", PACK, name, "SpriteSheet.png"));
+  if (!rows) return png;
+  const out = new PNG({ width: png.width, height: rows.length * 16 });
+  const line = png.width * 16 * 4;
+  rows.forEach((r, k) => png.data.copy(out.data, k * line, r * line, (r + 1) * line));
+  return out;
+}
+
+/** Troca a cor do pixel i pelo primeiro mapa que a tiver (pixel transparente fica). */
+function recolorAt(d, i, ...maps) {
+  if (d[i + 3] < 128) return;
+  const h = rgbHex(d[i], d[i + 1], d[i + 2]);
+  for (const m of maps) {
+    const to = m?.[h];
+    if (to) { const c = hex(to); d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; return; }
+  }
+}
+
+/** Leitor de cor (hex ou null se transparente/fora) de uma imagem, com origem (ox, oy) e tamanho w×h. */
+function pixelReader(png, ox, oy, w, h) {
+  return (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return null;
+    const i = ((oy + y) * png.width + ox + x) * 4;
+    return png.data[i + 3] >= 128 ? rgbHex(png.data[i], png.data[i + 1], png.data[i + 2]) : null;
+  };
+}
+
+/**
+ * Pixel do chapéu: cor do chapéu, ou contorno encostado (4 lados) numa cor dele dentro das linhas do chapéu. `holes`:
+ * contorno cercado pelo chapéu (cor dele à esquerda, à direita e acima) também é chapéu — os olhos vazados do crânio.
+ */
+function hatMask(read, colors, bottom, holes = false) {
+  const has = (x, y) => colors.includes(read(x, y));
+  const scan = (x, y, dx, dy) => { for (let k = 1; k < 40; k++) { const X = x + dx * k, Y = y + dy * k; const c = read(X, Y); if (!c) return false; if (colors.includes(c)) return true; if (c !== OUTLINE_HEX) return false; } return false; };
+  return (x, y) => {
+    if (y > bottom) return false;
+    const c = read(x, y);
+    if (!c) return false;
+    if (colors.includes(c)) return true;
+    if (c !== OUTLINE_HEX) return false;
+    if (N4.some(([dx, dy]) => y + dy <= bottom && has(x + dx, y + dy))) return true;
+    return holes && scan(x, y, -1, 0) && scan(x, y, 1, 0) && scan(x, y, 0, -1);
+  };
+}
+
+/** Chapéu da sheet masculina sobre o frame (col,row) da feminina (ver o comentário da seção). */
+function pasteHat(out, W, hatPng, h, col, row, fa, fa0) {
+  const ha = computeAnchors(hatPng, col, row), ha0 = computeAnchors(hatPng, col, 0);
+  const dy = (fa.top - fa0.top) - (ha.top - ha0.top);
+  const bottom = ha.top + h.rows - 1;
+  const read = pixelReader(hatPng, col * 16, row * 16, 16, 16);
+  const isHat = hatMask(read, h.colors, bottom);
+  const px = (x, y) => ((row * 16 + y) * W + col * 16 + x) * 4;
+  const last = Math.min(15, bottom + dy);
+  for (let y = 0; y <= last; y++) for (let x = 0; x < 16; x++) {
+    const i = px(x, y), hy = y - dy;
+    if (hy >= 0 && isHat(x, hy)) {
+      const j = ((row * 16 + hy) * hatPng.width + col * 16 + x) * 4;
+      out[i] = hatPng.data[j]; out[i + 1] = hatPng.data[j + 1]; out[i + 2] = hatPng.data[j + 2]; out[i + 3] = 255;
+    } else if (y <= last - h.keep) out[i + 3] = 0;
+  }
+  // contorno de 1 px onde o cabelo cortado ficou aberto (só nas linhas do chapéu: o resto da sheet é do pack)
+  const op = (x, y) => x >= 0 && y >= 0 && x < 16 && y < 16 && out[px(x, y) + 3] >= 128;
+  const add = [];
+  for (let y = 0; y <= Math.min(15, last + 1); y++) for (let x = 0; x < 16; x++) {
+    if (op(x, y)) continue;
+    if (N4.some(([ddx, ddy]) => { if (!op(x + ddx, y + ddy)) return false; const k = px(x + ddx, y + ddy); return rgbHex(out[k], out[k + 1], out[k + 2]) !== OUTLINE_HEX; })) add.push([x, y]);
+  }
+  for (const [x, y] of add) { const i = px(x, y); out[i] = OUTLINE[0]; out[i + 1] = OUTLINE[1]; out[i + 2] = OUTLINE[2]; out[i + 3] = 255; }
+}
+
+/** Retrato: recolor por região + chapéu do retrato masculino (fundo do retrato = cor do contorno). */
+function femaleFaceset(spec) {
+  const face = readSheet(join(root, "assets", PACK, spec.src, "Faceset.png"));
+  const fo = new Uint8Array(face.data);
+  const f = spec.face;
+  for (let y = 0; y < face.height; y++) for (let x = 0; x < face.width; x++) {
+    recolorAt(fo, (y * face.width + x) * 4, y < f.split ? f.head ?? spec.head : f.body ?? spec.body, f.all ?? spec.all);
+  }
+  if (f.hat) {
+    const hp = readSheet(join(root, "assets", PACK, spec.hat.from, "Faceset.png"));
+    const read = pixelReader(hp, 0, 0, hp.width, hp.height);
+    const isHat = hatMask(read, f.hat.colors, f.hat.pasteTo, f.hat.holes);
+    const dark = (i) => { fo[i] = OUTLINE[0]; fo[i + 1] = OUTLINE[1]; fo[i + 2] = OUTLINE[2]; fo[i + 3] = 255; };
+    for (let y = 0; y <= f.hat.pasteTo; y++) for (let x = 0; x < face.width; x++) {
+      const i = (y * face.width + x) * 4;
+      if (isHat(x, y)) { const j = (y * hp.width + x) * 4; fo[i] = hp.data[j]; fo[i + 1] = hp.data[j + 1]; fo[i + 2] = hp.data[j + 2]; fo[i + 3] = 255; }
+      else if (y <= f.hat.clearTo) dark(i);
+    }
+    // borda de baixo do chapéu cortado: contorno entre ele e o cabelo/rosto dela
+    const yb = f.hat.pasteTo;
+    for (let x = 0; x < face.width; x++) if (f.hat.colors.includes(read(x, yb))) dark(((yb + 1) * face.width + x) * 4);
+  }
+  return { w: face.width, h: face.height, data: fo };
+}
+
+function generateFemaleBases() {
+  for (const o of OUTFIT_LIST) {
+    if (FEMALE_FACE_PAD[o.id]) {
+      if (!o.facesetF?.startsWith("addons/")) throw new Error(`${o.id}: retrato completado precisa de facesetF = addons/...`);
+      const f = readSheet(join(root, "assets", PACK, FEMALE_FACE_PAD[o.id], "Faceset.png"));
+      const W = 38, dx = W - f.width, out = new Uint8Array(W * f.height * 4);
+      for (let y = 0; y < f.height; y++) for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4, j = (y * f.width + x - dx) * 4;
+        const c = x < dx ? [...OUTLINE, 255] : f.data.subarray(j, j + 4);
+        out[i] = c[0]; out[i + 1] = c[1]; out[i + 2] = c[2]; out[i + 3] = c[3];
+      }
+      writePng(join(root, "assets", o.facesetF), W, f.height, out);
+    }
+    const spec = FEMALE_BASES[o.id];
+    if (!spec) continue;
+    if (!o.female?.startsWith("addons/")) throw new Error(`${o.id}: base feminina gerada precisa de female = addons/... em outfits.ts`);
+    const src = packSheet(spec.src, spec.rows);
+    const hat = spec.hat && packSheet(spec.hat.from);
+    const out = new Uint8Array(src.data);
+    for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
+      const fa = computeAnchors(src, col, row), fa0 = computeAnchors(src, col, 0);
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        recolorAt(out, ((row * 16 + y) * src.width + col * 16 + x) * 4, y < fa.neck ? spec.head : spec.body, spec.all);
+      }
+      if (hat) pasteHat(out, src.width, hat, spec.hat, col, row, fa, fa0);
+    }
+    writePng(join(root, "assets", o.female), src.width, src.height, out);
+    if (spec.face) {
+      if (!o.facesetF?.startsWith("addons/")) throw new Error(`${o.id}: retrato feminino gerado precisa de facesetF = addons/...`);
+      const r = femaleFaceset(spec);
+      writePng(join(root, "assets", o.facesetF), r.w, r.h, r.data);
+    }
+  }
+}
+
 // ---------------------------------------------------------------- geração
 function frameAnchors(base, col, row) {
   const a = computeAnchors(base, col, row);
@@ -944,51 +1142,76 @@ function writePng(path, w, h, data) {
   writeFileSync(path, PNG.sync.write(png, { colorType: 6 }));
 }
 
+/** Desenha um addon inteiro (4x7 frames) com as âncoras de `base`: camadas da frente/trás e quanto sobe acima da cabeça. */
+function drawAddon(ad, base) {
+  const draw = DRAW[ad.id];
+  if (!draw) throw new Error(`addon sem desenho: ${ad.id}`);
+  const SW = COLS * FW, SH = ROWS * FH;
+  const front = new Uint8Array(SW * SH * 4), back = new Uint8Array(SW * SH * 4);
+  let hasBack = false, minY = Infinity;
+  for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
+    const a = frameAnchors(base, col, row);
+    const F = new Layer(), B = new Layer();
+    draw(F, B, a);
+    const fr = renderLayer(F), br = renderLayer(B);
+    if (B.any()) hasBack = true;
+    blitFrame(front, SW, fr, col, row); blitFrame(back, SW, br, col, row);
+    if (row < 4) for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (fr[(y * FW + x) * 4 + 3] || br[(y * FW + x) * 4 + 3]) { minY = Math.min(minY, y - OY - a.top); break; }
+  }
+  return { def: ad, front, back: hasBack ? back : null, SW, SH, extraTop: Math.max(0, -(Number.isFinite(minY) ? minY : 0)) };
+}
+
+const sameBytes = (a, b) => (!a && !b) || (!!a && !!b && Buffer.compare(Buffer.from(a), Buffer.from(b)) === 0);
+
 export function generateAll() {
   mkdirSync(OUT_DIR, { recursive: true });
   const manifest = { frameWidth: FW, frameHeight: FH, offsetX: OX, offsetY: OY, addons: {} };
-  const extraTop = {};
+  const extraTop = {}, extraTopF = {};
   const results = [];
   const mismatches = [];
   generateBases();
+  generateFemaleBases();
   for (const o of OUTFIT_LIST) {
     const base = readSheet(join(root, "assets", o.sheet));
-    const outfitRes = { outfit: o, base, addons: [] };
+    const baseF = o.female ? readSheet(join(root, "assets", o.female)) : null;
+    const outfitRes = { outfit: o, base, addons: [], baseF: baseF ?? base, addonsF: [] };
     for (const ad of o.addons) {
-      const draw = DRAW[ad.id];
-      if (!draw) throw new Error(`addon sem desenho: ${ad.id}`);
-      const SW = COLS * FW, SH = ROWS * FH;
-      const front = new Uint8Array(SW * SH * 4), back = new Uint8Array(SW * SH * 4);
-      let hasBack = false, minY = Infinity;
-      const frames = [];
-      for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
-        const a = frameAnchors(base, col, row);
-        const F = new Layer(), B = new Layer();
-        draw(F, B, a);
-        const fr = renderLayer(F), br = renderLayer(B);
-        if (B.any()) hasBack = true;
-        blitFrame(front, SW, fr, col, row); blitFrame(back, SW, br, col, row);
-        if (row < 4) for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (fr[(y * FW + x) * 4 + 3] || br[(y * FW + x) * 4 + 3]) { minY = Math.min(minY, y - OY - a.top); break; }
-        frames.push({ col, row, fr, br });
+      const r = drawAddon(ad, base);
+      if (!!r.back !== !!ad.backSheet) { mismatches.push(`${ad.id}: catálogo back=${!!ad.backSheet}, desenho back=${!!r.back}`); continue; }
+      writePng(join(root, "assets", ad.sheet), r.SW, r.SH, r.front);
+      if (r.back) writePng(join(root, "assets", ad.backSheet), r.SW, r.SH, r.back);
+      extraTop[ad.id] = r.extraTop;
+      manifest.addons[ad.id] = { outfit: o.id, name: ad.name, front: ad.sheet, back: r.back ? ad.backSheet : null, extraTop: r.extraTop };
+      outfitRes.addons.push(r);
+      // Versão feminina: o mesmo desenho com as âncoras da sheet dela (chapéu no cabelo dela). Só grava `<id>_f` quando
+      // sai diferente do masculino; o catálogo descobre pelo ADDON_FEMALE_EXTRA_TOP gerado abaixo.
+      const fFront = `addons/${ad.id}_f.png`, fBack = `addons/${ad.id}_f_back.png`;
+      let rf = baseF ? drawAddon(ad, baseF) : null;
+      if (rf && !!rf.back !== !!r.back) { mismatches.push(`${ad.id}: overlay feminino back=${!!rf.back}, masculino back=${!!r.back}`); rf = null; }
+      if (rf && sameBytes(rf.front, r.front) && sameBytes(rf.back, r.back)) rf = null;
+      for (const p of rf ? (rf.back ? [] : [fBack]) : [fFront, fBack]) if (existsSync(join(root, "assets", p))) unlinkSync(join(root, "assets", p));
+      if (rf) {
+        writePng(join(root, "assets", fFront), rf.SW, rf.SH, rf.front);
+        if (rf.back) writePng(join(root, "assets", fBack), rf.SW, rf.SH, rf.back);
+        extraTopF[ad.id] = rf.extraTop;
+        manifest.addons[ad.id].female = { front: fFront, back: rf.back ? fBack : null, extraTop: rf.extraTop };
       }
-      if (hasBack !== !!ad.backSheet) { mismatches.push(`${ad.id}: catálogo back=${!!ad.backSheet}, desenho back=${hasBack}`); continue; }
-      writePng(join(root, "assets", ad.sheet), SW, SH, front);
-      if (hasBack) writePng(join(root, "assets", ad.backSheet), SW, SH, back);
-      extraTop[ad.id] = Math.max(0, -(Number.isFinite(minY) ? minY : 0));
-      manifest.addons[ad.id] = { outfit: o.id, name: ad.name, front: ad.sheet, back: hasBack ? ad.backSheet : null, extraTop: extraTop[ad.id] };
-      outfitRes.addons.push({ def: ad, front, back: hasBack ? back : null, SW });
+      outfitRes.addonsF.push(rf ?? r);
     }
     results.push(outfitRes);
   }
   if (mismatches.length) throw new Error("Ajuste backSheet em outfits.ts:\n  " + mismatches.join("\n  "));
   writeFileSync(join(OUT_DIR, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-  const ts = "// GERADO por tools/addons/generate.mjs — não edite à mão.\nexport const ADDON_EXTRA_TOP: Record<string, number> = {\n" +
-    Object.entries(extraTop).map(([k, v]) => `  ${k}: ${v},`).join("\n") + "\n};\n";
+  const table = (name, t) => `export const ${name}: Record<string, number> = {\n` + Object.entries(t).map(([k, v]) => `  ${k}: ${v},\n`).join("") + "};\n";
+  const ts = "// GERADO por tools/addons/generate.mjs — não edite à mão.\n" + table("ADDON_EXTRA_TOP", extraTop) +
+    "/** Addons com overlay próprio para a sheet feminina (addons/<id>_f.png): px acima da cabeça dela. */\n" +
+    table("ADDON_FEMALE_EXTRA_TOP", extraTopF);
   writeFileSync(join(root, "packages/shared/src/data/outfitsExtraTop.ts"), ts);
   writePreview(results, false);
   writePreview(results, true);
   writeOutfitPreview(results.find((r) => r.outfit.id === "mago"), "preview_mago.png");
   writeFixesPreview(results);
+  writeSexPreview(results);
   return results;
 }
 
@@ -1085,7 +1308,44 @@ function writePreview(results, walk) {
   writePng(join(OUT_DIR, walk ? "preview_walk.png" : "preview.png"), W, H, out);
 }
 
+/**
+ * Os dois sexos lado a lado (4x, de frente): por roupa, ♂ sem addons, ♂ com os 2, ♀ sem, ♀ com os 2 (overlays dela).
+ * Duas colunas de roupas (faixa escura entre elas); linha clara à esquerda das femininas.
+ */
+function writeSexPreview(results) {
+  const S = 4, CW = 28, CH = 30, cx0 = OX - 6, cy0 = OY - 12, GAP = 3, SEP = 10;
+  const half = Math.ceil(results.length / 2);
+  const groupW = 4 * CW + GAP;
+  const W = 2 * groupW + SEP, H = half * CH;
+  const out = new Uint8Array(W * S * H * S * 4);
+  const WS = W * S;
+  for (let y = 0; y < H * S; y++) for (let x = 0; x < WS; x++) {
+    const i = (y * WS + x) * 4, k = ((x / (S * 8) | 0) + (y / (S * 8) | 0)) % 2;
+    out[i] = k ? 92 : 84; out[i + 1] = k ? 138 : 128; out[i + 2] = k ? 84 : 78; out[i + 3] = 255;
+  }
+  const put = (X, Y, c) => { for (let a = 0; a < S; a++) for (let b = 0; b < S; b++) { const i = ((Y * S + a) * WS + X * S + b) * 4; out[i] = c[0]; out[i + 1] = c[1]; out[i + 2] = c[2]; } };
+  const blit = (src, sw, sx, sy, w, h, dx, dy) => {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = ((sy + y) * sw + sx + x) * 4; if (src[i + 3] >= 128) put(dx + x, dy + y, [src[i], src[i + 1], src[i + 2]]); }
+  };
+  const cell = (base, addons, dx, dy) => {
+    for (const ad of addons) if (ad.back) blit(ad.back, ad.SW, cx0, cy0, CW, CH, dx, dy);
+    blit(base.data, base.width, 0, 0, 16, 16, dx + (OX - cx0), dy + (OY - cy0));
+    for (const ad of addons) blit(ad.front, ad.SW, cx0, cy0, CW, CH, dx, dy);
+  };
+  for (let y = 0; y < H; y++) for (let x = groupW; x < groupW + SEP; x++) put(x, y, [38, 52, 36]);
+  results.forEach((r, k) => {
+    const gx = (k >= half ? groupW + SEP : 0), gy = (k % half) * CH;
+    for (let y = 0; y < CH; y++) put(gx + 2 * CW, gy + y, [214, 216, 220]);
+    cell(r.base, [], gx, gy);
+    cell(r.base, r.addons, gx + CW, gy);
+    cell(r.baseF, [], gx + 2 * CW + GAP, gy);
+    cell(r.baseF, r.addonsF, gx + 3 * CW + GAP, gy);
+  });
+  writePng(join(OUT_DIR, "preview_sexo.png"), WS, H * S, out);
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const r = generateAll();
-  console.log(`addons: ${r.reduce((s, o) => s + o.addons.length, 0)} overlays de ${r.length} roupas → assets/addons/`);
+  const f = r.reduce((s, o) => s + o.addonsF.filter((a, i) => a !== o.addons[i]).length, 0);
+  console.log(`addons: ${r.reduce((s, o) => s + o.addons.length, 0)} overlays de ${r.length} roupas (+${f} femininos) → assets/addons/`);
 }

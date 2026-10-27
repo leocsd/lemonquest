@@ -30,6 +30,16 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), inset 0 -24px 30px rgba(0, 0, 0, 0.18);
 }
 .outfit-preview canvas { display: block; }
+/* Sexo (♂/♀) no canto da prévia. Fonte no contêiner: o "#ui button { font: inherit }" do hud.css vence a classe. */
+.outfit-preview { position: relative; }
+.outfit-sex { position: absolute; top: 6px; right: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1; }
+.outfit-sex-btn {
+  width: 26px; height: 24px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  background: rgba(0, 0, 0, 0.45); border: 1px solid var(--hud-line); border-radius: 4px; color: var(--hud-muted) !important;
+}
+.outfit-sex-btn:hover { border-color: var(--hud-line-hi); color: var(--hud-text) !important; }
+.outfit-sex-btn.sel { border-color: var(--hud-gold); color: var(--hud-gold) !important; background: rgba(217, 164, 65, 0.15); }
+.outfit-sex-btn:focus-visible { outline: 2px dashed var(--hud-gold); outline-offset: 1px; }
 .outfit-rotate { height: 22px; display: flex; align-items: center; gap: 8px; }
 .outfit-arrow {
   width: 26px; height: 22px; padding: 0; cursor: pointer; font-size: 10px; line-height: 1;
