@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GROUP_MAX, GROUP_SPELLS_MAX, HOTKEY_MAX, familyDef, keyLabel, type SpellGroup } from "@lemonquest/shared";
-import { addSpell, createGroup, deleteGroup, moveSpell, placeGroup, removeSpell, renameGroup } from "./groupsEdit.ts";
+import { addSpell, createGroup, deleteGroup, moveSpell, placeGroup, removeSpell, renameGroup, sortStrongest } from "./groupsEdit.ts";
 
 const G: SpellGroup[] = [{ id: "fam:my:1", name: "Fogo", spells: ["fireball", "sudden_death", "energy_beam"] }];
 
@@ -41,5 +41,19 @@ describe("edição dos grupos de magia", () => {
     expect(placeGroup(r.list, "fam:my:1", keyLabel).message).toBe("Já está na tecla 2.");
     const full = Array.from({ length: HOTKEY_MAX }, (_, i) => ({ key: `Key${"BCFGTUVXYZNP"[i]}`, spellId: `s${i}` }));
     expect(placeGroup(full, "fam:my:1", keyLabel)).toMatchObject({ error: true });
+  });
+
+  it("mais forte primeiro: level decrescente, mana em empate, estável; outros grupos e a original intactos", () => {
+    const gs: SpellGroup[] = [
+      { id: "fam:my:1", name: "x", spells: ["fireball", "fire_wave", "sudden_death", "energy_beam"] }, // lv 1, 35, 50, 20
+      { id: "fam:my:2", name: "y", spells: ["fireball"] },
+    ];
+    const out = sortStrongest(gs, "fam:my:1");
+    expect(out[0]!.spells).toEqual(["sudden_death", "fire_wave", "energy_beam", "fireball"]);
+    expect(out[1]!.spells).toEqual(["fireball"]);
+    expect(gs[0]!.spells[0]).toBe("fireball");
+    // Ids desconhecidos (magia removida numa atualização) contam como level 0 e mantêm a ordem entre si.
+    expect(sortStrongest([{ id: "fam:my:1", name: "x", spells: ["zz", "yy", "fireball"] }], "fam:my:1")[0]!.spells).toEqual(["fireball", "zz", "yy"]);
+    expect(sortStrongest(gs, "fam:my:9")).toEqual(gs);
   });
 });

@@ -1,7 +1,7 @@
 // Edição dos grupos de magia (painel "Grupos de magia"; puro, sem DOM: testável). As regras de validade são as do
 // servidor (shared/data/spellFamilies.ts: sanitizeSpellGroups); aqui só as operações do painel.
 import {
-  GROUP_MAX, GROUP_SPELLS_MAX, HOTKEY_MAX, cleanGroupName, nextFreeKey, nextGroupId,
+  GROUP_MAX, GROUP_SPELLS_MAX, HOTKEY_MAX, cleanGroupName, nextFreeKey, nextGroupId, spellDef,
   type Hotkey, type SpellFamily, type SpellGroup,
 } from "@lemonquest/shared";
 
@@ -60,6 +60,19 @@ export function moveSpell(groups: readonly SpellGroup[], id: string, from: numbe
   const [s] = g.spells.splice(from, 1);
   g.spells.splice(Math.max(0, Math.min(to, g.spells.length)), 0, s!);
   return out;
+}
+
+/** "Mais forte primeiro": level decrescente; em empate, mana base decrescente; empate total mantém a ordem atual. */
+export function sortStrongest(groups: readonly SpellGroup[], id: string): SpellGroup[] {
+  return copy(groups).map((g) => {
+    if (g.id !== id) return g;
+    const rank = (sid: string): [number, number] => { const d = spellDef(sid); return d ? [d.level, d.mana] : [0, 0]; };
+    const spells = g.spells
+      .map((s, i) => ({ s, i, r: rank(s) }))
+      .sort((a, b) => b.r[0] - a.r[0] || b.r[1] - a.r[1] || a.i - b.i)
+      .map((x) => x.s);
+    return { ...g, spells };
+  });
 }
 
 /** Põe o grupo numa tecla livre da barra (já está = só avisa a tecla). */
