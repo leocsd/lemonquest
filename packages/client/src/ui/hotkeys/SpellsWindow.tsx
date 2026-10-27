@@ -47,14 +47,15 @@ export function useMessage(): [Msg | null, (text?: string, error?: boolean) => v
  * Captura da próxima tecla para o atalho `slot` (null = desligada). Ouve na fase de captura, antes dos atalhos do jogo;
  * o Esc cancela pela pilha de sobreposições (entrada transitória no topo, tratada antes do Esc que fecha a janela);
  * clicar fora da faixa ou focar um campo de texto cancela (senão a captura engoliria o que for digitado).
- * `onResult(null)` = cancelada; com `error` a captura continua esperando (a faixa mostra o motivo).
+ * `onResult(null, why)` = cancelada, com o motivo: "esc" (a tecla) ou "fora" (clique/foco em outro lugar); com `error`
+ * a captura continua esperando (a faixa mostra o motivo).
  */
-function useKeyCapture(slot: number | null, voc: Vocation | undefined, onResult: (r: EditResult | null) => void): void {
+function useKeyCapture(slot: number | null, voc: Vocation | undefined, onResult: (r: EditResult | null, why?: "esc" | "fora") => void): void {
   const cb = useRef(onResult);
   cb.current = onResult;
   useLayoutEffect(() => {
     if (slot === null || !voc) return;
-    const offCapture = pushOverlay("hotkeys-capture", () => cb.current(null));
+    const offCapture = pushOverlay("hotkeys-capture", () => cb.current(null, "esc"));
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -63,7 +64,7 @@ function useKeyCapture(slot: number | null, voc: Vocation | undefined, onResult:
       if (!key) { cb.current({ list: effectiveHotkeys(voc), error: true, message: "Ctrl e Alt não podem: o navegador usa essas combinações." }); return; }
       cb.current(assignKey(effectiveHotkeys(voc), slot, key, hotkeyLabel));
     };
-    const cancel = (e: Event) => { if (!(e.target as HTMLElement | null)?.closest?.(".sw-capture")) cb.current(null); };
+    const cancel = (e: Event) => { if (!(e.target as HTMLElement | null)?.closest?.(".sw-capture")) cb.current(null, "fora"); };
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("pointerdown", cancel, true);
     window.addEventListener("focusin", cancel, true);
@@ -98,11 +99,19 @@ export function SpellsWindow() {
   // Seleção válida: a lista pode ter encolhido (tirar da barra, grupo excluído) ou enchido (o "+" some).
   const slot: Sel = typeof sel === "number" ? (sel < list.length ? sel : null) : sel === "new" && list.length < HOTKEY_MAX ? "new" : null;
 
-  /** Depois de a captura acabar ou de tirar um atalho, o botão que tinha o foco foi desmontado: foca o slot selecionado (ou o primeiro) da barra, no quadro seguinte, quando o DOM já foi redesenhado. */
-  const focusBar = () => requestAnimationFrame(() => (barRef.current?.querySelector<HTMLElement>(".sw-slot.sel") ?? barRef.current?.querySelector<HTMLElement>(".sw-slot"))?.focus());
+  /**
+   * Depois de a captura acabar (Esc ou tecla aceita) ou de tirar um atalho, o botão que tinha o foco foi desmontado:
+   * foca o slot selecionado (ou o primeiro) da barra, no quadro seguinte, quando o DOM já foi redesenhado. Só age se o
+   * foco caiu no body: clicar no chat (ou em outro campo) durante a captura cancela, e o foco já está onde o jogador quis.
+   */
+  const focusBar = () => requestAnimationFrame(() => {
+    const a = document.activeElement;
+    if (a && a !== document.body) return;
+    (barRef.current?.querySelector<HTMLElement>(".sw-slot.sel") ?? barRef.current?.querySelector<HTMLElement>(".sw-slot"))?.focus();
+  });
 
-  useKeyCapture(capturing, voc, (r) => {
-    if (!r) { setCapturing(null); say(undefined); focusBar(); return; }
+  useKeyCapture(capturing, voc, (r, why) => {
+    if (!r) { setCapturing(null); say(undefined); if (why === "esc") focusBar(); return; }
     say(r.message, r.error);
     if (r.error) return;
     setHotkeys(r.list);
