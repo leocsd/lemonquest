@@ -108,13 +108,13 @@ test("cavaleiro lv 50: Fúria (utito tempo) gasta mana e aparece nas condições
   await castWorks(page, "exori min", "front_sweep", false);
 });
 
-test("cavaleiro lv 100: Muralha de Escudos (utamo mas res) protege e aparece nas condições; a tecla 9 aparece na barra", async ({ page }) => {
+test("cavaleiro lv 100: Muralha de Escudos (utamo mas res) protege e aparece nas condições; a tecla 10 aparece na barra", async ({ page }) => {
   await enterGame(page, "knight");
   await setLevel(page, 100);
   const spot = (await walkableNear(page, FOREST.x, FOREST.y, 4))[0]!;
   await teleport(page, spot.x, spot.y);
   await castWorks(page, "utamo mas res", "shield_wall", false);
   await expect(page.locator(".conditions [data-tip^='Protegido']")).toHaveCount(1);
-  // Barra recomendada do cavaleiro: 9 teclas; no lv 100 todas liberadas, a última é a Muralha.
-  await expect(page.locator(".action-slot")).toHaveCount(9);
+  // Barra recomendada do cavaleiro: 10 teclas desde o Limpar Feridas (2026-10-27); no lv 100 todas liberadas, a última é a Muralha.
+  await expect(page.locator(".action-slot")).toHaveCount(10);
 });
