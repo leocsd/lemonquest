@@ -4,6 +4,9 @@ import type { ComponentChildren } from "preact";
 import { spellIcon } from "../hud/spellIcons.ts";
 import { KIND_LABEL, kindOf, shownSpell, subtitle, type SpellItem } from "./spellsModel.ts";
 
+/** Dado do arrastar de um tile: o id da magia/família/grupo (a barra da janela aceita e põe no slot). */
+export const DND_SPELL = "application/x-lq-spell";
+
 export interface TileProps {
   item: SpellItem;
   level: number;
@@ -32,6 +35,8 @@ export function SpellTile({ item, level, keyOf, active, disabled, onPick }: Tile
       aria-label={`${item.kind === "group" ? "grupo " : item.kind === "family" ? "família " : ""}${item.name}${keyOf ? `, tecla ${keyOf}` : ""}${spoken}`}
       disabled={disabled}
       onClick={() => onPick(item)}
+      draggable={!disabled}
+      onDragStart={(e) => { e.dataTransfer?.setData(DND_SPELL, item.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy"; }}
       data-tip={name}
       data-tip-sub={fam ? `Tecla inteligente: ${item.spells.map((x) => x.name).join(" → ") || "sem magias"}` : `${s?.words ?? ""} · ${s?.description ?? ""}`}
     >

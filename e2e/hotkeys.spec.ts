@@ -173,3 +173,28 @@ test("grupos: montar o próprio grupo no editor numerado, 'Mais forte primeiro',
   await win.getByRole("button", { name: "Editar grupo" }).click();
   await expect.poll(names).toEqual(["Onda de Fogo", "Bola de Fogo"]);
 });
+
+test("magias: arrastar um slot na janela reordena as magias e as teclas ficam", async ({ page }) => {
+  await enterGame(page, "sorcerer");
+  await setLevel(page, 20);
+  await page.keyboard.press("h");
+  const win = page.getByRole("dialog", { name: "Magias" });
+  await expect(win).toBeVisible();
+  const slots = win.locator(".sw-slot:not(.sw-slot-new)");
+  const names = async () => (await slots.locator(".sw-slot-name").allInnerTexts()).map((n) => n.trim());
+  const before = await names();
+  expect(before.length).toBeGreaterThan(2);
+  // O 3º slot solto na metade esquerda do 1º vai para a frente; os outros deslizam; as teclas continuam 1, 2, 3…
+  await slots.nth(2).dragTo(slots.nth(0), { targetPosition: { x: 4, y: 20 } });
+  await expect.poll(names).toEqual([before[2], before[0], before[1], ...before.slice(3)]);
+  await expect(slots.nth(0).locator(".sw-slot-key")).toHaveText("1");
+  await expect(slots.nth(1).locator(".sw-slot-key")).toHaveText("2");
+  // O botão ▶ do painel faz o mesmo pelo teclado: o slot selecionado volta uma casa para a direita.
+  await slots.nth(0).click();
+  await win.getByRole("button", { name: "Mover uma casa para a direita" }).click();
+  await expect.poll(names).toEqual([before[0], before[2], before[1], ...before.slice(3)]);
+  // A barra real segue a mesma ordem.
+  await page.keyboard.press("Escape");
+  await expect(win).toBeHidden();
+  await expect(page.locator(".action-slot").nth(1)).toHaveAttribute("data-tip", new RegExp(`^${esc(before[2]!)}`));
+});

@@ -12,11 +12,11 @@ import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { clampWindowPos, useWindowDrag } from "../hud/useWindowDrag.ts";
 import { meStore } from "../hud/world.ts";
 import { bindOverlay, pushOverlay } from "../overlays.ts";
-import { addSlot, assignKey, isModifierCode, removeRow, setRowSpell, type EditResult } from "./edit.ts";
+import { addSlot, assignKey, isModifierCode, moveHotkey, removeRow, setRowSpell, type EditResult } from "./edit.ts";
 import { createGroup } from "./groupsEdit.ts";
 import { GroupEditor } from "./GroupEditor.tsx";
 import { effectiveHotkeys, groupsStore, hotkeyLabel, hotkeysOpen, hotkeysStore, keyFromEvent, layoutStore, setHotkeys, setSpellGroups } from "./hotkeys.ts";
-import { SpellGrid, arrowNav } from "./SpellGrid.tsx";
+import { DND_SPELL, SpellGrid, arrowNav } from "./SpellGrid.tsx";
 import { itemFor, itemsFor, shownSpell, type SpellItem } from "./spellsModel.ts";
 import "./spells.css";
 
@@ -143,6 +143,24 @@ export function SpellsWindow() {
   // Grupo aberto no editor; se foi excluído (ou nunca existiu), volta à grade.
   const editingGroup = editing ? groups.find((g) => g.id === editing) ?? null : null;
 
+  /**
+   * Tile arrastado para a barra: solto sobre um slot, a magia vai para ele (se já estava noutra tecla, as duas trocam);
+   * solto no "+" ou no fim da barra, vira atalho novo na próxima tecla livre.
+   */
+  const dropItem = (id: string, at: number) => {
+    if (!itemFor(id, voc, groups)) return;
+    if (at >= list.length) {
+      const r = addSlot(list, id, hotkeyLabel);
+      say(r.message, r.error);
+      if (!r.error) { setHotkeys(r.list); setSel(r.list.length - 1); }
+      return;
+    }
+    const was = list.findIndex((h) => h.spellId === id);
+    if (was === at) { setSel(at); return; }
+    if (was >= 0) say(`Já estava na tecla ${hotkeyLabel(list[was]!.key)}: as duas trocaram.`);
+    setHotkeys(setRowSpell(list, at, id));
+    setSel(at);
+  };
   /** Tile clicado: põe no slot selecionado; no "+" (ou sem seleção) cria o atalho; já na barra = seleciona onde está. */
   const pick = (item: SpellItem) => {
     const at = list.findIndex((h) => h.spellId === item.id);
@@ -209,7 +227,12 @@ export function SpellsWindow() {
         }}
       >
         <p class="sw-hint">Clique num slot e escolha o que vai nele. <b>◆</b> = tecla inteligente: solta a 1ª magia pronta da lista.</p>
-        <BigBar barRef={barRef} list={list} voc={voc} groups={groups} level={level} sel={slot} onSelect={(s) => { setSel(s); setEditing(null); setCapturing(null); }} />
+        <BigBar
+          barRef={barRef} list={list} voc={voc} groups={groups} level={level} sel={slot}
+          onSelect={(s) => { setSel(s); setEditing(null); setCapturing(null); }}
+          onMove={(from, to) => { setCapturing(null); setHotkeys(moveHotkey(list, from, to)); setSel(to); }}
+          onDropItem={dropItem}
+        />
         {editingGroup ? (
           <GroupEditor
             key={editingGroup.id} group={editingGroup} groups={groups} list={list} voc={voc} level={level} mana={me.mana} say={say}
@@ -223,6 +246,8 @@ export function SpellsWindow() {
               slot={slot} item={currentItem} keyText={current ? hotkeyLabel(current.key) : ""} capturing={capturing !== null} error={capturing !== null && msg?.error ? msg.text : null}
               onCapture={() => { say(undefined); setCapturing(slot as number); }}
               onRemove={() => { setHotkeys(removeRow(list, slot as number)); setSel(null); focusBar(); say("Atalho tirado da barra."); }}
+              canMoveLeft={typeof slot === "number" && slot > 0} canMoveRight={typeof slot === "number" && slot < list.length - 1}
+              onMove={(dir) => { const from = slot as number; setHotkeys(moveHotkey(list, from, from + dir)); setSel(from + dir); }}
               onEdit={() => { setEditing(current!.spellId); setFreshGroup(null); }}
             />
             <SpellGrid
@@ -247,24 +272,76 @@ export function SpellsWindow() {
 }
 
 /** A barra em grande: um slot por atalho (tecla, ícone, ◆, cadeado) com o nome embaixo, mais o "+" enquanto couber. */
-function BigBar({ barRef, list, voc, groups, level, sel, onSelect }: {
-  barRef: { current: HTMLDivElement | null }; list: Hotkey[]; voc: Vocation; groups: readonly SpellGroup[]; level: number; sel: Sel; onSelect: (s: Sel) => void;
+/** Dado do arrastar de um slot da barra: o índice do atalho. */
+const DND_SLOT = "application/x-lq-slot";
+
+/**
+ * Arrastar na barra: um slot solto entre dois outros muda a ordem das magias (as teclas ficam; `moveHotkey`); um tile
+ * da grade solto sobre um slot põe a magia nele, e no "+" vira atalho novo. Só aceita os dois tipos de dado próprios:
+ * um slot da barra de ações real (só "text/plain") não cai aqui.
+ */
+function BigBar({ barRef, list, voc, groups, level, sel, onSelect, onMove, onDropItem }: {
+  barRef: { current: HTMLDivElement | null }; list: Hotkey[]; voc: Vocation; groups: readonly SpellGroup[]; level: number; sel: Sel;
+  onSelect: (s: Sel) => void; onMove: (from: number, to: number) => void; onDropItem: (id: string, at: number) => void;
 }) {
+  /** Posição de inserção do slot arrastado (0..list.length); null = nada sendo arrastado por cima. */
+  const [dropAt, setDropAt] = useState<number | null>(null);
+  /** Slot sobre o qual um tile da grade está (vai substituir a magia dele). */
+  const [dropOver, setDropOver] = useState<number | null>(null);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const kind = (e: DragEvent): "slot" | "spell" | null => {
+    const t = e.dataTransfer?.types ?? [];
+    return t.includes(DND_SLOT) ? "slot" : t.includes(DND_SPELL) ? "spell" : null;
+  };
+  const clear = () => { setDropAt(null); setDropOver(null); };
+  const finish = (e: DragEvent, at: number, over: number | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    clear();
+    setDragging(null);
+    const raw = e.dataTransfer?.getData(DND_SLOT);
+    if (raw) { const from = Number(raw); if (Number.isInteger(from)) onMove(from, from < at ? at - 1 : at); return; }
+    const id = e.dataTransfer?.getData(DND_SPELL);
+    if (id) onDropItem(id, over ?? list.length);
+  };
+  const last = list.length;
   return (
-    <div ref={barRef} class="sw-bar" role="listbox" aria-label="Barra de atalhos" aria-orientation="horizontal" onKeyDown={(e) => arrowNav(e)}>
+    <div
+      ref={barRef} class={`sw-bar${dropAt !== null || dropOver !== null ? " dragging" : ""}`} role="listbox" aria-label="Barra de atalhos" aria-orientation="horizontal"
+      onKeyDown={(e) => arrowNav(e)}
+      onDragOver={(e) => { const k = kind(e); if (!k) return; e.preventDefault(); if (k === "slot") { if (dropAt === null) setDropAt(last); } else if (dropOver === null) setDropOver(last); }}
+      onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) clear(); }}
+      onDrop={(e) => finish(e, dropAt ?? last, dropOver)}
+    >
       {list.map((h, i) => {
         const item = itemFor(h.spellId, voc, groups);
         const s = item ? shownSpell(item, level) : null;
         // Grupo vazio tem level Infinity: não é "bloqueado por nível", só vazio (o nome já avisa).
         const locked = !!item && item.spells.length > 0 && item.level > level;
         const label = hotkeyLabel(h.key);
+        const marks = `${dropAt === i ? " drop-before" : ""}${dropAt === last && i === last - 1 && list.length >= HOTKEY_MAX ? " drop-after" : ""}${dropOver === i ? " drop-over" : ""}`;
         return (
           <button
             key={`${h.key}:${h.spellId}`} type="button" role="option" aria-selected={sel === i}
-            class={`sw-slot${sel === i ? " sel" : ""}${locked ? " locked" : ""}`}
+            class={`sw-slot${sel === i ? " sel" : ""}${locked ? " locked" : ""}${dragging === i ? " dragging" : ""}${marks}`}
             style={s ? ({ "--el": cssColor(PAL[s.fx]?.main ?? 0xffffff) } as never) : undefined}
             aria-label={`Tecla ${label}: ${item?.name ?? "desconhecido"}${locked ? `, libera no level ${item!.level}` : ""}${item?.kind === "group" && !item.spells.length ? " (vazio)" : ""}`}
             onClick={() => onSelect(i)}
+            draggable
+            onDragStart={(e) => { e.dataTransfer?.setData(DND_SLOT, String(i)); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; setDragging(i); }}
+            onDragEnd={() => { setDragging(null); clear(); }}
+            onDragOver={(e) => {
+              const k = kind(e);
+              if (!k) return;
+              e.preventDefault();
+              e.stopPropagation();
+              if (k === "spell") { setDropOver(i); setDropAt(null); return; }
+              // Metade esquerda = antes deste slot; metade direita = depois.
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setDropOver(null);
+              setDropAt(e.clientX < r.left + r.width / 2 ? i : i + 1);
+            }}
+            onDrop={(e) => finish(e, dropAt ?? i, dropOver)}
           >
             <span class="sw-slot-box">
               <span class="sw-slot-key">{label}</span>
@@ -277,7 +354,13 @@ function BigBar({ barRef, list, voc, groups, level, sel, onSelect }: {
         );
       })}
       {list.length < HOTKEY_MAX && (
-        <button type="button" role="option" aria-selected={sel === "new"} class={`sw-slot sw-slot-new${sel === "new" ? " sel" : ""}`} aria-label="Atalho novo" onClick={() => onSelect("new")}>
+        <button
+          type="button" role="option" aria-selected={sel === "new"}
+          class={`sw-slot sw-slot-new${sel === "new" ? " sel" : ""}${dropAt === last ? " drop-before" : ""}${dropOver === last ? " drop-over" : ""}`}
+          aria-label="Atalho novo" onClick={() => onSelect("new")}
+          onDragOver={(e) => { const k = kind(e); if (!k) return; e.preventDefault(); e.stopPropagation(); if (k === "slot") { setDropAt(last); setDropOver(null); } else { setDropOver(last); setDropAt(null); } }}
+          onDrop={(e) => finish(e, last, dropOver)}
+        >
           <span class="sw-slot-box"><span class="sw-slot-plus" aria-hidden="true">+</span></span>
           <span class="sw-slot-name">Novo</span>
         </button>
@@ -287,9 +370,11 @@ function BigBar({ barRef, list, voc, groups, level, sel, onSelect }: {
 }
 
 /** O que está no slot selecionado e o que dá para fazer com ele; durante a captura, a faixa "Aperte a nova tecla". */
-function SlotPanel({ slot, item, keyText, capturing, error, onCapture, onRemove, onEdit }: {
+function SlotPanel({ slot, item, keyText, capturing, error, onCapture, onRemove, onEdit, canMoveLeft, canMoveRight, onMove }: {
   slot: Sel; item: SpellItem | null; keyText: string; capturing: boolean; error: string | null;
   onCapture: () => void; onRemove: () => void; onEdit: () => void;
+  /** Reordenar pelo teclado (o mesmo que arrastar o slot): uma casa para a esquerda (−1) ou para a direita (+1). */
+  canMoveLeft: boolean; canMoveRight: boolean; onMove: (dir: -1 | 1) => void;
 }) {
   const strip = useRef<HTMLSpanElement>(null);
   // O botão "Trocar tecla" é desmontado durante a captura; sem isso o foco cai no body e as teclas vão para o jogo.
@@ -312,6 +397,8 @@ function SlotPanel({ slot, item, keyText, capturing, error, onCapture, onRemove,
         </span>
       ) : (
         <span class="sw-panel-actions">
+          <button class="sw-btn icon" aria-label="Mover uma casa para a esquerda" disabled={!canMoveLeft} onClick={() => onMove(-1)} data-tip="Mover para a esquerda" data-tip-sub="As teclas ficam; as magias trocam de lugar">◀</button>
+          <button class="sw-btn icon" aria-label="Mover uma casa para a direita" disabled={!canMoveRight} onClick={() => onMove(1)} data-tip="Mover para a direita" data-tip-sub="As teclas ficam; as magias trocam de lugar">▶</button>
           <button class="sw-btn" onClick={onCapture} data-tip="Trocar a tecla" data-tip-sub="Aperte a nova tecla; Esc cancela">Trocar tecla</button>
           {item?.kind === "group" && <button class="sw-btn gold" onClick={onEdit}>Editar grupo</button>}
           <button class="sw-btn danger" onClick={onRemove}>Tirar da barra</button>

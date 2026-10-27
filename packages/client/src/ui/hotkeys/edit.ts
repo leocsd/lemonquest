@@ -91,6 +91,19 @@ export function hotkeyIndex(list: readonly Hotkey[], key: string | null): number
   return key ? list.findIndex((h) => h.key === key) : -1;
 }
 
+/**
+ * Move a magia do atalho `from` para a posição `to` (arrastar na barra da janela Magias): as magias entre eles deslizam
+ * uma casa e as teclas ficam onde estão (a tecla 1 continua sendo a 1ª). Índices inválidos ou iguais devolvem a mesma lista.
+ */
+export function moveHotkey(list: readonly Hotkey[], from: number, to: number): Hotkey[] {
+  const keys = list.map((h) => h.key);
+  const spells = list.map((h) => h.spellId);
+  if (from === to || from < 0 || to < 0 || from >= spells.length || to >= spells.length) return list.map((h) => ({ ...h }));
+  const [s] = spells.splice(from, 1);
+  spells.splice(to, 0, s!);
+  return keys.map((key, i) => ({ key, spellId: spells[i]! }));
+}
+
 /** Troca as magias de dois atalhos (as teclas ficam). Índices inválidos/iguais devolvem a mesma lista. */
 export function swapHotkeySpells(list: readonly Hotkey[], a: number, b: number): Hotkey[] {
   const out = list.map((h) => ({ ...h }));

@@ -14,6 +14,10 @@ dar zoom, movimentar", "botões brancos sem contraste".
   HUD; `color-scheme: dark` e `accent-color` dourado nos controles nativos.
 - **Magias**: cada magia avulsa mostra a categoria (No alvo · Área · Onda · Cura · Outras) num selo no tile e na
   linha do grupo, e no nome acessível.
+- **Magias, arrastar** (pedido "quero poder arrastar para escolher a ordem das minhas skills no H"): arrastar um slot
+  da barra grande e soltar entre dois outros reordena as magias (`moveHotkey`: as outras deslizam, as teclas ficam);
+  arrastar um tile da grade para um slot põe a magia nele, e no "+" vira atalho novo; os botões ◀ ▶ do painel do slot
+  fazem o mesmo pelo teclado. A barra só aceita os seus dois tipos de dado (um slot da barra de ações real não cai nela).
 - **Roupas**: a janela não muda de tamanho ao trocar roupa ou addon (alturas reservadas para 2 addons, tons e caixa
   de compra; células da grade iguais). **Tons de tingimento** refeitos: a cor é aplicada preservando o brilho do sprite
   (sombras escuras, meios-tons na cor, claros até o branco; pele não tinge) na prévia **e no mundo** (textura tingida

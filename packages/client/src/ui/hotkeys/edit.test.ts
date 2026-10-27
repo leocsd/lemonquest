@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HOTKEY_MAX, keyLabel, type Hotkey } from "@lemonquest/shared";
-import { addRow, addSlot, assignKey, hotkeyIndex, keyFromEvent, nextFreeKey, placeUnlocked, removeRow, setRowSpell, swapHotkeySpells } from "./edit.ts";
+import { addRow, addSlot, assignKey, hotkeyIndex, keyFromEvent, moveHotkey, nextFreeKey, placeUnlocked, removeRow, setRowSpell, swapHotkeySpells } from "./edit.ts";
 
 const L: Hotkey[] = [{ key: "Digit1", spellId: "fireball" }, { key: "Digit2", spellId: "energy_wave" }];
 const ev = (code: string, o: Partial<KeyboardEvent> = {}) => ({ code, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, ...o });
@@ -58,6 +58,15 @@ describe("edição dos atalhos", () => {
     expect(addSlot(L, "fireball", keyLabel)).toMatchObject({ error: true, message: "Já está na tecla 1." });
     const full = Array.from({ length: HOTKEY_MAX }, (_, i) => ({ key: `Key${"BCFGTUVXYZNP"[i]}`, spellId: `s${i}` }));
     expect(addSlot(full, "inferno", keyLabel)).toMatchObject({ error: true, message: `A barra está cheia (${HOTKEY_MAX}): tire um atalho.` });
+  });
+
+  it("moveHotkey (arrastar na barra): a magia vai para a posição, as outras deslizam e as teclas ficam", () => {
+    const three: Hotkey[] = [...L, { key: "Digit3", spellId: "inferno" }];
+    expect(moveHotkey(three, 2, 0)).toEqual([{ key: "Digit1", spellId: "inferno" }, { key: "Digit2", spellId: "fireball" }, { key: "Digit3", spellId: "energy_wave" }]);
+    expect(moveHotkey(three, 0, 2)).toEqual([{ key: "Digit1", spellId: "energy_wave" }, { key: "Digit2", spellId: "inferno" }, { key: "Digit3", spellId: "fireball" }]);
+    expect(moveHotkey(three, 1, 1)).toEqual(three);
+    expect(moveHotkey(three, 5, 0)).toEqual(three);
+    expect(three[0]!.spellId).toBe("fireball"); // não muta a original
   });
 
   it("sem magia repetida: escolher a magia de outra linha troca as duas; com todas já em atalhos, não adiciona", () => {

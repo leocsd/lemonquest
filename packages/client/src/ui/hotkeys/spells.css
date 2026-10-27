@@ -12,7 +12,16 @@
 
 /* Barra em grande */
 .sw-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--hud-bg-soft); border: 1px solid var(--hud-line); border-radius: var(--hud-radius); }
-.sw-slot { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; font: inherit; background: transparent; border: 0; cursor: pointer; color: var(--hud-text); }
+.sw-slot { position: relative; width: 56px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; font: inherit; background: transparent; border: 0; cursor: grab; color: var(--hud-text); }
+.sw-slot:active { cursor: grabbing; }
+.sw-slot.dragging { opacity: 0.45; }
+/* Arrastar na barra: traço dourado na posição onde o slot vai cair; tile da grade sobre um slot acende a moldura. */
+.sw-bar.dragging { border-color: var(--hud-line-hi); }
+.sw-slot.drop-before::before, .sw-slot.drop-after::after { content: ""; position: absolute; top: 0; height: 48px; width: 3px; background: var(--hud-gold); border-radius: 2px; }
+.sw-slot.drop-before::before { left: -4.5px; }
+.sw-slot.drop-after::after { right: -4.5px; }
+.sw-slot.drop-over .sw-slot-box { outline: 2px solid #ffd447; outline-offset: -2px; background: rgba(255, 212, 71, 0.15); }
+.sw-tile[draggable="true"] { cursor: grab; }
 .sw-slot-box { position: relative; box-sizing: border-box; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: var(--hud-well); border: 2px solid color-mix(in srgb, var(--el, #3d4560) 38%, var(--hud-line-soft)); border-radius: 6px; transition: border-color 120ms, box-shadow 120ms; }
 .sw-slot:hover .sw-slot-box { border-color: var(--hud-line-hi); }
 .sw-slot.sel .sw-slot-box { border-color: var(--hud-gold); box-shadow: 0 0 0 2px rgba(217, 164, 65, 0.35), inset 0 0 10px rgba(217, 164, 65, 0.25); }

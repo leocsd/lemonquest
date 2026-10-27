@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27d",
+    date: "27 de outubro (noite)",
+    title: "Arraste para ordenar as magias",
+    items: [
+      "Na janela Magias (H), arraste um slot da barra e solte entre dois outros para mudar a ordem; as teclas ficam, as magias trocam de lugar.",
+      "Arraste uma magia da grade direto para um slot (ou para o +). Os botões ◀ ▶ do painel fazem o mesmo pelo teclado.",
+    ],
+  },
+  {
     id: "2026-10-27c",
     date: "27 de outubro (fim do dia)",
     title: "Mapa com zoom, tons de roupa novos e telas mais legíveis",
