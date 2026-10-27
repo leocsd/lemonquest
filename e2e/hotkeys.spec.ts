@@ -1,12 +1,14 @@
-// Atalhos de magia (painel H): trocar a tecla de uma magia, tecla do jogo recusada, lançar pela tecla nova, salvo no
-// personagem (volta depois de recarregar a página) e troca de magias arrastando na barra.
+// Janela "Magias" (tecla H): trocar a tecla de uma magia, tecla do jogo recusada, lançar pela tecla nova, salvo no
+// personagem (volta depois de recarregar a página); tirar da barra e pôr de volta pelo slot "+"; troca de magias
+// arrastando na barra real; família liberando no level; montar um grupo no editor numerado, "Mais forte primeiro",
+// pôr na barra, lançar e manter.
 import { expect, test } from "@playwright/test";
 import { enterGame, meState, monsters, playFromList, setLevel, snap, targetNearest, teleport, walkableNear } from "./helpers.ts";
 
 /** Floresta ao norte da vila (fora da PZ: a regen de mana é baixa e o gasto da magia aparece). */
 const FOREST = { x: 70, y: 62 };
 
-test("atalhos: trocar a tecla da Cura para G, recusar Q, lançar com G e manter depois de recarregar", async ({ page }) => {
+test("magias: trocar a tecla da Cura para G, recusar Q, lançar com G e manter depois de recarregar", async ({ page }) => {
   const p = await enterGame(page, "druid");
   await setLevel(page, 20);
   const spot = (await walkableNear(page, FOREST.x, FOREST.y, 4))[0]!;
@@ -19,17 +21,20 @@ test("atalhos: trocar a tecla da Cura para G, recusar Q, lançar com G e manter 
   await expect(first.locator(".action-key")).toHaveText("1");
 
   await page.keyboard.press("h");
-  const win = page.getByRole("dialog", { name: "Atalhos de magia" });
+  const win = page.getByRole("dialog", { name: "Magias" });
   await expect(win).toBeVisible();
-  await expect(win.getByRole("combobox", { name: "Magia do atalho 1", exact: true })).toHaveValue("light_heal");
-  await win.getByRole("button", { name: "Tecla do atalho 1", exact: true }).click();
-  await expect(win).toContainText("Pressione uma tecla");
+  // Selecionar o slot da tecla 1: o painel diz o que está nele e o tile da Cura fica marcado.
+  await win.getByRole("option", { name: "Tecla 1: Cura" }).click();
+  await expect(win.locator(".sw-panel-title")).toContainText("Cura");
+  await expect(win.getByRole("button", { name: /^Cura, tecla 1/ })).toHaveAttribute("aria-pressed", "true");
+  await win.getByRole("button", { name: "Trocar tecla" }).click();
+  await expect(win).toContainText("Aperte a nova tecla");
   // Q é a poção de vida: recusada com o motivo, e nada de poção (continua esperando a tecla).
   await page.keyboard.press("q");
   await expect(win).toContainText("usada por: Poção de vida");
   await page.keyboard.press("g");
-  await expect(win.getByRole("button", { name: "Tecla do atalho 1", exact: true })).toHaveText("G");
-  await snap(page, "hotkeys-window");
+  await expect(win.locator(".sw-slot.sel .sw-slot-key")).toHaveText("G");
+  await snap(page, "spells-window");
   await page.keyboard.press("Escape");
   await expect(win).toBeHidden();
 
@@ -44,6 +49,25 @@ test("atalhos: trocar a tecla da Cura para G, recusar Q, lançar com G e manter 
   await page.reload();
   await playFromList(page, p);
   await expect(page.locator(".action-slot").first().locator(".action-key")).toHaveText("G");
+});
+
+test("magias: tirar um atalho da barra e pôr de volta pelo slot +", async ({ page }) => {
+  await enterGame(page, "sorcerer");
+  await page.keyboard.press("h");
+  const win = page.getByRole("dialog", { name: "Magias" });
+  await expect(win).toBeVisible();
+  // Pés Ligeiros libera no level 5: no level 1 o nome do slot termina com ", libera no level 5".
+  const slot = win.getByRole("option", { name: /^Tecla \S+: Pés Ligeiros\b/ });
+  const key = (await slot.locator(".sw-slot-key").innerText()).trim();
+  await slot.click();
+  await win.getByRole("button", { name: "Tirar da barra" }).click();
+  await expect(win.getByRole("option", { name: /^Tecla \S+: Pés Ligeiros\b/ })).toHaveCount(0);
+  await expect(win).toContainText("Atalho tirado da barra.");
+  // O "+" recebe a magia na próxima tecla livre (a que acabou de vagar) e o slot volta selecionado.
+  await win.getByRole("option", { name: "Atalho novo" }).click();
+  await win.getByRole("button", { name: /^Pés Ligeiros/ }).click();
+  await expect(win.getByRole("option", { name: new RegExp(`^Tecla ${key}: Pés Ligeiros\\b`) })).toHaveAttribute("aria-selected", "true");
+  await expect(win).toContainText(`Na tecla ${key}.`);
 });
 
 test("atalhos: arrastar um slot sobre outro troca as magias e as teclas ficam", async ({ page }) => {
@@ -98,7 +122,7 @@ test("família de magias: só o que está liberado aparece, magia nova avisa e a
   await snap(page, "spell-family");
 });
 
-test("grupos de magia: montar o próprio grupo, ordenar arrastando, pôr na barra, lançar e manter depois de recarregar", async ({ page }) => {
+test("grupos: montar o próprio grupo no editor numerado, 'Mais forte primeiro', pôr na barra, lançar e manter depois de recarregar", async ({ page }) => {
   const p = await enterGame(page, "sorcerer");
   await setLevel(page, 60);
   const spot = (await walkableNear(page, FOREST.x, FOREST.y, 4))[0]!;
@@ -107,28 +131,28 @@ test("grupos de magia: montar o próprio grupo, ordenar arrastando, pôr na barr
   await canvas.hover({ position: { x: 300, y: 300 } });
 
   await page.keyboard.press("h");
-  await page.getByRole("dialog", { name: "Atalhos de magia" }).getByRole("button", { name: "◆ Grupos" }).click();
-  const win = page.getByRole("dialog", { name: "Grupos de magia" });
+  const win = page.getByRole("dialog", { name: "Magias" });
   await expect(win).toBeVisible();
   await win.getByRole("button", { name: "+ Novo grupo" }).click();
-  await win.getByRole("textbox", { name: "Nome do grupo" }).fill("Meu combo");
+  const editor = win.locator(".sw-group");
+  await expect(editor).toBeVisible();
+  await editor.getByRole("textbox", { name: "Nome do grupo" }).fill("Meu combo");
 
-  // Clique adiciona no fim; arrastar a Onda de Fogo para cima da Bola de Fogo põe na frente.
-  await win.locator(".sg-chip", { hasText: "Bola de Fogo" }).click();
-  await win.locator(".sg-chip", { hasText: "Onda de Fogo" }).click();
-  // Nomes na ordem (sem o selo "sai agora" que fica dentro do nome).
-  const names = async () => (await win.locator(".sg-row .sg-sname").allInnerTexts()).map((n) => n.replace("sai agora", "").trim());
+  // Clique adiciona no fim; "Mais forte primeiro" põe a Onda de Fogo (lv 35) na frente da Bola de Fogo (lv 1).
+  await editor.getByRole("button", { name: /^Bola de Fogo/ }).click();
+  await editor.getByRole("button", { name: /^Onda de Fogo/ }).click();
+  // Nomes na ordem (sem o selo "sai agora", que fica dentro do nome).
+  const names = async () => (await editor.locator(".sw-row .sw-row-name").allInnerTexts()).map((n) => n.replace("sai agora", "").trim());
   await expect.poll(names).toEqual(["Bola de Fogo", "Onda de Fogo"]);
-  await win.locator(".sg-row", { hasText: "Onda de Fogo" }).dragTo(win.locator(".sg-row", { hasText: "Bola de Fogo" }), { targetPosition: { x: 40, y: 3 } });
+  await editor.getByRole("button", { name: "Mais forte primeiro" }).click();
   await expect.poll(names).toEqual(["Onda de Fogo", "Bola de Fogo"]);
-  await expect(win.locator(".sg-preview")).toContainText("Onda de Fogo");
-  await snap(page, "spell-groups-window");
+  await expect(editor.locator(".sw-row.now .sw-row-name")).toContainText("Onda de Fogo");
+  await snap(page, "spells-group-editor");
 
-  await win.getByRole("button", { name: "Pôr na barra" }).click();
-  const onBar = win.locator(".sg-onbar kbd");
+  await editor.getByRole("button", { name: "Pôr na barra" }).click();
+  const onBar = editor.locator(".sw-group-onbar kbd");
   await expect(onBar).toBeVisible();
   const key = (await onBar.innerText()).trim();
-  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await expect(win).toBeHidden();
 
@@ -142,7 +166,7 @@ test("grupos de magia: montar o próprio grupo, ordenar arrastando, pôr na barr
   await page.reload();
   await playFromList(page, p);
   await page.keyboard.press("h");
-  await page.getByRole("dialog", { name: "Atalhos de magia" }).getByRole("button", { name: "◆ Grupos" }).click();
-  await expect(win.locator(".sg-group")).toContainText("Meu combo");
+  await win.getByRole("option", { name: `Tecla ${key}: Meu combo` }).click();
+  await win.getByRole("button", { name: "Editar grupo" }).click();
   await expect.poll(names).toEqual(["Onda de Fogo", "Bola de Fogo"]);
 });

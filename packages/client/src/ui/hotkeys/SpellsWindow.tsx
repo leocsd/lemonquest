@@ -14,6 +14,7 @@ import { meStore } from "../hud/world.ts";
 import { bindOverlay, pushOverlay } from "../overlays.ts";
 import { addSlot, assignKey, isModifierCode, removeRow, setRowSpell, type EditResult } from "./edit.ts";
 import { createGroup } from "./groupsEdit.ts";
+import { GroupEditor } from "./GroupEditor.tsx";
 import { effectiveHotkeys, groupsStore, hotkeyLabel, hotkeysOpen, hotkeysStore, keyFromEvent, layoutStore, setHotkeys, setSpellGroups } from "./hotkeys.ts";
 import { SpellGrid, arrowNav } from "./SpellGrid.tsx";
 import { itemFor, itemsFor, shownSpell, type SpellItem } from "./spellsModel.ts";
@@ -86,7 +87,7 @@ export function SpellsWindow() {
   const drag = useWindowDrag("hotkeys", defaultPos);
   useDialogFocus(drag.ref, open);
   const [sel, setSel] = useState<Sel>(null);
-  /** Id do grupo aberto no editor (Task 6); null = grade de magias. */
+  /** Id do grupo aberto no editor; null = grade de magias. */
   const [editing, setEditing] = useState<string | null>(null);
   const [capturing, setCapturing] = useState<number | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -135,6 +136,8 @@ export function SpellsWindow() {
   const keyOf = (id: string) => { const h = list.find((x) => x.spellId === id); return h ? hotkeyLabel(h.key) : undefined; };
   const current = typeof slot === "number" ? list[slot]! : null;
   const currentItem = current ? itemFor(current.spellId, voc, groups) : null;
+  // Grupo aberto no editor; se foi excluído (ou nunca existiu), volta à grade.
+  const editingGroup = editing ? groups.find((g) => g.id === editing) ?? null : null;
 
   /** Tile clicado: põe no slot selecionado; no "+" (ou sem seleção) cria o atalho; já na barra = seleciona onde está. */
   const pick = (item: SpellItem) => {
@@ -152,7 +155,7 @@ export function SpellsWindow() {
     setHotkeys(r.list);
     setSel(r.list.length - 1);
   };
-  /** "+ Novo grupo" / "Copiar família": cria e abre no editor (Task 6; até lá só cria e avisa). */
+  /** "+ Novo grupo" / "Copiar família": cria e abre no editor. */
   const newGroup = (fromId?: string) => {
     const from = fromId ? familiesFor(voc).find((f) => f.id === fromId) : undefined;
     const r = createGroup(groups, from);
@@ -192,20 +195,26 @@ export function SpellsWindow() {
       <div class="win-body sw-body">
         <p class="sw-hint">Clique num slot e escolha o que vai nele. <b>◆</b> = tecla inteligente: solta a 1ª magia pronta da lista.</p>
         <BigBar barRef={barRef} list={list} voc={voc} groups={groups} level={level} sel={slot} onSelect={(s) => { setSel(s); setEditing(null); setCapturing(null); }} />
-        <SlotPanel
-          slot={slot} item={currentItem} keyText={current ? hotkeyLabel(current.key) : ""} capturing={capturing !== null} error={capturing !== null && msg?.error ? msg.text : null}
-          onCapture={() => { say(undefined); setCapturing(slot as number); }}
-          onRemove={() => { setHotkeys(removeRow(list, slot as number)); setSel(null); focusBar(); say("Atalho tirado da barra."); }}
-          onEdit={() => setEditing(current!.spellId)}
-        />
-        <SpellGrid
-          blocks={[
-            { title: "◆ Meus grupos", items: b.groups, extra: groupActions, empty: "Nenhum grupo ainda: crie um ou copie uma família." },
-            { title: "◆ Famílias prontas", items: b.families, empty: "Sua vocação não tem famílias prontas." },
-            { title: "Magias", items: b.spells },
-          ]}
-          level={level} keyOf={keyOf} activeId={current?.spellId} onPick={pick}
-        />
+        {editingGroup ? (
+          <GroupEditor group={editingGroup} groups={groups} list={list} voc={voc} level={level} mana={me.mana} say={say} onBack={() => setEditing(null)} />
+        ) : (
+          <>
+            <SlotPanel
+              slot={slot} item={currentItem} keyText={current ? hotkeyLabel(current.key) : ""} capturing={capturing !== null} error={capturing !== null && msg?.error ? msg.text : null}
+              onCapture={() => { say(undefined); setCapturing(slot as number); }}
+              onRemove={() => { setHotkeys(removeRow(list, slot as number)); setSel(null); focusBar(); say("Atalho tirado da barra."); }}
+              onEdit={() => setEditing(current!.spellId)}
+            />
+            <SpellGrid
+              blocks={[
+                { title: "◆ Meus grupos", items: b.groups, extra: groupActions, empty: "Nenhum grupo ainda: crie um ou copie uma família." },
+                { title: "◆ Famílias prontas", items: b.families, empty: "Sua vocação não tem famílias prontas." },
+                { title: "Magias", items: b.spells },
+              ]}
+              level={level} keyOf={keyOf} activeId={current?.spellId} onPick={pick}
+            />
+          </>
+        )}
         <div class="sw-foot">
           <span class={`sw-msg${msg?.error ? " error" : ""}`} role="status" aria-live="polite">{capturing === null ? msg?.text ?? "" : ""}</span>
           <button class={`sw-btn subtle${confirmReset ? " confirm" : ""}`} onClick={reset} data-tip="Barra recomendada" data-tip-sub="Famílias ◆ no lugar das magias parecidas, nas teclas 1–0. Descarta a sua barra atual.">
