@@ -5,8 +5,8 @@ html[data-text="1"] :is(.chat-log, .toast, .party-invite, .trade-invite) { zoom:
 html[data-text="2"] :is(.chat-log, .toast, .party-invite, .trade-invite) { zoom: 1.3; }
 /* Janelas com título e ×: o zoom vai só no corpo rolável. Na janela inteira, em 1366×768 com "muito grande" a altura
    passava da tela (Novidades ≈ 920 px) e o × sumia; o corpo encolhe e rola, o título fica no lugar. */
-html[data-text="1"] :is(.npc-body, .ql-body, .news-body, .ch-body, .trade-body, .be-body, .hotkeys-win .win-body) { zoom: 1.15; }
-html[data-text="2"] :is(.npc-body, .ql-body, .news-body, .ch-body, .trade-body, .be-body, .hotkeys-win .win-body) { zoom: 1.3; }
+html[data-text="1"] :is(.npc-body, .ql-body, .news-body, .ch-body, .trade-body, .be-body, .spells-win .win-body) { zoom: 1.15; }
+html[data-text="2"] :is(.npc-body, .ql-body, .news-body, .ch-body, .trade-body, .be-body, .spells-win .win-body) { zoom: 1.3; }
 /* Painel de atalhos (F1): sem corpo próprio; o zoom vai na janela e o limite de altura é dividido pelo zoom para caber na tela. */
 html[data-text="1"] .help-pop { zoom: 1.15; max-height: calc((100vh - 20px) / 1.15); }
 html[data-text="2"] .help-pop { zoom: 1.3; max-height: calc((100vh - 20px) / 1.3); }
