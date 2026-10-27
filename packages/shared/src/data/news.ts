@@ -17,7 +17,7 @@ export const NEWS: readonly NewsEntry[] = [
     title: "Personagens femininas",
     items: [
       "Ao criar um personagem você escolhe ♂ ou ♀; na janela Roupas (O) dá para trocar de graça quando quiser.",
-      "As 20 roupas e todos os addons valem para os dois: Cidadã, Nobre, Invocadora, Bárbara, Druida, Pirata, Maga, Mendiga, Oriental, Domadora de Feras, Peregrina e Monja têm arte própria; as de elmo e capuz são iguais.",
+      "As 20 roupas e os addons valem para os dois: 12 ganharam arte feminina (Cidadã, Nobre, Invocadora, Bárbara, Druida, Pirata, Maga, Mendiga, Oriental, Domadora, Peregrina, Monja); as de elmo e capuz são iguais.",
       "Personagens já criados continuam masculinos até você trocar.",
     ],
   },
