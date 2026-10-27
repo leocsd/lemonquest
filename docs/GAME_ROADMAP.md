@@ -13,6 +13,15 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Login e painel Online (2026-10-27)
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| LO-1 | Dono: "salvar o login no navegador, entra direto e só escolhe o personagem". Sessão da conta no `localStorage` + `SESSION_IDLE_MS` 30 dias; "Sair da conta" apaga | ✅ (2026-10-27) | `auth.test.ts` (expiração, reinício) |
+| LO-2 | Dono: "tirar o olho da senha ou pôr um pixel art". Olho aberto/fechado em `PixelIcon` | ✅ (2026-10-27) | captura da tela de login |
+| LO-3 | Dono: "organizar melhor a lista de onlines e melhorar os botões". Blocos Seu grupo/Amigos/No mundo, rosto da vocação, botões de 22 px com ícones em pixel art | ✅ (2026-10-27) | `onlineLogic.test.ts` (blocos); E2E `mural.spec.ts` (seletores mantidos); captura no harness |
+| LO-4 | Sessão de 30 dias num PC compartilhado do escritório: se virar problema, "Sair da conta" automático ao fechar a aba ou aviso no login | 🧭 | — |
+
 ## Wiki do jogo (2026-10-27)
 
 | # | Item | Status | Validação |
@@ -91,7 +100,7 @@ Especificação: [regioes/siderurgica.md](regioes/siderurgica.md).
 |---|---|---|---|
 | 18-1 | Invasão da Vila (quarta 12h15; Maré → quinta 13h) | ✅ | `invasion.test.ts` (shared e servidor), `events.test.ts` (sem sobreposição), `diff-world` 0 tiles |
 | 18-2 | Mural de Excursões | ✅ | `excursions.test.ts` (shared e servidor) |
-| 18-3 | Painel Online/Amigos | ✅ | `social.test.ts` |
+| 18-3 | Painel Online/Amigos (reorganizado em 2026-10-27: blocos, rosto da vocação e botões em pixel art — ver LO-3) | ✅ | `social.test.ts`, `onlineLogic.test.ts` |
 | 18-4 | Desafios semanais, bônus de login, conquistas, pesca, ranking, tela de morte, alerta da aba | ✅ | `challenges`, `loginBonus`, `achievements`, `fishing`, `ranking`, `attentionLogic` |
 | 14-24 | E2E `spells.spec` instável no CI | ✅ | `castWorks` com bonecos de treino, linha de visão e mira por id (CI da PR) |
 | 18-5 | Acompanhar a 1ª Invasão real (quarta 12h15): presença, ondas, prêmios | ⏳ | logs `[invasao]` |

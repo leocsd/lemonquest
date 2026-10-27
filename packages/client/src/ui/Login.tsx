@@ -5,6 +5,7 @@ import {
 } from "@lemonquest/shared";
 import { session } from "../session.ts";
 import { loading } from "./loading.ts";
+import { PixelIcon } from "./hud/icons.tsx";
 import { VOCATION_META, vocationMeta } from "./hud/vocations.ts";
 import { OutfitCanvas } from "./outfit/OutfitCanvas.tsx";
 import { resolveOutfit, type Sex } from "@lemonquest/shared";
@@ -73,8 +74,9 @@ const sameName = (a: string, b: string) => a.normalize("NFC").trim().toLowerCase
 const stop = (e: KeyboardEvent) => e.stopPropagation();
 
 /**
- * Campo de senha com "mostrar senha" (👁) e aviso de Caps Lock (UX-21): o navegador não avisa, e na LAN do escritório
- * a senha errada por Caps Lock era a dúvida mais comum. O Caps Lock vem de getModifierState, lido a cada tecla.
+ * Campo de senha com "mostrar senha" (olho em pixel art, PixelIcon) e aviso de Caps Lock (UX-21): o navegador não
+ * avisa, e na LAN do escritório a senha errada por Caps Lock era a dúvida mais comum. O Caps Lock vem de
+ * getModifierState, lido a cada tecla.
  */
 function PasswordField({ label, value, autocomplete, onInput, onKeyDown }: {
   label: string; value: string; autocomplete: string; onInput: (v: string) => void; onKeyDown: (e: KeyboardEvent) => void;
@@ -83,8 +85,8 @@ function PasswordField({ label, value, autocomplete, onInput, onKeyDown }: {
   const [caps, setCaps] = useState(false);
   const labelId = useId();
   const watchCaps = (e: KeyboardEvent) => setCaps(typeof e.getModifierState === "function" && e.getModifierState("CapsLock"));
-  // Não é um <label> envolvendo tudo: o botão 👁 entraria no nome acessível do campo ("Senha Mostrar senha"), o que
-  // confunde leitor de tela e os testes que procuram o rótulo exato. O rótulo vai por aria-labelledby.
+  // Não é um <label> envolvendo tudo: o botão do olho entraria no nome acessível do campo ("Senha Mostrar senha"), o
+  // que confunde leitor de tela e os testes que procuram o rótulo exato. O rótulo vai por aria-labelledby.
   return (
     <div class="field">
       <span id={labelId}>{label}</span>
@@ -104,7 +106,7 @@ function PasswordField({ label, value, autocomplete, onInput, onKeyDown }: {
           type="button" class="pw-eye" tabIndex={-1}
           onClick={() => setShow((s) => !s)}
           aria-label={show ? "Esconder senha" : "Mostrar senha"} aria-pressed={show} title={show ? "Esconder senha" : "Mostrar senha"}
-        >{show ? "🙈" : "👁"}</button>
+        ><PixelIcon name={show ? "eye_closed" : "eye"} size={16} /></button>
       </span>
       {caps && <span class="pw-caps" role="status">Caps Lock ligado</span>}
     </div>
@@ -306,7 +308,7 @@ export function Login() {
         <p class="hint">
           {creating
             ? `A conta é privada (ninguém a vê no jogo) e pode ter até ${MAX_CHARACTERS_PER_ACCOUNT} personagens. Senha de no mínimo ${MIN_NEW_PASSWORD} caracteres.`
-            : "Uma conta guarda todos os seus personagens."}
+            : "Uma conta guarda todos os seus personagens. Você fica conectado neste navegador até usar \"Sair da conta\"."}
         </p>
         {!creating && <button class="link-btn" disabled={busy} onClick={openReset}>Esqueci minha senha</button>}
       </>

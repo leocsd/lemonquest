@@ -6,6 +6,22 @@ export function onlineLine(e: Pick<OnlineEntry, "level" | "zone" | "away">): str
   return [`lv ${e.level}`, e.zone, e.away ? "ausente" : ""].filter(Boolean).join(" · ");
 }
 
+export interface OnlineGroup<T> { key: "party" | "friends" | "others"; label: string; entries: T[] }
+
+/**
+ * Blocos do painel (dono, 2026-10-27): seu grupo, depois amigos, depois o resto do mundo — cada um na ordem em que o
+ * servidor mandou (level e nome). Com um bloco só, sem rótulo (a lista inteira é "quem está no mundo").
+ */
+export function groupOnline<T extends Pick<OnlineEntry, "party" | "friend">>(list: readonly T[]): OnlineGroup<T>[] {
+  const all: OnlineGroup<T>[] = [
+    { key: "party", label: "Seu grupo", entries: list.filter((e) => e.party) },
+    { key: "friends", label: "Amigos", entries: list.filter((e) => !e.party && e.friend) },
+    { key: "others", label: "No mundo", entries: list.filter((e) => !e.party && !e.friend) },
+  ];
+  const groups = all.filter((g) => g.entries.length > 0);
+  return groups.length > 1 ? groups : groups.map((g) => ({ ...g, label: "" }));
+}
+
 /**
  * Convidar aparece para quem não está no seu grupo, se você pode convidar (sem grupo ou líder) — o mesmo critério do
  * menu do botão direito (playerMenuLogic.ts). O servidor confere o resto (grupo cheio, já em outro grupo).

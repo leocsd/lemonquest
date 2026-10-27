@@ -12,7 +12,8 @@ Monorepo com npm workspaces:
 Abra o endereço do servidor no navegador (ex.: `http://192.168.0.10:2567`). Na primeira vez, "Criar conta" (nome da
 conta e senha de no mínimo 6 caracteres); depois crie até 5 personagens na conta (nome e vocação) e escolha com qual
 jogar.
-Esqueceu a senha? Peça um código a um admin e use "Esqueci minha senha". Para excluir um personagem: "Excluir" no cartão
+O login fica salvo no navegador (30 dias sem uso): nas próximas vezes a tela já abre na lista de personagens; num computador
+compartilhado, use "Sair da conta". Esqueceu a senha? Peça um código a um admin e use "Esqueci minha senha". Para excluir um personagem: "Excluir" no cartão
 dele, na lista de personagens (pede o nome e a senha da conta; não funciona com ele online ou treinando offline).
 
 | Ação | Controle |

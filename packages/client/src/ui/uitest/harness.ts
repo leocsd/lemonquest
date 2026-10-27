@@ -13,6 +13,7 @@ import { depotStore, inventoryStore } from "../items/inventory.ts";
 import { handleFeed, handleLoot } from "../items/loot.ts";
 import { setItemTransport } from "../items/net.ts";
 import { handleNpcOpen } from "../npc/npc.ts";
+import { onlineStore } from "../social/online.ts";
 
 const P = new URLSearchParams(location.search);
 
@@ -54,6 +55,17 @@ export function startUiTest(): void {
   // ?mobs=N: N criaturas falsas na lista de batalha (testar altura fixa/rolagem).
   const mobs = Number(P.get("mobs") ?? 0);
   if (mobs > 0) setBattleEntries("uitest", Array.from({ length: mobs }, (_, i) => ({ id: `m${i}`, name: `Criatura ${i + 1}`, hpPct: 100 - ((i * 13) % 90), kind: "monster" as const, distance: 1 + (i % 9) })));
+  // Painel Online com os três blocos (grupo, amigos, resto), um ausente e um amigo fora do jogo (nomes inventados).
+  onlineStore.set({
+    list: [
+      { id: "p1", name: "Marcão do Forno", level: 54, vocation: "knight", friend: true, party: true, share: true, zone: "Siderúrgica" },
+      { id: "p2", name: "Bia das Ervas", level: 48, vocation: "druid", friend: true, party: false, share: true, zone: "Vila de Pedra Clara" },
+      { id: "p3", name: "Juquinha", level: 12, vocation: "paladin", friend: true, party: false, share: false },
+      { id: "p4", name: "Tonhão Ruptura", level: 102, vocation: "sorcerer", friend: false, party: false, share: false },
+      { id: "p5", name: "Nina Flecha", level: 33, vocation: "paladin", friend: false, party: false, share: false, away: true },
+    ],
+    offlineFriends: ["Zé do Trem"],
+  });
 
   // ---------- servidor falso ----------
   const equipment: Partial<Record<EquipSlot, ItemInstance>> = {

@@ -22,7 +22,11 @@ export type ConnStatus = "idle" | "online" | "reconnecting" | "closed";
  */
 export { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_TRAINING };
 
-/** Sessão da conta guardada na aba (sessionStorage): após desconectar, volta direto à lista de personagens. */
+/**
+ * Sessão da conta guardada no navegador (localStorage): nas próximas visitas e após desconectar, a tela já abre na
+ * lista de personagens, sem senha (dono, 2026-10-27; antes ficava só na aba, em sessionStorage). O servidor a renova a
+ * cada uso e a vence após SESSION_IDLE_MS sem uso; "Sair da conta" apaga.
+ */
 const ACCOUNT_SESSION_KEY = "lemonquest.accountSession";
 export const LAST_ACCOUNT_KEY = "lemonquest.account";
 
@@ -92,15 +96,15 @@ class Session {
 
   // ---- Conta (HTTP) ----
 
-  /** Token da sessão da conta guardado nesta aba (ou null). */
-  get accountSession(): string | null { return storeGet(sessionStorage, ACCOUNT_SESSION_KEY); }
+  /** Token da sessão da conta guardado neste navegador (ou null). */
+  get accountSession(): string | null { return storeGet(localStorage, ACCOUNT_SESSION_KEY); }
 
   private remember(r: AccountSession): AccountSession {
     if (r.ok) {
-      storeSet(sessionStorage, ACCOUNT_SESSION_KEY, r.session);
+      storeSet(localStorage, ACCOUNT_SESSION_KEY, r.session);
       storeSet(localStorage, LAST_ACCOUNT_KEY, r.account);
     } else if (r.error === "invalid_session") {
-      storeSet(sessionStorage, ACCOUNT_SESSION_KEY, null);
+      storeSet(localStorage, ACCOUNT_SESSION_KEY, null);
     }
     return r;
   }
@@ -135,13 +139,13 @@ class Session {
 
   async play(name: string): Promise<PlayResponse> {
     const r = await post<PlayResponse>("play", { session: this.accountSession ?? "", name });
-    if (!r.ok && r.error === "invalid_session") storeSet(sessionStorage, ACCOUNT_SESSION_KEY, null);
+    if (!r.ok && r.error === "invalid_session") storeSet(localStorage, ACCOUNT_SESSION_KEY, null);
     return r;
   }
 
   async logout(): Promise<void> {
     const s = this.accountSession;
-    storeSet(sessionStorage, ACCOUNT_SESSION_KEY, null);
+    storeSet(localStorage, ACCOUNT_SESSION_KEY, null);
     if (s) await post("logout", { session: s }).catch(() => {});
   }
 
@@ -166,9 +170,9 @@ class Session {
   }
 
   /**
-   * "Trocar personagem" (menu em você): sai da sala por vontade própria e recarrega a página. A sessão da conta fica na
-   * aba (sessionStorage), então o login volta direto à lista de personagens. Soltar a sala antes de sair impede que o
-   * onLeave mostre "Você foi desconectado" no meio do caminho.
+   * "Trocar personagem" (menu em você): sai da sala por vontade própria e recarrega a página. A sessão da conta fica no
+   * navegador (localStorage), então o login volta direto à lista de personagens. Soltar a sala antes de sair impede que
+   * o onLeave mostre "Você foi desconectado" no meio do caminho.
    */
   async switchCharacter(): Promise<void> {
     const room = this.room;

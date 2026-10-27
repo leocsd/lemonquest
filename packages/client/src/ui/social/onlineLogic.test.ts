@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { canInviteOnline, onlineLine, onlineTip } from "./onlineLogic.ts";
+import { canInviteOnline, groupOnline, onlineLine, onlineTip } from "./onlineLogic.ts";
 
 describe("painel Online: linha e botões", () => {
+  it("blocos: seu grupo, amigos e o resto, na ordem recebida; um bloco só fica sem rótulo", () => {
+    const list = [
+      { name: "a", party: false, friend: true }, { name: "b", party: true, friend: true }, { name: "c", party: false, friend: false },
+      { name: "d", party: false, friend: true }, { name: "e", party: true, friend: false },
+    ];
+    expect(groupOnline(list).map((g) => [g.key, g.label, g.entries.map((e) => e.name).join("")])).toEqual([
+      ["party", "Seu grupo", "be"], ["friends", "Amigos", "ad"], ["others", "No mundo", "c"],
+    ]);
+    expect(groupOnline([{ party: false, friend: false }, { party: false, friend: false }]).map((g) => [g.key, g.label])).toEqual([["others", ""]]);
+    expect(groupOnline([])).toEqual([]);
+  });
+
   it("level, zona (quando a regra do /quem deixa) e ausente", () => {
     expect(onlineLine({ level: 45, zone: "Pântano Turvo" })).toBe("lv 45 · Pântano Turvo");
     expect(onlineLine({ level: 45 })).toBe("lv 45");

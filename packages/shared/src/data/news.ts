@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27k",
+    date: "28 de outubro",
+    title: "Entra direto e painel Online novo",
+    items: [
+      "O login fica salvo no navegador: ao abrir o jogo você já cai na lista de personagens. Em computador compartilhado, use \"Sair da conta\".",
+      "Painel Online em blocos — seu grupo, amigos e o resto —, com o rosto da vocação e botões novos: estrela (amigo), + (convidar) e balão (sussurrar).",
+    ],
+  },
+  {
     id: "2026-10-27j",
     date: "28 de outubro",
     title: "Wiki com a cara do jogo",

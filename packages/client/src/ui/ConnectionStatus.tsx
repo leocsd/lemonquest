@@ -41,7 +41,7 @@ export function ConnectionStatus() {
   }
   if (session.status === "closed") {
     const info = session.closeInfo;
-    // Recarregar volta à LISTA DE PERSONAGENS se a sessão da conta (sessionStorage) ainda valer (ver Login).
+    // Recarregar volta à LISTA DE PERSONAGENS se a sessão da conta (salva no navegador) ainda valer (ver Login).
     const back = session.accountSession ? "Voltar aos personagens" : "Voltar ao login";
     if (info?.code === CLOSE_TRAINING) {
       const skill = trainingSkill();

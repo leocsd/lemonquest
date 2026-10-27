@@ -1,18 +1,38 @@
-/* Card "Online" da barra lateral (ciclo 18). A lista rola a partir de ~9 linhas para não empurrar a mochila. */
-.online { display: flex; flex-direction: column; gap: 6px; }
-.online-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 230px; overflow-y: auto; scrollbar-gutter: stable; padding-right: 2px; } /* 2 px: a barra de 6 px não encosta na borda das linhas, sem roubar muito da coluna de 220 px */
-.online-row { display: flex; align-items: center; gap: 4px; min-height: 24px; padding: 1px 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.18); border: 1px solid transparent; }
-.online-row.friend { border-color: rgba(217, 164, 65, 0.28); }
-.online-row.party { border-color: rgba(157, 255, 138, 0.3); }
-.online-row.away .online-main, .online-row.off .online-main { opacity: 0.55; }
-.online-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
-.online-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+/* Card "Online" da barra lateral (ciclo 18; blocos, rosto e botões em pixel art em 2026-10-27). A lista de cada bloco
+   rola a partir de ~7 linhas para não empurrar a mochila. */
+.online { display: flex; flex-direction: column; gap: 8px; }
+.online-group { display: flex; flex-direction: column; gap: 3px; }
+.online-group-title {
+  display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px;
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-faint);
+}
+.online-group-n { color: var(--hud-muted); letter-spacing: 0; }
+.online-list { list-style: none; margin: 0; padding: 0 2px 0 0; display: flex; flex-direction: column; gap: 3px; max-height: 238px; overflow-y: auto; scrollbar-gutter: stable; } /* 2 px: a barra de 6 px não encosta nas linhas sem roubar muito da coluna de 220 px */
+.online-row {
+  display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 3px 4px 3px 3px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.online-row.friend { border-color: rgba(217, 164, 65, 0.35); }
+/* A classe `party` da linha (o E2E a procura) também casa com o `.party` do painel de grupo (party.css: coluna); a
+   regra mais específica devolve a linha. */
+.online-list > .online-row.party { flex-direction: row; gap: 6px; border-color: rgba(79, 227, 106, 0.35); }
+.online-row.away .online-main, .online-row.off .online-main, .online-row.off .online-face { opacity: 0.5; }
+/* Rosto da vocação (faceset do pack, 16 px) num poço quadrado. */
+.online-face { flex: none; width: 24px; height: 24px; object-fit: cover; image-rendering: pixelated; border-radius: 3px; background: #07080c; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6); }
+.online-face.empty { display: inline-block; }
+.online-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.online-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 14px; font-weight: 600; }
 .online-row.off .online-name { color: var(--hud-muted); font-weight: 400; }
-.online-sub { flex: none; max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
-.online-actions { display: flex; gap: 2px; flex: none; }
-.online-mini { width: 20px; height: 20px; padding: 0; font-size: 12px; line-height: 1; }
-.online-star { width: 18px; height: 18px; padding: 0; flex: none; font-size: 13px; line-height: 1; color: var(--hud-faint) !important; background: transparent !important; border-color: transparent !important; }
-.online-star.on { color: var(--hud-gold) !important; }
-.online-star:hover { color: #ffe066 !important; }
-.online-off { display: flex; flex-direction: column; gap: 3px; }
-.online-off-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--hud-faint); }
+.online-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; line-height: 12px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
+/* Botões: quadrados de 22 px com a moldura do HUD; o ícone herda a cor (currentColor). */
+.online-actions { display: flex; gap: 3px; flex: none; }
+.online-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; cursor: pointer;
+  color: var(--hud-muted); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--hud-line); border-radius: 4px;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.online-btn:hover { color: var(--hud-text); border-color: var(--hud-line-hi); background: rgba(255, 255, 255, 0.06); }
+.online-btn.invite:hover { color: #9dff8a; border-color: rgba(79, 227, 106, 0.6); }
+.online-btn.star:hover { color: #ffe066; border-color: rgba(217, 164, 65, 0.6); }
+.online-btn.star.on { color: var(--hud-gold); border-color: rgba(217, 164, 65, 0.5); }
+.online-group.g-off .online-row { background: rgba(0, 0, 0, 0.12); border-style: dashed; }

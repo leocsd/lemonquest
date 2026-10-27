@@ -20,8 +20,11 @@ import { starterKit } from "../systems/inventory.ts";
 
 /** Validade do token de entrada no mundo (uso único, emitido pelo /api/play). */
 export const TOKEN_TTL_MS = 60_000;
-/** Sessão da conta (lista de personagens): expira após 30 min sem uso; logout invalida. */
-export const SESSION_IDLE_MS = 30 * 60_000;
+/**
+ * Sessão da conta (lista de personagens): expira após 30 dias sem uso; logout invalida. O cliente a guarda no navegador
+ * (localStorage) para abrir direto na lista de personagens (dono, 2026-10-27); antes eram 30 min, só na aba.
+ */
+export const SESSION_IDLE_MS = 30 * 24 * 3600_000;
 /** Sessões simultâneas por conta (abas/PCs): passou disso, a mais antiga cai. */
 const MAX_SESSIONS_PER_ACCOUNT = 8;
 const MIN_NAME_LEN = 3;

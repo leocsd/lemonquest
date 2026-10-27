@@ -1,5 +1,21 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · login salvo no navegador, olho em pixel art e painel Online reorganizado
+
+Pedidos do dono: "organizar melhor a lista de onlines e melhorar os botões", "tirar o botão de olho da senha ou deixar
+um pixel art", "salvar o login no navegador: a pessoa entra direto e só escolhe o personagem".
+- **Login salvo**: a sessão da conta vai para o `localStorage` (era `sessionStorage`, só na aba) e o servidor a vence
+  após **30 dias sem uso** (`SESSION_IDLE_MS`, era 30 min; renovada a cada uso, sobrevive a reinício porque o hash já
+  ficava no banco). Abrir o jogo cai direto na lista de personagens; "Sair da conta" apaga (dica na tela de login e
+  no README para computador compartilhado). `auth.test.ts` ajustado.
+- **Olho da senha** em pixel art: bitmaps `eye`/`eye_closed` em `icons.tsx` no lugar dos emojis 👁/🙈.
+- **Painel Online** (`OnlinePanel.tsx`, `onlineLogic.groupOnline`, `online.css`): três blocos com título em caixa
+  alta e contagem — Seu grupo, Amigos, No mundo (um bloco só fica sem título) — e "Amigos fora do jogo" tracejado;
+  cada linha com o rosto da vocação (faceset do pack), nome na cor da vocação em cima e "lv · zona · ausente"
+  embaixo; botões quadrados de 22 px com a moldura do HUD e ícones em pixel art (estrela cheia/vazia `star`/
+  `star_outline`, `plus`, `bubble`), verde no convite e dourado no amigo ao passar o mouse. Seletores do E2E
+  (`data-online`, `.online-sub`, rótulos dos botões) mantidos. O harness `?uitest` ganhou uma lista Online de exemplo.
+
 ## [Não lançado] — 2026-10-27 · wiki com a cara do jogo
 
 Pedido do dono: "deixe a wiki com uma carinha mais do Lemon Quest". Só `tools/wiki/wiki.css`, o `layout()` de
