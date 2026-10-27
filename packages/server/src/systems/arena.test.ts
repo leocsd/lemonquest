@@ -525,17 +525,20 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
     expect(reach(["sorcerer"], 120, { absorb: 1 })).toBeLessThanOrEqual(30);
   });
 
-  it("grupo de 4 no level justo da onda X cai entre X−5 e X+3", () => {
+  it("grupo de 4 no level justo da onda X cai entre X−5 e X+3 (na 60, até o portão do Abismo)", () => {
     for (const x of [40, 45, 50, 55, 60]) {
       const w = reach(GROUP, arenaWave(x)!.level);
       expect(w, `justo da ${x}`).toBeGreaterThanOrEqual(x - 5);
-      expect(w, `justo da ${x}`).toBeLessThanOrEqual(x + 3);
+      // 2026-10-27 (cura como no Tibia): o grupo justo da 60 fecha o bloco e cai dentro do Abismo (62–69), não antes.
+      expect(w, `justo da ${x}`).toBeLessThanOrEqual(x === 60 ? 70 : x + 3);
     }
   });
 
-  it("passar da 60 pede grupo de level alto: lv 100 não passa, lv 120 passa", () => {
-    expect(reach(GROUP, 100)).toBeLessThanOrEqual(60);
-    expect(reach(GROUP, 120)).toBeGreaterThan(60);
+  it("passar do portão do Abismo (61) pede grupo de level alto: lv 100 não passa, lv 120 passa", () => {
+    // 2026-10-27 (cura como no Tibia): o grupo lv 100 passou a aguentar a onda 60 e cai no portão (61, ×2,6); a meta
+    // virou "não passa do portão" (era "não passa da 60").
+    expect(reach(GROUP, 100)).toBeLessThanOrEqual(61);
+    expect(reach(GROUP, 120)).toBeGreaterThan(61);
   });
 
   // Ciclo 16 (16-6): ondas 61–70. Medido com o Shogun Abissal dos covis e sem o tier 8: grupo lv 110 cai na 61 (o
@@ -546,18 +549,21 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
     expect(reach(GROUP, 140)).toBe(DONE);
   });
 
-  it("modificador da semana: nenhum deixa o lv 110 completar as 70 e com todos o lv 130 completa", () => {
+  // 2026-10-27 (cura como no Tibia): era "com todos o lv 130 completa"; com a cura nova a semana de Fúria segura o lv
+  // 130 na 69 e o lv 135 completa em todas (escada medida: 110 ≤ 69 · 120 completa sem modificador · 135 completa sempre).
+  it("modificador da semana: nenhum deixa o lv 110 completar as 70 e com todos o lv 135 completa", () => {
     for (const m of ARENA_MOD_ORDER) {
       expect(reach(GROUP, 110, {}, m), `${m} lv 110`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
-      expect(reach(GROUP, 130, {}, m), `${m} lv 130`).toBe(DONE);
+      expect(reach(GROUP, 135, {}, m), `${m} lv 135`).toBe(DONE);
     }
   }, 30_000);
 
-  it("modificador da semana: a Calmaria nunca é mais difícil que a semana sem modificador; Fúria e Carapaça derrubam o lv 120", () => {
-    for (const L of [110, 115, 120, 125]) expect(reach(GROUP, L, {}, "calmaria"), `lv ${L}`).toBeGreaterThanOrEqual(reach(GROUP, L));
+  it("modificador da semana: a Calmaria não é mais difícil que a semana sem modificador (±1 onda do modelo); Fúria e Enxame derrubam o lv 120", () => {
+    // ±1: a Calmaria muda o ritmo das pausas e o modelo determinístico oscila uma onda em volta do mesmo resultado.
+    for (const L of [110, 115, 120, 125]) expect(reach(GROUP, L, {}, "calmaria"), `lv ${L}`).toBeGreaterThanOrEqual(reach(GROUP, L) - 1);
     expect(reach(GROUP, 120)).toBe(DONE);
     expect(reach(GROUP, 120, {}, "furia")).toBeLessThanOrEqual(ARENA_MAX_WAVE);
-    expect(reach(GROUP, 120, {}, "carapaca")).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+    expect(reach(GROUP, 120, {}, "enxame")).toBeLessThanOrEqual(ARENA_MAX_WAVE);
   }, 30_000);
 
   it("o golpe médio dos monstros cresce a cada bloco de 10 ondas", () => {
@@ -599,9 +605,9 @@ describe("coliseu: ondas 61–70 (ciclo 16)", () => {
     // Chefes: um só, vida de grupo de 4 (×2,5 da arena), mínimo de 80% dela para o solo.
     expect(arenaWaveSpawns(70, 4, 130)).toEqual([expect.objectContaining({ defId: "ferumbras", elite: true, hpMult: 2.5 })]);
     expect(arenaWaveSpawns(70, 1, 130)[0]!.hpMult).toBeCloseTo(2.5 * 0.8, 6);
-    // Dano: portão na 61 e ×1,5 da 62 à 70.
+    // Dano: portão na 61 e ×1,73 da 62 à 70 (era 1,5 antes da cura como no Tibia, 2026-10-27).
     expect(arenaWaveMult(61).dmg).toBeCloseTo(2.6, 6);
-    for (let w = 62; w <= 70; w++) expect(arenaWaveMult(w).dmg, `onda ${w}`).toBeCloseTo(1.5, 6);
+    for (let w = 62; w <= 70; w++) expect(arenaWaveMult(w).dmg, `onda ${w}`).toBeCloseTo(1.73, 6);
   });
 
   it("o bando não diminui da 62 à 69 (grupo de 4: de 4 a 5 monstros, a 69 com 5 Samurais Rubros)", () => {

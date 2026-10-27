@@ -91,8 +91,26 @@ export const SPELLS: Record<string, SpellDef> = {
   // ------------------------------------------------------------------ CURA ÚNICA (todas as vocações)
   light_heal: {
     id: "light_heal", name: "Cura", words: "exura", vocations: ["knight", "paladin", "sorcerer", "druid"], level: 1, mana: 20, manaPerLevel: 1.5, manaMax: 70, cooldownMs: 1000,
-    target: "self", heal: { base: 22, perLevel: 2.2, perMagic: 0.45, variance: 0.15 }, fx: "heal",
-    description: "Cura uma parte da sua vida. Cresce com o level e, principalmente para magos, com o magic level. O custo de mana sobe com o level.",
+    // Como no Tibia (decisão do dono, 2026-10-27): a Cura escala pelo magic level. Era 22 + 2,2·lv + 0,45·ML (15 % do
+    // HP para todos, sempre); agora o mago cura ~30–37 %, o paladino ~13–17 % e o cavaleiro ~10 %, que compensa com as
+    // poções de vida fortes (items.ts). Level 1: ~14 % para todos. ML 3 por ponto é o teto que mantém as metas do
+    // balanço (vocationBalance.test.ts: com 4+ o feiticeiro liderava dano e sobrevivência no lv 60).
+    target: "self", heal: { base: 20, perLevel: 1.23, perMagic: 3.0, variance: 0.15 }, fx: "heal",
+    description: "Cura uma parte da sua vida. Cresce principalmente com o magic level: magos curam muito, cavaleiros pouco (que compensam com as poções fortes e o Limpar Feridas).",
+  },
+  // Curas próprias de cavaleiro e paladino, como no Tibia (exura ico / exura san). Sem elas, com a Cura por ML o
+  // paladino caía no portão do Abismo (Coliseu, onda 61) na semana de Fúria e o cavaleiro perdia a cura de 1 s que
+  // segura o golpe grande antes de a poção (2 s) voltar. Ambas ~15 % do HP, por level: o cavaleiro sem ML cura o mesmo
+  // que curava antes com a Cura; o paladino um pouco mais (ML conta um terço).
+  wound_cleansing: {
+    id: "wound_cleansing", name: "Limpar Feridas", words: "exura ico", vocations: ["knight"], level: 15, mana: 40, cooldownMs: 1000,
+    target: "self", heal: { base: 22, perLevel: 2.2, perMagic: 0, variance: 0.15 }, fx: "heal",
+    description: "Fecha as feridas: cura ~15% da vida, pelo level (sem magic level). A cura de cada segundo do cavaleiro.",
+  },
+  divine_healing: {
+    id: "divine_healing", name: "Cura Divina", words: "exura san", vocations: ["paladin"], level: 35, mana: 60, cooldownMs: 1000,
+    target: "self", heal: { base: 20, perLevel: 1.6, perMagic: 3.0, variance: 0.15 }, fx: "heal",
+    description: "Luz que cura ~16–19% da vida, pelo level e um pouco pelo magic level. A cura forte do paladino.",
   },
 
   // ------------------------------------------------------------------ CAVALEIRO (tank corpo a corpo)
@@ -213,7 +231,9 @@ export const SPELLS: Record<string, SpellDef> = {
     // Ciclo 7: era perLevel 1 / perMagic 2 / cd 8 s / 50 de mana (165 a cada 8 s no lv 90 com ML 30 — ~7% da vazão da
     // Cura): o druida não tinha papel de suporte no fim de jogo.
     id: "group_heal", name: "Cura em Grupo", words: "exura mas sio", vocations: ["druid"], level: 15, mana: 80, cooldownMs: 5000,
-    target: "party", radius: 4, heal: { base: 15, perLevel: 2, perMagic: 2.5, variance: 0.2 }, fx: "heal",
+    // 2026-10-27: perMagic 2,5 → 3 junto com a Cura por ML: o druida (curandeiro) fica com a maior sobrevivência entre
+    // os magos (meta 15-13) sem o grupo de 4 completar o Coliseu cedo demais (arena.test.ts).
+    target: "party", radius: 4, heal: { base: 15, perLevel: 2, perMagic: 3, variance: 0.2 }, fx: "heal",
     description: "Cura você e os aliados num raio de 4 tiles.",
   },
   summon_wolf: {

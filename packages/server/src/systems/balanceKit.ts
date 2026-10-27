@@ -77,10 +77,12 @@ function bestItem(v: Vocation, L: number, ok: (it: ItemDef) => boolean): ItemDef
   return best;
 }
 
-function bestPotion(L: number, kind: "heal" | "mana", cap = Infinity): { amount: number; cdS: number } | undefined {
+function bestPotion(L: number, kind: "heal" | "mana", v: Vocation, cap = Infinity): { amount: number; cdS: number } | undefined {
   let best: { amount: number; cdS: number } | undefined;
   for (const it of Object.values(ITEMS)) {
     const amount = it.kind === "potion" ? it.use?.[kind] ?? 0 : 0;
+    // Poções por vocação (as fortes): o mago não bebe a de vida do cavaleiro.
+    if (it.vocations?.length && !it.vocations.includes(v)) continue;
     if (amount > 0 && amount <= cap && (it.level ?? 0) <= L && (!best || amount > best.amount)) {
       best = { amount, cdS: (it.use?.cooldownMs ?? 0) / 1000 };
     }
@@ -119,8 +121,8 @@ export function fighter(v: Vocation, L: number, build: Build = "auto", table = S
     range: weapon?.range ?? VOCATION_ATTACK[v].range,
     manaTick: manaRegenAmount(mana, L, true, false) + bonus("manaRegen"),
     spells: spellsFor(v).filter((s) => s.level <= L),
-    hpPotion: bestPotion(L, "heal"),
-    manaPotion: bestPotion(L, "mana", mana),
+    hpPotion: bestPotion(L, "heal", v),
+    manaPotion: bestPotion(L, "mana", v, mana),
   };
 }
 

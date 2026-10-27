@@ -1,6 +1,6 @@
 // Card "Grupo" da barra lateral: membros (vocação, level, HP/MP), coroa do líder, estado da XP compartilhada e ações.
 // Só aparece quando você está num grupo.
-import { PARTY_ACTIVE_MS, PARTY_MAX, PARTY_SHARE_RANGE, PARTY_SHARE_REASON_TEXT } from "@lemonquest/shared";
+import { PARTY_ACTIVE_MS, PARTY_SHARE_RANGE, PARTY_SHARE_REASON_TEXT } from "@lemonquest/shared";
 import { session } from "../../session.ts";
 import { Section } from "../hud/Section.tsx";
 import { useStore } from "../hud/store.ts";
@@ -16,7 +16,7 @@ export function PartyPanel() {
   const party = useStore(partyStore);
   if (!party) return null;
   return (
-    <Section id="party" title="Grupo" aside={<span class="count-chip">{party.members.length}/{PARTY_MAX}</span>} class="party-section">
+    <Section id="party" title="Grupo" aside={<span class="count-chip">{party.members.length}</span>} class="party-section">
       <PartyBody party={party} />
     </Section>
   );

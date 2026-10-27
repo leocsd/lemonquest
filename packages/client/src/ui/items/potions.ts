@@ -31,7 +31,7 @@ export function potionCooling(): boolean {
  */
 export function quickPotionPick(kind: PotionKind): { it: ItemInstance | null; needLevel: number } {
   const bp = inventoryStore.get()?.backpack ?? [];
-  const { index, needLevel } = pickQuickPotion(bp, kind, myLevelStore.get(), itemDef);
+  const { index, needLevel } = pickQuickPotion(bp, kind, myLevelStore.get(), itemDef, meStore.get()?.vocation);
   return { it: index >= 0 ? bp[index] ?? null : null, needLevel };
 }
 

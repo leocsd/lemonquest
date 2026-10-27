@@ -12,6 +12,18 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-27e",
+    date: "28 de outubro",
+    title: "Cura como no Tibia, poções por vocação e grupo sem limite",
+    items: [
+      "A Cura (exura) agora cresce com o magic level: magos curam ~1/3 da vida por segundo; cavaleiros curam pouco com ela.",
+      "Cavaleiro ganhou Limpar Feridas (exura ico, lv 15: ~15% da vida, sem magic level) e paladino a Cura Divina (exura san, lv 35). Ponha na barra (H).",
+      "Poções novas por level e vocação: Vida Forte (lv 50, cav/pal), Enorme (lv 80, cav) e Suprema (lv 110, cav); Mana Forte (lv 50) e Enorme (lv 80) para magos; Poção de Espírito (lv 80) para paladino.",
+      "O Coliseu ficou um pouco mais duro das ondas 40 em diante para acompanhar a cura nova.",
+      "O grupo não tem mais limite de membros.",
+    ],
+  },
+  {
     id: "2026-10-27d",
     date: "27 de outubro (noite)",
     title: "Arraste para ordenar as magias",

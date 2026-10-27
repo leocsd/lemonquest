@@ -244,7 +244,12 @@ export const ARENA_HP_MULT = 2.5;
  * Profundo já batem muito mais que os da 51–60 (×1,7 de MONSTER_DAMAGE_TIERS): com ×2,4 nem o lv 140 passava da 63.
  */
 export const ARENA_DMG_POINTS: readonly (readonly [number, number])[] =
-  [[1, 1.5], [20, 1.9], [30, 6.2], [40, 3.5], [50, 4.3], [60, 2.4], [61, 2.6], [62, 1.5], [70, 1.5]];
+  [[1, 1.5], [20, 1.9], [30, 6.2], [40, 3.68], [50, 4.52], [60, 2.64], [61, 2.6], [62, 1.73], [70, 1.73]];
+// 2026-10-27 (cura como no Tibia: Cura por ML, Limpar Feridas, Cura Divina, poções por vocação, Cura em Grupo ML 3): o
+// grupo de 4 passou a sustentar mais, então 40/50/60 subiram 5–10 % (3,5/4,3/2,4 → 3,68/4,52/2,64) e 62–70 de 1,5 para
+// 1,73 — o menor conjunto (varredura em arena.test.ts) em que nenhum grupo lv 110 completa as 70 em nenhuma semana, o
+// lv 120 completa na semana sem modificador e o lv 135 completa em todas. O portão (61) ficou em 2,6: o grupo lv 100
+// cai nele (não passa dele). Sozinho, o muro da onda 30 continua valendo para todos no lv 120.
 /** Monstros comuns a mais por membro além do primeiro (antes 0,6: o solo enfrentava 1/2,8 do bando de 4 — desconto demais). */
 export const ARENA_COUNT_PER_MEMBER = 0.2;
 /** Quantidade por membro que conta para a XP das ondas (a de antes do ciclo 8: a XP por onda não mudou). */

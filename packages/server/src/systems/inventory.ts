@@ -548,7 +548,7 @@ export class InventorySystem {
   onQuickPotion(p: PlayerState, msg: QuickPotionMsg): void {
     const inv = this.inv.get(p.id);
     if (!inv || !msg || (msg.kind !== "hp" && msg.kind !== "mana")) return;
-    const { index, needLevel } = pickQuickPotion(inv.backpack, msg.kind, p.level, this.defs);
+    const { index, needLevel } = pickQuickPotion(inv.backpack, msg.kind, p.level, this.defs, p.vocation);
     if (index < 0) return this.warn(p, needLevel ? MSG.level(needLevel) : msg.kind === "hp" ? MSG.noHp : MSG.noMana);
     this.useAt(p, inv, index);
   }
@@ -743,6 +743,8 @@ export class InventorySystem {
     // Level do item vale para usar, não só para equipar: a Poção de Vida Grande (lv 30) curava 450 no lv 1.
     const need = levelNeeded(def, p.level);
     if (need) return this.warn(p, MSG.level(need));
+    // Poções por vocação (as fortes, como no Tibia): um mago não bebe a Poção de Vida Enorme do cavaleiro.
+    if (def?.vocations?.length && !def.vocations.includes(p.vocation)) return this.warn(p, MSG.vocation);
     const now = this.now();
     if (use.chest) {
       if (!this.o.openChest) return this.warn(p, MSG.notUsable);

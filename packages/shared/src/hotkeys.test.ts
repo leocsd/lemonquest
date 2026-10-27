@@ -62,7 +62,8 @@ describe("atalhos de magia", () => {
     }
     // A barra encolhe: menos teclas que magias em todas as vocações. Cabe no 1–0, menos o druida desde o Escudo de Mana
     // (ciclo 15): 14 magias em 11 teclas, a 11ª na C.
-    expect(sizes).toEqual({ knight: 9, paladin: 6, sorcerer: 8, druid: 11 });
+    // 2026-10-27: +1 no cavaleiro (Limpar Feridas) e no paladino (Cura Divina), as curas próprias como no Tibia.
+    expect(sizes).toEqual({ knight: 10, paladin: 7, sorcerer: 8, druid: 11 });
     for (const n of Object.values(sizes)) expect(n).toBeLessThanOrEqual(HOTKEY_MAX);
     expect(SUGGESTED_KEYS.slice(10, 12)).toEqual(["KeyC", "KeyF"]); // A, B, D, E são do jogo
   });

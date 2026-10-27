@@ -8,7 +8,7 @@
   --addon-h: 40px; --swatch: 28px; --swatch-gap: 6px; --buy-h: 68px;
   --outfit-stage-h: calc(184px + 22px + 22px + 2 * var(--addon-h) + 5px
     + var(--tone-rows, 3) * var(--swatch) + (var(--tone-rows, 3) - 1) * var(--swatch-gap) + var(--buy-h) + 6 * 8px);
-  position: relative; width: min(600px, 96vw); max-height: 94vh; animation: hud-pop 160ms var(--hud-ease);
+  position: relative; width: min(640px, 96vw); max-height: 94vh; animation: hud-pop 160ms var(--hud-ease);
 }
 .hud-card.outfit-win { background: rgba(17, 20, 28, 0.96); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
 .outfit-win .win-title { cursor: default; flex: none; }
@@ -18,7 +18,8 @@
   height: calc(var(--outfit-stage-h) + 24px); flex: 0 1 auto; min-height: 0; overflow: auto;
 }
 
-.outfit-stage { flex: 0 0 176px; height: var(--outfit-stage-h); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+/* Largura travada (min-width: 0): sem isso o nome longo ("Caçador de Demônios") alargava a coluna e empurrava a grade. */
+.outfit-stage { flex: 0 0 200px; min-width: 0; max-width: 200px; height: var(--outfit-stage-h); display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .outfit-stage > * { flex: none; }
 .outfit-preview {
   width: 176px; height: 184px; box-sizing: border-box; display: grid; place-items: center; cursor: pointer; border-radius: 5px;
@@ -41,7 +42,7 @@
 .outfit-arrow:active { transform: translateY(1px); }
 .outfit-facing { min-width: 64px; text-align: center; font-size: 11px; color: var(--hud-faint); text-transform: uppercase; letter-spacing: 1px; }
 .outfit-name {
-  height: 22px; line-height: 22px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  height: 22px; line-height: 22px; width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-family: "Pixelify Sans", system-ui, sans-serif; font-size: 18px; color: var(--hud-gold); text-shadow: 0 1px 0 #000;
 }
 

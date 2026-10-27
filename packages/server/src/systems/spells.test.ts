@@ -534,7 +534,7 @@ describe("curas de todas as vocações (catálogo real)", () => {
     expect(w.spells.castWords(p, "exura")).toBe(true);
     expect(w.results("p").at(-1)).toMatchObject({ ok: true, spellId: "light_heal" });
     expect(p.mana).toBe(500 - cost);
-    const [lo1, hi1] = rangeOf("light_heal", 10, 3);
+    const [lo1, hi1] = rangeOf("light_heal", 10, p.magicLevel);
     expect(p.hp - 100).toBeGreaterThanOrEqual(lo1);
     expect(p.hp - 100).toBeLessThanOrEqual(hi1);
     // cooldown: segunda conjuração imediata falha e não gasta mana

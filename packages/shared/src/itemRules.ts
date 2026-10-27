@@ -2,6 +2,7 @@
 // level mínimo dos usáveis, qual poção as teclas Q/E bebem, onde o clique rápido guarda um item (mochila ↔ depot) e a
 // mistura de comidas no estado "alimentado".
 import type { ItemDef, ItemInstance } from "./data/items.ts";
+import type { Vocation } from "./types.ts";
 import { maxStackOf } from "./shop.ts";
 
 /** Level que falta para usar `def` (0 = pode). Vale para poção, comida e equipamento (o `level` do item). */
@@ -26,13 +27,15 @@ export function potionAmount(def: ItemDef | undefined, kind: QuickPotionKind): n
  */
 export function pickQuickPotion(
   slots: readonly (ItemInstance | null | undefined)[], kind: QuickPotionKind, level: number,
-  defOf: (id: string) => ItemDef | undefined,
+  defOf: (id: string) => ItemDef | undefined, vocation?: Vocation,
 ): { index: number; needLevel: number } {
   let index = -1, best = 0, needLevel = 0;
   slots.forEach((it, i) => {
     const d = it ? defOf(it.defId) : undefined;
     const amount = potionAmount(d, kind);
     if (amount <= 0) return;
+    // Poção de outra vocação (as fortes, como no Tibia) nem conta: o servidor recusa.
+    if (vocation && d?.vocations?.length && !d.vocations.includes(vocation)) return;
     const need = levelNeeded(d, level);
     if (need > 0) { if (!needLevel || need < needLevel) needLevel = need; return; }
     if (amount > best) { best = amount; index = i; }

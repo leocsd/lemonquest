@@ -16,6 +16,17 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — cura como no Tibia (2026-10-27)
+
+| Verificação | Resultado |
+|---|---|
+| Typecheck | ok |
+| Unitários | `npx vitest run`: 137 arquivos, 1631 testes, 0 falhas, 0 pulados (+4 novos: `moveHotkey`, poções por vocação em Q/E, faixas da Cura por vocação, Limpar Feridas/Cura Divina) |
+| Balanço | `vocationBalance.test.ts`: pior/melhor 0,79 / 0,72 / 0,81 (lv 30/60/100); feiticeiro não lidera dano e sobrevivência; Escudo de Mana ≤ 1,1× |
+| Coliseu | `arena.test.ts` com a curva nova: solo lv 120 ≤ 30 (cav 30, pal 30, feit 29); solo lv 34 cai na 22–23; grupo lv 100 cai na 61, lv 110 na 68–69, lv 120 completa, lv 135 completa em todas as semanas; Fúria/Enxame derrubam o lv 120 |
+| Varredura | `scratchpad/sweep-coliseu.mts` (fora do repositório): 40 combinações de Cura/poções/ondas; o conjunto escolhido é o menor que devolve todos os degraus |
+| E2E | CI da PR (não roda localmente) |
+
 ## Resultados — janela "Magias" (2026-10-27)
 
 | Verificação | Resultado |

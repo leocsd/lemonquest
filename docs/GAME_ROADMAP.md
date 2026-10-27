@@ -13,6 +13,15 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Cura como no Tibia (2026-10-27) — poções por vocação, Cura por ML, grupo sem limite
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| CT-1 | Dono: "balanceado igual no Tibia: poções para cavaleiro, magos e paladino e cura por ML; o cavaleiro tem cura mais fraca porém pode usar poção mais forte". Cura 20 + 1,23·lv + 3·ML; Limpar Feridas (cav, lv 15) e Cura Divina (pal, lv 35); Cura em Grupo ML 3; poções Vida Forte/Enorme/Suprema (lv 50/80/110), Mana Forte/Enorme (50/80), Espírito (pal, 80), com vocação conferida no servidor e nas teclas Q/E | ✅ (2026-10-27) | `spells.test.ts` (faixas por vocação), `itemRules.test.ts`, `vocationBalance.test.ts` (pior/melhor ≥ 0,69), `arena.test.ts` |
+| CT-2 | Coliseu recalibrado por varredura: `ARENA_DMG_POINTS` 40/50/60 → 3,68/4,52/2,64 e 62–70 → 1,73; degraus novos: lv 100 cai no portão (61), lv 110 nunca completa, lv 120 completa sem modificador, lv 135 completa em todas as semanas; Fúria e Enxame derrubam o lv 120 | ✅ (2026-10-27) | `arena.test.ts`, `monsterHunt.test.ts` |
+| CT-3 | Acompanhar 1 semana: gasto de ouro em poções no 50+ (meta 16-7) e mortes/h por vocação com a cura nova (`admin telemetria`); se o cavaleiro sobrar no 100+, baixar a Suprema para 700 | ⏳ | telemetria de produção |
+| CT-4 | Grupo sem limite de membros (`PARTY_MAX` 64 só como guarda); a regra de level da XP (2/3) ficou como o dono decidiu antes | ✅ (2026-10-27) | `party.test.ts` |
+
 ## Janela "Magias" (2026-10-27) — usabilidade e acessibilidade dos atalhos e grupos
 
 | # | Item | Status | Validação |

@@ -239,7 +239,7 @@ export const NPCS: Record<string, NpcDef> = {
     id: "arena_shop_1", name: "Vendedor do Coliseu", sprite: C + "GladiatorBlue/SpriteSheet.png",
     greeting: "Respire fundo, guerreiro! Poções e comida para a próxima onda.",
     shop: {
-      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "mana_potion", "mana_potion_medium", "mana_potion_large", "meat", "honey", "onigiri"),
+      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion", "meat", "honey", "onigiri"),
     },
     idleLines: ["Reponha as forças antes da próxima onda!", "Poção na mão, vitória no coração."],
   },
@@ -247,7 +247,7 @@ export const NPCS: Record<string, NpcDef> = {
     id: "arena_shop_2", name: "Vendedor do Coliseu", sprite: C + "GladiatorBlue/SpriteSheet.png",
     greeting: "Respire fundo, guerreiro! Poções e comida para a próxima onda.",
     shop: {
-      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "mana_potion", "mana_potion_medium", "mana_potion_large", "meat", "honey", "onigiri"),
+      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion", "meat", "honey", "onigiri"),
     },
     idleLines: ["Reponha as forças antes da próxima onda!", "Poção na mão, vitória no coração."],
   },
@@ -255,7 +255,7 @@ export const NPCS: Record<string, NpcDef> = {
     id: "arena_shop_3", name: "Vendedor do Coliseu", sprite: C + "GladiatorBlue/SpriteSheet.png",
     greeting: "Respire fundo, guerreiro! Poções e comida para a próxima onda.",
     shop: {
-      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "mana_potion", "mana_potion_medium", "mana_potion_large", "meat", "honey", "onigiri"),
+      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion", "meat", "honey", "onigiri"),
     },
     idleLines: ["Reponha as forças antes da próxima onda!", "Poção na mão, vitória no coração."],
   },
@@ -263,7 +263,7 @@ export const NPCS: Record<string, NpcDef> = {
     id: "arena_shop_4", name: "Vendedor do Coliseu", sprite: C + "GladiatorBlue/SpriteSheet.png",
     greeting: "Respire fundo, guerreiro! Poções e comida para a próxima onda.",
     shop: {
-      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "mana_potion", "mana_potion_medium", "mana_potion_large", "meat", "honey", "onigiri"),
+      sells: sells("health_potion", "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion", "meat", "honey", "onigiri"),
     },
     idleLines: ["Reponha as forças antes da próxima onda!", "Poção na mão, vitória no coração."],
   },
@@ -284,7 +284,7 @@ export const NPCS: Record<string, NpcDef> = {
     casino: true,
     shop: {
       sells: sells(
-        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion",
         "meat", "beaf", "yakitori", "calamari", "sushi",
       ),
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
@@ -355,7 +355,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: "Poções, comida e tudo o que um caçador precisa. E compro o que você trouxer da selva, do gelo ou do vulcão!",
     shop: {
       sells: sells(
-        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion",
         "banana", "fish", "meat", "calamari", "yakitori", "sushi", "fishing_rod",
       ),
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
@@ -415,7 +415,7 @@ export const NPCS: Record<string, NpcDef> = {
     id: "camp_trader", name: "Ingrid, a Peleira", sprite: C + "Eskimo/SpriteSheet.png",
     greeting: "Poções e comida quente para o frio. E compro peles, lascas de gelo e escamas de dragão.",
     shop: {
-      sells: sells("health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large", "meat", "fish", "salmon", "yakitori", "sushi"),
+      sells: sells("health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion", "meat", "fish", "salmon", "yakitori", "sushi"),
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
     },
     idleLines: [
@@ -596,7 +596,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: "Chave, graxa e poção. Compro tudo o que você arrancar dos bichos da via: pino, placa, engrenagem, cunha, até cascalho.",
     shop: {
       sells: sells(
-        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion",
         "beaf", "yakitori", "sushi", "cafe_oficina", "marmita_tampa_vermelha",
       ),
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
@@ -702,7 +702,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: "Almoxarifado aberto! Poção, limonada e prato feito. Compro tudo o que você arrancar dos bichos da usina: lasca, carvão, fuligem, escória, até gota de gusa (de luva, por favor).",
     shop: {
       sells: sells(
-        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion",
         "limonada_turno", "prato_feito", "beaf", "yakitori",
       ),
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
@@ -890,7 +890,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: "Prato do dia, poção e café. Compro o que você arrancar das máquinas: parafuso, graxa, faísca, até airbag murcho.",
     shop: {
       sells: sells(
-        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "health_potion_medium", "health_potion_large", "health_potion_strong", "health_potion_great", "health_potion_supreme", "mana_potion_medium", "mana_potion_large", "mana_potion_strong", "mana_potion_great", "spirit_potion",
         "beaf", "yakitori", "sushi", "cafe_oficina", "marmita_tampa_vermelha", "limonada_turno", "prato_feito",
       ),
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],

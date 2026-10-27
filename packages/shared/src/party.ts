@@ -1,7 +1,7 @@
 // Grupo (party) estilo Tibia: constantes e regras puras da experiência compartilhada (servidor e cliente).
 
-/** Máximo de membros num grupo. */
-export const PARTY_MAX = 6;
+/** Máximo de membros num grupo. Era 6; o dono não quer limite (2026-10-27) — 64 é só a guarda contra abuso. */
+export const PARTY_MAX = 64;
 /** Convite expira depois disso. */
 export const PARTY_INVITE_MS = 60_000;
 /** Distância máxima (tiles, Chebyshev) do abate para receber a parte da XP. */

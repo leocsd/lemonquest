@@ -159,8 +159,8 @@ add({ id: "gold_coin", name: "Moeda de Ouro", kind: "material", stackable: true,
  */
 export const HEALTH_POTION_CD_MS = 2000;
 export const MANA_POTION_CD_MS = 1000;
-const potion = (id: string, name: string, icon: ItemIcon, value: number, level: number, use: { heal?: number; mana?: number }, description: string): void =>
-  add({ id, name, kind: "potion", stackable: true, value, level, use: { ...use, cooldownMs: use.heal ? HEALTH_POTION_CD_MS : MANA_POTION_CD_MS }, icon, description });
+const potion = (id: string, name: string, icon: ItemIcon, value: number, level: number, use: { heal?: number; mana?: number }, description: string, vocations?: Vocation[]): void =>
+  add({ id, name, kind: "potion", stackable: true, value, level, ...(vocations ? { vocations } : {}), use: { ...use, cooldownMs: use.heal ? HEALTH_POTION_CD_MS : MANA_POTION_CD_MS }, icon, description });
 potion("health_potion", "Poção de Vida", img("Potion/LifePot.png"), 40, 1, { heal: 60 }, "Recupera 60 de vida.");
 potion("health_potion_medium", "Poção de Vida Média", img("Potion/Medipack.png"), 120, 15, { heal: 180 }, "Recupera 180 de vida.");
 potion("health_potion_large", "Poção de Vida Grande", img("Potion/Heart.png"), 300, 30, { heal: 450 }, "Recupera 450 de vida.");
@@ -169,6 +169,20 @@ potion("health_potion_large", "Poção de Vida Grande", img("Potion/Heart.png"),
 potion("mana_potion", "Poção de Mana", img("Potion/WaterPot.png"), 45, 1, { mana: 120 }, "Recupera 120 de mana.");
 potion("mana_potion_medium", "Poção de Mana Média", img("Potion/WaterPot.png", 0x9a9aff), 130, 15, { mana: 350 }, "Recupera 350 de mana.");
 potion("mana_potion_large", "Poção de Mana Grande", img("Potion/MilkPot.png", 0xb070ff), 320, 30, { mana: 900 }, "Recupera 900 de mana.");
+/**
+ * Poções por level e vocação, como no Tibia (decisão do dono, 2026-10-27): a Cura escala por magic level, então o
+ * cavaleiro cura pouco com magia e compensa com as poções de vida fortes; magos curam por magia e ficam com as de mana;
+ * o paladino fica no meio, com a Poção de Espírito (vida + mana). Valores calibrados no modelo de `balanceKit.ts`
+ * (`vocationBalance.test.ts` e `arena.test.ts`): a Forte dá ~62 % do HP do cavaleiro no lv 50 e a Suprema ~45 % no
+ * lv 110 — mais que isso o cavaleiro lv 120 passava do muro da onda 30 do Coliseu sozinho. Recarga de 2 s de sempre.
+ * Preço ≈ 0,67 de ouro por ponto de vida (0,36 por ponto de mana), como as de hoje: é o sumidouro de ouro do fim de jogo.
+ */
+potion("health_potion_strong", "Poção de Vida Forte", img("Potion/Heart.png", 0xff6a6a), 370, 50, { heal: 550 }, "Recupera 550 de vida. Só cavaleiros e paladinos.", ["knight", "paladin"]);
+potion("health_potion_great", "Poção de Vida Enorme", img("Potion/Heart.png", 0xffd447), 470, 80, { heal: 700 }, "Recupera 700 de vida. Só cavaleiros.", ["knight"]);
+potion("health_potion_supreme", "Poção de Vida Suprema", img("Potion/Heart.png", 0xc080ff), 540, 110, { heal: 800 }, "Recupera 800 de vida. Só cavaleiros.", ["knight"]);
+potion("mana_potion_strong", "Poção de Mana Forte", img("Potion/MilkPot.png", 0x7aa8ff), 290, 50, { mana: 800 }, "Recupera 800 de mana. Só feiticeiros, druidas e paladinos.", ["sorcerer", "druid", "paladin"]);
+potion("mana_potion_great", "Poção de Mana Enorme", img("Potion/MilkPot.png", 0xff80e0), 470, 80, { mana: 1300 }, "Recupera 1.300 de mana. Só feiticeiros e druidas.", ["sorcerer", "druid"]);
+potion("spirit_potion", "Poção de Espírito", img("Potion/MilkPot.png", 0xffe08a), 410, 80, { heal: 400, mana: 400 }, "Recupera 400 de vida e 400 de mana. Só paladinos.", ["paladin"]);
 
 /** Comida: estado "alimentado" (regen a cada FOOD_TICK_MS). Sem cura instantânea; recarga própria de 1 s. */
 export const FOOD_TICK_MS = 2000;

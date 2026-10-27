@@ -72,10 +72,13 @@ describe("edição dos atalhos", () => {
   it("sem magia repetida: escolher a magia de outra linha troca as duas; com todas já em atalhos, não adiciona", () => {
     expect(setRowSpell(L, 1, "fireball")).toEqual([{ key: "Digit1", spellId: "energy_wave" }, { key: "Digit2", spellId: "fireball" }]);
     let list: Hotkey[] = [];
-    // Paladino: 11 magias, uma tecla sobrando (o cavaleiro chegou a 12 com a Muralha de Escudos e bateria no limite antes).
-    for (let i = 0; i < 11; i++) list = addRow(list, "paladin").list;
-    expect(new Set(list.map((h) => h.spellId)).size).toBe(11);
-    expect(addRow(list, "paladin")).toMatchObject({ error: true, message: "Todas as suas magias já têm atalho." });
+    // Paladino: 12 magias desde a Cura Divina (2026-10-27) = exatamente HOTKEY_MAX; a 13ª linha esbarra no limite da barra.
+    for (let i = 0; i < 12; i++) list = addRow(list, "paladin").list;
+    expect(new Set(list.map((h) => h.spellId)).size).toBe(12);
+    expect(addRow(list, "paladin")).toMatchObject({ error: true, message: `No máximo ${HOTKEY_MAX} atalhos.` });
+    // "Todas já têm atalho" só com menos magias que teclas: uma lista reduzida.
+    const few = list.slice(0, 3);
+    expect(addRow(few, "paladin").list).toHaveLength(4);
   });
 
   describe("magia nova ao subir de level", () => {

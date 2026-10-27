@@ -1,5 +1,28 @@
 # Changelog
 
+## [Não lançado] — 2026-10-27 · cura como no Tibia, grupo sem limite e arrastar na janela Magias
+
+Pedido do dono depois da análise da cura ("balanceado igual no Tibia: poções para cavaleiro, magos e paladino e cura
+por ML; o cavaleiro tem cura mais fraca porém pode usar poção mais forte"). Números calibrados por varredura no modelo
+de `balanceKit.ts` (`vocationBalance.test.ts` e `arena.test.ts`): nenhuma vocação abaixo de 0,69 da mais forte, o
+feiticeiro não lidera dano e sobrevivência, e o Coliseu continua com os mesmos degraus.
+- **Cura (exura) escala pelo magic level** (20 + 1,23·lv + 3·ML; era 22 + 2,2·lv + 0,45·ML = 15 % para todos): mago
+  cura ~30–37 % da vida por segundo, paladino ~13–17 %, cavaleiro ~10 %.
+- **Curas próprias**: **Limpar Feridas** (`exura ico`, cavaleiro, lv 15, 40 de mana, ~15 % da vida pelo level, sem ML)
+  e **Cura Divina** (`exura san`, paladino, lv 35, 60 de mana, ~16–19 %, level + um terço de ML). Sem elas, o paladino
+  caía no portão do Abismo na semana de Fúria e o cavaleiro perdia a cura de 1 s que segura o golpe grande. **Cura em
+  Grupo** do druida: ML 2,5 → 3.
+- **Poções por level e vocação** (sumidouro de ouro do fim de jogo; recarga de 2 s de sempre): Vida Forte (lv 50,
+  cav/pal, 550), Vida Enorme (lv 80, cav, 700), Vida Suprema (lv 110, cav, 800), Mana Forte (lv 50, magos/pal, 800),
+  Mana Enorme (lv 80, magos, 1.300), **Poção de Espírito** (lv 80, pal, 400 vida + 400 mana). Servidor recusa poção de
+  outra vocação; Q/E pulam as que não são suas; à venda onde já se vendia a Grande. Mais que isso o cavaleiro lv 120
+  passava do muro da onda 30 sozinho.
+- **Coliseu recalibrado** (`ARENA_DMG_POINTS`): ondas 40/50/60 +5–10 % (3,68/4,52/2,64) e 62–70 ×1,73 (era 1,5).
+  Degraus novos (`arena.test.ts`): grupo lv 100 cai no portão do Abismo (61); lv 110 nunca completa; lv 120 completa na
+  semana sem modificador; **lv 135** completa em todas as semanas (era 130); Fúria e Enxame derrubam o lv 120.
+- **Grupo sem limite de membros** (pedido do dono; `PARTY_MAX` 6 → 64 como guarda); o cartão mostra só a contagem.
+- **Roupas**: coluna da esquerda com largura travada (o nome "Caçador de Demônios" a alargava) e janela 600 → 640 px.
+
 ## [Não lançado] — 2026-10-27 · ajustes de interface: listas, botões, categorias, Roupas e mapa
 
 Pedidos do dono depois de usar a janela Magias: "o scroll come a borda da opção", "nome da categoria de cada skill",

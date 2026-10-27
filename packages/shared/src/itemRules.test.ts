@@ -120,3 +120,16 @@ describe("comida em cima de comida", () => {
     expect(f.hpPerTick).toBeLessThan(7); // antes: 12 por 20 min
   });
 });
+
+describe("poções por vocação (como no Tibia)", () => {
+  it("Q/E pulam a poção de outra vocação; a da própria vale; sem vocação informada, só o level decide", () => {
+    const bp = [inst("health_potion_great"), inst("health_potion_large"), inst("mana_potion_great"), inst("spirit_potion")];
+    expect(pickQuickPotion(bp, "hp", 100, itemDef, "knight")).toEqual({ index: 0, needLevel: 0 });
+    expect(pickQuickPotion(bp, "hp", 100, itemDef, "sorcerer")).toEqual({ index: 1, needLevel: 0 });
+    expect(pickQuickPotion(bp, "hp", 100, itemDef, "paladin")).toEqual({ index: 1, needLevel: 0 }); // Grande 450 e Espírito 450 empatam: fica a primeira da mochila
+    expect(pickQuickPotion(bp, "mana", 100, itemDef, "sorcerer")).toEqual({ index: 2, needLevel: 0 });
+    expect(pickQuickPotion(bp, "mana", 100, itemDef, "knight")).toEqual({ index: -1, needLevel: 0 });
+    expect(pickQuickPotion(bp, "hp", 100, itemDef)).toEqual({ index: 0, needLevel: 0 });
+    expect(itemDef("health_potion_supreme")).toMatchObject({ level: 110, vocations: ["knight"], use: { heal: 800, cooldownMs: 2000 } });
+  });
+});

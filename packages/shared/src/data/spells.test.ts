@@ -48,12 +48,14 @@ describe("SPELLS", () => {
       expect(list.length, v).toBeLessThanOrEqual(HOTKEY_MAX + 2);
       expect(list.map((s) => s.level), v).toEqual([...list.map((s) => s.level)].sort((a, b) => a - b));
       expect(list.some((s) => s.id === "light_heal"), v).toBe(true);
-      // exatamente uma cura em si mesmo (alvo "self" com heal); a cura em grupo do druida é outra coisa
-      expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(["light_heal"]);
+      // Cura em si mesmo: a Cura de todos e, como no Tibia (2026-10-27), a própria do cavaleiro (Limpar Feridas) e a do
+      // paladino (Cura Divina); a cura em grupo do druida é outra coisa.
+      const SELF_HEALS: Record<Vocation, string[]> = { knight: ["light_heal", "wound_cleansing"], paladin: ["light_heal", "divine_healing"], sorcerer: ["light_heal"], druid: ["light_heal"] };
+      expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(SELF_HEALS[v]);
       expect(list.every((s) => s.vocations.includes(v))).toBe(true);
     }
-    expect(Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).length]))).toEqual({ knight: 12, paladin: 11, sorcerer: 13, druid: 14 });
-    expect(Object.keys(SPELLS).length).toBe(43);
+    expect(Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).length]))).toEqual({ knight: 13, paladin: 12, sorcerer: 13, druid: 14 });
+    expect(Object.keys(SPELLS).length).toBe(45);
   });
 
   it("descrição do Escudo de Mana acompanha MANA_SHIELD_ABSORB (mudar a constante exige reescrever o texto)", () => {
@@ -157,24 +159,38 @@ describe("SPELLS", () => {
       expect(SPELLS.piercing_arrow.cooldownMs).toBe(2000);
     });
 
-    it("Cura (exura): ~15% da vida no level 1; mago 25-30% (lv20) e 29-35% (lv30); cav/pal 15-22%", () => {
+    it("Cura (exura) escala por ML, como no Tibia: ~14% no level 1; mago 30-38%; paladino 12-18%; cavaleiro 9-13%", () => {
+      // Decisão do dono (2026-10-27): o cavaleiro cura pouco com magia e compensa com as poções de vida fortes
+      // (items.ts); o mago cura por magia. Era 15% para todos em qualquer level.
       for (const v of VOCS) {
-        expect(healPct("light_heal", v, 1), v).toBeGreaterThanOrEqual(0.15);
-        expect(healPct("light_heal", v, 1), v).toBeLessThanOrEqual(0.20);
+        expect(healPct("light_heal", v, 1), v).toBeGreaterThanOrEqual(0.12);
+        expect(healPct("light_heal", v, 1), v).toBeLessThanOrEqual(0.17);
       }
-      // Ciclo 15: com o ML real da produção (mago 20 no lv 30, era 22 no estimador antigo) a Cura do lv 30 dá 29,9%.
-      const MAGE: Record<number, [number, number]> = { 20: [0.25, 0.30], 30: [0.29, 0.35] };
-      for (const lvl of [20, 30]) {
-        for (const v of ["sorcerer", "druid"] as const) {
-          expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeGreaterThanOrEqual(MAGE[lvl][0]);
-          expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeLessThanOrEqual(MAGE[lvl][1]);
-        }
-        for (const v of ["knight", "paladin"] as const) {
-          expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeGreaterThanOrEqual(0.15);
-          expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeLessThanOrEqual(0.22);
+      const RANGE: Record<Vocation, [number, number]> = { sorcerer: [0.30, 0.38], druid: [0.30, 0.38], knight: [0.09, 0.13], paladin: [0.12, 0.18] };
+      for (const lvl of [20, 30, 60, 100]) {
+        for (const v of VOCS) {
+          expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeGreaterThanOrEqual(RANGE[v][0]);
+          expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeLessThanOrEqual(RANGE[v][1]);
         }
       }
-      expect(healPct("light_heal", "druid", 20)).toBeGreaterThan(healPct("light_heal", "knight", 20));
+      expect(healPct("light_heal", "druid", 20)).toBeGreaterThan(healPct("light_heal", "paladin", 20));
+      expect(healPct("light_heal", "paladin", 20)).toBeGreaterThan(healPct("light_heal", "knight", 20));
+    });
+
+    it("Limpar Feridas (cavaleiro, lv 15) e Cura Divina (paladino, lv 35): ~15–19% da vida, por level, em todo level", () => {
+      expect(spellByWords("exura ico")).toMatchObject({ id: "wound_cleansing", vocations: ["knight"], level: 15, cooldownMs: 1000 });
+      expect(spellByWords("exura san")).toMatchObject({ id: "divine_healing", vocations: ["paladin"], level: 35, cooldownMs: 1000 });
+      for (const lvl of [15, 30, 60, 100, 130]) {
+        expect(healPct("wound_cleansing", "knight", lvl), `cav@${lvl}`).toBeGreaterThanOrEqual(0.14);
+        expect(healPct("wound_cleansing", "knight", lvl), `cav@${lvl}`).toBeLessThanOrEqual(0.16);
+        // A própria cura de cada um é maior que a Cura geral: é ela que a tecla inteligente/o jogador deve usar.
+        expect(healPct("wound_cleansing", "knight", lvl), `cav@${lvl}`).toBeGreaterThan(healPct("light_heal", "knight", lvl));
+      }
+      for (const lvl of [35, 60, 100, 130]) {
+        expect(healPct("divine_healing", "paladin", lvl), `pal@${lvl}`).toBeGreaterThanOrEqual(0.15);
+        expect(healPct("divine_healing", "paladin", lvl), `pal@${lvl}`).toBeLessThanOrEqual(0.20);
+        expect(healPct("divine_healing", "paladin", lvl), `pal@${lvl}`).toBeGreaterThan(healPct("light_heal", "paladin", lvl));
+      }
     });
 
     it("custo de mana da Cura cresce com o level (20 + 1.5/level) e tem teto", () => {
@@ -232,11 +248,11 @@ describe("SPELLS", () => {
       expect(burnPerSec).toBeLessThan(regenPerSec * 2.5);
     });
 
-    it("fim de jogo: magias novas por vocação nos lv 35, 50, 70, 90 e 100, sem cura nova", () => {
+    it("fim de jogo: magias novas por vocação nos lv 35, 50, 70, 90 e 100; cura nova só a Cura Divina do paladino (lv 35)", () => {
       for (const v of VOCS) {
         const late = spellsFor(v).filter((s) => s.level > 30);
-        expect(late.map((s) => s.level), v).toEqual([35, 50, 70, 90, 100]);
-        expect(late.some((s) => s.heal), v).toBe(false);
+        expect(late.filter((s) => !s.heal).map((s) => s.level), v).toEqual([35, 50, 70, 90, 100]);
+        expect(late.filter((s) => s.heal).map((s) => s.id), v).toEqual(v === "paladin" ? ["divine_healing"] : []);
       }
     });
 
