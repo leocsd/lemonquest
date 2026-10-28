@@ -21,7 +21,10 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 #game { position: fixed; inset: 0; }
 #game:focus { outline: none; }
 #ui { position: fixed; inset: 0; pointer-events: none; }
-#ui > * { pointer-events: auto; }
+/* :where() zera a especificidade: a classe do próprio filho (.top-stack, .loot-stack, .level-banner, .quest-done… com
+   pointer-events: none) tem que vencer. Como `#ui > *` o ID vencia e a pilha do topo, invisível e larga como a área de
+   jogo, engolia o clique no "+" das missões e no chevron do trilho sempre que havia selo ou aviso nela (dono, 2026-10-28). */
+:where(#ui > *) { pointer-events: auto; }
 
 .panel {
   background: rgba(17, 20, 28, 0.85);

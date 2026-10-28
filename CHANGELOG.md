@@ -1,5 +1,23 @@
 # Changelog
 
+## [Não lançado] — 2026-10-28 · a pilha do topo engolia cliques (missões e chevron)
+
+- **Causa do "não consigo abrir as missões nem a seta do mapa"** (dono: "a notificação no topo tem a largura que tampa
+  as setas do HUD e o botão + das missões"): a pilha do centro do topo (`.top-stack`: selo do evento, avisos, Feed,
+  convites) é um contêiner invisível que vai da borda esquerda até a barra lateral. Ela declara `pointer-events: none`,
+  mas a regra `#ui > * { pointer-events: auto }` tem especificidade de ID e vencia — a faixa inteira engolia o clique
+  no que fica embaixo: o "+"/"−" do rastreador de missões (canto superior esquerdo) e o chevron que abre/recolhe a
+  barra lateral (topo do trilho). Só com o selo "Próximo evento" a faixa cobria a metade de cima dos dois botões
+  (clicar mais embaixo funcionava — daí o "tem hora"); com um aviso ou uma linha do Feed cobria os dois inteiros.
+- **Correção**: `:where(#ui > *) { pointer-events: auto }` (especificidade zero): a classe do próprio filho decide.
+  Vale também para `.loot-stack` (os avisos de loot acima da barra de ações bloqueavam o clique no mundo),
+  `.quest-done`, `.level-banner`, `.conn-banner`, `.arena-count`, `.item-tooltip` e `.drag-ghost`, que declaravam
+  `none` sem efeito. Os filhos da pilha que respondem ao clique (selo, convites, barras do Coliseu e da invasão)
+  continuam clicáveis (`.top-stack > * { auto }`).
+- **Verificação**: sonda Playwright no harness `?uitest` — antes, `elementFromPoint` no centro do chevron e no ponto
+  do "+" devolvia `.top-stack` e o clique real no chevron não recolhia a barra; depois devolve `.rail-chevron` / o
+  canvas do jogo e o clique recolhe. Guarda em `e2e/agenda.spec.ts` (com o selo na pilha, o chevron recebe o clique).
+
 ## [Não lançado] — 2026-10-27 · mão de arrastar só nas bolinhas e guarda contra foco preso
 
 - **Cursor** (dono: "mãozinha nas bolinhas para arrastar o HUD, em vez de pointer em tudo"): o cabeçalho das seções da

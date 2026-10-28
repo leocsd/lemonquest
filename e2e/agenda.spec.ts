@@ -19,6 +19,22 @@ test("agenda: janela no trilho, selo do próximo evento, /agenda e /evento no ch
   await expect(badge).toBeVisible({ timeout: 10_000 });
   if (await page.locator('[data-testid="event-next"]').isVisible()) await expect(badge).toContainText(/^.*Próximo: .+ às \d\d:\d\d/);
 
+  // A pilha do topo (onde o selo mora) é invisível e vai da borda esquerda até a barra lateral: não pode engolir o
+  // clique no que fica embaixo dela — o chevron do trilho (e o "+" do rastreador de missões). Regressão de 2026-10-28:
+  // `#ui > *` vencia o `pointer-events: none` da pilha e o chevron só respondia clicando na metade de baixo.
+  const side = page.locator(".hud-side");
+  const chevron = page.locator(".hud-rail .rail-btn").first();
+  const hit = await chevron.evaluate((el) => {
+    const b = el.getBoundingClientRect();
+    return document.elementFromPoint(b.left + b.width / 2, b.top + 4)?.closest(".rail-btn, .top-stack")?.className ?? "";
+  });
+  expect(hit).toContain("rail-btn");
+  await expect(side).toHaveClass(/open/);
+  await chevron.click();
+  await expect(side).not.toHaveClass(/open/);
+  await chevron.click();
+  await expect(side).toHaveClass(/open/);
+
   // Botão do trilho (sem tecla nova): abre a janela com o próximo em destaque e a semana agrupada por dia.
   await page.getByRole("button", { name: "Agenda de eventos" }).click();
   const win = page.getByRole("dialog", { name: "Agenda de eventos" });

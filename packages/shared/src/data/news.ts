@@ -12,6 +12,14 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-28a",
+    date: "28 de outubro",
+    title: "Cliques no topo da tela",
+    items: [
+      "O \"+\" das missões e a seta que recolhe a barra lateral voltaram a responder ao clique mesmo com um aviso ou o selo do próximo evento no topo da tela.",
+    ],
+  },
+  {
     id: "2026-10-27k",
     date: "28 de outubro",
     title: "Entra direto e painel Online novo",
