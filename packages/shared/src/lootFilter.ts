@@ -3,7 +3,7 @@
 // Regra única: o servidor aplica (systems/loot.ts) e o cliente só mostra (janela "Loot automático", com todos os itens
 // que caem de monstro). Ouro, itens de missão e chaves entram sempre; raro ou melhor idem, na mesma linha de corte do
 // "Vender tudo" (SELL_ALL_KEEPS_FROM): desmarcar um item nunca deixa um épico para trás.
-import { ITEMS, RARITIES, isEquipable, type EquipSlot, type ItemDef, type Rarity } from "./data/items.ts";
+import { ITEMS, RARITIES, isEquipable, type EquipSlot, type ItemDef, type Rarity, type WeaponType } from "./data/items.ts";
 import { MONSTERS } from "./data/monsters.ts";
 import { SELL_ALL_KEEPS_FROM } from "./formulas.ts";
 
@@ -16,20 +16,40 @@ export const DEFAULT_LOOT_FILTER: Readonly<LootFilter> = { skip: [] };
 /** Teto da lista gravada (maior que o catálogo de hoje, com folga para itens novos). */
 export const LOOT_SKIP_MAX = 600;
 
-/** Grupos da janela: o que mais se dispensa primeiro (materiais, comida, poções), depois o equipamento por peça. */
-export type LootGroupId = EquipSlot | "potion" | "food" | "material";
-export const LOOT_GROUP_LABEL: Readonly<Record<LootGroupId, string>> = {
-  material: "Materiais", food: "Comida", potion: "Poções",
-  weapon: "Armas", shield: "Escudos e livros", helmet: "Elmos", armor: "Armaduras", legs: "Pernas", boots: "Botas", ring: "Anéis", amulet: "Amuletos",
-};
-export const LOOT_GROUP_ORDER: readonly LootGroupId[] = ["material", "food", "potion", "weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet"];
+/** Categorias (abas/filtro da janela): equipamento, poções, comida e materiais. */
+export type LootCategory = "gear" | "potion" | "food" | "material";
+export const LOOT_CATEGORY_ORDER: readonly LootCategory[] = ["gear", "potion", "food", "material"];
+export const LOOT_CATEGORY_LABEL: Readonly<Record<LootCategory, string>> = { gear: "Equipamento", potion: "Poções", food: "Comida", material: "Materiais" };
 
-/** Grupo de um item lootável (undefined = não entra na lista: ouro, missão, chave). */
-export function lootGroupOf(d: ItemDef): LootGroupId | undefined {
+/** Categoria de um item lootável (undefined = não entra na lista: ouro, missão, chave). */
+export function lootCategoryOf(d: ItemDef): LootCategory | undefined {
   if (d.id === "gold_coin" || d.kind === "quest" || d.kind === "key") return undefined;
-  if (isEquipable(d)) return d.slot;
+  if (isEquipable(d)) return "gear";
   if (d.kind === "potion" || d.kind === "food" || d.kind === "material") return d.kind;
   return undefined;
+}
+
+/**
+ * Grupos da janela (subcategorias): o que mais se dispensa primeiro (materiais, comida, poções), depois as armas por tipo
+ * (espadas, machados, clavas, arcos, varinhas, bastões) e o resto do equipamento por peça.
+ */
+export type LootGroupId = Exclude<EquipSlot, "weapon"> | WeaponType | "weapon" | "potion" | "food" | "material";
+export const LOOT_GROUP_LABEL: Readonly<Record<LootGroupId, string>> = {
+  material: "Materiais", food: "Comida", potion: "Poções",
+  sword: "Espadas", axe: "Machados", club: "Clavas", bow: "Arcos", wand: "Varinhas", rod: "Bastões", weapon: "Outras armas",
+  shield: "Escudos e livros", helmet: "Elmos", armor: "Armaduras", legs: "Pernas", boots: "Botas", ring: "Anéis", amulet: "Amuletos",
+};
+export const LOOT_GROUP_ORDER: readonly LootGroupId[] = [
+  "material", "food", "potion", "sword", "axe", "club", "bow", "wand", "rod", "weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet",
+];
+
+/** Grupo de um item lootável (undefined = não entra na lista). Arma sem tipo (não há no catálogo) cai em "Outras armas". */
+export function lootGroupOf(d: ItemDef): LootGroupId | undefined {
+  const cat = lootCategoryOf(d);
+  if (cat === undefined) return undefined;
+  if (cat !== "gear") return cat;
+  if (d.slot === "weapon") return d.weaponType ?? "weapon";
+  return d.slot as Exclude<EquipSlot, "weapon">;
 }
 
 const byGroupThenLevel = (a: ItemDef, b: ItemDef): number =>
@@ -46,11 +66,12 @@ export const LOOTABLE_ITEMS: readonly ItemDef[] = (() => {
   return [...ids].map((id) => ITEMS[id]).filter((d): d is ItemDef => !!d && lootGroupOf(d) !== undefined).sort(byGroupThenLevel);
 })();
 
-export interface LootGroup { id: LootGroupId; label: string; items: ItemDef[] }
+export interface LootGroup { id: LootGroupId; label: string; category: LootCategory; items: ItemDef[] }
 /** Os itens lootáveis por grupo (só grupos com item), na ordem da janela. */
 export const LOOT_GROUPS: readonly LootGroup[] = LOOT_GROUP_ORDER
   .map((id) => ({ id, label: LOOT_GROUP_LABEL[id], items: LOOTABLE_ITEMS.filter((d) => lootGroupOf(d) === id) }))
-  .filter((g) => g.items.length > 0);
+  .filter((g) => g.items.length > 0)
+  .map((g) => ({ ...g, category: lootCategoryOf(g.items[0]!)! }));
 
 /** Formato gravado pela 1ª versão (categorias e valor mínimo, 2026-10-28): vira lista de itens na carga. */
 interface LegacyLootFilter { gear?: unknown; materials?: unknown; potions?: unknown; food?: unknown; minValue?: unknown }
@@ -94,7 +115,7 @@ const rank = (r: Rarity): number => RARITIES.indexOf(r);
  * ou melhor sempre; o resto só se não estiver na lista.
  */
 export function autoLoots(f: LootFilter, def: ItemDef, rarity: Rarity): boolean {
-  if (lootGroupOf(def) === undefined) return true;
+  if (lootCategoryOf(def) === undefined) return true;
   if (rank(rarity) >= rank(SELL_ALL_KEEPS_FROM)) return true;
   return !f.skip.includes(def.id);
 }

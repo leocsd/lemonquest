@@ -1,13 +1,20 @@
 /* Janela "Loot automático": lista de todos os itens que caem de monstro, por grupo, com marcador. */
-.lootf-win { width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; }
+.lootf-win { width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; }
 .lootf-sum { font-size: 11px; font-weight: 400; color: var(--hud-muted, #8b93ad); margin-left: 8px; }
+/* Filtros (busca, categoria, vocação, level, zona) numa linha que quebra; ações em lote na linha de baixo. */
 .lootf-tools { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 0; }
-.lootf-search, .lootf-below {
-  flex: 1 1 160px; min-width: 0; padding: 4px 8px; font: inherit; font-size: 12px; color: #e4e8f5;
+.lootf-search, .lootf-sel {
+  flex: 1 1 150px; min-width: 0; padding: 4px 8px; font: inherit; font-size: 12px; color: #e4e8f5;
   background: #1b2030; border: 1px solid #343b4e; border-radius: 4px;
 }
-.lootf-search:focus-visible, .lootf-below:focus-visible { outline: 1px solid rgba(255, 212, 71, 0.6); }
-.lootf-all { flex: none; padding: 4px 10px; font-size: 12px; }
+/* Busca numa linha só; os quatro selects dividem a de baixo (os rótulos "Até o meu level (N)" cabem inteiros). */
+.lootf-search { flex: 1 1 100%; }
+.lootf-search:focus-visible, .lootf-sel:focus-visible { outline: 1px solid rgba(255, 212, 71, 0.6); }
+.lootf-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px 0; }
+.lootf-shown { font-size: 11px; color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; margin-right: 2px; }
+.lootf-actions .lootf-mini { padding: 3px 9px; }
+.lootf-actions .lootf-below { flex: 0 1 190px; padding: 2px 6px; font-size: 11px; }
+.lootf-reset { color: var(--hud-gold); border-color: rgba(217, 164, 65, 0.5); }
 .lootf-note { padding: 6px 10px 0; font-size: 11px; line-height: 1.4; color: var(--hud-muted, #8b93ad); }
 /* Corpo rola; folga à direita para a barra de 6 px não colar nos marcadores. */
 .lootf-body { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 8px 6px 10px 10px; display: flex; flex-direction: column; gap: 10px; }

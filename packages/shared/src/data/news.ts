@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-28h",
+    date: "28 de outubro",
+    title: "Loot automático com filtros",
+    items: [
+      "A janela do loot ganhou filtros: categoria, vocação (a sua primeiro), level (até o seu ou por faixa) e a zona onde o item cai. As armas aparecem separadas por tipo.",
+      "\"Marcar/Desmarcar visíveis\" e \"Desmarcar o que vale menos de…\" agora valem só para o que está na tela: filtre e desmarque de uma vez.",
+    ],
+  },
+  {
     id: "2026-10-28g",
     date: "28 de outubro",
     title: "Loot automático: a lista de itens",
