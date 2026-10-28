@@ -13,6 +13,12 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Chat (2026-10-28)
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| CH-1 | Dono: "quero que o scroll do chat desça automaticamente". Causa: em rajadas o evento de scroll da nossa descida chegava depois da linha seguinte e era lido como "o leitor subiu" (`isAtBottom` com a lista já maior) — o chat parava em "↓ N novas" sozinho. `scrolledAtBottom` compara com a posição que deixamos; e subir no histórico só segura enquanto o mouse está sobre o chat | ✅ (2026-10-28) | `chatScroll.test.ts`; sonda no harness `?uitest` com 13 cenários (rajadas, leitor lendo, mouse fora, recolhido, texto grande, digitando) |
+
 ## Fada Gabi — vocação oculta (2026-10-28)
 
 | # | Item | Status | Validação |

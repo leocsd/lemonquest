@@ -8,7 +8,7 @@ import { rarityColor } from "./items/itemInfo.ts";
 import { partyStore } from "./party/party.ts";
 import { subscribeHudInsets } from "./hud/layout.ts";
 import { inTab, pushLine, pushNotice, type Line, type Tab } from "./chatLines.ts";
-import { addedLines, decideScroll, isAtBottom, unseenText } from "./chatScroll.ts";
+import { addedLines, decideScroll, scrolledAtBottom, unseenText } from "./chatScroll.ts";
 import { onToast } from "./toasts.ts";
 import { chatDraftStore } from "./chatDraft.ts";
 
@@ -58,10 +58,16 @@ export function Chat() {
   collapsedRef.current = collapsed;
   const root = useRef<HTMLDivElement>(null);
   const lift = useLiftOverDock(root);
-  // Rolagem: quem subiu para ler o histórico não é puxado ao fim; vê "↓ N novas" e clica para descer.
+  // Rolagem: acompanha as mensagens novas; quem subiu para ler o histórico só segura a posição enquanto o mouse está
+  // sobre o chat (vê "↓ N novas" e clica para descer); tirou o mouse, volta ao fim.
   const atBottom = useRef(true);
+  /** scrollTop deixado pela última rolagem nossa: um evento de scroll nessa posição não é gesto do leitor (chatScroll.ts). */
+  const stuckTop = useRef(0);
+  const reading = useRef(false);
   const prevLines = useRef<Line[]>([]);
   const [unseen, setUnseen] = useState(0);
+  const unseenRef = useRef(0);
+  unseenRef.current = unseen;
 
   useEffect(() => session.onRoom((room) => {
     room.onMessage(S2C.Chat, (m: ChatMessage) => {
@@ -93,7 +99,8 @@ export function Chat() {
   useEffect(() => { if (!party && tab === "party") setTab("global"); }, [party, tab]);
 
   const jumpToEnd = () => {
-    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+    const el = log.current;
+    if (el) { el.scrollTop = el.scrollHeight; stuckTop.current = el.scrollTop; }
     atBottom.current = true;
     setUnseen(0);
   };
@@ -101,7 +108,7 @@ export function Chat() {
     const added = addedLines(prevLines.current, lines, (m) => inTab(m, tab));
     prevLines.current = lines;
     // Recolhido: a lista tem altura 0 e "no fim" não faz sentido; ao abrir, mostra o mais novo (como antes).
-    const d = decideScroll(atBottom.current || collapsed, unseen, added);
+    const d = decideScroll(atBottom.current || collapsed, unseen, added, reading.current);
     if (d.scroll) jumpToEnd(); else setUnseen(d.unseen);
   }, [lines, collapsed]);
   // Trocou de aba: começa pelo fim dela.
@@ -109,9 +116,12 @@ export function Chat() {
   const onLogScroll = () => {
     const el = log.current;
     if (!el) return;
-    atBottom.current = isAtBottom(el.scrollTop, el.clientHeight, el.scrollHeight);
+    atBottom.current = scrolledAtBottom(atBottom.current, stuckTop.current, el.scrollTop, el.clientHeight, el.scrollHeight);
     if (atBottom.current) setUnseen(0);
   };
+  const onLogEnter = () => { reading.current = true; };
+  // Saiu do chat com mensagens novas esperando: volta ao fim (quem só passou o mouse nem percebe).
+  const onLogLeave = () => { reading.current = false; if (unseenRef.current > 0) jumpToEnd(); };
 
   // Enter (fora de campos de texto) abre o chat. O input já existe no DOM (só fica recolhido), então o
   // foco é síncrono: as teclas digitadas logo depois do Enter já caem no campo e nada se perde.
@@ -231,7 +241,7 @@ export function Chat() {
           <span class={`chat-caret${collapsed ? " up" : ""}`} aria-hidden="true" />
         </button>
       </div>
-      <div class="chat-log" ref={log} onScroll={onLogScroll}>
+      <div class="chat-log" ref={log} onScroll={onLogScroll} onMouseEnter={onLogEnter} onMouseLeave={onLogLeave}>
         {!lines.some((m) => inTab(m, tab)) && (
           <div class="chat-empty">{tab === "party" ? "Nenhuma mensagem do grupo ainda." : "Nenhuma mensagem ainda. Diga oi!"}</div>
         )}

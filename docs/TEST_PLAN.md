@@ -16,6 +16,15 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — rolagem do chat (2026-10-28)
+
+| Verificação | Resultado |
+|---|---|
+| Reprodução | harness `?uitest`, sonda Playwright: 12 linhas do Feed em rajada (sem mexer no chat) → `scrollTop` parado a 218 px do fim e pílula "↓ 6 novas"; as mesmas 12 uma a uma (400 ms) → sempre no fim. Instrumentado: o evento de scroll da nossa descida chega no quadro seguinte, já com a lista maior |
+| Unitários | `chatScroll.test.ts`: 6 testes (2 novos: rajada e "lendo só com o mouse em cima"); `npx vitest run packages/client` verde; typecheck ok |
+| Sonda depois da correção | 13 cenários: rajada de 12 e de 6 (mouse fora) → fim; mouse em cima + subir 60 px + 3 novas → segura, pílula "↓ 3 novas"; mouse sai → fim; subir e sair sem novas → fica; +2 com o mouse fora → fim; recolhido +5 e reaberto → fim; +3 com o mouse no cabeçalho → fim; texto grande (zoom 1,3) +6 → fim; mouse parado sobre o chat sem subir +4 → fim; digitando +4 → fim |
+| E2E | CI da PR (não roda localmente) |
+
 ## Resultados — Fada Gabi, vocação oculta (2026-10-28)
 
 | Verificação | Resultado |

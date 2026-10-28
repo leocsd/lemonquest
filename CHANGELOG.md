@@ -1,5 +1,22 @@
 # Changelog
 
+## [Não lançado] — 2026-10-28 · o chat volta a acompanhar as mensagens novas
+
+- **Causa** (dono: "quero que o scroll do chat desça automaticamente"): a rolagem "grudada no fim" quebrava sozinha em
+  rajadas (login, loot do grupo, várias pessoas falando): o navegador só dispara o evento de scroll da nossa descida no
+  quadro seguinte, e nesse meio tempo a linha seguinte já tinha crescido a lista — o código media "uma linha do fim",
+  concluía que o leitor tinha subido e parava de acompanhar, com a pílula "↓ N novas" sem ninguém ter mexido.
+  Reproduzido no harness `?uitest`: 12 linhas em rajada → parado em "↓ 6 novas"; uma a uma (400 ms) nunca falhava.
+- **Correção**: `scrolledAtBottom` (`chatScroll.ts`): um evento de scroll só conta como gesto do leitor quando o
+  `scrollTop` mudou em relação ao que a nossa rolagem deixou (`stuckTop`); na mesma posição, vale o estado anterior.
+- **Regra nova**: subir no histórico segura a posição **só enquanto o mouse está sobre o chat** (lendo); tirou o mouse
+  com mensagens novas esperando, o chat volta ao fim; com o mouse fora, toda mensagem nova desce. A pílula continua
+  clicável.
+- **Verificação**: `chatScroll.test.ts` (rajada, leitor que sobe e que volta, mouse fora); sonda Playwright no harness
+  com 13 cenários (rajadas de 12 e de 6 com o mouse fora, subir 60 px lendo e receber 3, sair com o mouse, subir e sair
+  sem novas, recolhido → aberto, texto grande 1,3, mouse parado sobre o chat, digitando): todos no fim, exceto os dois em
+  que o leitor está lendo com o mouse em cima — como esperado.
+
 ## [Não lançado] — 2026-10-28 · Fada Gabi: vocação oculta "Fada", roupa exclusiva e CLI para criar personagem
 
 - **Vocação oculta `fairy` (Fada)** (dono: "um personagem chamado Fada Gabi, criado direto, com uma classe nova
