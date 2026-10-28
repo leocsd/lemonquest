@@ -16,6 +16,16 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — loot automático configurável (2026-10-28)
+
+| Verificação | Resultado |
+|---|---|
+| Typecheck | ok (shared, server, client) |
+| Unitários | `shared/lootFilter.test.ts` 8 testes (sanitize com lixo e degraus do valor; padrão pega todo o catálogo; ouro/missão/chave e raro+ sempre; raridade mínima do equipamento; interruptores de material/poção/comida; valor mínimo em qualquer categoria; resumo). `ground.test.ts` +6 (padrão igual ao de antes; material fora do filtro no tile do monstro, sem dono e sem aviso, outro jogador pega na hora; valor mínimo corta comum e deixa o raro entrar; só ouro ainda gera cartão com `left`; chão lotado some em silêncio; grupo pula quem filtra e, sem ninguém querendo, chão reservado ao grupo). `WorldRoom.test.ts` +1 (entra com o padrão; `SetLootFilter` limpo e confirmado; salvo e volta no login; padrão apaga o campo; lixo ignorado). Suíte inteira: 140 arquivos, 1686 testes, 0 falhas (a 1ª rodada pegou uma linha de Novidades com 208 caracteres, encurtada) |
+| Harness `?uitest` (sonda Playwright) | funil do trilho apagado com o padrão; abre o popover; "Raro+", Comida desligada e valor 100 → funil do trilho e da Mochila acesos, tooltip "equipamento raro+ · sem comida · só o que vale 100+"; clique fora fecha; funil da Mochila reabre; "Voltar a pegar tudo" apaga os funis; sem erro no console. Captura: rótulos longos ("Incomum ou melhor") quebravam em 3 linhas no botão → rótulos curtos (`GEAR_FLOOR_SHORT`) com o longo no tooltip |
+| Wiki | `npm run wiki` ok (735 páginas); "Experiência e levels → Mochila → Loot automático" e o link em "Grupo → Loot do grupo" conferidos no HTML gerado |
+| E2E | CI da PR (não roda localmente) |
+
 ## Resultados — troca de alvo dos monstros (2026-10-28)
 
 | Verificação | Resultado |

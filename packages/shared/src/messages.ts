@@ -2,6 +2,7 @@ import type { ChatChannel, ChatMessage, CombatEvent, Dir, FightStance, Sex, Voca
 import type { ConditionId, SpellFx } from "./data/spells.ts";
 import type { SkillId } from "./skills.ts";
 import type { Hotkey } from "./hotkeys.ts";
+import type { LootFilter } from "./lootFilter.ts";
 import type { SpellGroup } from "./data/spellFamilies.ts";
 import type { PartyShareReason } from "./party.ts";
 export type { SkillId };
@@ -91,7 +92,14 @@ export const C2S = {
   Excursion: "excursion",
   /** Painel Online (SocialActionMsg, shared/online.ts): pedir a lista, pôr/tirar amigo. */
   Social: "social",
+  /** Salva o filtro do loot automático do personagem (SetLootFilterMsg, shared/lootFilter.ts). */
+  SetLootFilter: "setLootFilter",
 } as const;
+
+/** C2S.SetLootFilter: o filtro inteiro (o servidor limpa e devolve o que ficou gravado em S2C.LootFilter). */
+export interface SetLootFilterMsg { filter: LootFilter }
+/** S2C.LootFilter: filtro do loot automático gravado no personagem (ao entrar, ao reconectar e após cada mudança). */
+export interface LootFilterMsg { filter: LootFilter }
 
 /** C2S.SortContainer: só o depot (aberto e perto do guarda-volumes). */
 export interface SortContainerMsg { where: "depot" }
@@ -290,6 +298,8 @@ export const S2C = {
   ExcursionPing: "excursionPing",
   /** Painel Online (OnlineMsg, shared/online.ts): só para você, quando a sua lista muda (no máximo a cada 2 s). */
   Online: "online",
+  /** Filtro do loot automático gravado no personagem (LootFilterMsg). */
+  LootFilter: "lootFilter",
 } as const;
 
 /** Ocorrência da agenda. Horários em ms epoch, calculados no fuso do servidor (o mesmo do agendador). */
@@ -454,6 +464,8 @@ export interface LootMsg {
   lostFull?: number;
   /** Itens que não couberam e caíram no chão (no seu tile; qualquer um pega). */
   fellToGround?: number;
+  /** Itens fora do seu filtro de loot automático: ficaram no chão onde o monstro morreu (qualquer um pega). */
+  left?: ItemInstance[];
 }
 export interface FeedMsg { text: string; kind: "drop" | "level" | "boss" | "death" | "info"; rarity?: Rarity }
 export interface NpcSayMsg { npcId: string; text: string }

@@ -10,8 +10,9 @@ export const LOOT_LIFE_MS = 5000;
 const MAX_TOASTS = 4;
 
 export function handleLoot(msg: LootMsg): void {
-  // Mochila cheia (itens no chão ou perdidos): o aviso vem do servidor (S2C.Notice); aqui só o cartão do loot.
-  if (!msg.items.length && !msg.gold && !msg.lostFull) return;
+  // Mochila cheia (itens no chão ou perdidos): o aviso vem do servidor (S2C.Notice); aqui só o cartão do loot. O que o
+  // filtro de loot deixou no chão (`left`) aparece no cartão, apagado, para o jogador saber o que ficou.
+  if (!msg.items.length && !msg.gold && !msg.lostFull && !msg.left?.length) return;
   const best = msg.items.reduce<number>((m, it) => Math.max(m, ["common", "uncommon", "rare", "epic", "legendary"].indexOf(it.rarity)), 0);
   const big = best >= 3;
   const toast: LootToast = { id: nextId++, msg, big };

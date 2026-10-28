@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CLOSE_REPLACED, HOTKEYS_VERSION, OUT_OF_COMBAT_MS, defaultHotkeys, PARTY_SHARE_RANGE, PZ_LOCK_MS, RED_SKULL_KILLS, S2C, backpackCapacity, findObjects, objectTile, questChestDef } from "@lemonquest/shared";
+import { CLOSE_REPLACED, DEFAULT_LOOT_FILTER, HOTKEYS_VERSION, OUT_OF_COMBAT_MS, defaultHotkeys, PARTY_SHARE_RANGE, PZ_LOCK_MS, RED_SKULL_KILLS, S2C, backpackCapacity, findObjects, objectTile, questChestDef } from "@lemonquest/shared";
 import { RECONNECT_S, REPLACED_REASON, TRANSFER_SAVE_MS, WorldRoom, currentWorld } from "./WorldRoom.ts";
 import { createAccountWithCharacter as createAccount, getCharacterByName, initDb, loadGroundRows, saveCharacter } from "../persistence/db.ts";
 import { GOLD_ID, makeItem } from "../systems/inventory.ts";
@@ -386,6 +386,32 @@ describe("WorldRoom: sair em combate", () => {
     r.kick("g1", "tchau");
     expect(r.state.players.has("g1")).toBe(false);
     expect(r.lingering.size).toBe(0);
+  });
+});
+
+describe("WorldRoom: filtro do loot automático", () => {
+  it("entra com o padrão; SetLootFilter válido é limpo, confirmado, salvo no personagem e volta no próximo login; padrão não é gravado; lixo é ignorado", () => {
+    const r = makeRoom();
+    createAccount("Hugo", "h", "s", "sorcerer");
+    const c = fakeClient(r, "h1");
+    r.onJoin(c, {}, auth("Hugo"));
+    const sent = (cl: any) => cl.send.mock.calls.filter(([t]: any[]) => t === "lootFilter").map(([, m]: any[]) => m.filter);
+    expect(sent(c)).toEqual([DEFAULT_LOOT_FILTER]);
+    const p = r.state.players.get("h1");
+    r.setLootFilter(p, { filter: { gear: "rare", food: false, minValue: 99, potions: "sim" } });
+    const saved = { gear: "rare", materials: true, potions: true, food: false, minValue: 50 };
+    expect(sent(c).at(-1)).toEqual(saved); // confirma o que ficou (99 encaixou no degrau 50; "sim" virou ligado)
+    r.onLeave(c, 4000);
+    expect(getCharacterByName("Hugo")!.data.lootFilter).toEqual(saved);
+    const c2 = fakeClient(r, "h2");
+    r.onJoin(c2, {}, auth("Hugo"));
+    expect(sent(c2)).toEqual([saved]);
+    const p2 = r.state.players.get("h2");
+    r.setLootFilter(p2, "lixo"); // nem é objeto: ignorado
+    expect(r.records.get("h2").data.lootFilter).toEqual(saved);
+    r.setLootFilter(p2, { filter: { ...DEFAULT_LOOT_FILTER } }); // voltou ao padrão: o campo sai do personagem
+    expect(r.records.get("h2").data.lootFilter).toBeUndefined();
+    expect(sent(c2).at(-1)).toEqual(DEFAULT_LOOT_FILTER);
   });
 });
 

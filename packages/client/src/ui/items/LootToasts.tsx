@@ -22,6 +22,11 @@ export function LootToasts() {
                   {defOf(it)?.name ?? it.defId}{it.count > 1 ? ` ×${it.count}` : ""}
                 </span>
               ))}
+              {!!t.msg.left?.length && (
+                <span class="loot-left" title="Fora do seu filtro de loot automático: ficou no chão onde o bicho morreu">
+                  no chão: {t.msg.left.map((it) => `${defOf(it)?.name ?? it.defId}${it.count > 1 ? ` ×${it.count}` : ""}`).join(", ")}
+                </span>
+              )}
             </span>
           </div>
         ))}

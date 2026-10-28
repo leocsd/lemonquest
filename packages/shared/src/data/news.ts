@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-28f",
+    date: "28 de outubro",
+    title: "Loot automático do seu jeito",
+    items: [
+      "Botão com o funil (trilho à direita ou cabeçalho da Mochila): escolha o que entra sozinho na mochila ao matar um bicho — equipamento por raridade, materiais, poções, comida e um valor mínimo.",
+      "O que ficar de fora cai no chão onde o bicho morreu, por 10 min, para quem quiser (o cartão do loot mostra \"no chão: …\"). Ouro, itens de missão e raros ou melhores entram sempre.",
+      "Em grupo, quem não quer um item é pulado na divisão; se ninguém quer, ele fica no chão do grupo como o raro. A escolha fica salva no personagem.",
+    ],
+  },
+  {
     id: "2026-10-28e",
     date: "28 de outubro",
     title: "Os bichos trocam de alvo",

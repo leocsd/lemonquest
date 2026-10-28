@@ -8,6 +8,9 @@ import { EquipmentPanel } from "./EquipmentPanel.tsx";
 import { HelpPopover } from "./HelpPopover.tsx";
 import { SoundPopover } from "./SoundPopover.tsx";
 import { AutoPotionPopover } from "./AutoPotionPopover.tsx";
+import { LootFilterPopover } from "./LootFilterPopover.tsx";
+import { lootFilterStore } from "../items/lootFilter.ts";
+import { isDefaultLootFilter, lootFilterSummary } from "@lemonquest/shared";
 import { A11yPopover } from "./A11yPopover.tsx";
 import { autoPotionStore } from "../items/autoPotion.ts";
 import { mutedStore, volumeStore } from "../../game/sfx.ts";
@@ -24,7 +27,7 @@ import { useStore } from "./store.ts";
 import { outfitOpen, toggleOutfit } from "../outfit/outfit.ts";
 import { questLogOpen, toggleQuestLog } from "../quests/quests.ts";
 import { achievementsOpen, rankingOpen, toggleAchievements, toggleRanking } from "../achievements/achievements.ts";
-import { a11yOpen, autoOpen, helpOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDEBAR_W, skillsOpen, soundOpen, toggle } from "./uiState.ts";
+import { a11yOpen, autoOpen, helpOpen, lootOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDEBAR_W, skillsOpen, soundOpen, toggle, togglePopover } from "./uiState.ts";
 import { meStore } from "./world.ts";
 import { bestiaryOpen, toggleBestiary } from "../bestiary/Bestiary.tsx";
 import { agendaOpen, toggleAgenda } from "../agenda/agenda.ts";
@@ -40,7 +43,9 @@ export function Sidebar() {
   const sound = useStore(soundOpen);
   const autoPop = useStore(autoOpen);
   const a11yPop = useStore(a11yOpen);
+  const lootPop = useStore(lootOpen);
   const autoCfg = useStore(autoPotionStore);
+  const lootCfg = useStore(lootFilterStore);
   const outfit = useStore(outfitOpen);
   const questLog = useStore(questLogOpen);
   const achOpen = useStore(achievementsOpen);
@@ -134,12 +139,12 @@ export function Sidebar() {
         <button class={`rail-btn${agenda ? " active" : ""}`} onClick={toggleAgenda} data-tip="Agenda de eventos" data-tip-sub="Eventos da semana · /agenda no chat" aria-label="Agenda de eventos" aria-pressed={agenda} data-testid="rail-agenda">
           <PixelIcon name="calendar" size={14} />
         </button>
-        <button class={`rail-btn${help ? " active" : ""}`} onClick={() => { soundOpen.set(false); autoOpen.set(false); a11yOpen.set(false); toggle(helpOpen); }} data-tip="Atalhos" data-tip-sub="Tecla ?" aria-label="Atalhos e ajuda" aria-expanded={help}>
+        <button class={`rail-btn${help ? " active" : ""}`} onClick={() => togglePopover(helpOpen)} data-tip="Atalhos" data-tip-sub="Tecla ?" aria-label="Atalhos e ajuda" aria-expanded={help}>
           <span class="rail-q">?</span>
         </button>
         <button
           class={`rail-btn${muted || volume === 0 ? "" : " active"}`}
-          onClick={() => { helpOpen.set(false); autoOpen.set(false); a11yOpen.set(false); toggle(soundOpen); }}
+          onClick={() => togglePopover(soundOpen)}
           data-tip="Som"
           data-tip-sub={muted ? "Mudo" : `Volume ${volume}%`}
           aria-expanded={sound}
@@ -149,7 +154,7 @@ export function Sidebar() {
         </button>
         <button
           class={`rail-btn${autoCfg.hp || autoCfg.mana ? " active" : ""}`}
-          onClick={() => { helpOpen.set(false); soundOpen.set(false); a11yOpen.set(false); toggle(autoOpen); }}
+          onClick={() => togglePopover(autoOpen)}
           data-tip="Poção automática"
           data-tip-sub={autoCfg.hp || autoCfg.mana ? `Vida ${autoCfg.hp ? autoCfg.hp + "%" : "off"} · Mana ${autoCfg.mana ? autoCfg.mana + "%" : "off"}` : "Desligada"}
           aria-expanded={autoPop}
@@ -158,8 +163,19 @@ export function Sidebar() {
           <span class="rail-q">⚗</span>
         </button>
         <button
+          class={`rail-btn${isDefaultLootFilter(lootCfg) ? "" : " active"}`}
+          onClick={() => togglePopover(lootOpen)}
+          data-tip="Loot automático"
+          data-tip-sub={lootFilterSummary(lootCfg)}
+          aria-expanded={lootPop}
+          aria-label="Loot automático"
+          data-testid="rail-loot"
+        >
+          <PixelIcon name="funnel" size={14} />
+        </button>
+        <button
           class="rail-btn"
-          onClick={() => { helpOpen.set(false); soundOpen.set(false); autoOpen.set(false); toggle(a11yOpen); }}
+          onClick={() => togglePopover(a11yOpen)}
           data-tip="Acessibilidade"
           data-tip-sub="Texto, contraste e animações"
           aria-expanded={a11yPop}
@@ -169,6 +185,7 @@ export function Sidebar() {
         </button>
         {a11yPop && <A11yPopover />}
         {autoPop && <AutoPotionPopover />}
+        {lootPop && <LootFilterPopover />}
         {help && <HelpPopover />}
         {sound && <SoundPopover />}
       </nav>

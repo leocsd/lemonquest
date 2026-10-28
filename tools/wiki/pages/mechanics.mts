@@ -9,15 +9,15 @@ import {
   ARENA_PAUSE_HEAL, ARENA_SHOP_PAUSE_MS, ARENA_WAVES, ARENA_XP_MULT, BACKPACK_BY_VOCATION, BACKPACK_LEVELS_PER_SLOT,
   BLESSING_GOLD_PER_LEVEL, BOUNTIES_PER_DAY, BOUNTY_BANDS, BOUNTY_CHEST_ID, BOUNTY_NPC, BOUNTY_RESET_HOUR, CHALLENGES,
   CHALLENGES_PER_WEEK, CHALLENGE_BONUS_PRIZE, CHALLENGE_BONUS_XP_PCT, CRIT_CHANCE, CRIT_MULT, DEATH_PENALTY_STAGES,
-  FOOD_MAX_MS, FOOD_TICK_MS, HEALTH_POTION_CD_MS, IMBUEMENTS, IMBUEMENT_EFFECTS, IMBUEMENT_TIERS, IMBUE_DURATION_MS,
+  FOOD_MAX_MS, FOOD_TICK_MS, GEAR_FLOORS, GEAR_FLOOR_LABEL, HEALTH_POTION_CD_MS, IMBUEMENTS, IMBUEMENT_EFFECTS, IMBUEMENT_TIERS, IMBUE_DURATION_MS,
   IMBUE_SPELL_MULT, IMBUE_WARN_MS, INVASION_BASE, INVASION_CHESTS, INVASION_DEFENDED_BONUS, INVASION_DEFEND_PCT,
-  INVASION_MAX_ALIVE, INVASION_MIN_POINTS, INVASION_PER_PLAYER, INVASION_TIERS, INVASION_WAVES, ITEMS, MANA_POTION_CD_MS,
+  INVASION_MAX_ALIVE, INVASION_MIN_POINTS, INVASION_PER_PLAYER, INVASION_TIERS, INVASION_WAVES, ITEMS, LOOT_MIN_VALUES, MANA_POTION_CD_MS,
   MISS_CHANCE, MONSTERS, NPCS, OUTFIT_TONES, OUTFIT_TONE_PRICE, OUT_OF_COMBAT_MS, PARTY_ACTIVE_MS, PARTY_INVITE_MS,
   PARTY_MAX, PARTY_SHARE_BONUS, PARTY_SHARE_RANGE, PARTY_VOCATION_BONUS, PARTY_VOCATION_BONUS_MIN, PLAYER_ATTACK_MS,
   PVP_AGGRESSION_MS, PVP_DAMAGE_MULT, PZ_LOCK_MS, QUEST_CHESTS, QUEST_CHEST_GROUPS, QUEST_LIST, RARITY_LABEL,
   RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, RED_SKULL_KILLS, RED_SKULL_WINDOW_MS, REFINE_ARMOR_PER_LEVEL,
   REFINE_ATTACK_PER_LEVEL, REFINE_BASE_GOLD, REFINE_EXTRA, REFINE_EXTRA_FROM, REFINE_FAIL_CHANCE, REFINE_GOLD_MULT,
-  REFINE_MATERIAL, REFINE_MAX, REFINE_NPC, REFINE_TIERS, REFINE_TIER_LEVEL, REGEN_INTERVAL_MS, SKILLS, SKILL_RATE,
+  REFINE_MATERIAL, REFINE_MAX, REFINE_NPC, REFINE_TIERS, REFINE_TIER_LEVEL, REGEN_INTERVAL_MS, SELL_ALL_KEEPS_FROM, SKILLS, SKILL_RATE,
   PLAYABLE_VOCATIONS, SKILL_START, SPELLS, STANCE_DEALT, STANCE_TAKEN, TITLES, TOTAL_ACHIEVEMENT_POINTS, TRAVEL_FREE_LEVEL,
   VOCATION_ATTACK, WEEKLY_EVENTS, XP_STAGES, arenaWaveGold, arenaWeekMod, baseStats, blessingPrice, challengeGold, challengeTarget,
   deathPenalty, deathPenaltyPct, evalSpellFormula, eventBonusText, imbuementDesc, imbuementMaterials, imbuementName,
@@ -195,6 +195,8 @@ function experiencia(): WikiPage {
   parts.push(table(["A partir do level", "XP de caça"], XP_STAGES.map((s) => [s.fromLevel, pct(s.mult, 0)])));
   parts.push(`<h2 id="mochila">Mochila</h2>`);
   parts.push(`<p>A mochila se organiza sozinha (pilhas iguais juntam; equipamento, poções, comida, materiais e o resto, nessa ordem) e ganha 1 espaço a cada ${BACKPACK_LEVELS_PER_SLOT} levels, até o teto da vocação:</p>`);
+  parts.push(`<h3 id="loot-automatico">Loot automático</h3>`);
+  parts.push(`<p>Ao matar um bicho, o loot entra sozinho na mochila. O botão com o funil (no trilho à direita ou no cabeçalho da Mochila) escolhe o que entra: equipamento a partir de uma raridade (${esc(GEAR_FLOORS.map((g) => GEAR_FLOOR_LABEL[g].toLowerCase()).join(" / "))}), materiais, poções e comida ligados ou não, e um valor mínimo de tabela (${esc(LOOT_MIN_VALUES.filter((v) => v > 0).map((v) => fmt(v)).join(", "))} de ouro). Ouro, itens de missão e itens ${esc(RARITY_LABEL[SELL_ALL_KEEPS_FROM].toLowerCase())}s ou melhores entram sempre. O que ficar de fora cai no chão onde o bicho morreu, sem dono, até sumir; o cartão do loot mostra “no chão: …”. A escolha fica salva no personagem.</p>`);
   parts.push(table(["Vocação", "Level 1", "Máximo"], PLAYABLE_VOCATIONS.map((v) => [vocName[v], BACKPACK_BY_VOCATION[v].base, `${BACKPACK_BY_VOCATION[v].max} (lv ${1 + (BACKPACK_BY_VOCATION[v].max - BACKPACK_BY_VOCATION[v].base) * BACKPACK_LEVELS_PER_SLOT})`])));
   return page("experiencia", parts.join("\n"));
 }
@@ -330,7 +332,7 @@ function grupo(): WikiPage {
   parts.push(`<h2 id="loot">Loot do grupo</h2>`);
   parts.push(`<ul>
 <li>O ouro do abate é dividido em partes iguais entre quem participou (o resto da divisão fica com quem matou).</li>
-<li>Itens ${esc(["common", "uncommon", "rare", "epic", "legendary"].filter((r) => !groundRarities.includes(r)).map((r) => RARITY_LABEL[r as keyof typeof RARITY_LABEL].toLowerCase()).join(" e "))} vão em rodízio para a mochila de quem participou (quem está sem espaço é pulado).</li>
+<li>Itens ${esc(["common", "uncommon", "rare", "epic", "legendary"].filter((r) => !groundRarities.includes(r)).map((r) => RARITY_LABEL[r as keyof typeof RARITY_LABEL].toLowerCase()).join(" e "))} vão em rodízio para a mochila de quem participou (quem está sem espaço, ou deixou o item fora do seu ${link("mecanicas/experiencia.html#loot-automatico", "loot automático", D)}, é pulado; se ninguém quer, o item cai no chão do grupo).</li>
 <li>Itens ${esc(groundRarities.map((r) => RARITY_LABEL[r as keyof typeof RARITY_LABEL].toLowerCase()).join(", "))} caem no chão onde o monstro morreu, reservados ao grupo por ${duration(priorityMs)}, para o grupo decidir quem leva; depois ficam livres para qualquer um.</li>
 <li>Item no chão some em ${decayCommon} min (comum e incomum) ou ${decayRare} min (raro ou melhor).</li>
 </ul>`);
