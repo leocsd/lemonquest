@@ -9,9 +9,9 @@ import {
   ARENA_PAUSE_HEAL, ARENA_SHOP_PAUSE_MS, ARENA_WAVES, ARENA_XP_MULT, BACKPACK_BY_VOCATION, BACKPACK_LEVELS_PER_SLOT,
   BLESSING_GOLD_PER_LEVEL, BOUNTIES_PER_DAY, BOUNTY_BANDS, BOUNTY_CHEST_ID, BOUNTY_NPC, BOUNTY_RESET_HOUR, CHALLENGES,
   CHALLENGES_PER_WEEK, CHALLENGE_BONUS_PRIZE, CHALLENGE_BONUS_XP_PCT, CRIT_CHANCE, CRIT_MULT, DEATH_PENALTY_STAGES,
-  FOOD_MAX_MS, FOOD_TICK_MS, GEAR_FLOORS, GEAR_FLOOR_LABEL, HEALTH_POTION_CD_MS, IMBUEMENTS, IMBUEMENT_EFFECTS, IMBUEMENT_TIERS, IMBUE_DURATION_MS,
+  FOOD_MAX_MS, FOOD_TICK_MS, HEALTH_POTION_CD_MS, IMBUEMENTS, IMBUEMENT_EFFECTS, IMBUEMENT_TIERS, IMBUE_DURATION_MS,
   IMBUE_SPELL_MULT, IMBUE_WARN_MS, INVASION_BASE, INVASION_CHESTS, INVASION_DEFENDED_BONUS, INVASION_DEFEND_PCT,
-  INVASION_MAX_ALIVE, INVASION_MIN_POINTS, INVASION_PER_PLAYER, INVASION_TIERS, INVASION_WAVES, ITEMS, LOOT_MIN_VALUES, MANA_POTION_CD_MS,
+  INVASION_MAX_ALIVE, INVASION_MIN_POINTS, INVASION_PER_PLAYER, INVASION_TIERS, INVASION_WAVES, ITEMS, LOOTABLE_ITEMS, LOOT_GROUPS, MANA_POTION_CD_MS,
   MISS_CHANCE, MONSTERS, NPCS, OUTFIT_TONES, OUTFIT_TONE_PRICE, OUT_OF_COMBAT_MS, PARTY_ACTIVE_MS, PARTY_INVITE_MS,
   PARTY_MAX, PARTY_SHARE_BONUS, PARTY_SHARE_RANGE, PARTY_VOCATION_BONUS, PARTY_VOCATION_BONUS_MIN, PLAYER_ATTACK_MS,
   PVP_AGGRESSION_MS, PVP_DAMAGE_MULT, PZ_LOCK_MS, QUEST_CHESTS, QUEST_CHEST_GROUPS, QUEST_LIST, RARITY_LABEL,
@@ -196,7 +196,7 @@ function experiencia(): WikiPage {
   parts.push(`<h2 id="mochila">Mochila</h2>`);
   parts.push(`<p>A mochila se organiza sozinha (pilhas iguais juntam; equipamento, poções, comida, materiais e o resto, nessa ordem) e ganha 1 espaço a cada ${BACKPACK_LEVELS_PER_SLOT} levels, até o teto da vocação:</p>`);
   parts.push(`<h3 id="loot-automatico">Loot automático</h3>`);
-  parts.push(`<p>Ao matar um bicho, o loot entra sozinho na mochila. O botão com o funil (no trilho à direita ou no cabeçalho da Mochila) escolhe o que entra: equipamento a partir de uma raridade (${esc(GEAR_FLOORS.map((g) => GEAR_FLOOR_LABEL[g].toLowerCase()).join(" / "))}), materiais, poções e comida ligados ou não, e um valor mínimo de tabela (${esc(LOOT_MIN_VALUES.filter((v) => v > 0).map((v) => fmt(v)).join(", "))} de ouro). Ouro, itens de missão e itens ${esc(RARITY_LABEL[SELL_ALL_KEEPS_FROM].toLowerCase())}s ou melhores entram sempre. O que ficar de fora cai no chão onde o bicho morreu, sem dono, até sumir; o cartão do loot mostra “no chão: …”. A escolha fica salva no personagem.</p>`);
+  parts.push(`<p>Ao matar um bicho, o loot entra sozinho na mochila. O botão com o funil (no trilho à direita ou no cabeçalho da Mochila) abre a lista dos ${LOOTABLE_ITEMS.length} itens que caem de algum monstro, em ${LOOT_GROUPS.length} grupos (${esc(LOOT_GROUPS.map((g) => g.label.toLowerCase()).join(", "))}): desmarque o que não quer puxar. Há busca por nome, “Todos”/“Nenhum” por grupo e “Desmarcar o que vale menos de…”. Ouro, itens de missão e itens ${esc(RARITY_LABEL[SELL_ALL_KEEPS_FROM].toLowerCase())}s ou melhores entram sempre, mesmo desmarcados. O que ficar de fora cai no chão onde o bicho morreu, sem dono, até sumir; o cartão do loot mostra “no chão: …”. A escolha fica salva no personagem.</p>`);
   parts.push(table(["Vocação", "Level 1", "Máximo"], PLAYABLE_VOCATIONS.map((v) => [vocName[v], BACKPACK_BY_VOCATION[v].base, `${BACKPACK_BY_VOCATION[v].max} (lv ${1 + (BACKPACK_BY_VOCATION[v].max - BACKPACK_BY_VOCATION[v].base) * BACKPACK_LEVELS_PER_SLOT})`])));
   return page("experiencia", parts.join("\n"));
 }

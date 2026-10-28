@@ -13,12 +13,11 @@ export const helpOpen = createStore(false);
 export const soundOpen = createStore(false);
 export const autoOpen = createStore(false);
 export const a11yOpen = createStore(false);
-export const lootOpen = createStore(false);
 
 export const toggle = (s: { set(fn: (v: boolean) => boolean): void }) => s.set((v) => !v);
 
 /** Popovers do trilho: só um aberto por vez. */
-const POPOVERS = [helpOpen, soundOpen, autoOpen, a11yOpen, lootOpen];
+const POPOVERS = [helpOpen, soundOpen, autoOpen, a11yOpen];
 /** Alterna `s` e fecha os outros popovers do trilho. */
 export function togglePopover(s: (typeof POPOVERS)[number]): void {
   for (const o of POPOVERS) if (o !== s) o.set(false);

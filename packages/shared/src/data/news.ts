@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-28g",
+    date: "28 de outubro",
+    title: "Loot automático: a lista de itens",
+    items: [
+      "O funil agora abre uma janela com todos os itens que caem de monstro, por grupo: desmarque o que não quer puxar (fica no chão onde o bicho morreu).",
+      "Na janela: busca por nome, \"Todos\"/\"Nenhum\" por grupo, \"Desmarcar o que vale menos de…\" e \"Marcar tudo\".",
+      "Quem já tinha mexido no filtro de categorias desta tarde não perde nada: virou a lista equivalente.",
+      "Mochila: a borda direita dos quadrados não é mais cortada pela barra de rolagem. A seta das seções afasta dos pontinhos de arrastar quando o mouse passa por cima.",
+    ],
+  },
+  {
     id: "2026-10-28f",
     date: "28 de outubro",
     title: "Loot automático do seu jeito",

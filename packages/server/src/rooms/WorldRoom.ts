@@ -92,7 +92,7 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
   // valia o teto global (60/s). MoveGroundItem já era limitado por dentro (GroundSystem, 10/s); aqui fica explícito (#48).
   [C2S.NpcTrade]: 10, [C2S.UseItem]: 10, [C2S.QuickPotion]: 5, [C2S.DropItem]: 5, [C2S.PickupItem]: 5, [C2S.DiscardItem]: 5,
-  [C2S.MoveGroundItem]: 10, [C2S.FightMode]: 5, [C2S.SetLootFilter]: 3,
+  [C2S.MoveGroundItem]: 10, [C2S.FightMode]: 5, [C2S.SetLootFilter]: 5,
   // Vínculo do ClickUp: cada pedido é uma ida ao ClickUp (e há limite próprio de tentativas no ClickUpSystem).
   [C2S.WorkLink]: 1, [C2S.WorkUnlink]: 1,
 };

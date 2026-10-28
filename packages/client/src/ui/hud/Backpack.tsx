@@ -5,25 +5,25 @@ import { GoldLabel } from "../items/Gold.tsx";
 import { inventoryStore } from "../items/inventory.ts";
 import { ItemSlot } from "../items/ItemSlot.tsx";
 import { lootFilterStore } from "../items/lootFilter.ts";
+import { lootFilterOpen, toggleLootFilter } from "../items/LootFilterWindow.tsx";
 import { meStore } from "./world.ts";
 import { PixelIcon } from "./icons.tsx";
 import { Section } from "./Section.tsx";
 import { useStore } from "./store.ts";
-import { lootOpen, togglePopover } from "./uiState.ts";
 
-/** Funil no cabeçalho da Mochila: abre o popover "Loot automático" (o mesmo do trilho); aceso quando há filtro. */
+/** Funil no cabeçalho da Mochila: abre a janela "Loot automático" (a mesma do trilho); aceso quando há item de fora. */
 function LootFilterButton() {
   const f = useStore(lootFilterStore);
-  const open = useStore(lootOpen);
+  const open = useStore(lootFilterOpen);
   const filtered = !isDefaultLootFilter(f);
   return (
     <button
-      class={`fm-btn bag-filter${filtered ? " active" : ""}`}
-      onClick={() => togglePopover(lootOpen)}
+      class={`fm-btn bag-filter${filtered || open ? " active" : ""}`}
+      onClick={toggleLootFilter}
       data-tip="Loot automático"
       data-tip-sub={lootFilterSummary(f)}
       aria-label="Loot automático"
-      aria-expanded={open}
+      aria-pressed={open}
     >
       <PixelIcon name="funnel" size={12} />
     </button>
