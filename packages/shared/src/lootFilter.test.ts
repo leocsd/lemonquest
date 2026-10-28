@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ITEMS, itemDef, type ItemDef } from "./data/items.ts";
 import { MONSTERS } from "./data/monsters.ts";
 import {
-  DEFAULT_LOOT_FILTER, LOOTABLE_ITEMS, LOOT_GROUPS, LOOT_GROUP_ORDER, LOOT_SKIP_MAX, autoLoots, isDefaultLootFilter, lootFilterSummary, lootGroupOf,
-  sanitizeLootFilter,
+  DEFAULT_LOOT_FILTER, LOOTABLE_ITEMS, LOOT_GROUPS, LOOT_GROUP_ORDER, LOOT_SKIP_MAX, autoLoots, isDefaultLootFilter, lootCategoryOf, lootFilterSummary,
+  lootGroupOf, sanitizeLootFilter,
 } from "./lootFilter.ts";
 
 const def = (id: string): ItemDef => { const d = itemDef(id); if (!d) throw new Error(`item ${id} não existe`); return d; };
@@ -34,6 +34,16 @@ describe("lootFilter: lista de itens lootáveis", () => {
       }
     }
     expect(LOOT_GROUPS.reduce((n, g) => n + g.items.length, 0)).toBe(LOOTABLE_ITEMS.length);
+  });
+  it("armas separadas por tipo, cada grupo com a sua categoria", () => {
+    const weaponTypes = ["sword", "axe", "club", "bow", "wand", "rod"];
+    for (const g of LOOT_GROUPS) {
+      if (weaponTypes.includes(g.id)) for (const d of g.items) expect([d.slot, d.weaponType]).toEqual(["weapon", g.id]);
+      for (const d of g.items) expect(lootCategoryOf(d)).toBe(g.category);
+    }
+    expect(LOOT_GROUPS.some((g) => g.id === "sword")).toBe(true);
+    expect(LOOT_GROUPS.some((g) => g.id === "weapon")).toBe(false); // toda arma do catálogo tem tipo
+    expect(LOOT_GROUPS.filter((g) => g.category === "gear").length).toBeGreaterThanOrEqual(10);
   });
 });
 

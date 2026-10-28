@@ -1,5 +1,27 @@
 # Changelog
 
+## [Não lançado] — 2026-10-28 · janela de loot com filtros e subcategorias; pontinhos de arrastar longe da parede
+
+Dono: "quero mais categorias e subcategorias e filtros na tela de loot. Por exemplo, food, classes e etc." e "quero que
+o espaçamento esquerdo dos pontinhos seja maior também para não ficar colado na parede".
+- **Subcategorias**: as armas se separam por tipo (Espadas, Machados, Clavas, Arcos, Varinhas, Bastões), além de
+  Materiais, Comida, Poções, Escudos e livros, Elmos, Armaduras, Pernas, Botas, Anéis e Amuletos (16 grupos;
+  `LOOT_GROUP_ORDER`, `lootGroupOf` com `weaponType`). Categorias (`LootCategory`: Equipamento, Poções, Comida,
+  Materiais) viram filtro.
+- **Filtros de visualização** (`items/lootFilterLogic.ts`, `LootView`): busca, categoria, **vocação** ("Minha (Druida)"
+  primeiro, depois as outras; usa `vocationFits`: o que não tem restrição aparece para todas, e a Fada vê o que é de
+  druida), **level** ("Até o meu level (N)" ou faixas 1–25/26–50/51–80/81+; só filtra o que tem level, materiais e
+  comida sem level sempre passam) e **zona onde cai** (monstros que soltam o item e nascem na zona, pelo índice do
+  mundo; some sem índice). Os filtros só mudam o que aparece; a lista `skip` continua sendo a regra.
+- **Ações sobre o que está visível**: "Marcar/Desmarcar visíveis" (viram "tudo" sem filtro), "Desmarcar o que vale
+  menos de…" (só entre os visíveis), "Pegar tudo de novo" e "Limpar filtros"; linha "N de 242 itens"; "Todos"/"Nenhum"
+  de cada grupo valem para os itens do grupo que passaram nos filtros. Linha do item mostra as vocações no tooltip.
+  Janela de 760 px.
+- **Pontinhos de arrastar** das seções: de 1 px para 5 px da parede (6 px contando a borda); no hover o título afasta
+  8 px e sobram 5 px entre pontinhos e seta.
+- Testes: `lootFilter.test.ts` (+1: armas por tipo, cada grupo com a sua categoria), `lootFilterLogic.test.ts`
+  (zonas a partir de um índice falso, cada filtro e combinações). Sonda Playwright no harness.
+
 ## [Não lançado] — 2026-10-28 · loot automático: janela com todos os itens (revisão do popover) + 2 acertos visuais
 
 Dono, sobre o popover por categorias (PR #49, deployado às 16:40): "Não gostei. Eu quero um painel maior mostrando

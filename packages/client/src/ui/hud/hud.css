@@ -97,14 +97,14 @@
 /* As bolinhas são o único lugar com a mão de arrastar (dono, 2026-10-27: "mãozinha nas bolinhas, não pointer em tudo");
    o ::after dá uma área de pegada maior que os 5×10 px desenhados. Arrastar pelo resto do cabeçalho continua valendo. */
 .drag-grip {
-  position: absolute; left: 1px; top: 8px; width: 5px; height: 10px; opacity: 0; cursor: grab;
+  position: absolute; left: 5px; top: 8px; width: 5px; height: 10px; opacity: 0; cursor: grab; /* 5 px da parede (dono: "não ficar colado") */
   background: radial-gradient(circle, var(--hud-muted) 0.9px, transparent 1.2px) 0 0 / 3px 3px; transition: opacity 120ms;
 }
 .drag-grip::after { content: ""; position: absolute; inset: -6px -7px; }
 .hud-section-headrow:hover .drag-grip, .minimap-card:hover .drag-grip { opacity: 0.7; }
 .drag-grip:hover { opacity: 1; }
-/* Os pontinhos nascem a 1 px da seta: com o mouse em cima, o título afasta 6 px para a seta não colar neles. */
-.hud-section-headrow:hover .hud-section-head { padding-left: 14px; }
+/* Os pontinhos (5..10 px) nasceriam em cima da seta (8 px): com o mouse em cima, o título afasta 8 px e sobra 6 px entre eles. */
+.hud-section-headrow:hover .hud-section-head { padding-left: 16px; }
 .drag-grip.h { left: 50%; top: 5px; width: 18px; height: 5px; margin-left: -9px; }
 .hud-section .hud-section-head { padding-right: 26px; }
 /* Com controles (Batalha): eles ficam à direita do título no fluxo, deixando lugar para o pin. */

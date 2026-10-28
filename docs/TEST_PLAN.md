@@ -16,6 +16,17 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — janela de loot com filtros e subcategorias; pontinhos longe da parede (2026-10-28, noite)
+
+| Verificação | Resultado |
+|---|---|
+| Typecheck | ok (shared, server, client) |
+| Unitários | `lootFilter.test.ts` 10 (+1: cada grupo de arma só tem armas do tipo; cada grupo com a sua categoria; nenhuma arma sem tipo), `lootFilterLogic.test.ts` 5 (zonas a partir de um índice falso: item → zonas dos monstros que o soltam, chefe sem spawn fica fora; cada filtro — categoria, vocação com `vocationFits` e a Fada vendo o que é de druida, level "até o meu" e por faixa só para quem tem level, zona — e combinações com a busca). Suíte inteira: 141 arquivos, 1693 testes, 0 falhas |
+| Harness `?uitest` (sonda Playwright) | 16 grupos (Materiais, Comida, Poções, Espadas, Machados, Clavas, Arcos, Varinhas, Bastões, Escudos e livros, Elmos, Armaduras, Pernas, Botas, Anéis, Amuletos); categoria Equipamento → 148 de 242; + "Minha (Cavaleiro)" → 86 (sem arcos, varinhas e bastões); + "Até o meu level (8)" → 13; "Desmarcar visíveis" → 13 ficam no chão (229/242 entram); "Limpar filtros" mantém a lista; Materiais + "vale menos de 100" → +21 (34 no chão); "Pegar tudo de novo" → 242/242; Esc com o foco no campo de busca fecha; zona presente no select; sem erro no console |
+| Pontinhos | 6 px da parede (5 + borda), 5 px até a seta no hover |
+| Wiki | `npm run wiki` ok; o texto da Mochila passa a dizer "16 grupos" e cita os filtros |
+| E2E | CI da PR (não roda localmente) |
+
 ## Resultados — loot automático configurável (2026-10-28, popover de manhã; janela com todos os itens à tarde)
 
 | Verificação | Resultado |
