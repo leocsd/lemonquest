@@ -8,6 +8,7 @@ import {
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
   npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg, type ExcursionActionMsg, type SocialActionMsg, buildWorldIndex, excursionDestinations, type WorldIndex,
+  DEFAULT_LOOT_FILTER, isDefaultLootFilter, sanitizeLootFilter, type LootFilter, type LootFilterMsg, type SetLootFilterMsg,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -91,7 +92,7 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
   // valia o teto global (60/s). MoveGroundItem já era limitado por dentro (GroundSystem, 10/s); aqui fica explícito (#48).
   [C2S.NpcTrade]: 10, [C2S.UseItem]: 10, [C2S.QuickPotion]: 5, [C2S.DropItem]: 5, [C2S.PickupItem]: 5, [C2S.DiscardItem]: 5,
-  [C2S.MoveGroundItem]: 10, [C2S.FightMode]: 5,
+  [C2S.MoveGroundItem]: 10, [C2S.FightMode]: 5, [C2S.SetLootFilter]: 3,
   // Vínculo do ClickUp: cada pedido é uma ida ao ClickUp (e há limite próprio de tentativas no ClickUpSystem).
   [C2S.WorkLink]: 1, [C2S.WorkUnlink]: 1,
 };
@@ -354,6 +355,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       partyIdOf: (p, m) => this.partyLootId(p, m.s.x, m.s.y),
       // Ouro e comuns do abate em grupo divididos entre quem participou (mesma regra da XP compartilhada); raro+ vai ao chão.
       lootSharers: (p, m) => this.party.lootSharers(p.id, m.damageBy, m.s.x, m.s.y).filter((s) => !this.lingering.has(s.id)),
+      filterOf: (p) => this.lootFilterOf(p.id),
     });
     this.regen = new RegenSystem({
       inCombat: (id, now) => this.combat.inCombat(id, now),
@@ -625,6 +627,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       handleChat(this, c, p, m, this.chatHooks));
     this.on<CastMsg>(C2S.Cast, (p, m) => this.spells.onCast(p, m));
     this.on<SetHotkeysMsg>(C2S.SetHotkeys, (p, m) => this.setHotkeys(p, m));
+    this.on<SetLootFilterMsg>(C2S.SetLootFilter, (p, m) => this.setLootFilter(p, m));
     this.on<MoveItemMsg>(C2S.MoveItem, (p, m) => this.inventory.onMoveItem(p, m));
     this.on<UseItemMsg>(C2S.UseItem, (p, m) => this.inventory.onUseItem(p, m));
     this.on<QuickPotionMsg>(C2S.QuickPotion, (p, m) => this.inventory.onQuickPotion(p, m));
@@ -940,6 +943,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (trained) client.send(S2C.TrainingResult, trained);
     const barRebuilt = this.upgradeHotkeys(rec, p.vocation);
     client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
+    client.send(S2C.LootFilter, { filter: this.lootFilterOf(sid) } satisfies LootFilterMsg);
     if (auth.weakPassword) {
       client.send(S2C.Notice, {
         text: "Sua senha é curta (menos de 6 caracteres). Considere uma senha mais forte.", kind: "warn",
@@ -1109,6 +1113,24 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.clients.getById(p.id)?.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
   }
 
+  /** Filtro do loot automático gravado no personagem (limpo de novo: gravação de outra versão), ou o padrão. */
+  private lootFilterOf(sessionId: string): LootFilter {
+    const saved = this.records.get(sessionId)?.data.lootFilter;
+    return saved ? sanitizeLootFilter(saved) : DEFAULT_LOOT_FILTER;
+  }
+
+  /**
+   * C2S.SetLootFilter: guarda o filtro válido no personagem (salvo no próximo save; o padrão não é gravado) e devolve o
+   * que ficou, para o cliente mostrar o mesmo que o servidor aplica.
+   */
+  private setLootFilter(p: PlayerState, m: SetLootFilterMsg) {
+    const rec = this.records.get(p.id);
+    if (!rec || !m || typeof m !== "object") return;
+    const filter = sanitizeLootFilter(m.filter);
+    if (isDefaultLootFilter(filter)) delete rec.data.lootFilter; else rec.data.lootFilter = filter;
+    this.clients.getById(p.id)?.send(S2C.LootFilter, { filter } satisfies LootFilterMsg);
+  }
+
   /**
    * Barra de uma versão anterior (ou nunca configurada): vira a recomendada (famílias de magia), uma vez. Retorna true
    * se trocou uma barra que o jogador já usava (personagem novo, sem barra e sem XP, não recebe aviso).
@@ -1174,6 +1196,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.arena.resend(sid);
     this.quests.resend(sid);
     { const rec = this.records.get(sid), p = this.state.players.get(sid); if (rec && p) client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation)); }
+    client.send(S2C.LootFilter, { filter: this.lootFilterOf(sid) } satisfies LootFilterMsg);
     this.ach.sendState(sid);
     this.party.resend(sid);
     this.trade.resend(sid);

@@ -31,6 +31,7 @@ export * from "./emotes.ts";
 export * from "./trade.ts";
 export * from "./shop.ts";
 export * from "./itemRules.ts";
+export * from "./lootFilter.ts";
 export * from "./data/events.ts";
 export * from "./data/invasion.ts";
 export * from "./data/news.ts";

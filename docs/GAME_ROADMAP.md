@@ -13,6 +13,13 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Loot automático configurável (2026-10-28)
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| LA-1 | Dono: "quero poder configurar o auto loot". Filtro por personagem (`shared/lootFilter.ts`): equipamento a partir de uma raridade, interruptores de materiais/poções/comida e valor mínimo (50–2.500). Ouro, missão e raro+ entram sempre (linha do "Vender tudo"). Fora do filtro → chão onde o monstro morreu, sem dono, sem aviso; grupo pula quem filtra no rodízio. Popover pelo funil (trilho e cabeçalho da Mochila); cartão mostra "no chão: …". Salvo no personagem (`CharacterData.lootFilter`) | ✅ (2026-10-28) | `lootFilter.test.ts`, `ground.test.ts` (6 casos novos), `WorldRoom.test.ts` (SetLootFilter), sonda Playwright no harness `?uitest` (popover, funil aceso, clique fora fecha, reset) |
+| LA-2 | Acompanhar em produção: itens filtrados ficam 10 min no chão (`MAX_PER_TILE` 15, `MAX_GROUND_ITEMS` 2000, despejo dos mais velhos). Se uma caçada com filtro agressivo encher o chão de um respawn, encurtar o prazo do que foi filtrado (`DECAY_MS` próprio) ou simplesmente não largar no chão | ⏳ | `admin status` (itens no chão) e log `[ground]` |
+
 ## IA dos monstros — troca de alvo (2026-10-28)
 
 | # | Item | Status | Validação |

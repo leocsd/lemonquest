@@ -27,7 +27,7 @@ import { NpcWindow } from "../npc/NpcWindow.tsx";
 import { ArenaWindow } from "../arena/ArenaWindow.tsx";
 import { ArenaHud } from "../arena/ArenaHud.tsx";
 import { TrainingWindow } from "../training/TrainingWindow.tsx";
-import { helpOpen, skillsOpen, soundOpen, toggle } from "./uiState.ts";
+import { helpOpen, skillsOpen, toggle, togglePopover } from "./uiState.ts";
 import { toggleBestiary } from "../bestiary/Bestiary.tsx";
 import { OutfitWindow } from "../outfit/OutfitWindow.tsx";
 import { ContextMenu } from "../outfit/ContextMenu.tsx";
@@ -102,7 +102,7 @@ function useHudKeys() {
       if (e.code === "KeyJ") { e.preventDefault(); toggleAchievements(); return; }
       if (e.code === "KeyR") { e.preventDefault(); toggleRanking(); return; }
       if (e.code === "KeyB") { e.preventDefault(); toggleBestiary(); return; }
-      if (e.key === "?" || e.code === "F1") { e.preventDefault(); soundOpen.set(false); toggle(helpOpen); return; }
+      if (e.key === "?" || e.code === "F1") { e.preventDefault(); togglePopover(helpOpen); return; }
       if (e.key === "Escape") {
         // Janelas, cartões e menus fecham pela pilha (overlays.ts: a última aberta primeiro; normalmente o listener
         // em captura de lá já tratou este Esc). Só com tudo fechado o Esc para de seguir e, depois, limpa o alvo.

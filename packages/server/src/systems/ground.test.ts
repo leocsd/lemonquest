@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backpackCapacity, S2C } from "@lemonquest/shared";
+import { DEFAULT_LOOT_FILTER, backpackCapacity, S2C, type LootFilter } from "@lemonquest/shared";
 import { makeItem } from "./inventory.ts";
 import {
   DECAY_MS, DROP_RANGE, MAX_LIFE_MULT, GROUND_MSG, GROUND_RATE, GroundSystem, MAX_GROUND_ITEMS, MAX_PER_TILE, PARTY_LOOT_PRIORITY_MS, SAVE_DEBOUNCE_MS,
@@ -800,5 +800,97 @@ describe("ground: refino (ciclo 16)", () => {
     p.x = 4; p.y = 4;
     g2.onPickup(p, { groundId: id });
     expect(w.inv.gold("p1")).toBe(1_500_000);
+  });
+});
+
+describe("loot automático configurável: o que está fora do filtro fica no chão onde o monstro morreu", () => {
+  // Rato: colete (equipamento, 30 de ouro), 3 ossos (material, 10) e 7 de ouro. rng 0 → colete comum; 0,95 → raro.
+  const md = def({ name: "Rato", gold: [7, 7], loot: [{ itemId: "vest", chance: 1 }, { itemId: "bone", chance: 1, min: 3, max: 3 }] });
+  const lootSystem = (t: ReturnType<typeof groundWorld>, players: Map<string, PlayerState>, filters: Record<string, Partial<LootFilter>>, rng = () => 0, party?: { sharers: () => PlayerState[] }) =>
+    new LootSystem({
+      inventory: t.w.inv, getPlayer: (id) => players.get(id), ground: t.ground, rng, now: t.w.now,
+      send: (to, type, msg) => t.w.sent.push({ to, type, msg }), broadcast: () => {},
+      filterOf: (p) => ({ ...DEFAULT_LOOT_FILTER, ...filters[p.id] }),
+      ...(party ? { partyIdOf: () => "P1", lootSharers: party.sharers } : {}),
+    });
+  const kill = (loot: LootSystem, killer: PlayerState) =>
+    loot.onKill({ s: { id: "m1", x: 9, y: 8, ownerId: "" }, def: md, damageBy: new Map([[killer.id, 10]]) } as unknown as Monster);
+  const lootMsgs = (t: ReturnType<typeof groundWorld>) => t.w.sent.filter((x) => x.type === S2C.Loot).map((x) => ({ to: x.to, ...x.msg }));
+
+  it("sem filtro (padrão) tudo entra, como antes", () => {
+    const t = groundWorld();
+    const k = t.add("k", 9, 7);
+    kill(lootSystem(t, new Map([["k", k]]), {}), k);
+    expect(t.bp("k").filter(Boolean).map((x) => x!.defId).sort()).toEqual(["bone", "vest"]);
+    expect(t.onTile(9, 8)).toEqual([]);
+    expect(lootMsgs(t)[0]!.left).toBeUndefined();
+  });
+
+  it("materiais desligados: o osso fica no tile do monstro, sem dono e sem aviso de mochila cheia; o colete e o ouro entram; o cartão lista o que ficou", () => {
+    const t = groundWorld();
+    const k = t.add("k", 9, 7), other = t.add("o", 10, 8);
+    kill(lootSystem(t, new Map([["k", k], ["o", other]]), { k: { materials: false } }), k);
+    expect(t.bp("k").filter(Boolean).map((x) => x!.defId)).toEqual(["vest"]);
+    expect(t.w.inv.gold("k")).toBe(7);
+    const [bone, ...rest] = t.onTile(9, 8);
+    expect(rest).toEqual([]);
+    expect([bone!.item.defId, bone!.item.count, bone!.owner]).toEqual(["bone", 3, undefined]);
+    expect(t.w.notices()).toEqual([]);
+    const msg = lootMsgs(t)[0]!;
+    expect(msg.items.map((i: { defId: string }) => i.defId)).toEqual(["vest"]);
+    expect(msg.left.map((i: { defId: string; count: number }) => [i.defId, i.count])).toEqual([["bone", 3]]);
+    expect(msg.fellToGround).toBeUndefined();
+    // Qualquer um pega na hora (o chão não tem dono).
+    t.ground.onPickup(other, { groundId: bone!.state.id });
+    expect(t.bp("o")[0]?.defId).toBe("bone");
+  });
+
+  it("valor mínimo corta o colete comum (30) e o osso (10), mas o colete raro entra sempre", () => {
+    const t = groundWorld();
+    const k = t.add("k", 9, 7);
+    const players = new Map([["k", k]]);
+    kill(lootSystem(t, players, { k: { minValue: 50 } }), k);
+    expect(t.bp("k").filter(Boolean)).toHaveLength(0);
+    expect(t.onTile(9, 8).map((e) => e.item.defId).sort()).toEqual(["bone", "vest"]);
+    t.step();
+    kill(lootSystem(t, players, { k: { minValue: 50 } }, () => 0.95), k);
+    expect(t.bp("k").filter(Boolean).map((x) => [x!.defId, x!.rarity])).toEqual([["vest", "rare"]]);
+  });
+
+  it("só ouro e nada no chão: o cartão ainda sai, com o que ficou, para o jogador entender por que a mochila não mudou", () => {
+    const t = groundWorld();
+    const k = t.add("k", 9, 7);
+    kill(lootSystem(t, new Map([["k", k]]), { k: { gear: "rare", materials: false } }), k);
+    const msg = lootMsgs(t)[0]!;
+    expect([msg.gold, msg.items, msg.left.length]).toEqual([7, [], 2]);
+  });
+
+  it("chão lotado em volta do monstro: o item fora do filtro some em silêncio (foi escolha), sem entrar no cartão", () => {
+    const t = groundWorld();
+    const k = t.add("k", 9, 7);
+    // Lota os tiles a até 2 do monstro (9,8) com pilhas de outra coisa.
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) for (let i = 0; i < MAX_PER_TILE; i++) t.ground.place(makeItem("sword"), 9 + dx, 8 + dy); // espada não empilha: 15 por tile
+    kill(lootSystem(t, new Map([["k", k]]), { k: { materials: false } }), k);
+    expect(lootMsgs(t)[0]!.left).toBeUndefined();
+    expect(t.w.notices()).toEqual([]);
+  });
+
+  it("grupo: quem filtra o item é pulado no rodízio; se ninguém quer, cai no chão reservado ao grupo", () => {
+    const t = groundWorld();
+    const k = t.add("k", 9, 7, { partyId: "P1" }), a = t.add("a", 8, 8, { partyId: "P1" });
+    const players = new Map([["k", k], ["a", a]]);
+    // Kiko não quer material: os 3 ossos vão para Ana, o colete segue o rodízio normal (1º para o Kiko).
+    const loot = lootSystem(t, players, { k: { materials: false } }, () => 0, { sharers: () => [k, a] });
+    kill(loot, k);
+    expect(t.bp("k").filter(Boolean).map((x) => x!.defId)).toEqual(["vest"]);
+    expect(t.bp("a").filter(Boolean).map((x) => x!.defId)).toEqual(["bone"]);
+    expect(t.onTile(9, 8)).toEqual([]);
+    // Ninguém quer material: fica no chão do grupo (reservado 15 s), e quem matou vê o cartão "no chão".
+    t.step();
+    const t0 = t.w.now();
+    kill(lootSystem(t, players, { k: { materials: false }, a: { materials: false } }, () => 0, { sharers: () => [k, a] }), k);
+    const [bone] = t.onTile(9, 8);
+    expect([bone!.item.defId, bone!.owner, bone!.ownerUntil]).toEqual(["bone", "P1", t0 + PARTY_LOOT_PRIORITY_MS]);
+    expect(lootMsgs(t).at(-1)).toMatchObject({ to: "k", onGround: true, items: [{ defId: "bone" }] });
   });
 });

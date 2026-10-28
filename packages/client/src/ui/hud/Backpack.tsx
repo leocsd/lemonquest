@@ -1,13 +1,34 @@
 // Mochila com itens reais (arrastar, usar, equipar), 5 por linha. O tamanho vem do servidor (cresce com o level até o
 // teto da vocação: backpackCapacity) e ela se organiza sozinha. O ouro fica no cabeçalho.
-import { BACKPACK_BY_VOCATION, BACKPACK_LEVELS_PER_SLOT, BACKPACK_SIZE } from "@lemonquest/shared";
+import { BACKPACK_BY_VOCATION, BACKPACK_LEVELS_PER_SLOT, BACKPACK_SIZE, isDefaultLootFilter, lootFilterSummary } from "@lemonquest/shared";
 import { GoldLabel } from "../items/Gold.tsx";
 import { inventoryStore } from "../items/inventory.ts";
 import { ItemSlot } from "../items/ItemSlot.tsx";
+import { lootFilterStore } from "../items/lootFilter.ts";
 import { meStore } from "./world.ts";
 import { PixelIcon } from "./icons.tsx";
 import { Section } from "./Section.tsx";
 import { useStore } from "./store.ts";
+import { lootOpen, togglePopover } from "./uiState.ts";
+
+/** Funil no cabeçalho da Mochila: abre o popover "Loot automático" (o mesmo do trilho); aceso quando há filtro. */
+function LootFilterButton() {
+  const f = useStore(lootFilterStore);
+  const open = useStore(lootOpen);
+  const filtered = !isDefaultLootFilter(f);
+  return (
+    <button
+      class={`fm-btn bag-filter${filtered ? " active" : ""}`}
+      onClick={() => togglePopover(lootOpen)}
+      data-tip="Loot automático"
+      data-tip-sub={lootFilterSummary(f)}
+      aria-label="Loot automático"
+      aria-expanded={open}
+    >
+      <PixelIcon name="funnel" size={12} />
+    </button>
+  );
+}
 
 export function Backpack() {
   const inv = useStore(inventoryStore);
@@ -28,6 +49,7 @@ export function Backpack() {
           <span class="count-chip" data-tip="Espaço usado" data-tip-sub={`${growth}A mochila se organiza sozinha.`}>{used}/{slots}</span>
         </span>
       }
+      controls={<LootFilterButton />}
     >
       <div class={`bag-grid${used === 0 ? " empty" : ""}`}>
         {Array.from({ length: slots }, (_, i) => (

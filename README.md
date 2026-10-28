@@ -48,6 +48,7 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Volume / mudo | botão ♪ na barra de botões à direita |
 | Painéis da barra lateral | arraste o cabeçalho para reordenar; 📌 fixa o painel (fica visível com a barra recolhida); a borda de baixo de Batalha/Mochila muda a altura (duplo clique: padrão) |
 | Mochila | se organiza sozinha (pilhas iguais juntam; itens por tipo) — não dá para arrastar dentro dela; solte um item do depot ou do chão em qualquer quadrado que ele entra na pilha igual ou no primeiro vazio; espaços por vocação: cavaleiro 30 → 60, paladino 26 → 52, feiticeiro/druida 24 → 48 (+1 a cada 4 levels) |
+| Loot automático | botão com o funil (trilho à direita ou cabeçalho da Mochila): equipamento a partir de uma raridade (tudo / incomum+ / raro+), materiais, poções e comida ligados ou não, e um valor mínimo (50 a 2.500). Ouro, itens de missão e raro+ entram sempre; o resto fica no chão onde o bicho morreu (10 min, de quem quiser). Em grupo, quem filtra o item é pulado no rodízio. Salvo no personagem |
 | Minimapa | roda do mouse: zoom; clique no relógio: efeitos de luz (dia/noite) |
 | Botão direito em você | trocar roupa · pegar item do chão · sair do grupo · trocar personagem (volta à lista de personagens da conta) |
 | Ajuda com todos os atalhos | `F1` ou `?` |

@@ -189,6 +189,8 @@ body.item-dragging, body.item-dragging * { cursor: grabbing !important; user-sel
 .loot-items { display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: center; }
 .loot-gold { display: inline-flex; align-items: center; gap: 4px; color: var(--hud-gold); }
 .loot-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+/* O que o filtro de loot automático deixou no chão: apagado, para não disputar atenção com o que entrou. */
+.loot-left { font-size: 11px; color: var(--hud-faint); }
 @keyframes loot-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 @keyframes loot-out { to { opacity: 0; transform: translateY(6px); } }
 @keyframes loot-glow { 50% { box-shadow: 0 0 24px rgba(240, 163, 58, 0.55), 0 2px 12px rgba(0, 0, 0, 0.4); border-color: #f0a33a; } }

@@ -1,5 +1,31 @@
 # Changelog
 
+## [Não lançado] — 2026-10-28 · loot automático configurável (o "quick loot" do Tibia)
+
+Pedido do dono: "quero poder configurar o auto loot". Até aqui todo o loot de um abate entrava na mochila (sozinho) ou
+era dividido na hora (grupo), sem escolha: no 60+ a mochila enchia de material barato e comida.
+- **Filtro por personagem** (`shared/lootFilter.ts`, `LootFilter`): equipamento a partir de uma raridade
+  (`gear`: tudo / incomum+ / raro+), interruptores de materiais, poções e comida, e um valor mínimo de tabela
+  (`LOOT_MIN_VALUES`: 0, 50, 100, 250, 500, 1000, 2500). Ouro, itens de missão/chave e **raro ou melhor entram sempre**
+  (a mesma linha de corte do "Vender tudo", `SELL_ALL_KEEPS_FROM`: nenhum filtro de valor deixa um épico para trás).
+  Regra única `autoLoots(filtro, item, raridade)`, aplicada pelo servidor e espelhada pelo cliente; `sanitizeLootFilter`
+  limpa o que chega (valor encaixa no degrau de baixo; lixo vira padrão).
+- **Servidor** (`systems/loot.ts`): o que está fora do filtro fica no chão **onde o monstro morreu** (`placeNear`, sem
+  dono, 10 min como qualquer item), sem o aviso "Mochila cheia" (foi escolha); se não couber em lugar nenhum some em
+  silêncio. O cartão do loot ganha `left` (o que ficou). Em grupo, quem filtra o item é pulado no rodízio (`nextSharer`);
+  ninguém quer → chão reservado ao grupo, como o raro. Preferência salva no personagem (`CharacterData.lootFilter`; o
+  padrão não é gravado), mensagens `C2S.SetLootFilter` (3/s) e `S2C.LootFilter` (ao entrar, ao reconectar e como
+  confirmação de cada mudança).
+- **Cliente**: popover "Loot automático" (`hud/LootFilterPopover.tsx`) pelo funil no trilho e pelo funil no cabeçalho da
+  Mochila (aceso quando há filtro; o tooltip resume: "equipamento raro+ · sem comida · só o que vale 100+"); o controle
+  de valor só manda ao servidor ao soltar (prévia local enquanto arrasta). Cartão do loot mostra "no chão: …" apagado.
+  `togglePopover` em `uiState.ts` substitui os quatro `set(false)` encadeados dos popovers do trilho.
+- Testes: `shared/lootFilter.test.ts` (sanitize, degraus, cada regra contra o catálogo real, resumo), `ground.test.ts`
+  (padrão igual ao de antes, material no chão sem dono e sem aviso, valor mínimo com raro passando, só ouro, chão
+  lotado, rodízio do grupo pulando quem filtra), `WorldRoom.test.ts` (entra com o padrão, SetLootFilter limpo/
+  confirmado/salvo/volta no login, padrão apaga o campo, lixo ignorado). Wiki ("Experiência e levels" → Mochila →
+  Loot automático; "Grupo" → Loot do grupo), README (tabela de controles), Novidades `2026-10-28f`.
+
 ## [Não lançado] — 2026-10-28 · os bichos trocam de alvo: estratégia por tipo e quem escapou da percepção
 
 Pedido do dono: "os bichos podem lurar em outro personagem durante o combate, depende da estratégia dele; e também se o

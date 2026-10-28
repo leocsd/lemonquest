@@ -2,9 +2,11 @@
 // equipáveis; entrega ao jogador online que mais causou dano. S2C.Loot para ele; S2C.Feed para drops épicos/lendários e chefes.
 // Em grupo, ouro e itens comuns/incomuns são divididos na hora entre quem participou (ouro em partes iguais, itens em
 // rodízio, direto na mochila); o raro+ cai no chão reservado ao grupo por 15 s, para o grupo decidir quem leva.
+// Loot automático configurável (shared/lootFilter.ts): o que o jogador deixou fora do filtro fica no chão onde o monstro
+// morreu, sem aviso de mochila cheia (foi escolha); no grupo, quem filtra o item é pulado no rodízio.
 import {
-  ELITE, RARITIES, RARITY_LABEL, S2C, eliteName, isEquipable, rollInt,
-  type FeedMsg, type ItemDef, type ItemInstance, type LootMsg, type MonsterDef, type NoticeMsg, type Rarity, type StatId,
+  DEFAULT_LOOT_FILTER, ELITE, RARITIES, RARITY_LABEL, S2C, autoLoots, eliteName, isEquipable, rollInt,
+  type FeedMsg, type ItemDef, type ItemInstance, type LootFilter, type LootMsg, type MonsterDef, type NoticeMsg, type Rarity, type StatId,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { PARTY_LOOT_PRIORITY_MS, type GroundReserve } from "./ground.ts";
@@ -128,6 +130,8 @@ export interface LootOptions {
    * ordem do grupo. Ausente/vazio = tudo cai no chão para o grupo.
    */
   lootSharers?: (p: PlayerState, m: Monster) => PlayerState[];
+  /** Filtro do loot automático de cada jogador (shared/lootFilter.ts). Ausente = pega tudo. */
+  filterOf?: (p: PlayerState) => LootFilter;
 }
 
 /**
@@ -186,9 +190,16 @@ export class LootSystem {
     const party = this.o.partyIdOf?.(p, m);
     if (party && this.o.ground?.placeNear) return this.dropForParty(p, m, roll.items, roll.gold, party);
     if (roll.gold > 0) this.o.inventory.addGold(p, roll.gold);
-    const got: ItemInstance[] = [];
+    const filter = this.filterOf(p);
+    const got: ItemInstance[] = [], skipped: ItemInstance[] = [];
     let lost = 0, fell = 0;
     for (const it of roll.items) {
+      const d = this.o.inventory.defs(it.defId);
+      if (d && !autoLoots(filter, d, it.rarity)) {
+        // Fora do filtro: fica no chão onde o monstro morreu, de quem quiser. Sem lugar no chão, some em silêncio.
+        if (this.leaveAt(it, x, y)) skipped.push(it);
+        continue;
+      }
       const n = it.count;
       const left = this.o.inventory.addItem(p, it);
       if (left < n) got.push({ ...it, count: n - left });
@@ -196,19 +207,28 @@ export class LootSystem {
         const rest = left === n ? it : { ...it, uid: newUid(), count: left, bonuses: it.bonuses.map((b) => ({ ...b })) };
         if (this.o.ground?.placeLoot(p, rest)) fell++; else lost++;
       }
-      const d = this.o.inventory.defs(it.defId);
       if (d && FEED_RARITIES.includes(it.rarity) && left < n) {
         this.feed(`🔥 ${p.name} dropou ${d.name} (${RARITY_LABEL[it.rarity]})`, "drop", it.rarity);
       }
     }
     if (fell > 0) this.o.send(p.id, S2C.Notice, { text: `Mochila cheia: ${fell === 1 ? "1 item caiu" : `${fell} itens caíram`} no chão.`, kind: "warn" } satisfies NoticeMsg);
     if (lost > 0) this.o.send(p.id, S2C.Notice, { text: `Mochila cheia: ${lost === 1 ? "1 item perdido" : `${lost} itens perdidos`}.`, kind: "warn" } satisfies NoticeMsg);
-    if (got.length || roll.gold > 0 || lost > 0 || fell > 0) {
+    if (got.length || roll.gold > 0 || lost > 0 || fell > 0 || skipped.length) {
       const msg: LootMsg = { x, y, monsterName, items: got, gold: roll.gold };
       if (lost > 0) msg.lostFull = lost;
       if (fell > 0) msg.fellToGround = fell;
+      if (skipped.length) msg.left = skipped;
       this.o.send(p.id, S2C.Loot, msg);
     }
+  }
+
+  private filterOf(p: PlayerState): LootFilter {
+    return this.o.filterOf?.(p) ?? DEFAULT_LOOT_FILTER;
+  }
+
+  /** Item fora do filtro: no tile do monstro (ou vizinho), sem dono. false = não coube em lugar nenhum. */
+  private leaveAt(item: ItemInstance, x: number, y: number): boolean {
+    return !!this.o.ground?.placeNear?.(item, x, y);
   }
 
   /**
@@ -277,14 +297,17 @@ export class LootSystem {
   }
 
   /**
-   * Próximo do rodízio do grupo que tem espaço para `item`: começa em quem vem depois do último que recebeu (na ordem
-   * do grupo) e dá a volta; undefined = ninguém participou ou ninguém tem espaço (o item cai no chão para o grupo).
+   * Próximo do rodízio do grupo que tem espaço para `item` e o aceita no seu filtro de loot: começa em quem vem depois
+   * do último que recebeu (na ordem do grupo) e dá a volta; undefined = ninguém participou, ninguém tem espaço ou
+   * ninguém quer (o item cai no chão para o grupo).
    */
   private nextSharer(partyId: string, sharers: readonly PlayerState[], item: ItemInstance): PlayerState | undefined {
     if (!sharers.length) return undefined;
+    const d = this.o.inventory.defs(item.defId);
     const start = sharers.findIndex((s) => s.id === this.lastSplit.get(partyId)) + 1; // -1 + 1 = 0: começa do primeiro
     for (let i = 0; i < sharers.length; i++) {
       const to = sharers[(start + i) % sharers.length]!;
+      if (d && !autoLoots(this.filterOf(to), d, item.rarity)) continue;
       if (this.o.inventory.roomFor(to.id, item.defId) < item.count) continue;
       this.lastSplit.delete(partyId);
       this.lastSplit.set(partyId, to.id);
