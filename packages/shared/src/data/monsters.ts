@@ -167,6 +167,12 @@ export const MONSTERS: Record<string, MonsterDef> = {
     attackMs: 1600, attackRange: 1, stepMs: 240, aggroRange: 0, fleeAtHpPct: 0, respawnMs: 0,
     sprite: grid4(M + "Racoon/SpriteSheet.png", { tint: 0x9fd8ff }),
   },
+  /** Invocação da "Amiguinha Borboleta" (Fada, vocação oculta): os números do Lobo Espiritual, com dano sagrado e cor-de-rosa. */
+  summoned_butterfly: {
+    id: "summoned_butterfly", name: "Borboleta Encantada", level: 20, hp: 180, xp: 0, damage: [14, 26], damageKind: "holy", armor: 3,
+    attackMs: 1600, attackRange: 1, stepMs: 240, aggroRange: 0, fleeAtHpPct: 0, respawnMs: 0,
+    sprite: grid4(M + "Butterfly/SpriteSheet.png", { tint: 0xffb8e6 }),
+  },
   snake: {
     id: "snake", name: "Cobra", level: 12, hp: 140, xp: 60, damage: [10, 22], damageKind: "earth", armor: 3,
     attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 45_000,

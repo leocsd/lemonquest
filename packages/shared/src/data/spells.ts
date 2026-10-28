@@ -30,7 +30,9 @@ export type SpellTarget =
 /** Chave visual: o cliente escolhe partículas/projéteis/sons por ela. */
 export type SpellFx =
   | "fire" | "ice" | "energy" | "earth" | "holy" | "death" | "physical"
-  | "heal" | "buff" | "arrow" | "summon" | "taunt" | "root" | "charge";
+  | "heal" | "buff" | "arrow" | "summon" | "taunt" | "root" | "charge"
+  /** Brilhinho rosa da Fada (pó de fada, confete, glitter): partículas cor-de-rosa com estrelinhas. */
+  | "sparkle";
 
 export interface SpellDef {
   id: string;
@@ -370,6 +372,92 @@ export const SPELLS: Record<string, SpellDef> = {
     target: "area_self", radius: 3, condition: { id: "rooted", durationMs: 3000 }, fx: "root",
     description: "Raízes brotam do chão num raio de 3 tiles e prendem os inimigos no lugar por 3 segundos.",
   },
+
+  // ------------------------------------------------------------------ FADA (vocação oculta, 2026-10-28)
+  // Pedido do dono: uma classe secreta, fofa, ruiva e cor-de-rosa com brilhinho, só para a "Fada Gabi". As 14 magias
+  // ESPELHAM as do druida número a número (mesmo level, mana, recarga, fórmula e condição; o gelo vira sagrado, o veneno
+  // vira choque de purpurina): ela entra no balanço exatamente como o druida (vocationBalance.test.ts) e só muda a cara.
+  // Palavras mágicas na "língua das fadas": todas começam com "plim". spells.test.ts confere o espelho magia a magia.
+  pixie_dust: {
+    id: "pixie_dust", name: "Pó de Pirlimpimpim", words: "plim", vocations: ["fairy"], level: 1, mana: 8, cooldownMs: 2000,
+    target: "target", range: 5, damage: { kind: "holy", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "sparkle",
+    description: "Sopra um punhado de pó brilhante no alvo. Faz cócegas — das que doem.",
+  },
+  fairy_kiss: {
+    id: "fairy_kiss", name: "Beijinho Curativo", words: "plim beijo", vocations: ["fairy"], level: 1, mana: 20, manaPerLevel: 1.5, manaMax: 70, cooldownMs: 1000,
+    target: "self", heal: { base: 20, perLevel: 1.23, perMagic: 3.0, variance: 0.15 }, fx: "heal",
+    description: "Um beijinho no próprio dodói: cura uma parte da sua vida (cresce com o magic level, como a Cura dos magos).",
+  },
+  soap_bubble: {
+    id: "soap_bubble", name: "Bolha de Sabão", words: "plim bolha", vocations: ["fairy"], level: 5, mana: 20, cooldownMs: 15_000,
+    target: "target", range: 4, damage: { kind: "holy", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
+    condition: { id: "rooted", durationMs: 3000 }, fx: "sparkle",
+    description: "Prende o alvo dentro de uma bolha de sabão por 3 segundos. Ele fica bravo, mas fica fofo.",
+  },
+  swift_wings: {
+    id: "swift_wings", name: "Asinhas Ligeiras", words: "plim zum", vocations: ["fairy"], level: 5, mana: 20,
+    cooldownMs: 15_000, global: false,
+    target: "self", condition: { id: "haste", durationMs: 30_000, value: 30 }, fx: "buff",
+    description: "Bate as asinhas bem rápido: 30% mais veloz por 30 segundos.",
+  },
+  confetti_rain: {
+    id: "confetti_rain", name: "Chuva de Confete", words: "plim festa", vocations: ["fairy"], level: 10, mana: 40, cooldownMs: 4000,
+    target: "area_target", range: 5, radius: 2, damage: { kind: "holy", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
+    condition: { id: "slow", durationMs: 4000, value: 40 }, fx: "sparkle",
+    description: "Confete cai na área ao redor do alvo: dano e os monstros ficam lentos (param para olhar).",
+  },
+  bubble_bath: {
+    id: "bubble_bath", name: "Banho de Espuma", words: "plim espuma", vocations: ["fairy"], level: 15, mana: 30, cooldownMs: 30_000,
+    target: "self", condition: { id: "manashield", durationMs: 20_000 }, fx: "buff",
+    description: "Por 20 segundos, metade do dano recebido estoura bolhas da sua mana e metade vai na vida (sem mana, tudo na vida). Use o Beijinho junto.",
+  },
+  lullaby: {
+    id: "lullaby", name: "Cantiga de Ninar", words: "plim naninha", vocations: ["fairy"], level: 15, mana: 80, cooldownMs: 5000,
+    target: "party", radius: 4, heal: { base: 15, perLevel: 2, perMagic: 3, variance: 0.2 }, fx: "heal",
+    description: "Canta baixinho: você e os amigos num raio de 4 tiles recuperam vida (e ficam com soninho).",
+  },
+  summon_butterfly: {
+    id: "summon_butterfly", name: "Amiguinha Borboleta", words: "plim borboleta", vocations: ["fairy"], level: 20, mana: 90, cooldownMs: 60_000,
+    target: "self", summon: { monsterId: "summoned_butterfly", count: 1, durationMs: 60_000 }, fx: "summon",
+    description: "Chama uma borboleta encantada que luta ao seu lado por 60 segundos (e nunca sai do seu pé).",
+  },
+  glitter_burst: {
+    id: "glitter_burst", name: "Explosão de Glitter", words: "plim glitter", vocations: ["fairy"], level: 30, mana: 150, cooldownMs: 8000,
+    target: "area_self", radius: 3, damage: { kind: "holy", base: 25, perLevel: 3, perMagic: 3.8, variance: 0.2 },
+    condition: { id: "slow", durationMs: 5000, value: 40 }, fx: "sparkle",
+    description: "Uma explosão de glitter ao seu redor: dano em tudo e os inimigos ficam lentos. Glitter nunca sai.",
+  },
+  cotton_candy_breath: {
+    id: "cotton_candy_breath", name: "Sopro de Algodão-Doce", words: "plim algodao", vocations: ["fairy"], level: 35, mana: 70, cooldownMs: 6000,
+    target: "wave", length: 5, width: 3, damage: { kind: "holy", base: 50, perLevel: 3, perMagic: 3.4, variance: 0.2 },
+    condition: { id: "slow", durationMs: 3000, value: 30 }, fx: "sparkle",
+    description: "Uma onda de algodão-doce à sua frente: dano e os inimigos ficam grudentos (lentos).",
+  },
+  rainbow_beam: {
+    id: "rainbow_beam", name: "Raio Arco-Íris", words: "plim arco iris", vocations: ["fairy"], level: 50, mana: 100, cooldownMs: 6000,
+    target: "target", range: 6, damage: { kind: "energy", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
+    condition: { id: "energy", durationMs: 10_000, value: 15 }, fx: "sparkle",
+    description: "Um arco-íris inteiro na cara do alvo: dano e choque colorido por 10 segundos.",
+  },
+  glitter_storm: {
+    id: "glitter_storm", name: "Tempestade de Purpurina", words: "plim purpurina", vocations: ["fairy"], level: 70, mana: 260, cooldownMs: 8000,
+    target: "area_self", radius: 4, damage: { kind: "holy", base: 55, perLevel: 3.5, perMagic: 4, variance: 0.2 },
+    condition: { id: "energy", durationMs: 8000, value: 15 }, fx: "sparkle",
+    description: "Purpurina em tudo num raio de 4 tiles: dano e choque colorido. Vai aparecer purpurina por semanas.",
+  },
+  goodnight_kiss: {
+    id: "goodnight_kiss", name: "Beijo de Boa Noite", words: "plim boa noite", vocations: ["fairy"], level: 90, mana: 180, cooldownMs: 10_000,
+    target: "target", range: 6, damage: { kind: "holy", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
+    condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "sparkle",
+    description: "O beijo mais forte da Fada: dano enorme no alvo, que fica com tanto sono que anda pela metade por 4 segundos.",
+  },
+  fairy_cheer: {
+    id: "fairy_cheer", name: "Torcida da Fada", words: "plim torcida", vocations: ["fairy"], level: 100, mana: 150, cooldownMs: 40_000,
+    // Utilidade de grupo do lv 100 (como as quatro do ciclo 12): empolga o grupo em vez de prender inimigos. Não soma
+    // com a Fúria do cavaleiro (25%, só nele): a condição mais forte ativa não é rebaixada (ConditionSystem.apply).
+    target: "party", radius: 3, condition: { id: "berserk", durationMs: 8000, value: 15 }, fx: "buff",
+    description: "Pula, grita e bate palminha: você e os aliados a até 3 tiles causam 15% a mais de dano por 8 segundos.",
+  },
 };
 
 export const spellDef = (id: string): SpellDef | undefined => (Object.hasOwn(SPELLS, id) ? SPELLS[id] : undefined);
@@ -437,4 +525,11 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Esmagar Terra        druid      50   100 (7%)    6    dmg 256 (alvo + poison)
  * Tempestade de Terra  druid      70   260 (12%)    8    dmg 508 (área r4 + poison)
  * Fúria da Natureza    druid      90   180 (7%)   10    dmg 693 (alvo + slow)
+ *
+ * FADA (oculta) — espelho do druida, magia a magia (spells.test.ts "Fada"):
+ * Pó de Pirlimpimpim = Lasca de Gelo · Beijinho Curativo = Cura · Bolha de Sabão = Raiz · Asinhas Ligeiras = Pés Ligeiros
+ * Chuva de Confete = Chuva de Gelo · Banho de Espuma = Escudo de Mana · Cantiga de Ninar = Cura em Grupo
+ * Amiguinha Borboleta = Invocar Lobo · Explosão de Glitter = Nevasca · Sopro de Algodão-Doce = Onda de Gelo
+ * Raio Arco-Íris = Esmagar Terra · Tempestade de Purpurina = Tempestade de Terra · Beijo de Boa Noite = Fúria da Natureza
+ * Torcida da Fada (lv 100, grupo +15% de dano por 8 s) = a utilidade do lv 100 (sem par exato: é a única só dela).
  */

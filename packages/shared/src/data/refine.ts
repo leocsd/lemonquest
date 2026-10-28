@@ -8,6 +8,7 @@
 // `instanceStats` é a ÚNICA conta dos atributos de uma instância (definição + bônus da raridade + refino): o servidor
 // (equipamento/combate) e o cliente (balão, comparação, aba Refinar) usam a mesma.
 import { TIER_LEVEL, type ItemDef, type ItemInstance, type StatId, type Stats } from "./items.ts";
+import { isMage } from "../types.ts";
 
 /** NPC do refino (Mestre Brás, o Ferreiro: shared/data/npcs.ts). */
 export const REFINE_NPC = "blacksmith";
@@ -46,11 +47,9 @@ export const REFINE_EXTRA: Partial<Record<RefineTier, string>> = { 7: "frasco_ac
 export const REFINE_EXTRA_FROM = 4;
 export const REFINE_EXTRA_COUNT = 1;
 
-const MAGES = new Set(["sorcerer", "druid"]);
-
-/** Livro de magia: escudo que só feiticeiro/druida equipam. */
+/** Livro de magia: escudo que só magos (feiticeiro/druida — e a Fada, que usa o equipamento do druida) equipam. */
 const isSpellbook = (d: ItemDef): boolean =>
-  d.slot === "shield" && !!d.vocations?.length && d.vocations.every((v) => MAGES.has(v));
+  d.slot === "shield" && !!d.vocations?.length && d.vocations.every((v) => isMage(v));
 
 /** Por que o item não pode ser refinado (null = pode). Mesma regra no servidor (aviso) e no cliente (aba Refinar). */
 export function refineBlock(d: ItemDef | undefined): string | null {

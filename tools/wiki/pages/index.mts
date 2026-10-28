@@ -1,6 +1,6 @@
 // Página inicial da wiki: o que é o jogo, cartões para as seções (com as contagens dos dados), "Comece por aqui"
 // (vocações e as primeiras missões) e a busca grande.
-import { VOCATIONS, VOCATION_ATTACK, baseStats, spellsFor } from "../../../packages/shared/src/index.ts";
+import { PLAYABLE_VOCATIONS, VOCATION_ATTACK, baseStats, spellsFor } from "../../../packages/shared/src/index.ts";
 import { esc, fmt, kindName, link, npcLink, questLink, searchBox, vocName, zoneLink, type WikiPage } from "../html.mts";
 import type { WikiModel } from "../model.mts";
 import { MECHANICS } from "./mechanics.mts";
@@ -19,7 +19,7 @@ export function render(m: WikiModel): WikiPage[] {
   const cardHtml = cards.map(([href, label, n, text]) =>
     `<a class="card" href="${href}"><b>${fmt(n)}</b><span>${esc(label)}</span><small>${esc(text)}</small></a>`).join("\n");
 
-  const vocCards = VOCATIONS.map((v) => {
+  const vocCards = PLAYABLE_VOCATIONS.map((v) => {
     const a = VOCATION_ATTACK[v];
     const l1 = baseStats(v, 1), l2 = baseStats(v, 2);
     const first = spellsFor(v).filter((s) => s.level <= 10).map((s) => s.name);

@@ -1,9 +1,9 @@
 // Classe de um baú de quest (pelos itens dentro): uma vocação, algumas, ou "Todas". Puro: usado pelo rótulo sobre o
 // baú no mundo e pelo "olhar".
-import { chestLockText, itemDef, questChestDef, questChestGroup, type QuestChestDef, type Vocation } from "@lemonquest/shared";
+import { PLAYABLE_VOCATIONS, chestLockText, itemDef, questChestDef, questChestGroup, type QuestChestDef, type Vocation } from "@lemonquest/shared";
 
-export const VOCATION_LABEL: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida" };
-export const VOCATION_COLOR: Record<Vocation, string> = { knight: "#ff8a6b", paladin: "#ffd166", sorcerer: "#b9a2ff", druid: "#7fe08f" };
+export const VOCATION_LABEL: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida", fairy: "Fada" };
+export const VOCATION_COLOR: Record<Vocation, string> = { knight: "#ff8a6b", paladin: "#ffd166", sorcerer: "#b9a2ff", druid: "#7fe08f", fairy: "#ff9ad5" };
 const ALL_COLOR = "#e8e6d9";
 
 export interface ChestClass { label: string; color: string; vocations: Vocation[] }
@@ -12,13 +12,14 @@ export interface ChestClass { label: string; color: string; vocations: Vocation[
 export function chestVocations(def: QuestChestDef | undefined): Vocation[] {
   const out = new Set<Vocation>();
   for (const it of def?.items ?? []) for (const v of itemDef(it.itemId)?.vocations ?? []) out.add(v);
-  return (["knight", "paladin", "sorcerer", "druid"] as const).filter((v) => out.has(v));
+  // Só as vocações da criação: os itens nunca citam a oculta (ela usa o equipamento do druida, ver GEAR_VOCATION).
+  return PLAYABLE_VOCATIONS.filter((v) => out.has(v));
 }
 
 /** Rótulo e cor da classe do baú (uma vocação = cor dela; várias = "A / B"; nenhuma ou todas = "Todas"). */
 export function chestClass(chestId: string): ChestClass {
   const vocations = chestVocations(questChestDef(chestId));
-  if (vocations.length === 0 || vocations.length === 4) return { label: "Todas", color: ALL_COLOR, vocations };
+  if (vocations.length === 0 || vocations.length === PLAYABLE_VOCATIONS.length) return { label: "Todas", color: ALL_COLOR, vocations };
   if (vocations.length === 1) return { label: VOCATION_LABEL[vocations[0]!], color: VOCATION_COLOR[vocations[0]!], vocations };
   return { label: vocations.map((v) => VOCATION_LABEL[v]).join(" / "), color: ALL_COLOR, vocations };
 }

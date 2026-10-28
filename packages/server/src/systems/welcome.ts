@@ -4,7 +4,7 @@
 import type { FeedMsg, Vocation } from "@lemonquest/shared";
 import type { CharacterRecord } from "../persistence/types.ts";
 
-const VOCATION_LABEL: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida" };
+const VOCATION_LABEL: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida", fairy: "Fada" };
 
 /** Personagem acabou de ser criado: nunca entrou no mundo (x/y nulos até a primeira gravação). */
 export const isFirstLogin = (rec: Pick<CharacterRecord, "x" | "y">): boolean => rec.x == null || rec.y == null;

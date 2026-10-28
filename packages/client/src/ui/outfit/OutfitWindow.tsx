@@ -1,7 +1,7 @@
 // Janela de roupas estilo Tibia: prévia animada grande, sexo (♂/♀), grade de roupas, 2 addons, OK/Cancelar.
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  OUTFIT_LIST, OUTFIT_TONES, OUTFIT_TONE_PRICE, outfitName, resolveOutfit, toneColor, unlockRequirement, type Facing, type Sex,
+  OUTFIT_TONES, OUTFIT_TONE_PRICE, outfitName, outfitsVisibleTo, resolveOutfit, toneColor, unlockRequirement, type Facing, type Sex,
 } from "@lemonquest/shared";
 import { NATURAL_SWATCH, swatchBackground, swatchOrder } from "./colorize.ts";
 import { useStore } from "../hud/store.ts";
@@ -214,7 +214,8 @@ function OutfitDialog() {
             </div>
           </div>
           <ul class="outfit-grid" role="listbox" aria-label="Roupas disponíveis">
-            {OUTFIT_LIST.map((o) => {
+            {/* As roupas exclusivas de outra vocação (a da Fada) nem aparecem: só as comuns e as da minha. */}
+            {outfitsVisibleTo(voc).map((o) => {
               const locked = !open(o.id, 0);
               return (
               <li key={o.id}>

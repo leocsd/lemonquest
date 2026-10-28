@@ -157,7 +157,7 @@ export function vocationReport(rows: Iterable<{ vocation: string; play: PlayData
     }
   }
   const out: string[] = [];
-  for (const voc of ["knight", "paladin", "sorcerer", "druid"]) {
+  for (const voc of VOCATIONS) {
     VOCATION_BANDS.forEach(([lo, hi], i) => {
       const a = acc.get(`${voc}|${i}`);
       if (!a || a.ms < SUMMARY_MIN_MS) return;

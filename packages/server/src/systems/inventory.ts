@@ -6,7 +6,7 @@
 import { randomBytes } from "node:crypto";
 import {
   BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
-  instanceStats, levelNeeded, pickQuickPotion, refineLevel,
+  instanceStats, levelNeeded, pickQuickPotion, refineLevel, vocationFits,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
   type ItemKind, type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
   type SortContainerMsg, type StatId, type Stats, type UseItemMsg, type Vocation,
@@ -55,7 +55,7 @@ export function makeItem(defId: string, count = 1, rarity: Rarity = "common", bo
 
 /** Arma inicial de cada vocação (tier 1, level 1). */
 export const STARTER_WEAPON: Record<Vocation, string> = {
-  knight: "short_sword", paladin: "short_bow", sorcerer: "apprentice_wand", druid: "twig_rod",
+  knight: "short_sword", paladin: "short_bow", sorcerer: "apprentice_wand", druid: "twig_rod", fairy: "twig_rod",
 };
 
 /** Kit do personagem NOVO (só na criação): arma da vocação equipada + 3 poções de vida + 5 carnes na mochila. */
@@ -620,7 +620,7 @@ export class InventorySystem {
   /** Motivo de não poder equipar (undefined = pode). */
   canEquip(p: PlayerState, d: ItemDef | undefined, slot: EquipSlot): string | undefined {
     if (!d || !d.slot || d.slot !== slot) return MSG.slot;
-    if (d.vocations?.length && !d.vocations.includes(p.vocation)) return MSG.vocation;
+    if (!vocationFits(d.vocations, p.vocation)) return MSG.vocation;
     if ((d.level ?? 0) > p.level) return MSG.level(d.level!);
     return undefined;
   }
@@ -758,7 +758,7 @@ export class InventorySystem {
     const need = levelNeeded(def, p.level);
     if (need) return this.warn(p, MSG.level(need));
     // Poções por vocação (as fortes, como no Tibia): um mago não bebe a Poção de Vida Enorme do cavaleiro.
-    if (def?.vocations?.length && !def.vocations.includes(p.vocation)) return this.warn(p, MSG.vocation);
+    if (!vocationFits(def?.vocations, p.vocation)) return this.warn(p, MSG.vocation);
     const now = this.now();
     if (use.chest) {
       if (!this.o.openChest) return this.warn(p, MSG.notUsable);

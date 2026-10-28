@@ -6,7 +6,7 @@
 // equipamento). Dano de cavaleiro/paladino usa o `spellPower` (skill da arma + level); a cura usa só o magic level.
 import {
   BOSS_ROOT_SLOW_PCT, BOSS_SLOW_MULT, DEFAULT_SPELL_RANGE, GLOBAL_SPELL_COOLDOWN_MS, GROUP_MAX, GROUP_SPELLS_MAX, HOTKEY_MAX,
-  MAGIC_ARMOR_FACTOR, MANA_SHIELD_ABSORB, MONSTERS, SKILL_ESTIMATE_LEVELS, SPELL_FAMILIES, VOCATIONS,
+  MAGIC_ARMOR_FACTOR, MANA_SHIELD_ABSORB, MONSTERS, PLAYABLE_VOCATIONS, SKILL_ESTIMATE_LEVELS, SPELL_FAMILIES, isHiddenVocation,
   baseStats, evalSpellFormula, familyLevel, skillEstimate, spellMana, spellPower,
   type ConditionId, type SpellDef, type SpellFamily, type Vocation,
 } from "../../../packages/shared/src/index.ts";
@@ -35,7 +35,7 @@ const condLabel = (id: ConditionId): string => COND_LABEL[id] ?? id;
 
 /** "do Cavaleiro", "do Feiticeiro e do Druida", "de todas as vocações". */
 function vocPhrase(v: readonly Vocation[]): string {
-  if (v.length >= VOCATIONS.length) return "de todas as vocações";
+  if (v.length >= PLAYABLE_VOCATIONS.length) return "de todas as vocações";
   const parts = v.map((x) => `do ${vocName[x]}`);
   return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}` : parts[0] ?? "";
 }
@@ -230,7 +230,7 @@ const code = (t: string): string => `<code>${esc(t)}</code>`;
 /** Jogador típico por level (os pontos de SKILL_ESTIMATE_LEVELS): o que vale como "magic level", skill da arma e poder. */
 function profileTable(): string {
   const headers = ["Vocação", ...SKILL_ESTIMATE_LEVELS.map((l) => `Level ${l}`)];
-  const rows = VOCATIONS.map((v) => {
+  const rows = PLAYABLE_VOCATIONS.map((v) => {
     const w = WEAPON_SKILL[v];
     return [esc(vocName[v]), ...SKILL_ESTIMATE_LEVELS.map((L) => {
       const sk = skillEstimate(v, L);
@@ -251,7 +251,7 @@ function vocationTable(m: WikiModel, voc: Vocation): string {
 }
 
 function familyTable(): string {
-  const rows = SPELL_FAMILIES.map((f) => [
+  const rows = SPELL_FAMILIES.filter((f) => !isHiddenVocation(f.vocation)).map((f) => [
     `<b>${esc(f.name)}</b>`, esc(vocName[f.vocation]), familyLevel(f),
     f.spells.map((id) => spellLink(id, DEPTH)).join(" › "), esc(f.desc),
   ]);
@@ -259,8 +259,8 @@ function familyTable(): string {
 }
 
 function renderIndex(m: WikiModel): WikiPage {
-  const sections = VOCATIONS.map((v) => `<h2 id="${slug(vocName[v])}">${esc(vocName[v])}</h2>\n${vocationTable(m, v)}`).join("\n");
-  const toc = [...VOCATIONS.map((v) => `<a href="#${slug(vocName[v])}">${esc(vocName[v])}</a>`), `<a href="#familias">Famílias prontas</a>`, `<a href="#valores">Como ler os valores</a>`].join(" · ");
+  const sections = PLAYABLE_VOCATIONS.map((v) => `<h2 id="${slug(vocName[v])}">${esc(vocName[v])}</h2>\n${vocationTable(m, v)}`).join("\n");
+  const toc = [...PLAYABLE_VOCATIONS.map((v) => `<a href="#${slug(vocName[v])}">${esc(vocName[v])}</a>`), `<a href="#familias">Famílias prontas</a>`, `<a href="#valores">Como ler os valores</a>`].join(" · ");
 
   const body = `<h1>Magias</h1>
 <p class="lead">${fmt(m.spells.length)} magias para as quatro vocações: palavras mágicas, mana, recarga, alcance e o dano ou a cura esperados em cada level.</p>
@@ -284,7 +284,7 @@ ${profileTable()}
 
   const search: SearchEntry[] = [
     { title: "Magias", kind: "Seção", text: "magias feitiços palavras mágicas mana recarga" },
-    ...SPELL_FAMILIES.map((f) => ({
+    ...SPELL_FAMILIES.filter((f) => !isHiddenVocation(f.vocation)).map((f) => ({
       title: `${f.name} (${vocName[f.vocation]})`, kind: "Família de magias",
       text: `tecla inteligente ${f.spells.map((id) => m.spells.find((s) => s.id === id)?.name ?? id).join(" ")}`,
       href: "magias/index.html#familias",
@@ -444,7 +444,7 @@ function renderSpell(s: SpellDef): WikiPage {
 
   const rows: [string, string][] = [
     ["Palavras mágicas", code(s.words)],
-    ["Vocações", esc(s.vocations.length >= VOCATIONS.length ? "Todas" : s.vocations.map((v) => vocName[v]).join(", "))],
+    ["Vocações", esc(s.vocations.length >= PLAYABLE_VOCATIONS.length ? "Todas" : s.vocations.map((v) => vocName[v]).join(", "))],
     ["Level", fmt(s.level)],
     ["Mana", manaFact(s)],
     ["Recarga", esc(duration(s.cooldownMs))],

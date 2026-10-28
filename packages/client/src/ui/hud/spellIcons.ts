@@ -143,6 +143,23 @@ const GLYPHS: Record<SpellFx, (m: Record<"a" | "b" | "c" | "w", string>) => Draw
     line(p, 6, 1, 12, 7, m.b, 2); line(p, 12, 7, 6, 13, m.b, 2);
     line(p, 3, 3, 8, 7, m.a); line(p, 8, 7, 3, 11, m.a);
   },
+  // Fada: estrela de quatro pontas com miolo branco e duas estrelinhas.
+  sparkle: (m) => (p) => art(p, [
+    "......a.......",
+    "......a....a..",
+    ".....aba..aaa.",
+    ".....aba...a..",
+    "....abwba.....",
+    "aaaaabwbaaaaa.",
+    ".aaabwwwbaaa..",
+    "...aabwbaa....",
+    "....abwba.....",
+    ".a...aba......",
+    "aaa..aba......",
+    ".a....a.......",
+    "......a.......",
+    "..............",
+  ], m),
 };
 
 const cache = new Map<string, string>();

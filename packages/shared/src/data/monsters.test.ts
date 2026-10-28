@@ -427,7 +427,8 @@ describe("Montadora (ciclo 20)", () => {
     }
     for (const [id] of MT) {
       const url = MONSTERS[id]!.sprite.url;
-      const others = Object.values(MONSTERS).filter((m) => m.id !== id && m.sprite.url === url).map((m) => m.id);
+      // Invocações (summoned_*) são cópias tingidas de propósito (a Borboleta Encantada da Fada usa a Butterfly).
+      const others = Object.values(MONSTERS).filter((m) => m.id !== id && !m.id.startsWith("summoned_") && m.sprite.url === url).map((m) => m.id);
       expect(others, `${id}: ${url}`).toEqual([]);
     }
   });

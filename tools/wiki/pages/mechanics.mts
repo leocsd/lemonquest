@@ -18,11 +18,11 @@ import {
   RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, RED_SKULL_KILLS, RED_SKULL_WINDOW_MS, REFINE_ARMOR_PER_LEVEL,
   REFINE_ATTACK_PER_LEVEL, REFINE_BASE_GOLD, REFINE_EXTRA, REFINE_EXTRA_FROM, REFINE_FAIL_CHANCE, REFINE_GOLD_MULT,
   REFINE_MATERIAL, REFINE_MAX, REFINE_NPC, REFINE_TIERS, REFINE_TIER_LEVEL, REGEN_INTERVAL_MS, SKILLS, SKILL_RATE,
-  SKILL_START, SPELLS, STANCE_DEALT, STANCE_TAKEN, TITLES, TOTAL_ACHIEVEMENT_POINTS, TRAVEL_FREE_LEVEL, VOCATIONS,
+  PLAYABLE_VOCATIONS, SKILL_START, SPELLS, STANCE_DEALT, STANCE_TAKEN, TITLES, TOTAL_ACHIEVEMENT_POINTS, TRAVEL_FREE_LEVEL,
   VOCATION_ATTACK, WEEKLY_EVENTS, XP_STAGES, arenaWaveGold, arenaWeekMod, baseStats, blessingPrice, challengeGold, challengeTarget,
   deathPenalty, deathPenaltyPct, evalSpellFormula, eventBonusText, imbuementDesc, imbuementMaterials, imbuementName,
   manaRegenAmount, partyMinLevel, partyShareEach, refineExpectedExtra, refineExpectedGold, refineTier, regenAmount,
-  skillEstimate, spellsFor, unlockText, weekChallenges, weekId, xpForLevel,
+  isHiddenVocation, isMage, skillEstimate, spellsFor, unlockText, vocationFits, weekChallenges, weekId, xpForLevel,
   type ChallengeDef, type ItemDef, type SkillId, type SpellDef, type Vocation, type WeaponType,
 } from "../../../packages/shared/src/index.ts";
 import { generateBounties } from "../../../packages/server/src/systems/bounties.ts";
@@ -127,6 +127,7 @@ const ROLE: Record<Vocation, string> = {
   paladin: "Atirador: arco de longe, magias sagradas e cura própria; vida e mana equilibradas.",
   sorcerer: "Mago de ataque: fogo e energia em alvo e em área, Escudo de Mana; pouca vida e muita mana.",
   druid: "Mago de apoio: gelo e terra, Cura em Grupo, raízes e invocação; pouca vida e muita mana.",
+  fairy: "Vocação oculta (não aparece na wiki): magias-espelho do druida, cor-de-rosa e com brilhinho.",
 };
 const STATS_LEVELS = [1, 10, 20, 30, 50, 70, 100, 120];
 
@@ -135,8 +136,8 @@ function vocacoes(): WikiPage {
   parts.push(`<p class="lead">Quatro vocações, escolhidas ao criar o personagem. Vida e mana máximas vêm só do level e da vocação (mais o que o equipamento der); a vida máxima é recalculada a cada login.</p>`);
   parts.push(`<h2>Vida e mana por level</h2>`);
   parts.push(`<p>Fórmula: vida = 150 + (vida por level) × (level − 1); mana = 50 + (mana por level) × (level − 1). Sem equipamento.</p>`);
-  parts.push(table(["Level", ...VOCATIONS.map((v) => `${esc(vocName[v])}<br><small>vida / mana</small>`)],
-    STATS_LEVELS.map((L) => [L, ...VOCATIONS.map((v) => { const s = baseStats(v, L); return `${fmt(s.maxHp)} / ${fmt(s.maxMana)}`; })])));
+  parts.push(table(["Level", ...PLAYABLE_VOCATIONS.map((v) => `${esc(vocName[v])}<br><small>vida / mana</small>`)],
+    STATS_LEVELS.map((L) => [L, ...PLAYABLE_VOCATIONS.map((v) => { const s = baseStats(v, L); return `${fmt(s.maxHp)} / ${fmt(s.maxMana)}`; })])));
 
   parts.push(`<h2>Combate básico</h2>`);
   parts.push(`<ul>
@@ -152,14 +153,14 @@ function vocacoes(): WikiPage {
     const t = new Set<string>();
     let shields = 0, books = 0;
     for (const d of Object.values(ITEMS)) {
-      if (d.vocations?.length && !d.vocations.includes(v)) continue;
+      if (!vocationFits(d.vocations, v)) continue;
       if (d.kind === "weapon" && d.weaponType) t.add(WEAPON_NAME[d.weaponType]);
-      if (d.kind === "shield") { if (d.vocations?.length && d.vocations.every((x) => x === "sorcerer" || x === "druid")) books++; else shields++; }
+      if (d.kind === "shield") { if (d.vocations?.length && d.vocations.every((x) => isMage(x))) books++; else shields++; }
     }
     return { types: [...t], shields, books };
   };
 
-  for (const v of VOCATIONS) {
+  for (const v of PLAYABLE_VOCATIONS) {
     const a = VOCATION_ATTACK[v];
     const s1 = baseStats(v, 1), s2 = baseStats(v, 2);
     const w = weapons(v);
@@ -194,7 +195,7 @@ function experiencia(): WikiPage {
   parts.push(table(["A partir do level", "XP de caça"], XP_STAGES.map((s) => [s.fromLevel, pct(s.mult, 0)])));
   parts.push(`<h2 id="mochila">Mochila</h2>`);
   parts.push(`<p>A mochila se organiza sozinha (pilhas iguais juntam; equipamento, poções, comida, materiais e o resto, nessa ordem) e ganha 1 espaço a cada ${BACKPACK_LEVELS_PER_SLOT} levels, até o teto da vocação:</p>`);
-  parts.push(table(["Vocação", "Level 1", "Máximo"], VOCATIONS.map((v) => [vocName[v], BACKPACK_BY_VOCATION[v].base, `${BACKPACK_BY_VOCATION[v].max} (lv ${1 + (BACKPACK_BY_VOCATION[v].max - BACKPACK_BY_VOCATION[v].base) * BACKPACK_LEVELS_PER_SLOT})`])));
+  parts.push(table(["Vocação", "Level 1", "Máximo"], PLAYABLE_VOCATIONS.map((v) => [vocName[v], BACKPACK_BY_VOCATION[v].base, `${BACKPACK_BY_VOCATION[v].max} (lv ${1 + (BACKPACK_BY_VOCATION[v].max - BACKPACK_BY_VOCATION[v].base) * BACKPACK_LEVELS_PER_SLOT})`])));
   return page("experiencia", parts.join("\n"));
 }
 
@@ -212,7 +213,7 @@ const avgHeal = (s: SpellDef, v: Vocation, L: number): number => evalSpellFormul
 
 function curaEPocoes(m: WikiModel): WikiPage {
   const parts: string[] = [];
-  const heals = Object.values(SPELLS).filter((s) => s.heal).sort((a, b) => a.level - b.level);
+  const heals = Object.values(SPELLS).filter((s) => s.heal && !s.vocations.every((v) => isHiddenVocation(v))).sort((a, b) => a.level - b.level);
   parts.push(`<p class="lead">Como no Tibia: a Cura cresce com o magic level (ML). Magos curam muito por magia; cavaleiros curam pouco e compensam com as curas próprias e as poções de vida fortes; o paladino fica no meio.</p>`);
   parts.push(`<h2>Magias de cura</h2>`);
   parts.push(table(["Magia", "Palavras", "Vocações", "Level", "Mana", "Recarga", "Cura"], heals.map((s) => [
@@ -267,7 +268,7 @@ function curaEPocoes(m: WikiModel): WikiPage {
   parts.push(`<p>Vida por tique: 1 % da vida máxima + level × 0,25 (mín. 1). Mana por tique: 2 % da mana máxima + level × 0,5 (mín. 2).</p>`);
   const regenRows: (string | number)[][] = [];
   for (const L of [10, 30, 60, 100]) {
-    for (const v of VOCATIONS) {
+    for (const v of PLAYABLE_VOCATIONS) {
       const s = baseStats(v, L);
       regenRows.push([L, esc(vocName[v]), regenAmount(s.maxHp, L, false), manaRegenAmount(s.maxMana, L, false, false), manaRegenAmount(s.maxMana, L, true, false)]);
     }

@@ -17,6 +17,8 @@ export const PAL: Record<FxKey, Pal> = {
   taunt: { main: 0xff4a3a, light: 0xffa090, dark: 0x9a1a14 },
   root: { main: 0x9be07a, light: 0xd8ffb8, dark: 0x4a6a1c },
   charge: { main: 0xcfd8ff, light: 0xffffff, dark: 0x6a7ac0 },
+  // Brilhinho da Fada: rosa com estrelinhas brancas.
+  sparkle: { main: 0xff9ad5, light: 0xffe6f5, dark: 0xd94f9e },
 };
 
 export const cssColor = (n: number) => "#" + n.toString(16).padStart(6, "0");

@@ -30,6 +30,9 @@ export const SPELL_FAMILIES: readonly SpellFamily[] = [
   fam("sorcerer", "wave", "Onda", "A mais forte pronta entre Onda de Fogo e Onda de Energia.", ["fire_wave", "energy_wave"]),
   fam("druid", "target", "Ataque no alvo", "A mais forte pronta entre Fúria da Natureza, Esmagar Terra e Lasca de Gelo.", ["nature_fury", "earth_crush", "ice_shard"]),
   fam("druid", "area", "Área em volta", "A mais forte pronta entre Tempestade de Terra e Nevasca.", ["earth_storm", "blizzard"]),
+  // Fada (oculta): as mesmas duas famílias do druida, com as magias-espelho dela.
+  fam("fairy", "target", "Brilho no alvo", "A mais forte pronta entre Beijo de Boa Noite, Raio Arco-Íris e Pó de Pirlimpimpim.", ["goodnight_kiss", "rainbow_beam", "pixie_dust"]),
+  fam("fairy", "area", "Brilho em volta", "A mais forte pronta entre Tempestade de Purpurina e Explosão de Glitter.", ["glitter_storm", "glitter_burst"]),
 ];
 
 const BY_ID = new Map(SPELL_FAMILIES.map((f) => [f.id, f]));

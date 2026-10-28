@@ -11,6 +11,7 @@ export const SKILL_RATE: Record<Vocation, Record<SkillId, number>> = {
   paladin: { melee: 1.2, distance: 1.1, magic: 1.4, shield: 1.1 },
   sorcerer: { melee: 2.0, distance: 2.0, magic: 1.1, shield: 1.5 },
   druid: { melee: 1.8, distance: 1.8, magic: 1.1, shield: 1.5 },
+  fairy: { melee: 1.8, distance: 1.8, magic: 1.1, shield: 1.5 },
 };
 
 /**
@@ -48,6 +49,8 @@ export const SKILL_ESTIMATE: Record<Vocation, Record<SkillId, readonly number[]>
   paladin: { melee: [10, 10, 10, 10], distance: [10, 30, 33, 35], magic: [0, 12, 13, 15], shield: [10, 10, 10, 10] },
   sorcerer: { melee: [10, 10, 10, 10], distance: [10, 10, 10, 10], magic: [0, 20, 29, 37], shield: [10, 15, 20, 24] },
   druid: { melee: [10, 10, 10, 10], distance: [10, 10, 10, 10], magic: [0, 20, 29, 37], shield: [10, 15, 20, 24] },
+  // Fada (oculta): mesma curva dos magos (as magias dela espelham as do druida).
+  fairy: { melee: [10, 10, 10, 10], distance: [10, 10, 10, 10], magic: [0, 20, 29, 37], shield: [10, 15, 20, 24] },
 };
 
 /**

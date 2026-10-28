@@ -52,7 +52,7 @@ describe("atalhos de magia", () => {
 
   it("padrão (recomendado): cada magia da vocação uma vez — direto ou pela família —, em ordem de level, nas teclas 1–0", () => {
     const sizes: Record<string, number> = {};
-    for (const v of ["knight", "paladin", "sorcerer", "druid"] as const) {
+    for (const v of ["knight", "paladin", "sorcerer", "druid", "fairy"] as const) {
       const d = defaultHotkeys(v);
       const covered = d.flatMap((h) => familyDef(h.spellId)?.spells ?? [h.spellId]);
       expect([...covered].sort(), v).toEqual(spellsFor(v).map((s) => s.id).sort());
@@ -63,7 +63,8 @@ describe("atalhos de magia", () => {
     // A barra encolhe: menos teclas que magias em todas as vocações. Cabe no 1–0, menos o druida desde o Escudo de Mana
     // (ciclo 15): 14 magias em 11 teclas, a 11ª na C.
     // 2026-10-27: +1 no cavaleiro (Limpar Feridas) e no paladino (Cura Divina), as curas próprias como no Tibia.
-    expect(sizes).toEqual({ knight: 10, paladin: 7, sorcerer: 8, druid: 11 });
+    // A Fada (oculta) espelha o druida: 14 magias em 11 teclas.
+    expect(sizes).toEqual({ knight: 10, paladin: 7, sorcerer: 8, druid: 11, fairy: 11 });
     for (const n of Object.values(sizes)) expect(n).toBeLessThanOrEqual(HOTKEY_MAX);
     expect(SUGGESTED_KEYS.slice(10, 12)).toEqual(["KeyC", "KeyF"]); // A, B, D, E são do jogo
   });

@@ -13,6 +13,17 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Fada Gabi — vocação oculta (2026-10-28)
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| FG-1 | Dono: "personagem Fada Gabi, criado direto, classe nova bloqueada ou oculta". Vocação `fairy` (Fada): fora da criação (`PLAYABLE_VOCATIONS`), da API e da wiki; druida de outro elemento (vida/mana, skills, mochila, equipamento e poções do druida por `vocationFits`/`GEAR_VOCATION`) | ✅ (2026-10-28) | `auth.test.ts` (API recusa), `items.test.ts` (cobertura por `vocationFits`), `vocationBalance.test.ts` (0,85–1,07× o feiticeiro; piso 0,65 mantido), wiki gerada sem "Fada"/"plim" |
+| FG-2 | Dono: "skills fofas, algo bem divertido". 14 magias `plim …` espelhando as do druida número a número (sagrado/energia; choque no lugar de veneno) + Torcida da Fada no lv 100; famílias "Brilho no alvo"/"Brilho em volta"; efeito `sparkle` rosa | ✅ (2026-10-28) | `spells.test.ts` (espelho magia a magia, 59 magias), `spellFamilies.test.ts`, `hotkeys.test.ts` (11 teclas); fumaça no servidor E2E (magias pelo chat) |
+| FG-3 | Dono: "fofa, ruiva, tom de rosa e com brilhinho; um addon só para ela". Roupa "Fada" (Woman ruiva de vestido rosa, gerada) com Asas de fada e Varinha de estrela, trancada por vocação (`unlock: "vocation:fairy"`, invisível às outras na janela de roupas); brilhinho permanente no boneco (`CharacterLook.glitter`) | ✅ (2026-10-28) | `outfits.test.ts`, `outfit.test.ts` (só a Fada veste, nem com `/desbloquear`), `achievements.test.ts`; `preview_sexo.png`/capturas |
+| FG-4 | CLI: `create-account` (conta sem senha + código de recuperação) e `create-character` (kit inicial; aceita a vocação oculta) | ✅ (2026-10-28) | `admincli.test.ts`; README e `deploy/docker/README.md` |
+| FG-5 | Criar a Fada Gabi em produção: não há conta "gabi" ainda (12 contas, nenhuma dela). Depois do deploy: `create-account <conta da Gabi>` + `create-character <conta> "Fada Gabi" fairy f` no container, e passar o código de recuperação a ela — ou criar na conta que o dono indicar | 🧭 | — |
+| FG-6 | Olhar a Fada numa sessão real (brilhinho e efeitos `sparkle` em vários PCs; custo do emissor por boneco é 1 partícula a cada 150 ms) e ajustar a arte se o dono quiser (cor do cabelo, tamanho das asas) | ⏳ | — |
+
 ## Login e painel Online (2026-10-27)
 
 | # | Item | Status | Validação |

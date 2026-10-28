@@ -2,19 +2,73 @@
 //   npm run admin -- reset-password <conta>
 //   Docker: docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 // Abre a base em LEMONQUEST_DB (ou data/lemonquest.db). Pode rodar com o servidor ligado (SQLite WAL + busy_timeout).
-import { closeDb, initDb, listDeletedCharacters, listRankingRows } from "./db.ts";
+import crypto from "node:crypto";
+import { ADDON_BITS, MAX_CHARACTERS_PER_ACCOUNT, VOCATIONS, isSex, type Sex, type Vocation } from "@lemonquest/shared";
+import {
+  closeDb, countCharacters, createAccount, createCharacter, findAccount, getCharacterByName, initDb, listDeletedCharacters, listRankingRows,
+} from "./db.ts";
 import { deathReport, skillReport, summarizePlay, vocationReport } from "../systems/telemetry.ts";
-import { createResetCode, formatResetCode } from "./auth.ts";
+import { starterKit } from "../systems/inventory.ts";
+import { createResetCode, formatResetCode, isPlainNewName, normalizeAccount, normalizeName } from "./auth.ts";
 
 export interface CliIO { out: (line: string) => void; err: (line: string) => void }
 
+const COMMANDS = ["reset-password", "deleted", "telemetria", "create-account", "create-character"];
 const USAGE = [
   "Uso:",
   "  npm run admin -- reset-password <conta>   gera um código de recuperação de senha (8 caracteres, 24 h, uso único)",
   "  npm run admin -- deleted                  lista os personagens excluídos (arquivo deleted_characters)",
   "  npm run admin -- telemetria               progressão medida por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h), skills reais e causas de morte",
+  "  npm run admin -- create-account <conta>   cria uma conta SEM senha e imprime o código de recuperação (24 h): a pessoa escolhe a senha em \"Esqueci minha senha\"",
+  "  npm run admin -- create-character <conta> <nome> <vocação> [m|f]",
+  `                                            cria um personagem na conta (nome com espaço entre aspas), com o kit inicial. Vocações: ${VOCATIONS.join(", ")} — a fairy (Fada) é a oculta, que a tela de criação não oferece`,
   "Base: LEMONQUEST_DB (padrão: data/lemonquest.db).",
 ];
+
+/**
+ * create-account: conta nova para alguém que ainda não tem (ex.: a dona da Fada), sem a pessoa por perto. Nasce com um
+ * hash aleatório (nenhuma senha confere) e um código de recuperação: a pessoa define a senha dela em "Esqueci minha
+ * senha", como no reset-password.
+ */
+async function createAccountCli(args: string[], io: CliIO): Promise<number> {
+  const name = normalizeAccount(args.join(" "));
+  if (!name) { io.err("Nome de conta inválido (3 a 20 letras ou números, espaços entre palavras)."); return 1; }
+  if (findAccount(name)) { io.err(`Conta já existe: ${name}`); return 3; }
+  createAccount(name, crypto.randomBytes(64).toString("hex"), crypto.randomBytes(16).toString("hex"));
+  const r = await createResetCode(name, "CLI");
+  if (!r) { io.err(`Conta criada, mas o código de recuperação falhou: rode reset-password ${name}`); return 2; }
+  io.out(`Conta criada: ${r.account} (sem senha ainda).`);
+  io.out(`Código de recuperação: ${formatResetCode(r.code)}`);
+  io.out(`Válido até ${new Date(r.expiresAt).toLocaleString("pt-BR")} (uso único).`);
+  io.out(`A pessoa usa em: tela de login → "Esqueci minha senha" → escolhe a senha dela.`);
+  return 0;
+}
+
+/**
+ * create-character: o único jeito de nascer um personagem de vocação oculta (a Fada). As mesmas regras da criação pela
+ * tela (nome, limite por conta, nome livre, kit inicial), sem o freio de spam e sem a reserva de nome de admin (quem
+ * roda o CLI é o dono do servidor). O personagem entra pela tela de login normal, na conta informada.
+ */
+function createCharacterCli(args: string[], io: CliIO): number {
+  const [accountArg, nameArg, vocArg, sexArg, ...extra] = args;
+  if (!accountArg || !nameArg || !vocArg || extra.length) { io.err("Uso: npm run admin -- create-character <conta> <nome> <vocação> [m|f]"); return 1; }
+  const acc = findAccount(accountArg.trim());
+  if (!acc) { io.err(`Conta não encontrada: ${accountArg}`); return 2; }
+  const name = normalizeName(nameArg);
+  if (!name || !isPlainNewName(name)) { io.err(`Nome inválido: ${nameArg} (3 a 20 letras ou números, espaços entre palavras)`); return 1; }
+  const vocation = vocArg.trim().toLowerCase() as Vocation;
+  if (!VOCATIONS.includes(vocation)) { io.err(`Vocação inválida: ${vocArg} (use ${VOCATIONS.join(", ")})`); return 1; }
+  const sex: Sex | undefined = sexArg === undefined ? "m" : isSex(sexArg.trim().toLowerCase()) ? (sexArg.trim().toLowerCase() as Sex) : undefined;
+  if (!sex) { io.err(`Sexo inválido: ${sexArg} (use m ou f)`); return 1; }
+  if (countCharacters(acc.id) >= MAX_CHARACTERS_PER_ACCOUNT) { io.err(`A conta ${acc.name} já tem ${MAX_CHARACTERS_PER_ACCOUNT} personagens.`); return 3; }
+  if (getCharacterByName(name)) { io.err(`Nome já usado: ${name}`); return 3; }
+  // A Fada já nasce com a roupa exclusiva completa (asas + varinha: os dois addons vêm liberados para ela).
+  const addons = vocation === "fairy" ? ADDON_BITS : 0;
+  const rec = createCharacter(acc.id, name, vocation, { ...starterKit(vocation), sex, addons });
+  io.out(`Personagem criado: ${rec.name} (${vocation}, ${sex}) na conta ${acc.name}.`);
+  io.out("Entra pela tela de login normal, na lista de personagens da conta.");
+  return 0;
+}
 
 /** Executa um comando. Devolve o código de saída. `dbFile` (testes) sobrepõe LEMONQUEST_DB. */
 export async function runAdminCli(args: string[], io: CliIO = { out: console.log, err: console.error }, dbFile?: string): Promise<number> {
@@ -23,13 +77,15 @@ export async function runAdminCli(args: string[], io: CliIO = { out: console.log
     for (const l of USAGE) io.out(l);
     return cmd ? 0 : 1;
   }
-  if (cmd !== "reset-password" && cmd !== "deleted" && cmd !== "telemetria") {
+  if (!COMMANDS.includes(cmd)) {
     io.err(`Comando desconhecido: ${cmd}`);
     for (const l of USAGE) io.err(l);
     return 1;
   }
   initDb(dbFile);
   try {
+    if (cmd === "create-account") return await createAccountCli(rest, io);
+    if (cmd === "create-character") return createCharacterCli(rest, io);
     if (cmd === "telemetria") {
       // Só leitura. Com o servidor ligado, vale o último autosave (quem está online pode estar alguns minutos atrás).
       const rows = listRankingRows();

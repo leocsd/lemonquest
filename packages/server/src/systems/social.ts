@@ -39,7 +39,7 @@ export interface SocialHost {
   now?(): number;
 }
 
-const VOCATION_LABEL: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida" };
+const VOCATION_LABEL: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida", fairy: "Fada" };
 
 export class SocialSystem {
   private readonly lastEmote = new Map<string, number>();

@@ -1,5 +1,52 @@
 # Changelog
 
+## [Não lançado] — 2026-10-28 · Fada Gabi: vocação oculta "Fada", roupa exclusiva e CLI para criar personagem
+
+- **Vocação oculta `fairy` (Fada)** (dono: "um personagem chamado Fada Gabi, criado direto, com uma classe nova
+  bloqueada ou oculta — fofa, ruiva, tom de rosa e com brilhinho; skills fofas"): a quinta vocação. A tela de criação
+  não a oferece (`PLAYABLE_VOCATIONS`), a API recusa (`invalid_request`), a wiki não a descreve (nem as magias, nem a
+  família, nem a criatura que só ela invoca) e a janela de roupas das outras vocações nem lista a roupa dela. Só nasce
+  pelo CLI de admin. Nas regras é um druida de outro elemento: vida e mana por level iguais, skills e magic level como os
+  magos, mochila de mago, e **o equipamento e as poções do druida** — toda conferência de "item da minha vocação"
+  (equipar, usar, Q/E, loja, Baú de Recompensa, balão do item, modelo de balanço, wiki) passa por `vocationFits`
+  (`GEAR_VOCATION`: `fairy → druid`), então os itens não precisam citar a vocação oculta; livro no lugar do escudo e
+  refino do livro por `isMage`. O ataque básico dela é sagrado.
+- **14 magias próprias, na "língua das fadas"** (`plim`, `plim beijo`, `plim bolha`, `plim zum`, `plim festa`,
+  `plim espuma`, `plim naninha`, `plim borboleta`, `plim glitter`, `plim algodao`, `plim arco iris`, `plim purpurina`,
+  `plim boa noite`, `plim torcida`): Pó de Pirlimpimpim, Beijinho Curativo, Bolha de Sabão, Asinhas Ligeiras, Chuva de
+  Confete, Banho de Espuma, Cantiga de Ninar, Amiguinha Borboleta (invoca a Borboleta Encantada, a Butterfly cor-de-rosa
+  com os números do Lobo Espiritual), Explosão de Glitter, Sopro de Algodão-Doce, Raio Arco-Íris, Tempestade de
+  Purpurina, Beijo de Boa Noite e Torcida da Fada (lv 100: o grupo causa 15% a mais de dano por 8 s). Treze **espelham
+  as do druida número a número** (level, mana, recarga, alvo, fórmula, condição; gelo/terra viram sagrado/energia e o
+  veneno vira choque) — `spells.test.ts` confere o espelho magia a magia. No modelo de balanço
+  (`vocationBalance.test.ts`) ela rende 1,07 / 1,22 / 0,95× o druida nos lv 30/60/100 (só o elemento contra cada pacote:
+  Bonelord fraco a sagrado, demônios resistentes) e 0,85 / 0,93 / 1,07× o feiticeiro — nunca a mais forte com folga,
+  nunca abaixo do piso de 0,65. Duas famílias ("Brilho no alvo", "Brilho em volta"); barra recomendada de 11 teclas.
+- **Visual**: chave de efeito nova `sparkle` (projétil rosa aditivo com rastro, estourinho com estrela branca, confete
+  rosa tile a tile, ícone de estrela de quatro pontas na janela Magias e na barra) e **brilhinho permanente** em volta
+  do boneco (`CharacterLook.glitter`: faíscas rosa/branco que nascem no corpo, sobem e piscam, dentro do contêiner do
+  ator — seguem o passo e somem com ele; com qualquer roupa).
+- **Roupa "Fada", só dela** (dono: "ela terá um addon só para ela, com os adjetivos que eu falei"): base gerada da Woman
+  do pack (loiro → ruivo cobre, bem mais vermelho que a pele; vestido azul → rosa; laço claro) com retrato, addon 1
+  "Asas de fada" (atrás do corpo de frente, por cima de costas, uma só de lado; batem com o passo; brilhinho que pisca)
+  e addon 2 "Varinha de estrela" (varinha branca com laço rosa e estrela dourada; a faísca alterna com o passo).
+  `unlock: "vocation:fairy"` nos três bits: `isUnlockedIn` libera só para a vocação dona — nem conquista nem
+  `/desbloquear` abrem para outra — e para ela tudo já vem liberado (`achievements.test.ts` dispensa a conquista dessa
+  roupa). O gerador (`tools/addons/generate.mjs`) ganhou `asBase` em `FEMALE_BASES` (sheet única para os dois sexos,
+  gravada em `sheet`/`faceset`); os 42 overlays antigos saíram byte a byte iguais (determinístico).
+- **CLI de admin** (`npm run admin`, `admin.mjs` no Docker): `create-account <conta>` cria a conta sem senha e imprime o
+  código de recuperação de 24 h (a pessoa escolhe a senha em "Esqueci minha senha"); `create-character <conta> "<nome>"
+  <vocação> [m|f]` cria o personagem com o kit inicial (nome conferido como na tela, limite de 5 por conta, aceita a
+  vocação oculta). README e `deploy/docker/README.md`.
+- **Novidades**: um aviso misterioso ("uma fada ruiva anda deixando brilhinho…"), sem dizer como ter.
+- **Verificação**: `npm run typecheck`; `npx vitest run` (testes novos: espelho das magias, balanço da Fada, roupa
+  trancada por vocação no shared e no servidor, criação recusada pela API, CLI de conta e de personagem, atalhos
+  padrão); fumaça no servidor E2E isolado (conta pela API, personagem pelo CLI contra o banco temporário, entrada no
+  mundo com vocação `fairy`, roupa `fada`, 150/50 no lv 1 e 324/920 no lv 30 como o druida, magias pelo chat, capturas
+  do boneco, da janela de roupas e da janela Magias). O build do cliente gera a wiki e falha com link quebrado: foi
+  assim que a página "Cura e poções" apareceu citando o Beijinho — corrigido com o filtro da vocação oculta, e a wiki
+  gerada não cita "Fada", "plim" nem "Borboleta Encantada".
+
 ## [Não lançado] — 2026-10-28 · a pilha do topo engolia cliques (missões e chevron)
 
 - **Causa do "não consigo abrir as missões nem a seta do mapa"** (dono: "a notificação no topo tem a largura que tampa

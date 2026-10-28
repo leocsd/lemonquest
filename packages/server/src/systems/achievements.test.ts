@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACHIEVEMENTS, BESTIARY_IDS, C2S, OUTFIT_LIST, RANKING_CACHE_S, S2C, TITLES, defaultOutfit, isFreeOutfit, isValidUnlockId,
-  resolveUnlockArg, type AchievementsMsg,
+  outfitVocationLock, resolveUnlockArg, type AchievementsMsg,
 } from "@lemonquest/shared";
 import { AchievementSystem, achievementEvent, addWorkTasks, bestiaryOf, grantUnlock, onUnlock, setActiveAchievements } from "./achievements.ts";
 import { handleAdminCommand, type AdminContext } from "./admin.ts";
@@ -30,6 +30,12 @@ describe("conquistas: catálogo", () => {
     const count = new Map<string, number>();
     for (const a of ACHIEVEMENTS) for (const r of a.rewards ?? []) count.set(r, (count.get(r) ?? 0) + 1);
     for (const o of OUTFIT_LIST) {
+      // Roupa exclusiva de uma vocação (a da Fada): sem conquista — só ela veste, e já nasce com tudo.
+      if (outfitVocationLock(o, 0)) {
+        expect(count.get(`outfit:${o.id}`), `roupa ${o.id}`).toBeUndefined();
+        for (const bit of [1, 2] as const) expect(outfitVocationLock(o, bit), `${o.id} addon ${bit}`).toBe(outfitVocationLock(o, 0));
+        continue;
+      }
       // Roupa: de graça só para a vocação dona e Cidadão; para as demais precisa de conquista.
       const needsIt = !(["knight", "paladin", "sorcerer", "druid"] as const).every((v) => isFreeOutfit(o.id, v));
       if (o.id !== "cidadao" && needsIt) expect(count.get(`outfit:${o.id}`), `roupa ${o.id}`).toBe(1);

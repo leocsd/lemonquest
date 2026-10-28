@@ -50,12 +50,62 @@ describe("SPELLS", () => {
       expect(list.some((s) => s.id === "light_heal"), v).toBe(true);
       // Cura em si mesmo: a Cura de todos e, como no Tibia (2026-10-27), a própria do cavaleiro (Limpar Feridas) e a do
       // paladino (Cura Divina); a cura em grupo do druida é outra coisa.
-      const SELF_HEALS: Record<Vocation, string[]> = { knight: ["light_heal", "wound_cleansing"], paladin: ["light_heal", "divine_healing"], sorcerer: ["light_heal"], druid: ["light_heal"] };
+      const SELF_HEALS: Record<string, string[]> = { knight: ["light_heal", "wound_cleansing"], paladin: ["light_heal", "divine_healing"], sorcerer: ["light_heal"], druid: ["light_heal"] };
       expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(SELF_HEALS[v]);
       expect(list.every((s) => s.vocations.includes(v))).toBe(true);
     }
     expect(Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).length]))).toEqual({ knight: 13, paladin: 12, sorcerer: 13, druid: 14 });
-    expect(Object.keys(SPELLS).length).toBe(45);
+    // 45 das quatro vocações + 14 da Fada (vocação oculta, espelho do druida — ver o describe "Fada").
+    expect(Object.keys(SPELLS).length).toBe(59);
+  });
+
+  describe("Fada (vocação oculta, 2026-10-28): espelho do druida, magia a magia", () => {
+    // Magia da Fada → magia do druida com os MESMOS números (level, mana, recarga, alvo, fórmula, duração/valor da
+    // condição). Só mudam o elemento (gelo/terra → sagrado/energia) e o id da condição de dano contínuo (veneno → choque).
+    const MIRROR: Record<string, string> = {
+      pixie_dust: "ice_shard", fairy_kiss: "light_heal", soap_bubble: "roots", swift_wings: "swift_feet", confetti_rain: "ice_rain",
+      bubble_bath: "mana_shield", lullaby: "group_heal", summon_butterfly: "summon_wolf", glitter_burst: "blizzard",
+      cotton_candy_breath: "ice_wave", rainbow_beam: "earth_crush", glitter_storm: "earth_storm", goodnight_kiss: "nature_fury",
+    };
+    const shape = (x: SpellDef) => ({
+      level: x.level, mana: x.mana, manaPerLevel: x.manaPerLevel, manaMax: x.manaMax, cooldownMs: x.cooldownMs, global: x.global,
+      target: x.target, range: x.range, radius: x.radius, length: x.length, width: x.width, rect: x.rect,
+      damage: x.damage && { base: x.damage.base, perLevel: x.damage.perLevel, perMagic: x.damage.perMagic, variance: x.damage.variance },
+      heal: x.heal, condition: x.condition && { durationMs: x.condition.durationMs, value: x.condition.value },
+      summon: x.summon && { count: x.summon.count, durationMs: x.summon.durationMs }, dash: x.dash, taunt: x.taunt,
+    });
+
+    it("14 magias só dela, palavras na língua das fadas (\"plim …\"), nenhuma das quatro vocações a conjura", () => {
+      const list = spellsFor("fairy");
+      expect(list).toHaveLength(14);
+      expect([...list.map((s) => s.id)].sort()).toEqual([...Object.keys(MIRROR), "fairy_cheer"].sort());
+      for (const s of list) {
+        expect(s.vocations, s.id).toEqual(["fairy"]);
+        expect(s.words, s.id).toMatch(/^plim( [a-z]+)*$/);
+      }
+      for (const v of VOCS) expect(spellsFor(v).some((s) => s.vocations.includes("fairy")), v).toBe(false);
+      // Cura própria única (como as outras vocações): o Beijinho; e a corrida dela não dispara o cooldown global.
+      expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id)).toEqual(["fairy_kiss"]);
+      expect(SPELLS.swift_wings!.global).toBe(false);
+    });
+
+    it("cada magia espelha a do druida nos números; o dano é sagrado (ou energia no Arco-Íris)", () => {
+      for (const [id, mirrorId] of Object.entries(MIRROR)) {
+        const s = SPELLS[id]!, m = SPELLS[mirrorId]!;
+        expect(shape(s), `${id} ≠ ${mirrorId}`).toEqual(shape(m));
+        if (s.damage) expect(s.damage.kind, id).toBe(id === "rainbow_beam" ? "energy" : "holy");
+        if (s.condition) expect(s.condition.id, id).toBe(m.condition!.id === "poison" ? "energy" : m.condition!.id);
+      }
+      expect(SPELLS.pixie_dust!.fx).toBe("sparkle");
+      expect(SPELLS.summon_butterfly!.summon!.monsterId).toBe("summoned_butterfly");
+      expect(MONSTERS.summoned_butterfly).toMatchObject({ name: "Borboleta Encantada", level: 20, hp: 180, xp: 0, damage: [14, 26], damageKind: "holy", aggroRange: 0, respawnMs: 0 });
+    });
+
+    it("Torcida da Fada (lv 100): utilidade de grupo sem dano, como as do ciclo 12", () => {
+      expect(SPELLS.fairy_cheer).toMatchObject({ level: 100, target: "party", radius: 3, mana: 150, cooldownMs: 40_000, condition: { id: "berserk", durationMs: 8000, value: 15 } });
+      expect(SPELLS.fairy_cheer!.damage).toBeUndefined();
+      expect(SPELLS.fairy_cheer!.heal).toBeUndefined();
+    });
   });
 
   it("descrição do Escudo de Mana acompanha MANA_SHIELD_ABSORB (mudar a constante exige reescrever o texto)", () => {
@@ -166,7 +216,7 @@ describe("SPELLS", () => {
         expect(healPct("light_heal", v, 1), v).toBeGreaterThanOrEqual(0.12);
         expect(healPct("light_heal", v, 1), v).toBeLessThanOrEqual(0.17);
       }
-      const RANGE: Record<Vocation, [number, number]> = { sorcerer: [0.30, 0.38], druid: [0.30, 0.38], knight: [0.09, 0.13], paladin: [0.12, 0.18] };
+      const RANGE: Record<string, [number, number]> = { sorcerer: [0.30, 0.38], druid: [0.30, 0.38], knight: [0.09, 0.13], paladin: [0.12, 0.18] };
       for (const lvl of [20, 30, 60, 100]) {
         for (const v of VOCS) {
           expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeGreaterThanOrEqual(RANGE[v][0]);

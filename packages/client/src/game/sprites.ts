@@ -40,6 +40,8 @@ export interface CharacterLook {
   addons?: AddonLayer[];
   /** Px acima do topo da base ocupados pelos addons (nome/barra sobem). */
   extraTop?: number;
+  /** Brilhinho permanente em volta do boneco (a Fada, qualquer roupa): faíscas rosa/branco que piscam (Actor). */
+  glitter?: boolean;
 }
 
 /**
@@ -111,6 +113,7 @@ export function outfitLook(outfit: string | undefined, addons: number, vocation:
   return {
     sheet: (sex === "f" ? OUTFIT_SHEETS_F : OUTFIT_SHEETS)[o.id]!, tint: 0xffffff, tone: toneColor(tone), addons: layers,
     extraTop: Math.max(0, ...on.map((a) => addonLayers(a, sex).extraTop)),
+    ...(vocation === "fairy" ? { glitter: true } : {}),
   };
 }
 

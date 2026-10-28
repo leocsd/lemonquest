@@ -120,6 +120,15 @@ export const OUTFIT_LIST: OutfitDef[] = [
   outfit("senhor_guerra", "Senhor da Guerra", "KnightGold", addon("senhor_guerra_capa", "Capa de guerra", true), addon("senhor_guerra_martelo", "Martelo de guerra")),
   fem(outfit("monge", "Monge", "Monk", addon("monge_contas", "Contas de oração"), addon("monge_bastao", "Bastão de monge")),
     "Monja", `${A}base_monge_f.png`, `${A}base_monge_f_face.png`),
+  // Fada (vocação oculta, pedido do dono em 2026-10-28): roupa EXCLUSIVA da Fada — Woman ruiva de vestido rosa (base e
+  // retrato gerados por tools/addons/generate.mjs), asas de fada (atrás do corpo de frente, por cima de costas) e
+  // varinha de estrela com brilhinho. Uma sheet só para os dois sexos. `unlock` por vocação: ninguém mais veste, nem
+  // pelo /desbloquear (ver isUnlockedIn); para ela a roupa e os dois addons já vêm liberados.
+  {
+    id: "fada", name: "Fada", sheet: `${A}base_fada.png`, faceset: `${A}base_fada_face.png`,
+    addons: [addon("fada_asas", "Asas de fada", true), addon("fada_varinha", "Varinha de estrela")],
+    unlock: { outfit: "vocation:fairy", addon1: "vocation:fairy", addon2: "vocation:fairy" },
+  },
 ];
 
 export const OUTFITS: Record<string, OutfitDef> = Object.fromEntries(OUTFIT_LIST.map((o) => [o.id, o]));
@@ -130,10 +139,25 @@ export const DEFAULT_OUTFIT: Record<Vocation, string> = {
   paladin: "cacador",
   sorcerer: "mago",
   druid: "druida",
+  fairy: "fada",
 };
 
 /** Bits de addon: 1 = addon 1, 2 = addon 2. */
 export const ADDON_BITS = 3;
+
+/**
+ * Vocação dona de uma roupa (bit 0) ou addon (1|2) exclusivo (`unlock: "vocation:<v>"`), ou undefined se o desbloqueio é
+ * o normal (de graça ou por conquista). Exclusivo = só essa vocação veste, sempre, e ela já nasce com ele.
+ */
+export function outfitVocationLock(o: OutfitDef, bit: 0 | 1 | 2): Vocation | undefined {
+  const u = bit === 0 ? o.unlock?.outfit : bit === 1 ? o.unlock?.addon1 : o.unlock?.addon2;
+  return u?.startsWith("vocation:") ? (u.slice("vocation:".length) as Vocation) : undefined;
+}
+
+/** Roupas que a janela de roupas mostra para a vocação: todas as comuns e as exclusivas dela (as das outras ficam ocultas). */
+export function outfitsVisibleTo(vocation: string): OutfitDef[] {
+  return OUTFIT_LIST.filter((o) => { const lock = outfitVocationLock(o, 0); return !lock || lock === vocation; });
+}
 
 export function outfitDef(id: string | undefined | null): OutfitDef | undefined {
   return id ? OUTFITS[id] : undefined;

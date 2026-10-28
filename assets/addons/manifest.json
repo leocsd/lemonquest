@@ -393,6 +393,20 @@
         "back": null,
         "extraTop": 5
       }
+    },
+    "fada_asas": {
+      "outfit": "fada",
+      "name": "Asas de fada",
+      "front": "addons/fada_asas.png",
+      "back": "addons/fada_asas_back.png",
+      "extraTop": 0
+    },
+    "fada_varinha": {
+      "outfit": "fada",
+      "name": "Varinha de estrela",
+      "front": "addons/fada_varinha.png",
+      "back": null,
+      "extraTop": 0
     }
   }
 }

@@ -1,6 +1,6 @@
 // Formatação de itens: atributos, requisitos e comparação com o equipado. Sem dependência de UI (testável).
 import {
-  FOOD_TICK_MS, RARITY_COLOR, RARITY_LABEL, RARITY_PRICE_MULT, autoAttackRange, instanceStats, refineBonus,
+  FOOD_TICK_MS, RARITY_COLOR, RARITY_LABEL, RARITY_PRICE_MULT, autoAttackRange, instanceStats, refineBonus, vocationFits,
   type DamageKind, type EquipSlot, type ItemDef, type ItemInstance, type ItemKind, type Rarity, type StatId, type Stats, type Vocation,
   type WeaponType,
 } from "@lemonquest/shared";
@@ -30,7 +30,7 @@ export const DAMAGE_LABEL: Record<DamageKind, string> = {
   physical: "físico", fire: "fogo", ice: "gelo", energy: "energia", earth: "terra", holy: "sagrado", death: "morte", heal: "cura", mana: "mana",
 };
 export const VOCATION_LABEL: Record<Vocation, string> = {
-  knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida",
+  knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida", fairy: "Fada",
 };
 
 export const rarityColor = (r: Rarity | undefined): string => RARITY_COLOR[r ?? "common"];
@@ -100,7 +100,7 @@ export function weaponDamage(
   equipment: Partial<Record<EquipSlot, ItemInstance>>, defOf: (id: string) => ItemDef | undefined,
 ): WeaponDamage | null {
   if (!def || def.slot !== "weapon" || !me) return null;
-  if (def.vocations?.length && !def.vocations.includes(me.vocation)) return null;
+  if (!vocationFits(def.vocations, me.vocation)) return null;
   const skills = { melee: me.skillMelee, distance: me.skillDistance, magic: me.magicLevel };
   const sum = (items: [ItemDef | undefined, ItemInstance | undefined][]) => {
     const out: Stats = {};
@@ -128,7 +128,7 @@ export function requirements(def: ItemDef | undefined, me: PlayerReq | null): Re
   if (def.vocations?.length) {
     out.push({
       text: def.vocations.map((v) => VOCATION_LABEL[v] ?? v).join(", "),
-      ok: !me || def.vocations.includes(me.vocation as Vocation),
+      ok: !me || vocationFits(def.vocations, me.vocation),
     });
   }
   return out;
@@ -143,7 +143,7 @@ export function canEquip(
 ): EquipCheck {
   if (!def || def.slot !== slot) return { ok: false, reason: "slot" };
   if (me && def.level && me.level < def.level) return { ok: false, reason: "level" };
-  if (me && def.vocations?.length && !def.vocations.includes(me.vocation as Vocation)) return { ok: false, reason: "vocation" };
+  if (me && !vocationFits(def.vocations, me.vocation)) return { ok: false, reason: "vocation" };
   if (slot === "shield") {
     const w = equipment.weapon && defOf(equipment.weapon.defId);
     if (w?.twoHanded) return { ok: false, reason: "twohanded" };

@@ -16,6 +16,18 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Fada Gabi, vocação oculta (2026-10-28)
+
+| Verificação | Resultado |
+|---|---|
+| Typecheck | ok (3 pacotes) |
+| Unitários | `npx vitest run`: 138 arquivos, 1655 testes, 0 falhas, 0 pulados (+5 novos: espelho das 14 magias da Fada, balanço da Fada, roupa trancada por vocação no shared e no servidor, CLI `create-account`/`create-character`; ajustados: criação recusa `fairy` pela API, atalhos padrão com 5 vocações, cobertura de itens por `vocationFits`, conquistas dispensam a roupa exclusiva, sprite da invocação repetido de propósito) |
+| Balanço | `vocationBalance.test.ts`: Fada 1,07 / 1,22 / 0,95× o druida e 0,85 / 0,93 / 1,07× o feiticeiro nos lv 30/60/100 (só o elemento sagrado contra cada pacote); pior/melhor com ela ≥ 0,65 |
+| Arte | `node tools/addons/generate.mjs`: 42 overlays antigos iguais byte a byte; `base_fada.png`, retrato e os 3 overlays novos conferidos em prévia 5× (ruiva cobre distinta da pele, vestido rosa, asas dos dois lados de frente, por cima de costas, uma de lado; varinha com estrela) |
+| Wiki | gerada em pasta temporária: 735 páginas, nenhuma cita "Fada", "plim" ou "Borboleta Encantada" (o build do cliente falhou uma vez com 4 links quebrados na página "Cura e poções" até o filtro da vocação oculta entrar lá também) |
+| Fumaça manual | servidor E2E isolado (`E2E_PORT=2870`, banco em `%TEMP%`): `POST /api/characters` com `fairy` → `invalid_request`; CLI `create-character` contra o banco temporário → personagem criado; no jogo: vocação `fairy`, roupa `fada` com `addons 3`, 150/50 no lv 1 e 324/920 no lv 30 (= druida), 11 atalhos com ícones `sparkle`, janela de roupas com "Fada" e os dois addons liberados (as outras vocações veem 20 roupas), Banho de Espuma/Asinhas/Beijinho/Cantiga/Glitter pelo chat (as de alvo e a invocação não saem na PZ, como esperado); capturas do boneco com asas, varinha e brilhinho, da lista de personagens ("Fada · Nível 1", retrato dela), das roupas e da janela Magias |
+| E2E | CI da PR (não roda localmente) |
+
 ## Resultados — cura como no Tibia (2026-10-27)
 
 | Verificação | Resultado |

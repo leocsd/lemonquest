@@ -2,7 +2,7 @@
 // Cada conquista olha UMA métrica numérica (ver AchMetric) e é concluída quando métrica >= alvo.
 // Recompensa = ids de desbloqueio: "outfit:<roupa>", "addon:<roupa>:<1|2>", "title:<titulo>".
 import { MONSTERS } from "./monsters.ts";
-import { OUTFITS, defaultOutfit } from "./outfits.ts";
+import { OUTFITS, defaultOutfit, outfitVocationLock } from "./outfits.ts";
 import { ARENA_MAX_WAVE } from "./arena.ts";
 
 /** Métricas que o servidor calcula para cada personagem. */
@@ -301,6 +301,9 @@ export function isFreeOutfit(outfitId: string, vocation: string): boolean {
 /** A roupa (bit 0) ou o addon (1|2) está liberado para quem tem estes desbloqueios? (mesma regra no servidor e no cliente) */
 export function isUnlockedIn(unlocks: readonly string[], vocation: string, outfitId: string, bit: 0 | 1 | 2): boolean {
   if (!Object.hasOwn(OUTFITS, outfitId)) return false;
+  // Roupa/addon exclusivo de uma vocação (a Fada): só ela, sempre — nem conquista nem /desbloquear abrem para outra.
+  const lock = outfitVocationLock(OUTFITS[outfitId]!, bit);
+  if (lock) return lock === vocation;
   if (bit === 0) return isFreeOutfit(outfitId, vocation) || unlocks.includes(outfitUnlockId(outfitId));
   return unlocks.includes(addonUnlockId(outfitId, bit));
 }

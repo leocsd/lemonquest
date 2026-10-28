@@ -64,6 +64,12 @@ const MATS = {
   emerald: { c: ["#b6f0b0", "#56b04c", "#2f6a3a"] },
   sparkle: { c: ["#fff6c8"], outline: false },
   sparkleV: { c: ["#e7c8ff"], outline: false },
+  // Fada: asas translúcidas cor-de-rosa, laço e brilhinho branco
+  wing: { c: ["#fff2fb", "#ffc4e8", "#e489c4"] },
+  wingvein: { c: ["#ffd9f0"], outline: false },
+  ribbon: { c: ["#ff8fcf", "#e0589e", "#a93a76"] },
+  sparkleW: { c: ["#ffffff"], outline: false },
+  sparkleP: { c: ["#ffb3e2"], outline: false },
   beak: { c: ["#f1c471"] },
   eye: { c: ["#141b1b"], outline: false },
   out: { c: ["#141b1b"], outline: false },
@@ -740,6 +746,57 @@ const DRAW = {
       F.set(fx - f * 2, n + 4, "ruby", 1);
     }
   },
+  // ---------- Fada (vocação oculta): asas e varinha de estrela
+  fada_asas(F, B, a) {
+    // Asa de fada: lobo de cima grande e lobo de baixo pequeno, nervura clara, 1 brilhinho. `flutter` alterna com o
+    // passo (as asas batem ao andar). De frente ficam ATRÁS do corpo, saindo pelos lados dos ombros; de costas ficam
+    // por cima (é o lado delas); de lado só uma aparece, varrida para trás.
+    const n = a.neck, flutter = a.row % 2;
+    const W = "wing", V = ["wingvein", 1], S = ["sparkleW", 1];
+    const map = { w: W, v: V, s: S, p: ["sparkleP", 1] };
+    const lobe = [
+      "..ww..",
+      ".wwww.",
+      "wwvww.",
+      "wwwww.",
+      ".wwws.",
+      ".www..",
+      "..ww..",
+      "..w...",
+    ];
+    // (x, y) = canto da asa direita (cresce para fora); flip espelha para a esquerda
+    const wing = (L, x, y, flip) => L.stamp(flip ? x - 5 : x, y, lobe, map, flip);
+    if (a.facing === "down") {
+      wing(B, a.bodyR + 1, n - 4 - flutter, false);
+      wing(B, a.bodyL - 1, n - 4 - flutter, true);
+      // brilhinho solto que pisca com o passo
+      if (flutter) { B.set(a.bodyR + 6, n - 5, "sparkleP", 1); B.set(a.bodyL - 6, n + 1, "sparkleW", 1); }
+    } else if (a.facing === "up") {
+      const c = a.c2 >> 1;
+      wing(F, c + 1, n - 5 - flutter, false);
+      wing(F, c - 1, n - 5 - flutter, true);
+      if (!flutter) { F.set(c + 6, n - 6, "sparkleW", 1); F.set(c - 6, n, "sparkleP", 1); }
+    } else {
+      // de lado: a asa de trás (B) varrida para trás, mais uma ponta da da frente (F) espiando atrás do ombro
+      const f = front(a), back = f < 0 ? a.bodyR : a.bodyL;
+      const flip = f > 0; // olhando para a direita, a asa cresce para a esquerda
+      wing(B, back - f * 1, n - 4 - flutter, flip);
+      F.set(back - f * 1, n - 2 - flutter, "wing", 2); F.set(back - f * 2, n - 3 - flutter, "wing", 1);
+      if (flutter) B.set(back - f * 6, n - 5, "sparkleW", 1);
+    }
+  },
+  fada_varinha(F, B, a) {
+    // Varinha branca curta com laço rosa e uma estrela dourada na ponta; o brilhinho pisca com o passo.
+    const p = heldPole(F, a, 8, "white");
+    const o = p.out, x = p.x, y = p.top;
+    F.set(x - 1, y + 2, "ribbon"); F.set(x + 1, y + 2, "ribbon"); F.set(x, y + 2, "ribbon", 3);
+    // estrela de 5 pontas (losango com miolo branco)
+    F.set(x, y - 4, "brightgold"); F.h(y - 3, x - 1, x + 1, "brightgold"); F.h(y - 2, x - 2, x + 2, "brightgold");
+    F.h(y - 1, x - 1, x + 1, "brightgold"); F.set(x, y, "brightgold");
+    F.set(x, y - 2, "orbcore", 1);
+    if (a.row % 2 === 0) F.set(x + 2 * o, y - 5, "sparkleW", 1); else F.set(x - 2 * o, y - 4, "sparkleP", 1);
+  },
+
   monge_bastao(F, B, a) {
     const p = heldPole(F, a, 17, "wood");
     F.v(p.x, p.top, p.top + 1, "gold"); F.set(p.x, a.bottom - 1, "gold");
@@ -984,6 +1041,13 @@ const FEMALE_BASES = {
     body: { "#79b8ce": "#56864c", "#548789": "#345a52", "#f1c471": "#d3a2c0", "#d78b4a": "#a5608b" },
     face: { split: 28 },
   },
+  // Fada (vocação oculta): a Woman ruiva (o loiro vira cobre, bem mais vermelho que a pele) de vestido rosa com laço
+  // claro. `asBase`: é a ÚNICA sheet da roupa (vale para os dois sexos), gravada em `sheet`/`faceset` em vez de `female`.
+  fada: {
+    src: "Woman", asBase: true,
+    all: { "#f1c471": "#dc4a2c", "#d78b4a": "#962b1d", "#79b8ce": "#ff9fd6", "#548789": "#d9579f", "#e0394c": "#ffe0f0" },
+    face: { split: 28 },
+  },
 };
 /** Retratos femininos do pack fora de 38x38 (o da Cavegirl2 tem 37 de largura: falta a 1ª coluna, só fundo). */
 const FEMALE_FACE_PAD = { barbaro: "Cavegirl2" };
@@ -1103,7 +1167,9 @@ function generateFemaleBases() {
     }
     const spec = FEMALE_BASES[o.id];
     if (!spec) continue;
-    if (!o.female?.startsWith("addons/")) throw new Error(`${o.id}: base feminina gerada precisa de female = addons/... em outfits.ts`);
+    // `asBase`: a sheet gerada é a própria base da roupa (uma só para os dois sexos), não a versão feminina.
+    const outSheet = spec.asBase ? o.sheet : o.female, outFace = spec.asBase ? o.faceset : o.facesetF;
+    if (!outSheet?.startsWith("addons/")) throw new Error(`${o.id}: base ${spec.asBase ? "gerada" : "feminina gerada"} precisa de ${spec.asBase ? "sheet" : "female"} = addons/... em outfits.ts`);
     const src = packSheet(spec.src, spec.rows);
     const hat = spec.hat && packSheet(spec.hat.from);
     const out = new Uint8Array(src.data);
@@ -1114,11 +1180,11 @@ function generateFemaleBases() {
       }
       if (hat) pasteHat(out, src.width, hat, spec.hat, col, row, fa, fa0);
     }
-    writePng(join(root, "assets", o.female), src.width, src.height, out);
+    writePng(join(root, "assets", outSheet), src.width, src.height, out);
     if (spec.face) {
-      if (!o.facesetF?.startsWith("addons/")) throw new Error(`${o.id}: retrato feminino gerado precisa de facesetF = addons/...`);
+      if (!outFace?.startsWith("addons/")) throw new Error(`${o.id}: retrato gerado precisa de ${spec.asBase ? "faceset" : "facesetF"} = addons/...`);
       const r = femaleFaceset(spec);
-      writePng(join(root, "assets", o.facesetF), r.w, r.h, r.data);
+      writePng(join(root, "assets", outFace), r.w, r.h, r.data);
     }
   }
 }

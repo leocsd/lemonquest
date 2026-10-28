@@ -1,5 +1,5 @@
 import { BASE_STEP_MS, DIAGONAL_COST } from "./constants.ts";
-import { Dir, isDiagonal } from "./types.ts";
+import { Dir, isDiagonal, isMage } from "./types.ts";
 
 /**
  * Duração de um passo. Fica ~15% mais rápido até o level 40.
@@ -59,6 +59,9 @@ const VOC_GROWTH: Record<Vocation, { hp: number; mana: number }> = {
   paladin: { hp: 13, mana: 15 },
   sorcerer: { hp: 6, mana: 30 },
   druid: { hp: 6, mana: 30 },
+  // Fada (oculta): os números do druida (as magias também espelham as dele): mesma força, só muda a cara.
+  // Com 8 de vida por level ela rendia 1,16× o druida no lv 30 (vocationBalance.test.ts).
+  fairy: { hp: 6, mana: 30 },
 };
 
 /** HP/mana máximos por vocação e level. Ajustável no balanceamento (M7). */
@@ -91,7 +94,7 @@ export const MISS_CHANCE = 0.05;
 export interface VocationAttack {
   /** Alcance (Chebyshev). 1 = corpo a corpo. */
   range: number;
-  kind: "physical" | "energy" | "ice";
+  kind: "physical" | "energy" | "ice" | "holy";
   ranged: boolean;
   /** Pode dar crítico (knight/paladin). */
   canCrit: boolean;
@@ -102,6 +105,7 @@ export const VOCATION_ATTACK: Record<Vocation, VocationAttack> = {
   paladin: { range: 6, kind: "physical", ranged: true, canCrit: true },
   sorcerer: { range: 4, kind: "energy", ranged: true, canCrit: false },
   druid: { range: 4, kind: "ice", ranged: true, canCrit: false },
+  fairy: { range: 4, kind: "holy", ranged: true, canCrit: false },
 };
 
 /**
@@ -115,6 +119,7 @@ const VOC_DAMAGE: Record<Vocation, { base: number; perLevel: number }> = {
   paladin: { base: 5, perLevel: 0.75 },
   sorcerer: { base: 4, perLevel: 0.6 },
   druid: { base: 4, perLevel: 0.6 },
+  fairy: { base: 4, perLevel: 0.6 },
 };
 
 /**
@@ -123,7 +128,7 @@ const VOC_DAMAGE: Record<Vocation, { base: number; perLevel: number }> = {
  * magos (varinha) → magicLevel, de leve: 1 + magicLevel*0.02.
  */
 export function attackSkillMult(vocation: Vocation, skill: number): number {
-  if (vocation === "sorcerer" || vocation === "druid") return 1 + Math.max(0, skill) * 0.02;
+  if (isMage(vocation)) return 1 + Math.max(0, skill) * 0.02;
   return Math.max(0.5, 1 + (skill - 10) * 0.03);
 }
 

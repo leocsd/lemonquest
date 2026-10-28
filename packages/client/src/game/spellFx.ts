@@ -36,7 +36,7 @@ const SHEETS: Sheet[] = [
 const SOUND: Record<FxKey, SfxName> = {
   fire: "sp_fire", ice: "sp_ice", energy: "sp_energy", earth: "sp_earth", holy: "sp_holy", death: "sp_death",
   physical: "sp_physical", heal: "heal", buff: "sp_buff", arrow: "shoot", summon: "sp_summon", taunt: "sp_taunt",
-  root: "sp_earth", charge: "sp_charge",
+  root: "sp_earth", charge: "sp_charge", sparkle: "sp_holy",
 };
 
 export interface SpellFxContext {
@@ -116,7 +116,7 @@ export class SpellEffects {
 
   private makeSparks(k: FxKey) {
     const p = PAL[k];
-    const up = k === "heal" || k === "holy" || k === "buff";
+    const up = k === "heal" || k === "holy" || k === "buff" || k === "sparkle";
     const e = this.scene.add.particles(0, 0, TEX.px, {
       emitting: false, lifespan: { min: 300, max: 700 }, speed: { min: 18, max: 90 }, angle: { min: 0, max: 360 },
       scale: { start: 2, end: 0.5 }, alpha: { start: 1, end: 0 }, tint: [p.main, p.light, p.dark],
@@ -309,6 +309,8 @@ export class SpellEffects {
       case "earth": if (R()) s.setTexture("pj_plant").setScale(1.2).play("fx:pj_plant"); else s.setTexture("proj_arrow"); break;
       case "holy": if (R()) { s.setTexture("pj_shuriken", 0).setTint(0xffe566).setScale(1.2); spin = 0.03; } else s.setTexture("proj_energy").setTint(0xffe566).play("fx:proj_energy"); break;
       case "death": if (R()) { s.setTexture("pj_shuriken", 1).setScale(1.2); spin = 0.03; } else s.setTexture("proj_energy").setTint(0xc8283e).play("fx:proj_energy"); break;
+      // Fada: bolinha rosa aditiva (o rastro de faíscas rosa vem do emissor da chave, no update).
+      case "sparkle": s.setTexture("proj_energy").setScale(1.3).setTint(PAL.sparkle.main).setBlendMode(Phaser.BlendModes.ADD).play("fx:proj_energy"); break;
       default: s.setTexture("proj_arrow").setScale(1.4); break;
     }
     this.projs.push({ s, fx, fy, tx, ty, t: 0, dur, key: k, spin, trailAcc: 0, done });
@@ -340,6 +342,12 @@ export class SpellEffects {
         this.play("fx:fx_circle_white", { x, y, scale: 1.1 * size, tint: pal.main, add: true, depth: d });
         this.play("fx:sp_boost", { x, y, scale: 0.8, tint: pal.main, add: true, depth: d });
         this.sparks.holy.explode(12, x, y);
+        break;
+      case "sparkle":
+        // Fada: estourinho rosa com uma estrela branca e um punhado de faíscas que sobem.
+        this.play("fx:fx_circle_white", { x, y, scale: 1.0 * size, tint: pal.main, add: true, depth: d });
+        this.play("fx:sp_spark", { x, y: y - 2, scale: 0.9 * size, tint: pal.light, add: true, depth: d });
+        this.sparks.sparkle.explode(16, x, y);
         break;
       case "death":
         this.play("fx:sp_aura", { x, y: y + 4, oy: 0.8, scale: 1.1, tint: 0xc8283e, depth: d });
@@ -385,6 +393,11 @@ export class SpellEffects {
         case "death":
           this.play("fx:sp_aura", { x, y: dy + 4, oy: 0.8, scale: 0.9 * scale, tint: 0xc8283e, depth });
           this.sparks.death.explode(3, x, dy); break;
+        case "sparkle":
+          // Fada: confete/glitter — um brilho rosa no chão e faíscas subindo em cada tile.
+          this.play("fx:fx_circle_spark", { x, y: dy + 2, scale: 0.5 * scale, tint: pal.main, add: true, depth: GROUND, alpha: 0.8 });
+          if (Math.random() < 0.5) this.play("fx:sp_spark", { x: x + rnd(-3, 3), y: dy - 2, scale: 0.55 * scale, tint: pal.light, add: true, depth });
+          this.sparks.sparkle.explode(5, x, dy); break;
         case "arrow": {
           // Flecha cai do céu.
           const a = this.acquire();

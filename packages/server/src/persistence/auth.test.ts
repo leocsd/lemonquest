@@ -106,6 +106,8 @@ describe("auth: contas", () => {
     expect(handleCreateCharacter({ session: b.session, name: "LEO", vocation: "druid" })).toEqual({ ok: false, error: "name_taken" });
     expect(handleCreateCharacter({ session: b.session, name: "Leo!", vocation: "druid" })).toEqual({ ok: false, error: "invalid_name" });
     expect(handleCreateCharacter({ session: b.session, name: "Zeca", vocation: "pirata" as any })).toEqual({ ok: false, error: "invalid_request" });
+    // A Fada é oculta: a tela de criação (e um POST à mão) não cria; só o CLI de admin (admincli.test.ts).
+    expect(handleCreateCharacter({ session: b.session, name: "Zeca", vocation: "fairy" })).toEqual({ ok: false, error: "invalid_request" });
     expect(handleCreateCharacter({ session: b.session, name: "Zeca", vocation: "druid", sex: "x" as any })).toEqual({ ok: false, error: "invalid_request" });
     expect(handleCreateCharacter({ session: "lixo", name: "Zeca", vocation: "druid" })).toEqual({ ok: false, error: "invalid_session" });
     const list = okSession(await handleLogin({ account: "contaA", password: "segredo1" }));

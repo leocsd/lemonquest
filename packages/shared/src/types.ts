@@ -17,8 +17,33 @@ export const isDiagonal = (d: Dir) => d % 2 === 1;
 /** Direção "visual" (4 lados) usada para escolher a linha do spritesheet. */
 export type Facing = "down" | "up" | "left" | "right";
 
-export type Vocation = "knight" | "paladin" | "sorcerer" | "druid";
-export const VOCATIONS: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
+/**
+ * Vocações. As quatro clássicas são as que a tela de criação oferece; a Fada ("fairy") é uma vocação OCULTA (pedido do
+ * dono, 2026-10-28): não aparece na criação nem na wiki e só nasce pelo CLI de admin (`npm run admin -- create-character`),
+ * para um personagem específico. Nas regras do jogo ela existe por inteiro (magias próprias, roupa e addons exclusivos,
+ * equipamento do druida — ver GEAR_VOCATION).
+ */
+export type Vocation = "knight" | "paladin" | "sorcerer" | "druid" | "fairy";
+/** Todas as vocações que um personagem pode ter (inclui as ocultas). */
+export const VOCATIONS: Vocation[] = ["knight", "paladin", "sorcerer", "druid", "fairy"];
+/** As que a criação de personagem oferece (e a wiki descreve). */
+export const PLAYABLE_VOCATIONS: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
+/** Vocação que não aparece na criação de personagem. */
+export const isHiddenVocation = (v: string): boolean => !PLAYABLE_VOCATIONS.includes(v as Vocation);
+/** Magos (varinha/cajado, ML no ataque básico, livro no lugar do escudo): feiticeiro, druida e a Fada. */
+export const MAGE_VOCATIONS: Vocation[] = ["sorcerer", "druid", "fairy"];
+export const isMage = (v: string): boolean => MAGE_VOCATIONS.includes(v as Vocation);
+/**
+ * Vocação cujo equipamento (campo `vocations` dos itens: armas, armaduras, poções) a vocação usa. A Fada veste e bebe o
+ * que o druida veste e bebe; as outras, só o próprio. Toda conferência de "este item é da minha vocação" passa por
+ * `vocationFits` para a lista dos itens (e dos testes/wiki) não precisar citar a vocação oculta.
+ */
+export const GEAR_VOCATION: Record<Vocation, Vocation> = { knight: "knight", paladin: "paladin", sorcerer: "sorcerer", druid: "druid", fairy: "druid" };
+export function vocationFits(allowed: readonly Vocation[] | undefined | null, vocation: string): boolean {
+  if (!allowed?.length) return true;
+  const v = vocation as Vocation;
+  return allowed.includes(v) || allowed.includes(GEAR_VOCATION[v] ?? v);
+}
 
 /** Sexo do personagem (só cosmético: escolhe a sheet de cada roupa, ver data/outfits.ts). */
 export type Sex = "m" | "f";

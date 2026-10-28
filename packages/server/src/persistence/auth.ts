@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { promisify } from "node:util";
 import { Router, type Response } from "express";
 import {
-  MAX_CHARACTERS_PER_ACCOUNT, MAX_NAME_LEN, VOCATIONS, isSex, type Sex,
+  MAX_CHARACTERS_PER_ACCOUNT, MAX_NAME_LEN, PLAYABLE_VOCATIONS, isSex, type Sex,
   type AccountSession, type AuthFail, type CharacterSummary, type CreateCharacterRequest, type DeleteCharacterRequest,
   type LoginRequest, type PlayRequest, type PlayResponse, type ResetPasswordRequest,
 } from "@lemonquest/shared";
@@ -312,7 +312,8 @@ export function handleCreateCharacter(req: CreateCharacterRequest, ctx: LoginCon
   charCreations.record(ck, now);
   const name = normalizeName(req.name);
   if (!name || !isPlainNewName(name)) return fail("invalid_name");
-  if (!VOCATIONS.includes(req.vocation)) return fail("invalid_request");
+  // Só as vocações da tela de criação: a Fada (oculta) nasce pelo CLI de admin (create-character).
+  if (!PLAYABLE_VOCATIONS.includes(req.vocation)) return fail("invalid_request");
   // Sexo: ausente = "m" (clientes antigos, scripts de teste); qualquer outro valor é pedido inválido.
   if (req.sex !== undefined && !isSex(req.sex)) return fail("invalid_request");
   const sex: Sex = req.sex ?? "m";

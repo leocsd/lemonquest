@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  ITEMS, MONSTERS, NPCS, QUEST_LIST, SPELLS, buildWorldIndex, npcBuyPrice,
+  ITEMS, MONSTERS, NPCS, QUEST_LIST, SPELLS, buildWorldIndex, isHiddenVocation, npcBuyPrice,
   type ItemDef, type MonsterDef, type NpcDef, type QuestDef, type SpellDef, type TiledMap, type WorldIndex,
 } from "../../packages/shared/src/index.ts";
 import { ASSETS } from "./html.mts";
@@ -46,9 +46,12 @@ export interface WikiModel {
 export function buildModel(): WikiModel {
   const mapJson = JSON.parse(readFileSync(join(ASSETS, "maps", "world.json"), "utf8")) as TiledMap;
   const index = buildWorldIndex(mapJson);
-  const monsters = Object.values(MONSTERS);
+  // A vocação oculta (a Fada) fica fora da wiki: nem as magias só dela nem a criatura que só ela invoca.
+  const hiddenSpell = (s: { vocations: readonly string[] }) => s.vocations.every((v) => isHiddenVocation(v));
+  const spells = Object.values(SPELLS).filter((s) => !hiddenSpell(s));
+  const hiddenSummons = new Set(Object.values(SPELLS).filter((s) => hiddenSpell(s) && s.summon).map((s) => s.summon!.monsterId));
+  const monsters = Object.values(MONSTERS).filter((d) => !hiddenSummons.has(d.id));
   const items = Object.values(ITEMS);
-  const spells = Object.values(SPELLS);
   const npcs = Object.values(NPCS);
   const quests = QUEST_LIST;
 

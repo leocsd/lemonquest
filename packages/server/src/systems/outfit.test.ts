@@ -228,3 +228,19 @@ describe("outfit: sala", () => {
     expect(p.addons).toBe(2);
   });
 });
+
+describe("outfit: roupa exclusiva da Fada (vocação oculta, 2026-10-28)", () => {
+  it("a Fada nasce com a roupa e os dois addons liberados; ninguém mais veste, nem com o desbloqueio no registro", () => {
+    const fada = createAccount("Fada Gabi", "h", "s", "fairy");
+    expect(fada.data.outfit).toBe("fada");
+    for (const bit of [0, 1, 2] as const) expect(isOutfitUnlocked(fada, "fada", bit), `fada bit ${bit}`).toBe(true);
+    expect(isOutfitUnlocked(fada, "cidadao", 0)).toBe(true);
+    expect(isOutfitUnlocked(fada, "pirata", 0)).toBe(false);
+    expect(validateSetOutfit({ outfit: "fada", addons: 3, tone: "", sex: "f" }, fada)).toEqual({ outfit: "fada", addons: 3, tone: "", sex: "f" });
+    expect(loadOutfit({ ...fada, data: { ...fada.data, outfit: "fada", addons: 3, sex: "f" } })).toEqual({ outfit: "fada", addons: 3, sex: "f" });
+    const kai = createAccount("Kai", "h", "s", "knight");
+    kai.data.unlocks = ["outfit:fada", "addon:fada:1", "addon:fada:2"];
+    for (const bit of [0, 1, 2] as const) expect(isOutfitUnlocked(kai, "fada", bit), `kai bit ${bit}`).toBe(false);
+    expect(validateSetOutfit({ outfit: "fada", addons: 0, tone: "" }, kai)).toBeNull();
+  });
+});

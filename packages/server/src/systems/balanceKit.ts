@@ -12,7 +12,7 @@ import {
   ARENA_MAX_WAVE, ARENA_PAUSE_HEAL, CRIT_MULT, EQUIP_SLOTS, GLOBAL_SPELL_COOLDOWN_MS, ITEMS, MANA_SHIELD_ABSORB, MISS_CHANCE,
   PLAYER_ATTACK_MS, REGEN_INTERVAL_MS, VOCATION_ATTACK, arenaPauseMs, arenaWaveSpawns, attackSkillOf, autoAttackRange, baseStats,
   critChance, damageTakenMult, manaRegenAmount, manaShieldSplit, mitigateSpell, monsterDef, shieldArmorBonus, SKILL_ESTIMATE, skillEstimate,
-  SPELLS, spellMana, spellPower, spellsFor,
+  SPELLS, spellMana, spellPower, spellsFor, vocationFits,
   type ConditionId, type DamageKind, type ItemDef, type MonsterDef, type SkillId, type SpellDef, type SpellFormula, type StatId,
   type Vocation,
 } from "@lemonquest/shared";
@@ -69,7 +69,7 @@ export interface Fighter {
   manaPotion?: { amount: number; cdS: number };
 }
 
-const usableBy = (it: ItemDef, v: Vocation, L: number) => (!it.vocations || it.vocations.includes(v)) && (it.level ?? 0) <= L;
+const usableBy = (it: ItemDef, v: Vocation, L: number) => vocationFits(it.vocations, v) && (it.level ?? 0) <= L;
 
 function bestItem(v: Vocation, L: number, ok: (it: ItemDef) => boolean): ItemDef | undefined {
   let best: ItemDef | undefined;
@@ -82,7 +82,7 @@ function bestPotion(L: number, kind: "heal" | "mana", v: Vocation, cap = Infinit
   for (const it of Object.values(ITEMS)) {
     const amount = it.kind === "potion" ? it.use?.[kind] ?? 0 : 0;
     // Poções por vocação (as fortes): o mago não bebe a de vida do cavaleiro.
-    if (it.vocations?.length && !it.vocations.includes(v)) continue;
+    if (!vocationFits(it.vocations, v)) continue;
     if (amount > 0 && amount <= cap && (it.level ?? 0) <= L && (!best || amount > best.amount)) {
       best = { amount, cdS: (it.use?.cooldownMs ?? 0) / 1000 };
     }

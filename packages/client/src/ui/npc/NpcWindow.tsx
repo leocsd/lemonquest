@@ -1,5 +1,5 @@
 // Janela de NPC: fala com digitação, abas Na obra / Missões / Excursões / Refinar / Encantar / Viagem / Comprar / Vender / Depot.
-import { C2S, CASINO_TICKET_PRICE, DEPOT_SIZE, RARITY_LABEL, backpackRoom, itemDef, keptBySellAll, refinedName, shopBuyMax, type NpcOpenMsg, type SortContainerMsg } from "@lemonquest/shared";
+import { C2S, CASINO_TICKET_PRICE, DEPOT_SIZE, RARITY_LABEL, backpackRoom, itemDef, keptBySellAll, refinedName, shopBuyMax, vocationFits, type NpcOpenMsg, type SortContainerMsg } from "@lemonquest/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { sectionsStore } from "../hud/Section.tsx";
 import { persistedBool, useStore } from "../hud/store.ts";
@@ -110,7 +110,7 @@ function BuyList({ m, gold, backpack }: { m: NpcOpenMsg; gold: number; backpack:
   const [qty, setQty] = useState<Record<string, number>>({});
   const me = useStore(meStore);
   const mineOnly = useStore(mineOnlyStore);
-  const usable = (id: string) => { const v = itemDef(id)?.vocations; return !v || !me || v.includes(me.vocation); };
+  const usable = (id: string) => !me || vocationFits(itemDef(id)?.vocations, me.vocation);
   const others = m.shop!.sells.filter((r) => !usable(r.itemId)).length;
   const rows = mineOnly ? m.shop!.sells.filter((r) => usable(r.itemId)) : m.shop!.sells;
   return (

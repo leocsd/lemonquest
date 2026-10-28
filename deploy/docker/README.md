@@ -200,10 +200,14 @@ chat: `/online`, `/kick <nome> [motivo]`, `/mute <nome> <minutos>`, `/unmute <no
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs deleted     # personagens excluídos
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs telemetria  # progressão por faixa e vocação, skills reais e causas de morte (só leitura)
+docker compose exec -u node lemonquest node packages/server/dist/admin.mjs create-account <conta>                              # conta nova sem senha + código de recuperação
+docker compose exec -u node lemonquest node packages/server/dist/admin.mjs create-character <conta> "<nome>" <vocação> [m|f]  # personagem na conta (vocações: knight, paladin, sorcerer, druid e a oculta fairy)
 ```
 
 Conta com espaço no nome: use aspas (`reset-password "Time Azul"`). O `-u node` evita criar arquivos do banco como root.
 O código aparece no terminal (vale 24 h, uso único); a pessoa usa em "Esqueci minha senha" na tela de login.
+A **Fada** (`fairy`) só nasce pelo `create-character` (a tela de criação não a oferece): por exemplo,
+`create-account gabi` seguido de `create-character gabi "Fada Gabi" fairy f`, e o código de recuperação vai para a pessoa.
 
 **Personagens excluídos** pelos jogadores ficam guardados na tabela `deleted_characters` (linha inteira: level, itens,
 depot, posição). Para restaurar à mão: pare o jogo, abra o banco com `sqlite3` e copie a linha de volta para `characters`

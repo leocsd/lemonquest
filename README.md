@@ -99,7 +99,13 @@ Sem nenhum admin online, o dono do servidor gera o código pelo terminal:
 npm run admin -- reset-password <conta>          # na pasta do projeto (usa LEMONQUEST_DB ou data/lemonquest.db)
 npm run admin -- deleted                         # lista personagens excluídos (arquivo deleted_characters)
 npm run admin -- telemetria                      # progressão por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h), skills reais e causas de morte
+npm run admin -- create-account <conta>          # conta nova sem senha + código de recuperação (24 h): a pessoa escolhe a senha em "Esqueci minha senha"
+npm run admin -- create-character <conta> "<nome>" <vocação> [m|f]   # personagem com o kit inicial na conta; vocações: knight, paladin, sorcerer, druid e a oculta fairy (Fada)
 ```
+
+A **Fada** (`fairy`) é uma vocação oculta: a tela de criação não a oferece e a wiki não a descreve; só nasce pelo
+`create-character` (ex.: `npm run admin -- create-account gabi` e depois `npm run admin -- create-character gabi "Fada Gabi" fairy f`).
+Ela tem magias próprias (palavras `plim …`), a roupa "Fada" com asas e varinha (só ela veste) e brilhinho permanente.
 
 Docker: veja [deploy/docker/README.md](deploy/docker/README.md#9-administração).
 

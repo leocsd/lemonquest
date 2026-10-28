@@ -50,7 +50,7 @@ export const up = (depth: number): string => "../".repeat(Math.max(0, depth));
 export const slug = (id: string): string =>
   id.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "x";
 
-export const vocName: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida" };
+export const vocName: Record<Vocation, string> = { knight: "Cavaleiro", paladin: "Paladino", sorcerer: "Feiticeiro", druid: "Druida", fairy: "Fada" };
 export const kindName: Record<DamageKind, string> = {
   physical: "Físico", fire: "Fogo", ice: "Gelo", energy: "Energia", earth: "Terra", holy: "Sagrado", death: "Morte", heal: "Cura", mana: "Mana",
 };

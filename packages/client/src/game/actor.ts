@@ -124,6 +124,8 @@ export class Actor {
   private contentH: number;
   /** Overlays de addon (roupas de jogador): seguem o frame da base, na frente ou atrás dela. */
   private overlays: { spr: Phaser.GameObjects.Sprite; back: boolean }[] = [];
+  /** Brilhinho da Fada (CharacterLook.glitter): emissor dentro do contêiner, anda junto com o boneco. */
+  private glitter: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
   private extraTop = 0;
   /** Marca de grupo (escudinho) e cor original do nome. */
   private partyIcon: Phaser.GameObjects.Image | null = null;
@@ -177,6 +179,7 @@ export class Actor {
     this.root = scene.add.container(0, 0, [this.shadow, this.sprite]);
     this.shadow.setPosition(0, -1);
     this.buildOverlays();
+    this.buildGlitter();
     deps.worldLayer.add(this.root);
 
     this.label = scene.add.text(0, 0, name, {
@@ -330,8 +333,29 @@ export class Actor {
     this.sprite.setTexture(look.sheet.key, Number.isFinite(frame) ? frame : look.sheet.idle[this.facing]);
     if (walking) this.playWalk();
     this.buildOverlays();
+    this.buildGlitter();
     this.restoreTint();
     this.syncDisplay();
+  }
+
+  /**
+   * Faíscas rosa/branco que nascem em volta do corpo, sobem devagar e piscam (alfa 0 → 1 → 0). Vão dentro do contêiner
+   * do boneco, por cima da base e dos addons: seguem o passo e somem com ele (culling/cadáver) sem conta extra.
+   */
+  private buildGlitter() {
+    const want = !!this.look.glitter;
+    if (want === !!this.glitter) return;
+    if (!want) { this.glitter?.destroy(); this.glitter = null; return; }
+    const h = 15 * this.scale;
+    const e = this.deps.scene.add.particles(0, 0, TEX.px, {
+      x: { min: -7, max: 7 }, y: { min: -h, max: -2 },
+      lifespan: { min: 600, max: 1000 }, frequency: 110, quantity: 1,
+      speedX: { min: -3, max: 3 }, speedY: { min: -9, max: -3 },
+      scale: { start: 2.2, end: 0.8 }, alpha: { values: [0, 1, 1, 0] },
+      tint: [0xffffff, 0xffb3e2, 0xfff6c8, 0xff9ad5], blendMode: Phaser.BlendModes.ADD,
+    });
+    this.root.add(e);
+    this.glitter = e;
   }
 
   private buildOverlays() {

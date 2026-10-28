@@ -103,6 +103,7 @@ export const BACKPACK_BY_VOCATION: Readonly<Record<Vocation, { base: number; max
   paladin: { base: 26, max: 52 },
   sorcerer: { base: 24, max: 48 },
   druid: { base: 24, max: 48 },
+  fairy: { base: 24, max: 48 },
 };
 /** A mochila ganha um espaço a cada tantos levels, até o teto da vocação. */
 export const BACKPACK_LEVELS_PER_SLOT = 4;

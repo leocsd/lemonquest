@@ -11,7 +11,8 @@
 //   aqui mesmo (`slain`, gravado em rec.data.quests), com o crédito do passo "boss".
 import {
   BOUNTIES_PER_DAY, BOUNTY_CHEST_ID, BOUNTY_NPC, ITEMS, MAX_TRACKED_QUESTS, MONSTERS, NPCS, QUEST_LIST, RARITIES, S2C, applyXpStage,
-  CHEST_LOCK_BOSSES, bountyBand, bountyTitle, chestLockReason, isEquipable, isExclusiveItem, questAvailable, questChestGroup, questDef, questReady, rollInt,
+  CHEST_LOCK_BOSSES, bountyBand, bountyTitle, chestLockReason, isEquipable, isExclusiveItem, isMage, questAvailable, questChestGroup, questDef, questReady, rollInt,
+  vocationFits,
   type BountyStatus, type BountyView, type FeedMsg, type ItemDef, type ItemInstance, type LootMsg, type NoticeMsg,
   type QuestActionMsg, type QuestChestDef, type QuestCompleteMsg, type QuestDef, type QuestReward, type QuestsMsg, type Rarity, type Vocation,
 } from "@lemonquest/shared";
@@ -503,8 +504,6 @@ export const CHEST_GEAR_CHANCE = 0.15;
  */
 export const CHEST_GEAR_SPAN = 12;
 
-const MAGES: Vocation[] = ["sorcerer", "druid"];
-
 export function chestPotion(level: number, mana: boolean): string {
   const tier = level >= 30 ? "_large" : level >= 15 ? "_medium" : "";
   return (mana ? "mana_potion" : "health_potion") + tier;
@@ -529,8 +528,7 @@ export function chestEligible(id: string): boolean {
 
 /** Equipáveis que o personagem poderia usar, de level (L − span) a L (ou do tier mais alto que alcança a L). */
 export function chestGearPool(level: number, vocation: Vocation, items: ItemDef[] = Object.values(ITEMS)): ItemDef[] {
-  const usable = items.filter((d) => isEquipable(d) && chestEligible(d.id) && (d.level ?? 1) <= level
-    && (!d.vocations || d.vocations.includes(vocation)));
+  const usable = items.filter((d) => isEquipable(d) && chestEligible(d.id) && (d.level ?? 1) <= level && vocationFits(d.vocations, vocation));
   if (!usable.length) return [];
   // O piso desce até o tier mais alto de ARMA/ARMADURA alcançado: medido por todos os itens, um anel ou amuleto de
   // level alto (Anel do Gelo Eterno, lv 68) subia o piso e o baú do lv 63–69 só dava acessório.
@@ -556,7 +554,7 @@ export function rollChest(level: number, vocation: Vocation, rng: () => number):
   const gold = Math.round(rollInt(15, 40, rng) * (1 + L / 5));
   const items: ItemInstance[] = [];
   if (rng() < CHEST_POTION_CHANCE) {
-    const mana = rng() < (MAGES.includes(vocation) ? 0.6 : 0.3);
+    const mana = rng() < (isMage(vocation) ? 0.6 : 0.3);
     items.push(makeItem(chestPotion(L, mana), rollInt(2, 5, rng)));
   }
   if (rng() < CHEST_FOOD_CHANCE) {

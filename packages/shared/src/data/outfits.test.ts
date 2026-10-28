@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   ADDON_FRAME, ADDON_OFFSET_X, ADDON_OFFSET_Y, DEFAULT_OUTFIT, OUTFITS, OUTFIT_LIST, activeAddons, addonLayers, outfitAvailable,
-  outfitFaceset, outfitName, outfitSheet, resolveOutfit,
+  outfitFaceset, outfitName, outfitSheet, outfitVocationLock, outfitsVisibleTo, resolveOutfit,
 } from "./outfits.ts";
 import { SEXES, VOCATIONS, isSex, sexOf } from "../types.ts";
 import { computeAnchors, readSheet } from "../../../../tools/addons/anchors.mjs";
@@ -170,5 +170,21 @@ describe("âncoras dos addons", () => {
         expect(touches, `${outfit} ${sex} ${col},${row}`).toBe(true);
       }
     }
+  });
+});
+
+describe("roupa exclusiva por vocação (a Fada, vocação oculta)", () => {
+  it("fada: trancada por vocação nos três bits, roupa padrão da Fada, uma sheet gerada para os dois sexos, invisível às outras", () => {
+    const o = OUTFITS.fada!;
+    for (const bit of [0, 1, 2] as const) expect(outfitVocationLock(o, bit), `bit ${bit}`).toBe("fairy");
+    expect(outfitVocationLock(OUTFITS.pirata!, 0)).toBeUndefined();
+    expect(DEFAULT_OUTFIT.fairy).toBe("fada");
+    expect(o.female).toBeUndefined();
+    expect([o.sheet, o.faceset]).toEqual(["addons/base_fada.png", "addons/base_fada_face.png"]);
+    expect(o.addons.map((a) => [a.id, !!a.backSheet])).toEqual([["fada_asas", true], ["fada_varinha", false]]);
+    expect(outfitsVisibleTo("knight").map((x) => x.id)).not.toContain("fada");
+    expect(outfitsVisibleTo("druid")).toHaveLength(OUTFIT_LIST.length - 1);
+    expect(outfitsVisibleTo("fairy")).toHaveLength(OUTFIT_LIST.length);
+    expect(resolveOutfit(undefined, "fairy").id).toBe("fada");
   });
 });

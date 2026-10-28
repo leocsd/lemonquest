@@ -74,6 +74,21 @@ describe("balanço das vocações (P = dano × sobrevivência)", () => {
     for (const L of BALANCE_LEVELS) expect(spread(L), `lv ${L}`).toBeGreaterThanOrEqual(0.65);
   });
 
+  it("Fada (vocação oculta, 2026-10-28): druida de outro elemento — nunca a mais forte com folga, nunca abaixo do piso", () => {
+    // Vida/mana e magias espelham o druida; só o elemento muda (sagrado em vez de gelo/terra), e o pacote de cada level
+    // responde a ele: lv 30 (fantasma) 1,07× o druida; lv 60 (Bonelord fraco a sagrado, Bruxa do Gelo resiste a gelo)
+    // 1,22×; lv 100 (demônios resistem a sagrado) 0,95×. Contra o feiticeiro: 0,85 / 0,93 / 1,07. Medido em 2026-10-28.
+    for (const L of BALANCE_LEVELS) {
+      const bestOf = (v: Vocation) => fighterBuilds(v, L).map((f) => measure(f, BALANCE_PACKS[L])).reduce((a, b) => (b.p > a.p ? b : a));
+      const fairy = bestOf("fairy"), druid = bestOf("druid");
+      const top = Math.max(...best(L).map((r) => r.m.p));
+      expect(fairy.p / druid.p, `lv ${L}: fada ${fairy.p.toFixed(0)} vs druida ${druid.p.toFixed(0)}`).toBeGreaterThanOrEqual(0.85);
+      expect(fairy.p / top, `lv ${L}: fada ${fairy.p.toFixed(0)} vs a melhor ${top.toFixed(0)}`).toBeLessThanOrEqual(1.1);
+      const ps = [...best(L).map((r) => r.m.p), fairy.p];
+      expect(Math.min(...ps) / Math.max(...ps), `lv ${L} com a Fada`).toBeGreaterThanOrEqual(0.65);
+    }
+  });
+
   it("15-13: o feiticeiro não lidera dano e sobrevivência ao mesmo tempo", () => {
     for (const L of BALANCE_LEVELS) {
       const list = best(L);

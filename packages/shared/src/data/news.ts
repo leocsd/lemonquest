@@ -12,6 +12,14 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-28b",
+    date: "28 de outubro",
+    title: "Uma fada em Pedra Clara",
+    items: [
+      "Dizem que uma fada ruiva, de vestido rosa, anda deixando brilhinho pelo caminho e falando uma língua esquisita (\"plim…\"). Se cruzar com ela, acene — e não tente pegar a varinha.",
+    ],
+  },
+  {
     id: "2026-10-28a",
     date: "28 de outubro",
     title: "Cliques no topo da tela",

@@ -10,7 +10,7 @@ import { MONSTERS } from "./monsters.ts";
 import { NPCS } from "./npcs.ts";
 import { QUEST_CHESTS } from "./questWorld.ts";
 import { playerDamageRange } from "../formulas.ts";
-import { VOCATIONS, type Vocation } from "../types.ts";
+import { PLAYABLE_VOCATIONS, VOCATIONS, vocationFits, type Vocation } from "../types.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const gear = JSON.parse(readFileSync(root + "assets/icons/gear.json", "utf8")) as { count: number; frames: Record<string, number> };
@@ -134,8 +134,9 @@ describe("ITEMS", () => {
   });
 
   it("toda vocação tem arma de level 1 e de ~level 8", () => {
+    // A Fada (oculta) usa as armas do druida (vocationFits): entra na cobertura sem item próprio.
     for (const voc of VOCATIONS) {
-      const ws = weapons.filter((w) => w.vocations!.includes(voc));
+      const ws = weapons.filter((w) => vocationFits(w.vocations, voc));
       expect(ws.some((w) => w.level === 1), voc).toBe(true);
       expect(ws.some((w) => w.level! >= 6 && w.level! <= 10), voc).toBe(true);
     }
@@ -208,7 +209,7 @@ describe("ícones de materiais", () => {
 
 describe("cobertura de armaduras", () => {
   it("cada vocação tem elmo, armadura, calças e botas próprios (ou gerais) em todos os tiers (lv 1/8/15/25/35)", () => {
-    const fits = (d: ItemDef, v: Vocation) => !d.vocations || d.vocations.includes(v);
+    const fits = (d: ItemDef, v: Vocation) => vocationFits(d.vocations, v);
     for (const v of VOCATIONS) {
       for (const level of [1, 8, 15, 25, 35]) {
         for (const slot of ["helmet", "armor", "legs", "boots"] as const) {
@@ -250,7 +251,8 @@ describe("ciclo 8: recarga das poções", () => {
 // Ciclo 16: botas dos tiers 6–7, itens únicos e tier 8 "Abissal"
 // ---------------------------------------------------------------------------
 const MAGES: Vocation[] = ["sorcerer", "druid"];
-const fits = (d: ItemDef, v: Vocation) => !d.vocations || d.vocations.includes(v);
+/** O item serve à vocação (a Fada, oculta, usa o que é do druida: GEAR_VOCATION). */
+const fits = (d: ItemDef, v: Vocation) => vocationFits(d.vocations, v);
 const sold = new Set(Object.values(NPCS).flatMap((n) => (n.shop?.sells ?? []).map((s) => s.itemId)));
 const dropsOf = (id: string) => Object.values(MONSTERS).filter((m) => (m.loot ?? []).some((e) => e.itemId === id));
 const chance = (monster: string, id: string) => MONSTERS[monster]?.loot?.find((e) => e.itemId === id)?.chance;
@@ -300,7 +302,8 @@ describe("ciclo 16: itens únicos (Aniquilação)", () => {
 
   it("um por vocação, lv 100, 320 mil; só saem dos baús da Aniquilação (nem loja, nem monstro)", () => {
     expect(uniques.map((d) => d.id).sort()).toEqual(["annihilator_bow", "annihilator_rod", "annihilator_wand", "stonecutter_axe"]);
-    expect(uniques.flatMap((d) => d.vocations!).sort()).toEqual([...VOCATIONS].sort());
+    // Um por vocação da criação (a Fada usa o do druida).
+    expect(uniques.flatMap((d) => d.vocations!).sort()).toEqual([...PLAYABLE_VOCATIONS].sort());
     for (const d of uniques) {
       expect([d.kind, d.level, d.value], d.id).toEqual(["weapon", 100, 320000]);
       expect(isExclusiveItem(d), d.id).toBe(true);

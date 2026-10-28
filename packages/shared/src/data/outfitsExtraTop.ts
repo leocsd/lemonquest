@@ -40,6 +40,8 @@ export const ADDON_EXTRA_TOP: Record<string, number> = {
   senhor_guerra_martelo: 1,
   monge_contas: 0,
   monge_bastao: 5,
+  fada_asas: 0,
+  fada_varinha: 0,
 };
 /** Addons com overlay próprio para a sheet feminina (addons/<id>_f.png): px acima da cabeça dela. */
 export const ADDON_FEMALE_EXTRA_TOP: Record<string, number> = {
