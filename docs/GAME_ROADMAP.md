@@ -13,6 +13,13 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## IA dos monstros — troca de alvo (2026-10-28)
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| TA-1 | Dono: "os bichos podem lurar em outro personagem durante o combate, depende da estratégia dele; também se o alvo sair do range e tiver outro no range". Regra 1: alvo fora da percepção com outro dentro → vai no outro. Regra 2: estratégia por tipo (`monsterTargeting`: chefe `damage`, atirador `weakest`, bando `nearest`, medroso `random`, resto `sticky`), reavaliada a cada 3 s com folga; "Alvo" no Bestiário e na wiki | ✅ (2026-10-28) | `monsters.test.ts` (padrão por tipo), `ai.test.ts` (regras, folgas, provocado, passivo); `arena.test.ts` inalterado |
+| TA-2 | Acompanhar em produção: chefes com `damage` e atiradores com `weakest` mudam o jogo em grupo (o mago ferido vira alvo). Se ficar punitivo demais no 60–80, subir `RETARGET_HP_PCT` ou dar `sticky` a monstros específicos no catálogo | ⏳ | telemetria de mortes por faixa (`admin telemetria`) |
+
 ## Chat (2026-10-28)
 
 | # | Item | Status | Validação |

@@ -7,6 +7,7 @@ import {
   BOSS_ROOT_SLOW_PCT, BOSS_SLOW_MULT, ELEMENT_WEAKNESS, ELITE, ELITE_CHANCE, HELP_RADIUS, MONSTERS, OWN_ELEMENT_TAKEN, bossCondition, canBeElite,
   damageTakenMult, eliteName, monsterAbilitySpell, monsterDamageMult, monsterNatures, monsterResistances, summonScaled, type MonsterNature,
 } from "./monsters.ts";
+import { TARGETING_LABEL, monsterTargeting } from "./monsters.ts";
 import { SPELLS } from "./spells.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -474,5 +475,24 @@ describe("Montadora (ciclo 20)", () => {
 
   it("a Gosma Azul do Lava-Jato é o runaway_drum da Oficina, sem mudança", () => {
     expect(MONSTERS.runaway_drum).toMatchObject({ name: "Gosma Azul", level: 10, hp: 120, xp: 52 });
+  });
+});
+
+describe("estratégia de alvo (dono, 2026-10-28): monsterTargeting", () => {
+  it("padrão por tipo: chefe vai em quem mais bate; à distância no mais ferido; bando no mais perto; medroso à toa; o resto fica no primeiro", () => {
+    expect(monsterTargeting(MONSTERS.goblin_king!)).toBe("damage");
+    expect(monsterTargeting(MONSTERS.orshabaal!)).toBe("damage");
+    expect(monsterTargeting(MONSTERS.wolf!)).toBe("nearest"); // bando
+    expect(monsterTargeting(MONSTERS.goblin!)).toBe("nearest"); // bando E medroso: o bando manda
+    expect(monsterTargeting(MONSTERS.rat!)).toBe("random"); // foge com 15%
+    expect(monsterTargeting(MONSTERS.slime!)).toBe("sticky");
+    for (const d of Object.values(MONSTERS)) {
+      const t = monsterTargeting(d);
+      expect(TARGETING_LABEL[t], d.id).toBeTruthy();
+      if (d.boss && !d.targeting) expect(t, d.id).toBe("damage");
+      else if (!d.boss && d.attackRange > 1 && !d.targeting) expect(t, d.id).toBe("weakest");
+    }
+    // O catálogo pode sobrepor o padrão.
+    expect(monsterTargeting({ targeting: "random", boss: true, attackRange: 1, fleeAtHpPct: 0 })).toBe("random");
   });
 });

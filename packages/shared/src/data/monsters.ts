@@ -79,7 +79,37 @@ export interface MonsterDef {
    * mesma `family` a até HELP_RADIUS tiles para atacar quem bateu.
    */
   pack?: { family: string; shout: string };
+  /**
+   * Estratégia de troca de alvo durante a luta (dono, 2026-10-28; server/systems/ai.ts). Ausente = padrão por tipo
+   * (`monsterTargeting`): chefe "damage", à distância "weakest", bando "nearest", medroso "random", o resto "sticky".
+   * Todo monstro também troca para quem ficou na percepção quando o alvo escapa dela.
+   */
+  targeting?: Targeting;
   sprite: CreatureSprite;
+}
+
+/**
+ * Como o monstro escolhe em quem bater quando há mais de um jogador na percepção dele (`aggroRange`):
+ * - sticky: fica em quem pegou primeiro (só troca se o alvo escapar da percepção e sobrar alguém dentro);
+ * - nearest: vai no mais perto (bandos: cercam quem estiver ao lado);
+ * - weakest: vai no mais ferido (atiradores: acabam com quem está caindo);
+ * - damage: vai em quem mais bateu nele (chefes: o cavaleiro segura com dano, não só com Provocar);
+ * - random: troca de alvo à toa (medrosos: imprevisíveis).
+ * A troca é reavaliada a cada poucos segundos, com folga para não ficar pulando (RETARGET_* em ai.ts).
+ */
+export type Targeting = "sticky" | "nearest" | "weakest" | "damage" | "random";
+export const TARGETING_LABEL: Readonly<Record<Targeting, string>> = {
+  sticky: "fica em quem pegou primeiro", nearest: "vai no mais perto", weakest: "vai no mais ferido",
+  damage: "vai em quem mais bate", random: "troca de alvo à toa",
+};
+/** Estratégia do monstro: a do catálogo ou o padrão por tipo (chefe, à distância, bando, medroso, o resto). */
+export function monsterTargeting(d: Pick<MonsterDef, "targeting" | "boss" | "attackRange" | "pack" | "fleeAtHpPct">): Targeting {
+  if (d.targeting) return d.targeting;
+  if (d.boss) return "damage";
+  if (d.attackRange > 1) return "weakest";
+  if (d.pack) return "nearest";
+  if (d.fleeAtHpPct > 0) return "random";
+  return "sticky";
 }
 
 const grid4 = (url: string, extra: Partial<CreatureSprite> = {}): CreatureSprite =>

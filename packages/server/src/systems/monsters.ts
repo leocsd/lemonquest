@@ -66,6 +66,8 @@ export interface Monster {
   evading?: boolean;
   /** Próximo tique de regeneração fora de combate (ai.ts `regen`); 0/ausente = ainda não começou. */
   nextRegenAt?: number;
+  /** Próxima reavaliação da estratégia de alvo (ai.ts retarget). */
+  nextRetargetAt?: number;
   /** Último jogador que o feriu (passivos revidam). */
   lastAttackerId: string;
   /** Quem recebe o crédito do último golpe (dono, no caso de invocação): fica com o loot se ninguém estiver perto. */

@@ -1,7 +1,7 @@
 // Bestiário (tecla B): monstros que você já derrotou, com vida, XP, dano, onde vivem e o que podem soltar. Os que ainda
 // não foram derrotados aparecem como "???" (o level e a zona ficam visíveis para dar uma ideia de onde procurar).
 // Filtros por zona, faixa de level e conhecidos (ciclo 17).
-import { MONSTERS, itemDef, monsterResistances } from "@lemonquest/shared";
+import { MONSTERS, TARGETING_LABEL, itemDef, monsterResistances, monsterTargeting } from "@lemonquest/shared";
 import { useMemo, useState } from "preact/hooks";
 import { worldIndexStore } from "../../game/worldIndex.ts";
 import { createStore, useStore } from "../hud/store.ts";
@@ -100,6 +100,7 @@ function BestiaryDialog() {
                 {el?.resists && <><dt>Resiste a</dt><dd>{el.resists}</dd></>}
                 {el?.weak && <><dt>Fraco contra</dt><dd>{el.weak}</dd></>}
                 {def.gold && <><dt>Ouro</dt><dd>{def.gold[0]}–{def.gold[1]}</dd></>}
+                {!def.stationary && def.aggroRange > 0 && <><dt>Alvo</dt><dd>{TARGETING_LABEL[monsterTargeting(def)]}</dd></>}
                 {def.fleeAtHpPct > 0 && <><dt>Comportamento</dt><dd>foge com {Math.round(def.fleeAtHpPct * 100)}% de vida</dd></>}
               </dl>
               <div class="be-loot-title">Pode soltar</div>

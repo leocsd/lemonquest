@@ -1,8 +1,8 @@
 // IA dos monstros (ai.ts): dormir/acordar, perseguição, fuga e volta ao spawn, coleira, grito do bando e busca de
 // tile com linha de visão. Mundo do testkit: relógio injetado e RNG semeado (resultado sempre igual).
 import { describe, expect, it } from "vitest";
-import { HELP_RADIUS, MONSTER_REGEN_FULL_MS } from "@lemonquest/shared";
-import { FLEE_GIVE_UP_MS, LEASH_DIST, LOST_TARGET_MS, THINK_MS, findLosTilePath } from "./ai.ts";
+import { HELP_RADIUS, MONSTER_REGEN_FULL_MS, monsterTargeting } from "@lemonquest/shared";
+import { FLEE_GIVE_UP_MS, LEASH_DIST, LOST_TARGET_MS, RETARGET_MS, THINK_MS, findLosTilePath } from "./ai.ts";
 import { HELP_FIRST_HIT, HELP_FLEE, HELP_HALF_HP, HELP_SHOUT_MS, SLEEP_DIST, cheb, type Monster } from "./monsters.ts";
 import { def, grid, openGrid, player, world } from "./testkit.ts";
 
@@ -383,5 +383,117 @@ describe("monstro à distância sem linha de visão (findLosTilePath)", () => {
     expect(shots.every(Boolean)).toBe(true);
     expect(w.mm.los(m.s.x, m.s.y, p.x, p.y)).toBe(true);
     expect(cheb(m.s.x, m.s.y, p.x, p.y)).toBeLessThanOrEqual(4);
+  });
+});
+
+describe("troca de alvo (dono, 2026-10-28): quem escapou da percepção e a estratégia do monstro", () => {
+  // Atirador parado (alcance 3 ≥ distância dos alvos: não precisa andar) que quase não machuca: isola a troca de alvo.
+  const still = { attackRange: 3, aggroRange: 6, damage: [1, 1] as [number, number], attackMs: 100_000 };
+  const setup = (over: Partial<Parameters<typeof def>[0]>, seed?: number) => {
+    const w = world({ grid: openGrid(60, 60), spawns: [sp(20, 20)], defs: () => def({ ...still, ...over }), ...(seed !== undefined ? { seed } : {}) });
+    w.mm.spawnAll();
+    return { w, m: first(w) };
+  };
+
+  it("o alvo saiu da percepção e outro ficou dentro: vai no outro (em qualquer estratégia); sem outro, segue atrás do primeiro", () => {
+    const { w, m } = setup({ targeting: "sticky" });
+    const p1 = w.add(player("p1", 23, 20));
+    w.run(THINK_MS * 2);
+    expect(m.s.targetId).toBe("p1");
+    w.add(player("p2", 20, 22));
+    p1.x = 28; // 8 tiles: fora da percepção (6)
+    w.run(THINK_MS * 2);
+    expect([m.mode, m.s.targetId]).toEqual(["chase", "p2"]);
+
+    const b = setup({ targeting: "sticky" });
+    const q1 = b.w.add(player("p1", 23, 20));
+    b.w.run(THINK_MS * 2);
+    q1.x = 28;
+    b.w.run(THINK_MS * 4);
+    expect([b.m.mode, b.m.s.targetId]).toEqual(["chase", "p1"]); // ninguém mais por perto: continua atrás dele (até a coleira)
+  });
+
+  it("sticky: com dois jogadores na percepção fica no primeiro, mesmo com o outro colado nele", () => {
+    // (o atirador do kit cai no padrão "weakest" por ser à distância — monsters.test.ts; aqui a estratégia é explícita)
+    const { w, m } = setup({ targeting: "sticky" });
+    expect(monsterTargeting(m.def)).toBe("sticky");
+    expect(monsterTargeting(def())).toBe("sticky"); // o boneco corpo a corpo do kit, sem bando nem medo: padrão
+    w.add(player("p1", 23, 20));
+    w.run(THINK_MS * 2);
+    w.add(player("p2", 21, 20)); // a 1 tile; o alvo a 3
+    w.run(RETARGET_MS * 3);
+    expect(m.s.targetId).toBe("p1");
+  });
+
+  it("nearest: troca para quem está RETARGET_NEAR_TILES tiles mais perto, só depois de RETARGET_MS", () => {
+    const { w, m } = setup({ targeting: "nearest" });
+    w.add(player("p1", 23, 20));
+    w.run(THINK_MS * 2);
+    w.add(player("p2", 21, 20)); // 1 tile contra 3: vantagem de 2
+    w.run(THINK_MS * 2);
+    expect(m.s.targetId).toBe("p1"); // ainda não deu o prazo da reavaliação
+    w.run(RETARGET_MS + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p2");
+    // Vantagem de 1 tile não basta: p3 a 2 tiles de distância não rouba o p2 (a 1).
+    w.add(player("p3", 20, 18));
+    w.run(RETARGET_MS * 2 + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p2");
+  });
+
+  it("weakest: troca para quem tem RETARGET_HP_PCT pontos de vida a menos (em %); diferença menor não troca", () => {
+    const { w, m } = setup({ targeting: "weakest" });
+    w.add(player("p1", 23, 20, { hp: 150, maxHp: 150 }));
+    w.run(THINK_MS * 2);
+    w.add(player("p3", 20, 23, { hp: 140, maxHp: 150 })); // 93%: só 7 pontos abaixo
+    w.run(RETARGET_MS + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p1");
+    w.add(player("p2", 17, 20, { hp: 60, maxHp: 150 })); // 40%
+    w.run(RETARGET_MS + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p2");
+  });
+
+  it("damage (chefes): troca para quem já lhe causou RETARGET_DMG_RATIO vezes o dano do alvo atual", () => {
+    const { w, m } = setup({ targeting: "damage" });
+    w.add(player("p1", 23, 20));
+    w.add(player("p2", 17, 20));
+    w.run(THINK_MS * 2);
+    expect(m.s.targetId).toBe("p1"); // o mais perto pegou primeiro (empate: ordem da lista)
+    w.mm.onDamaged(m, "p2", 50, w.now());
+    w.run(RETARGET_MS + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p2"); // 50 contra 0
+    w.mm.onDamaged(m, "p1", 60, w.now()); // 60/50 = 1,2 < 1,3: não volta
+    w.run(RETARGET_MS + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p2");
+    w.mm.onDamaged(m, "p1", 20, w.now()); // 80/50 = 1,6: volta
+    w.run(RETARGET_MS + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p1");
+  });
+
+  it("random (medroso): de vez em quando troca para qualquer um por perto (RNG semeado)", () => {
+    const { w, m } = setup({ targeting: "random" }, 3);
+    w.add(player("p1", 23, 20));
+    w.add(player("p2", 17, 20));
+    const seen = new Set<string>();
+    w.run(RETARGET_MS * 12, () => { if (m.s.targetId) seen.add(m.s.targetId); });
+    expect(seen).toEqual(new Set(["p1", "p2"]));
+  });
+
+  it("provocado (Provocar) não troca; passivo (percepção 0) só revida em quem bate e nunca troca", () => {
+    const { w, m } = setup({ targeting: "nearest" });
+    w.add(player("p1", 23, 20));
+    w.run(THINK_MS * 2);
+    m.tauntBy = "p1"; m.tauntUntil = w.now() + 60_000;
+    w.add(player("p2", 21, 20));
+    w.run(RETARGET_MS * 2 + THINK_MS * 2);
+    expect(m.s.targetId).toBe("p1");
+
+    const b = setup({ targeting: "nearest", aggroRange: 0 });
+    b.w.add(player("p1", 23, 20));
+    b.w.add(player("p2", 21, 20));
+    b.w.run(THINK_MS * 2);
+    expect(b.m.mode).toBe("idle"); // passivo: ninguém o incomodou
+    b.w.mm.onDamaged(b.m, "p1", 5, b.w.now());
+    b.w.run(RETARGET_MS * 2 + THINK_MS * 2);
+    expect([b.m.mode, b.m.s.targetId]).toEqual(["chase", "p1"]); // revida em quem bateu e fica nele
   });
 });
