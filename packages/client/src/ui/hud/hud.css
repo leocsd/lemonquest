@@ -103,6 +103,8 @@
 .drag-grip::after { content: ""; position: absolute; inset: -6px -7px; }
 .hud-section-headrow:hover .drag-grip, .minimap-card:hover .drag-grip { opacity: 0.7; }
 .drag-grip:hover { opacity: 1; }
+/* Os pontinhos nascem a 1 px da seta: com o mouse em cima, o título afasta 6 px para a seta não colar neles. */
+.hud-section-headrow:hover .hud-section-head { padding-left: 14px; }
 .drag-grip.h { left: 50%; top: 5px; width: 18px; height: 5px; margin-left: -9px; }
 .hud-section .hud-section-head { padding-right: 26px; }
 /* Com controles (Batalha): eles ficam à direita do título no fluxo, deixando lugar para o pin. */
@@ -184,7 +186,7 @@
   width: 100%; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; cursor: default;
   background: none; border: 0; text-align: left;
   font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-muted) !important;
-  transition: color 120ms;
+  transition: color 120ms, padding-left 120ms var(--hud-ease);
 }
 .hud-section-head:hover { color: var(--hud-text) !important; }
 .hud-caret {
@@ -299,7 +301,10 @@
 .sized-body {
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; box-sizing: border-box;
 }
-.sized-backpack { padding: 0; }
+/* A barra de rolagem (6 px) entrava nos 202 px da grade e o overflow-x cortava a borda direita da 5ª coluna: a calha fica
+   sempre reservada e a seção cede 3 px de cada lado (218 − 2×5 = 208 = 202 + 6). */
+.sized-backpack { padding: 0; scrollbar-gutter: stable; }
+.hud-section[data-panel-id="backpack"] .hud-section-pad { padding-left: 5px; padding-right: 5px; }
 /* Sem calha fixa (a coluna tem 220 px e o nome da criatura já corta com reticências): só 3 px para a barra de 6 px não colar nas linhas. */
 .sized-body > .battle-list { padding-right: 3px; }
 .size-grip {
@@ -536,26 +541,6 @@ kbd {
 .sound-row b { width: 34px; text-align: right; font-weight: 600; color: var(--hud-text); font-variant-numeric: tabular-nums; }
 .auto-potion-note { font-size: 11px; line-height: 1.35; color: var(--hud-muted, #8b93ad); max-width: 260px; }
 
-/* ---------- Loot automático (popover do funil) ---------- */
-.loot-pop { width: 256px; }
-.loot-pop .help-sub { margin-top: 10px; }
-.loot-pop .help-sub:first-of-type { margin-top: 0; }
-.seg { display: flex; gap: 2px; padding: 2px; border-radius: 4px; background: rgba(0, 0, 0, 0.25); }
-/* Largura pelo texto (flex auto): "Tudo" cede espaço a "Incomum+"; nada quebra nem vaza para o vizinho. */
-.seg-btn {
-  flex: 1 1 auto; min-width: 0; padding: 3px 6px; font: inherit; font-size: 11px; line-height: 1.2; white-space: nowrap; cursor: pointer;
-  background: transparent; border: 1px solid transparent; border-radius: 3px; color: var(--hud-muted);
-  transition: background-color 120ms, color 120ms, border-color 120ms;
-}
-.seg-btn:hover { color: var(--hud-text); background: rgba(255, 255, 255, 0.06); }
-.seg-btn.active { color: var(--hud-gold); background: rgba(217, 164, 65, 0.12); border-color: rgba(217, 164, 65, 0.55); }
-.loot-pop .sound-row { margin-top: 6px; }
-.loot-pop .sound-row + .sound-row { margin-top: 6px; }
-.loot-pop .loot-min { margin-top: 10px; }
-.loot-pop .loot-min span { white-space: nowrap; }
-.loot-pop .loot-min b { width: 44px; }
-.loot-pop .auto-potion-note { margin-top: 8px; }
-.loot-reset { margin-top: 8px; width: 100%; padding: 4px 8px; font-size: 12px; }
-/* Funil no cabeçalho da Mochila: aceso quando há filtro. */
+/* ---------- Loot automático (funil no cabeçalho da Mochila: aceso quando há item de fora ou a janela aberta) ---------- */
 .hud-section .bag-filter { width: 16px; height: 16px; }
 .bag-filter.active { color: var(--hud-gold) !important; border-color: rgba(217, 164, 65, 0.55); background: rgba(217, 164, 65, 0.12); }

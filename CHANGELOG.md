@@ -1,6 +1,36 @@
 # Changelog
 
-## [Não lançado] — 2026-10-28 · loot automático configurável (o "quick loot" do Tibia)
+## [Não lançado] — 2026-10-28 · loot automático: janela com todos os itens (revisão do popover) + 2 acertos visuais
+
+Dono, sobre o popover por categorias (PR #49, deployado às 16:40): "Não gostei. Eu quero um painel maior mostrando
+todos os itens e talvez selecionar os itens que eu não quero puxar automático."
+- **Janela "Loot automático"** (`items/LootFilterWindow.tsx`, arrastável, Esc fecha): os 242 itens que caem de algum
+  monstro (`LOOTABLE_ITEMS`, calculado das tabelas de loot: item novo entra sozinho), em 11 grupos — Materiais, Comida
+  e Poções primeiro (o que mais se dispensa), depois Armas, Escudos e livros, Elmos, Armaduras, Pernas, Botas, Anéis e
+  Amuletos — cada um com ícone, nome, level e valor de tabela e um **marcador**: marcado entra sozinho na mochila,
+  desmarcado fica no chão onde o bicho morreu. Busca por nome (sem acento, a mesma do depot), "Todos"/"Nenhum" por
+  grupo, "Desmarcar o que vale menos de…" (50 a 2.500) e "Marcar tudo". Título resume ("12 itens ficam no chão ·
+  230/242 entram"). Abre pelo funil do trilho e pelo funil do cabeçalho da Mochila (acesos com item de fora).
+- **Modelo** (`shared/lootFilter.ts`): `LootFilter = { skip: string[] }` (ids que ficam no chão; vazio = pega tudo,
+  não gravado). Ouro, missão/chave e **raro ou melhor entram sempre** (linha do "Vender tudo"), mesmo na lista. O
+  formato da 1ª versão (categorias + valor mínimo), gravado por quem mexeu nas poucas horas em que ela ficou no ar,
+  **migra na carga** para a lista equivalente (`sanitizeLootFilter`). Servidor e protocolo iguais aos da manhã
+  (`autoLoots`, `placeNear` no tile do monstro, rodízio do grupo pula quem filtra, `C2S.SetLootFilter` agora 5/s).
+- **Cliente** manda os cliques em lote (`items/lootFilter.ts`: 300 ms depois do último, e ao fechar a janela) e só
+  aplica a confirmação do servidor quando não há mudança local esperando — marcar dez itens seguidos não esbarra no
+  limite nem pisca. O popover e as categorias saíram.
+- **Mochila cortava a borda direita dos quadrados** (relato do dono): a barra de rolagem de 6 px entrava nos 202 px da
+  grade quando havia mais itens que linhas visíveis, e o `overflow-x: hidden` cortava a 5ª coluna. `scrollbar-gutter:
+  stable` e a seção cede 3 px de cada lado (218 − 2×5 = 208 = 202 + 6).
+- **Seta das seções colada nos pontinhos** (relato do dono): os pontinhos de arrastar nascem a 1 px da seta; com o mouse
+  em cima, o título afasta 6 px (transição de 120 ms).
+- Testes: `shared/lootFilter.test.ts` (lista = tabelas de loot sem ouro/missão/chave; grupos na ordem e sem vazio;
+  sanitize com teto e migração do formato antigo; regras), `items/lootFilterLogic.test.ts` (busca, lote, contagem),
+  `ground.test.ts` e `WorldRoom.test.ts` adaptados à lista. Sonda Playwright no harness `?uitest` com barras de rolagem
+  visíveis (janela, lote, busca, funis, Esc; mochila 208/202; seta a 7 px dos pontinhos). Wiki, README, Novidades
+  `2026-10-28g`.
+
+## [Não lançado] — 2026-10-28 · loot automático configurável (o "quick loot" do Tibia) — 1ª versão, substituída acima
 
 Pedido do dono: "quero poder configurar o auto loot". Até aqui todo o loot de um abate entrava na mochila (sozinho) ou
 era dividido na hora (grupo), sem escolha: no 60+ a mochila enchia de material barato e comida.

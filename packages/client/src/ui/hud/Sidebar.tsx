@@ -8,8 +8,8 @@ import { EquipmentPanel } from "./EquipmentPanel.tsx";
 import { HelpPopover } from "./HelpPopover.tsx";
 import { SoundPopover } from "./SoundPopover.tsx";
 import { AutoPotionPopover } from "./AutoPotionPopover.tsx";
-import { LootFilterPopover } from "./LootFilterPopover.tsx";
 import { lootFilterStore } from "../items/lootFilter.ts";
+import { lootFilterOpen, toggleLootFilter } from "../items/LootFilterWindow.tsx";
 import { isDefaultLootFilter, lootFilterSummary } from "@lemonquest/shared";
 import { A11yPopover } from "./A11yPopover.tsx";
 import { autoPotionStore } from "../items/autoPotion.ts";
@@ -27,7 +27,7 @@ import { useStore } from "./store.ts";
 import { outfitOpen, toggleOutfit } from "../outfit/outfit.ts";
 import { questLogOpen, toggleQuestLog } from "../quests/quests.ts";
 import { achievementsOpen, rankingOpen, toggleAchievements, toggleRanking } from "../achievements/achievements.ts";
-import { a11yOpen, autoOpen, helpOpen, lootOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDEBAR_W, skillsOpen, soundOpen, toggle, togglePopover } from "./uiState.ts";
+import { a11yOpen, autoOpen, helpOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDEBAR_W, skillsOpen, soundOpen, toggle, togglePopover } from "./uiState.ts";
 import { meStore } from "./world.ts";
 import { bestiaryOpen, toggleBestiary } from "../bestiary/Bestiary.tsx";
 import { agendaOpen, toggleAgenda } from "../agenda/agenda.ts";
@@ -43,7 +43,7 @@ export function Sidebar() {
   const sound = useStore(soundOpen);
   const autoPop = useStore(autoOpen);
   const a11yPop = useStore(a11yOpen);
-  const lootPop = useStore(lootOpen);
+  const lootWin = useStore(lootFilterOpen);
   const autoCfg = useStore(autoPotionStore);
   const lootCfg = useStore(lootFilterStore);
   const outfit = useStore(outfitOpen);
@@ -163,11 +163,11 @@ export function Sidebar() {
           <span class="rail-q">⚗</span>
         </button>
         <button
-          class={`rail-btn${isDefaultLootFilter(lootCfg) ? "" : " active"}`}
-          onClick={() => togglePopover(lootOpen)}
+          class={`rail-btn${lootWin || !isDefaultLootFilter(lootCfg) ? " active" : ""}`}
+          onClick={toggleLootFilter}
           data-tip="Loot automático"
           data-tip-sub={lootFilterSummary(lootCfg)}
-          aria-expanded={lootPop}
+          aria-pressed={lootWin}
           aria-label="Loot automático"
           data-testid="rail-loot"
         >
@@ -185,7 +185,6 @@ export function Sidebar() {
         </button>
         {a11yPop && <A11yPopover />}
         {autoPop && <AutoPotionPopover />}
-        {lootPop && <LootFilterPopover />}
         {help && <HelpPopover />}
         {sound && <SoundPopover />}
       </nav>

@@ -1,0 +1,41 @@
+/* Janela "Loot automático": lista de todos os itens que caem de monstro, por grupo, com marcador. */
+.lootf-win { width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; }
+.lootf-sum { font-size: 11px; font-weight: 400; color: var(--hud-muted, #8b93ad); margin-left: 8px; }
+.lootf-tools { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 0; }
+.lootf-search, .lootf-below {
+  flex: 1 1 160px; min-width: 0; padding: 4px 8px; font: inherit; font-size: 12px; color: #e4e8f5;
+  background: #1b2030; border: 1px solid #343b4e; border-radius: 4px;
+}
+.lootf-search:focus-visible, .lootf-below:focus-visible { outline: 1px solid rgba(255, 212, 71, 0.6); }
+.lootf-all { flex: none; padding: 4px 10px; font-size: 12px; }
+.lootf-note { padding: 6px 10px 0; font-size: 11px; line-height: 1.4; color: var(--hud-muted, #8b93ad); }
+/* Corpo rola; folga à direita para a barra de 6 px não colar nos marcadores. */
+.lootf-body { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 8px 6px 10px 10px; display: flex; flex-direction: column; gap: 10px; }
+.lootf-empty { color: #7d86a3; padding: 12px 0; text-align: center; }
+.lootf-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 4px; border-bottom: 1px solid var(--hud-line); }
+.lootf-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-gold); }
+.lootf-count { font-size: 11px; color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; }
+.lootf-count.partial { color: #f0b36a; }
+.lootf-bulk { margin-left: auto; display: flex; gap: 4px; }
+.lootf-mini {
+  padding: 1px 7px; font: inherit; font-size: 11px; cursor: pointer; color: var(--hud-muted); background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hud-line); border-radius: 3px;
+}
+.lootf-mini:hover:not(:disabled) { color: var(--hud-text); background: rgba(255, 255, 255, 0.09); }
+.lootf-mini:disabled { opacity: 0.4; cursor: default; }
+/* Duas colunas de itens; em janela estreita, uma. */
+.lootf-list { list-style: none; margin: 0; padding: 4px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; }
+@media (max-width: 560px) { .lootf-list { grid-template-columns: 1fr; } }
+.lootf-item {
+  display: flex; align-items: center; gap: 7px; min-width: 0; padding: 2px 6px 2px 4px; border-radius: 5px; cursor: pointer;
+  font-size: 12.5px; color: #e4e8f5; background: rgba(255, 255, 255, 0.03);
+}
+.lootf-item:hover { background: rgba(255, 255, 255, 0.08); }
+.lootf-item input { margin: 0; accent-color: var(--hud-gold); flex: none; }
+.lootf-item .item-icon { flex: none; }
+.lootf-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lootf-val { flex: none; font-size: 11px; color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; }
+/* Desmarcado: apagado, para o olho achar rápido o que fica no chão. */
+.lootf-item.off { color: #7d86a3; }
+.lootf-item.off .item-icon { opacity: 0.45; filter: grayscale(0.6); }
+.lootf-item.off .lootf-name { text-decoration: line-through; text-decoration-color: rgba(125, 134, 163, 0.6); }

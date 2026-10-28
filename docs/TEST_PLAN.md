@@ -16,15 +16,18 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
-## Resultados — loot automático configurável (2026-10-28)
+## Resultados — loot automático configurável (2026-10-28, popover de manhã; janela com todos os itens à tarde)
 
 | Verificação | Resultado |
 |---|---|
-| Typecheck | ok (shared, server, client) |
-| Unitários | `shared/lootFilter.test.ts` 8 testes (sanitize com lixo e degraus do valor; padrão pega todo o catálogo; ouro/missão/chave e raro+ sempre; raridade mínima do equipamento; interruptores de material/poção/comida; valor mínimo em qualquer categoria; resumo). `ground.test.ts` +6 (padrão igual ao de antes; material fora do filtro no tile do monstro, sem dono e sem aviso, outro jogador pega na hora; valor mínimo corta comum e deixa o raro entrar; só ouro ainda gera cartão com `left`; chão lotado some em silêncio; grupo pula quem filtra e, sem ninguém querendo, chão reservado ao grupo). `WorldRoom.test.ts` +1 (entra com o padrão; `SetLootFilter` limpo e confirmado; salvo e volta no login; padrão apaga o campo; lixo ignorado). Suíte inteira: 140 arquivos, 1686 testes, 0 falhas (a 1ª rodada pegou uma linha de Novidades com 208 caracteres, encurtada) |
-| Harness `?uitest` (sonda Playwright) | funil do trilho apagado com o padrão; abre o popover; "Raro+", Comida desligada e valor 100 → funil do trilho e da Mochila acesos, tooltip "equipamento raro+ · sem comida · só o que vale 100+"; clique fora fecha; funil da Mochila reabre; "Voltar a pegar tudo" apaga os funis; sem erro no console. Captura: rótulos longos ("Incomum ou melhor") quebravam em 3 linhas no botão → rótulos curtos (`GEAR_FLOOR_SHORT`) com o longo no tooltip |
-| Wiki | `npm run wiki` ok (735 páginas); "Experiência e levels → Mochila → Loot automático" e o link em "Grupo → Loot do grupo" conferidos no HTML gerado |
+| Typecheck | ok (shared, server, client), nas duas versões |
+| Unitários (versão final) | `shared/lootFilter.test.ts` 9 testes (lista = tabelas de loot sem ouro/missão/chave, 242 itens; grupos na ordem e sem vazio; sanitize com lixo, teto e migração do formato antigo; ouro/missão/chave e raro+ sempre; item da lista fica; resumo). `items/lootFilterLogic.test.ts` 3 (busca sem acento, lote sem repetir, contagem e "abaixo de"). `ground.test.ts` +6 (padrão igual ao de antes; osso da lista no tile do monstro, sem dono e sem aviso, outro jogador pega; colete da lista fica mas o raro entra; só ouro ainda gera cartão com `left`; chão lotado some em silêncio; grupo pula quem desmarcou e, sem ninguém querendo, chão reservado ao grupo). `WorldRoom.test.ts` +1 (entra com o padrão; `SetLootFilter` limpo e confirmado; salvo e volta no login; padrão apaga o campo; lixo ignorado). Suíte inteira: 141 arquivos, 1690 testes, 0 falhas |
+| Harness `?uitest` (sonda Playwright, barras de rolagem visíveis) | janela abre pelo funil do trilho: 11 grupos, 242 itens, "Pega tudo · 242/242 entram"; desmarcar 1 item + "Nenhum" num grupo → "11 itens ficam no chão · 231/242", funis do trilho e da Mochila acesos; busca "poç" → 1 grupo, 6 itens; "Desmarcar o que vale menos de 100" → 51 itens; "Marcar tudo" → 242/242; Esc fecha (também com o foco no campo de busca, `within`); sem erro no console |
+| Mochila (LO-6) | antes: corpo 202 px com a barra de 6 px dentro → 5ª coluna cortada; depois: `offsetWidth` 208, `clientWidth` 202, borda direita da 5ª coluna a 6 px da borda do corpo |
+| Seta × pontinhos (LO-7) | antes: pontinhos a 1 px da seta; depois: 7 px no hover |
+| Wiki | `npm run wiki` ok; "Experiência e levels → Mochila → Loot automático" (242 itens, 11 grupos) e o link em "Grupo → Loot do grupo" |
 | E2E | CI da PR (não roda localmente) |
+| Versão da manhã (popover) | 8 testes no shared, mesma cobertura no servidor; sonda do popover; suíte inteira 140 arquivos / 1686 testes verdes. Substituída à tarde a pedido do dono |
 
 ## Resultados — troca de alvo dos monstros (2026-10-28)
 

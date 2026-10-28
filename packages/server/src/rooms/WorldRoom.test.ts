@@ -398,9 +398,9 @@ describe("WorldRoom: filtro do loot automático", () => {
     const sent = (cl: any) => cl.send.mock.calls.filter(([t]: any[]) => t === "lootFilter").map(([, m]: any[]) => m.filter);
     expect(sent(c)).toEqual([DEFAULT_LOOT_FILTER]);
     const p = r.state.players.get("h1");
-    r.setLootFilter(p, { filter: { gear: "rare", food: false, minValue: 99, potions: "sim" } });
-    const saved = { gear: "rare", materials: true, potions: true, food: false, minValue: 50 };
-    expect(sent(c).at(-1)).toEqual(saved); // confirma o que ficou (99 encaixou no degrau 50; "sim" virou ligado)
+    r.setLootFilter(p, { filter: { skip: ["bone", "", "bone", 7, "wolf_pelt"] } });
+    const saved = { skip: ["bone", "wolf_pelt"] };
+    expect(sent(c).at(-1)).toEqual(saved); // confirma o que ficou (repetido, vazio e número saem)
     r.onLeave(c, 4000);
     expect(getCharacterByName("Hugo")!.data.lootFilter).toEqual(saved);
     const c2 = fakeClient(r, "h2");
