@@ -1,5 +1,27 @@
 # Changelog
 
+## [Não lançado] — 2026-10-28 · os bichos trocam de alvo: estratégia por tipo e quem escapou da percepção
+
+Pedido do dono: "os bichos podem lurar em outro personagem durante o combate, depende da estratégia dele; e também se o
+alvo sair do range dele e tiver outro ainda no range". Até aqui o monstro grudava no primeiro alvo até ele morrer,
+entrar na PZ ou o monstro passar da coleira — dava para "segurar" um bicho de longe enquanto o grupo batia à vontade.
+- **Regra 1 — o alvo escapou da percepção** (`aggroRange`) e sobrou outro jogador dentro dela: o monstro vai no mais
+  perto dos que ficaram, na hora, em qualquer estratégia. Sem ninguém dentro, continua atrás de quem escapou (até a
+  coleira, como antes). Passivo (percepção 0) só revida em quem bate; provocado (Provocar) não troca.
+- **Regra 2 — estratégia** (`Targeting` em `shared/data/monsters.ts`, `monsterTargeting`): reavaliada a cada 3 s
+  (`RETARGET_MS`), com compromisso mínimo de 3 s com cada alvo novo e folga para não ficar pulando:
+  - `sticky` (padrão): fica em quem pegou primeiro;
+  - `nearest` (bandos): vai no mais perto, se estiver 2+ tiles mais perto que o alvo;
+  - `weakest` (à distância): vai no mais ferido, se tiver 15+ pontos de vida (%) a menos;
+  - `damage` (chefes): vai em quem já lhe causou 1,3× o dano do alvo atual (`damageBy`): o cavaleiro segura o chefe
+    batendo, não só com Provocar;
+  - `random` (medrosos, `fleeAtHpPct > 0`): 35% de chance de trocar para qualquer um por perto a cada avaliação.
+  Padrão por tipo (chefe → damage, atirador → weakest, bando → nearest, medroso → random, o resto → sticky); o catálogo
+  pode sobrepor com `targeting`. Monstro de arena percebe a arena toda (as estratégias valem no Coliseu).
+- **Visível ao jogador**: linha "Alvo" no Bestiário e na página da criatura na wiki ("vai no mais ferido" etc.).
+- Testes: `monsters.test.ts` (padrão por tipo em todo o catálogo), `ai.test.ts` (as duas regras, cada estratégia com
+  a folga, provocado e passivo). `arena.test.ts` (metas do Coliseu) e a suíte inteira sem mudança.
+
 ## [Não lançado] — 2026-10-28 · Espaço mira/troca o bicho mais próximo (PR #38, aberta em 27/10)
 
 Pedido: "queria que o espaço escolhesse o bicho pra atacar ou trocasse ele". `Espaço` agora mira o bicho mais próximo

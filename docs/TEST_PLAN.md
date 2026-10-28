@@ -16,6 +16,14 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — troca de alvo dos monstros (2026-10-28)
+
+| Verificação | Resultado |
+|---|---|
+| Typecheck | ok |
+| Unitários | `ai.test.ts` +7 (alvo fora da percepção com e sem outro dentro; sticky; nearest com folga de 2 tiles e prazo de 3 s; weakest com 15 pontos; damage com 1,3× e volta; random com RNG semeado; provocado e passivo), `monsters.test.ts` +1 (padrão por tipo em todo o catálogo); suíte inteira verde, `arena.test.ts` (metas do Coliseu) sem mudança |
+| E2E | CI da PR (não roda localmente) |
+
 ## Resultados — rolagem do chat (2026-10-28)
 
 | Verificação | Resultado |

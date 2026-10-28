@@ -5,7 +5,7 @@
 import {
   ARENA_WAVES, BASE_STEP_MS, BOSS_ROOT_SLOW_PCT, BOSS_SLOW_MULT, ELITE, ELITE_CHANCE, HEAL_ALLIES_LOCKOUT_MS, HELP_RADIUS,
   INVASION_TIERS, MAGIC_ARMOR_FACTOR, QUEST_CHEST_GROUPS, QUEST_LEVERS, SPELLS, WEEKLY_EVENTS, canBeElite,
-  damageTakenMult, monsterResistances, summonScaled,
+  TARGETING_LABEL, damageTakenMult, monsterResistances, monsterTargeting, summonScaled,
   type DamageKind, type MonsterAbility, type MonsterDef,
 } from "../../../packages/shared/src/index.ts";
 import { DOT_INTERVAL_MS, DOT_LABEL } from "../../../packages/server/src/systems/conditions.ts";
@@ -167,6 +167,7 @@ function creaturePage(m: WikiModel, d: MonsterDef): WikiPage {
   }
   if (!inert && !ally) {
     box.push(["Percepção", d.aggroRange > 0 ? `${d.aggroRange} tiles` : "passivo"]);
+    if (d.aggroRange > 0) box.push(["Alvo", esc(TARGETING_LABEL[monsterTargeting(d)])]);
     box.push(["Foge com", d.fleeAtHpPct > 0 ? `${pct(d.fleeAtHpPct, 0)} da vida` : "não foge"]);
     box.push(["Respawn", d.invulnerable || d.respawnMs <= 0 ? "não renasce" : duration(d.respawnMs)]);
   }

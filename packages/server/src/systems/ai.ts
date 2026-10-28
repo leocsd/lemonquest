@@ -1,6 +1,6 @@
 // IA de monstros: idle → chase (ataca) → flee → return. Roda a cada tick, mas só "pensa"
 // (varredura de aggro, A*) a cada THINK_MS por monstro, com offsets escalonados.
-import { DIR_DELTA, Dir, MONSTER_REGEN_TICK_MS, canStepTerrain, dirFromDelta, monsterRegenAmount } from "@lemonquest/shared";
+import { DIR_DELTA, Dir, MONSTER_REGEN_TICK_MS, canStepTerrain, dirFromDelta, monsterRegenAmount, monsterTargeting } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { findPath, type Point } from "./pathfinding.ts";
 import { HELP_FLEE, SLEEP_DIST, cheb, type CreatureState, type Monster, type MonsterManager } from "./monsters.ts";
@@ -24,6 +24,18 @@ export const RETURN_STUCK_MS = 15_000;
 export const FLEE_GIVE_UP_MS = 10_000;
 /** Limite de nós da busca (BFS) por um tile com linha de visão quando o alvo está atrás de parede. */
 export const LOS_SEARCH_MAX_NODES = 400;
+/**
+ * Troca de alvo (dono, 2026-10-28): a estratégia do monstro (shared monsterTargeting) é reavaliada a cada RETARGET_MS,
+ * com folga para não ficar pulando de alvo: o mais perto só ganha com RETARGET_NEAR_TILES tiles de vantagem, o mais
+ * ferido com RETARGET_HP_PCT pontos de vida a menos, quem bate com RETARGET_DMG_RATIO vezes o dano do alvo atual; o
+ * medroso troca com RETARGET_RANDOM_CHANCE por avaliação. O alvo que ESCAPA da percepção com outro dentro é trocado na
+ * hora, em qualquer estratégia.
+ */
+export const RETARGET_MS = 3000;
+export const RETARGET_NEAR_TILES = 2;
+export const RETARGET_HP_PCT = 15;
+export const RETARGET_DMG_RATIO = 1.3;
+export const RETARGET_RANDOM_CHANCE = 0.35;
 
 const ALL_DIRS: Dir[] = [Dir.N, Dir.NE, Dir.E, Dir.SE, Dir.S, Dir.SW, Dir.W, Dir.NW];
 
@@ -34,7 +46,7 @@ export function updateMonster(m: Monster, w: MonsterManager, now: number): void 
   // perseguiria de novo dentro da coleira sem nunca chegar ao spawn (a mesma "dança" de quem bate nele voltando).
   if (m.tauntBy && !m.evading && now < (m.tauntUntil ?? 0)) {
     const t = validFor(m, w, m.tauntBy);
-    if (t && (m.s.targetId !== t.id || m.mode !== "chase")) { engage(m, t); m.sleeping = false; m.nextThinkAt = now; }
+    if (t && (m.s.targetId !== t.id || m.mode !== "chase")) { engage(m, t, now); m.sleeping = false; m.nextThinkAt = now; }
   }
   if (now >= m.nextThinkAt) {
     m.nextThinkAt = now + THINK_MS;
@@ -74,17 +86,70 @@ function nearestAggroTarget(m: Monster, w: MonsterManager): PlayerState | undefi
   return best;
 }
 
-function engage(m: Monster, p: CreatureState) {
+function engage(m: Monster, p: CreatureState, now?: number) {
   m.mode = "chase";
   m.evading = false;
   m.s.targetId = p.id;
   m.lostSince = 0;
   m.path = null;
+  // Compromisso mínimo com o alvo: a estratégia só reavalia depois de RETARGET_MS (retarget).
+  if (now !== undefined) m.nextRetargetAt = now + RETARGET_MS;
 }
 
-function thinkIdle(m: Monster, w: MonsterManager, _now: number) {
+/** Jogadores vivos, fora da PZ e permitidos a até `range` tiles do monstro, menos `except`. */
+function playersInRange(m: Monster, w: MonsterManager, range: number, except: string): PlayerState[] {
+  const out: PlayerState[] = [];
+  for (const p of w.playerList) {
+    if (p.id === except || p.hp <= 0 || w.inPz(p.x, p.y)) continue;
+    if (m.allow && !m.allow(p)) continue;
+    if (cheb(m.s.x, m.s.y, p.x, p.y) <= range) out.push(p);
+  }
+  return out;
+}
+const nearestOf = (m: Monster, list: PlayerState[]) =>
+  list.reduce((a, b) => (cheb(m.s.x, m.s.y, b.x, b.y) < cheb(m.s.x, m.s.y, a.x, a.y) ? b : a));
+const hpFrac = (c: { hp: number; maxHp: number }) => (c.maxHp > 0 ? c.hp / c.maxHp : 1);
+
+/**
+ * Outro jogador para o monstro atacar no lugar de `target` (undefined = fica). Duas regras (dono, 2026-10-28):
+ * 1. o alvo escapou da percepção (`aggroRange`) e sobrou alguém dentro dela → o mais perto dos que ficaram, na hora;
+ * 2. a cada RETARGET_MS, a estratégia do monstro (monsterTargeting) escolhe entre os que estão na percepção.
+ * Provocado (Provocar) não troca; passivo (percepção 0) só revida em quem bate; monstro de arena percebe a arena toda.
+ */
+export function retarget(m: Monster, w: MonsterManager, target: CreatureState, now: number): PlayerState | undefined {
+  if (m.tauntBy && now < (m.tauntUntil ?? 0)) return undefined;
+  const range = m.bounds ? Infinity : m.def.aggroRange;
+  if (range <= 0) return undefined;
+  const others = playersInRange(m, w, range, target.id);
+  if (others.length === 0) return undefined;
+  const dT = cheb(m.s.x, m.s.y, target.x, target.y);
+  if (dT > range) return nearestOf(m, others);
+  if (now < (m.nextRetargetAt ?? 0)) return undefined;
+  m.nextRetargetAt = now + RETARGET_MS;
+  switch (monsterTargeting(m.def)) {
+    case "nearest": {
+      const n = nearestOf(m, others);
+      return cheb(m.s.x, m.s.y, n.x, n.y) + RETARGET_NEAR_TILES <= dT ? n : undefined;
+    }
+    case "weakest": {
+      const wk = others.reduce((a, b) => (hpFrac(b) < hpFrac(a) ? b : a));
+      return hpFrac(wk) + RETARGET_HP_PCT / 100 <= hpFrac(target) ? wk : undefined;
+    }
+    case "damage": {
+      const dmg = (id: string) => m.damageBy.get(id) ?? 0;
+      const best = others.reduce((a, b) => (dmg(b.id) > dmg(a.id) ? b : a));
+      return dmg(best.id) >= Math.max(1, dmg(target.id)) * RETARGET_DMG_RATIO ? best : undefined;
+    }
+    case "random":
+      return w.rng() < RETARGET_RANDOM_CHANCE ? others[Math.floor(w.rng() * others.length)] : undefined;
+    default:
+      return undefined;
+  }
+}
+
+function thinkIdle(m: Monster, w: MonsterManager, now: number) {
   const t = nearestAggroTarget(m, w) ?? validFor(m, w, m.lastAttackerId);
-  if (t) engage(m, t);
+  if (t) engage(m, t, now);
 }
 
 /**
@@ -141,7 +206,7 @@ function think(m: Monster, w: MonsterManager, now: number) {
   let target = validFor(m, w, s.targetId);
   if (!target) {
     target = nearestAggroTarget(m, w) ?? validFor(m, w, m.lastAttackerId);
-    if (target) engage(m, target);
+    if (target) engage(m, target, now);
     else {
       s.targetId = "";
       m.path = null;
@@ -153,6 +218,9 @@ function think(m: Monster, w: MonsterManager, now: number) {
     }
   }
   m.lostSince = 0;
+  // Troca de alvo: quem escapou da percepção com outro dentro dela, ou a estratégia do monstro (retarget).
+  const other = retarget(m, w, target, now);
+  if (other) { engage(m, other, now); target = other; }
   const was = m.mode;
   m.mode = m.def.fleeAtHpPct > 0 && s.hp < m.def.fleeAtHpPct * s.maxHp ? "flee" : "chase";
   if (m.mode === "flee") {

@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-28e",
+    date: "28 de outubro",
+    title: "Os bichos trocam de alvo",
+    items: [
+      "Se o alvo de um monstro sai da percepção dele e sobra alguém dentro, ele vai nesse alguém. Segurar um bicho de longe para o grupo bater já era.",
+      "Cada tipo tem uma estratégia: chefes vão em quem mais bate, atiradores no mais ferido, bandos no mais perto e os medrosos trocam à toa. Está na linha \"Alvo\" do Bestiário (B).",
+    ],
+  },
+  {
     id: "2026-10-28d",
     date: "28 de outubro",
     title: "Espaço mira o bicho",
