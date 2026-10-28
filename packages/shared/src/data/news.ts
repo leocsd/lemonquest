@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-10-28d",
+    date: "28 de outubro",
+    title: "Espaço mira o bicho",
+    items: [
+      "Aperte Espaço para mirar o bicho mais próximo; aperte de novo para trocar pro próximo da lista de Batalha.",
+      "Só mira criatura (jogador continua só por clique ou pelo menu do botão direito).",
+    ],
+  },
+  {
     id: "2026-10-28c",
     date: "28 de outubro",
     title: "Chat acompanha as mensagens",

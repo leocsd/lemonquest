@@ -41,6 +41,7 @@ export const RESERVED_KEYS: Readonly<Record<string, string>> = {
   F1: "Ajuda", F2: "Modo ofensivo", F3: "Modo equilibrado", F4: "Modo defensivo", F8: "Seguir o alvo", F9: "Ataque automático",
   KeyQ: "Poção de vida", KeyE: "Poção de mana", KeyI: "Equipamento e mochila", KeyK: "Habilidades", KeyO: "Roupas",
   KeyL: "Diário de missões", KeyJ: "Conquistas", KeyR: "Ranking", KeyB: "Bestiário", KeyM: "Mapa", KeyH: "Magias",
+  Space: "Mirar/trocar alvo",
 };
 
 /**

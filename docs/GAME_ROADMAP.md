@@ -81,6 +81,12 @@ Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono):
 |---|---|---|---|
 | JM-1 | Dono: "melhore a usabilidade e acessibilidade de gerenciar skills". Decisão (🧭 2026-10-27): caminho A — uma janela só em volta da barra, no lugar de "Atalhos" e "Grupos de magia" (`SpellsWindow.tsx`, `GroupEditor.tsx`, `SpellGrid.tsx`, `spellsModel.ts`); grade com ícones, editor numerado com "Mais forte primeiro", 14 px, botões ≥ 32 px, teclado completo. Spec: `docs/superpowers/specs/2026-10-27-janela-magias-design.md` | ✅ (2026-10-27) | `edit.test.ts`, `groupsEdit.test.ts`, `spellsModel.test.ts`, E2E `hotkeys.spec.ts` (CI) |
 
+## Mirar pelo teclado (2026-10-27) — Espaço mira/troca o bicho mais próximo
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| MT-1 | Pedido: "queria que o espaço escolhesse o bicho pra atacar ou trocasse ele". Espaço mira o bicho mais próximo da lista de Batalha; de novo, cicla pro próximo (volta ao início depois do último); só criatura, não jogador (evita PvP sem querer). Tecla passa de livre a reservada (`RESERVED_KEYS`), como Q/E/I já eram. Numpad para andar já existia, não precisou de nada | ✅ (2026-10-27) | `battle.test.ts`, `hotkeys.test.ts`; E2E `target.spec.ts` |
+
 ## Ciclo 20 (2026-10-26) — região Montadora
 
 Especificação: [regioes/montadora.md](regioes/montadora.md). Último ciclo do plano 14–20.

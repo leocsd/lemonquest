@@ -1,5 +1,24 @@
 # Changelog
 
+## [Não lançado] — 2026-10-28 · Espaço mira/troca o bicho mais próximo (PR #38, aberta em 27/10)
+
+Pedido: "queria que o espaço escolhesse o bicho pra atacar ou trocasse ele". `Espaço` agora mira o bicho mais próximo
+(lista de Batalha, por distância); apertar de novo troca pro próximo da lista, voltando ao início depois do último.
+Mira só criatura (jogador continua só por clique/menu, para não flagar PvP sem querer). A tecla sai de livre para
+atalho de magia (como Q/E/I já eram): quem já tinha uma magia em Espaço perde o atalho na limpeza normal
+(`sanitizeHotkeys`), igual qualquer outra tecla que passa a ser reservada (em produção, nenhum dos 18 personagens usava).
+- **Cliente**: `nextBattleTarget` (`ui/hud/battle.ts`) cicla pelas criaturas da lista de Batalha; `useItemKeys`
+  (`ui/items/keys.ts`) chama no keydown do Espaço, com `preventDefault` (senão rola a página). `Space` entra em
+  `RESERVED_KEYS` (`shared/hotkeys.ts`), com o motivo "Mirar/trocar alvo" no aviso de tecla usada.
+- Numpad para andar já existia (`game/input.ts`); não precisou de nada novo.
+- Testes: `battle.test.ts` (lista vazia, só jogador, mais próximo, ciclo, alvo que saiu de alcance), `hotkeys.test.ts`
+  (Espaço reservado e limpo de atalhos salvos antigos); E2E `target.spec.ts` (mira e cicla de verdade no jogo).
+- **Revisão (2026-10-28)**: sem bicho por perto, o Espaço não desfaz mais o alvo atual (um jogador clicado continuava
+  selecionado antes só por acaso: `nextBattleTarget` devolvia `null` e o alvo era apagado); com o foco num botão do
+  HUD chegado pelo teclado (Tab), o Espaço continua apertando o botão em vez de mirar — medido no Chromium: o
+  `preventDefault` no keydown cancela a ativação do botão, então sem essa guarda a navegação por teclado perdia o
+  Espaço. Foco deixado por clique do mouse não conta (o jogador clicou num botão e quer voltar a mirar).
+
 ## [Não lançado] — 2026-10-28 · o chat volta a acompanhar as mensagens novas
 
 - **Causa** (dono: "quero que o scroll do chat desça automaticamente"): a rolagem "grudada no fim" quebrava sozinha em

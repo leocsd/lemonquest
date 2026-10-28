@@ -26,6 +26,7 @@ const GROUPS: { title: string; rows: { keys: string[]; label: string }[] }[] = [
       { keys: ["1", "–", "0"], label: "Magias da barra (teclas configuráveis em H)" },
       { keys: ["H"], label: "Magias (tecla de cada magia e grupos)" },
       { keys: ["Q", "E"], label: "Poção de vida / mana" },
+      { keys: ["Espaço"], label: "Mirar o bicho mais próximo · de novo, troca pro próximo" },
       { keys: ["F2", "F3", "F4"], label: "Modo de luta (ofensivo · equilibrado · defensivo)" },
       { keys: ["F8"], label: "Seguir o alvo" },
       { keys: ["F9"], label: "Ataque automático" },

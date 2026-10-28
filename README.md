@@ -21,6 +21,7 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Andar | `W A S D`, setas ou teclado numérico (7/9/1/3 = diagonais) |
 | Andar até um ponto | clique esquerdo no chão |
 | Atacar / soltar alvo | clique (esquerdo ou direito) na criatura |
+| Mirar o bicho mais próximo / trocar pro próximo | `Espaço` (cicla pela lista de Batalha; ignora jogadores) |
 | Falar com NPC | clique no NPC |
 | Largar item no chão | arraste da mochila/equipamento para o mundo (até 3 tiles; pilhas abrem uma barrinha para escolher a quantidade) |
 | Pegar item do chão | clique direito, duplo clique ou `Ctrl`+clique no item (ou arraste para a mochila) |
