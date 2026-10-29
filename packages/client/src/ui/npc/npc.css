@@ -12,6 +12,9 @@
 .npc-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--hud-line); padding-bottom: 6px; }
 .npc-tab { flex: none; padding: 4px 10px; white-space: nowrap; background: transparent; border-color: transparent; color: var(--hud-muted) !important; }
 .npc-tab.active { background: rgba(217, 164, 65, 0.12); border-color: rgba(217, 164, 65, 0.5); color: var(--hud-gold) !important; }
+/* NPC com uma aba só: o rótulo vira título de seção (um botão sozinho parecia a fala "quebrada" por um botão). */
+.npc-tabs-single { padding-bottom: 4px; }
+.npc-section-title { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-gold); padding: 2px 2px 0; }
 
 .shop-list { list-style: none; margin: 0; padding: 0 4px 0 0; display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; scrollbar-gutter: stable; } /* 4 px: a barra de 6 px não encosta na borda das linhas */
 .shop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 6px 4px 4px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }

@@ -52,7 +52,7 @@ export function NpcWindow() {
         <Typewriter npcId={m.npcId} text={m.greeting} nonce={st.nonce} />
         {m.blessing && <BlessingBox npcId={m.npcId} blessing={m.blessing} gold={inv?.gold ?? 0} />}
         {m.casino && <CasinoBox npcId={m.npcId} gold={inv?.gold ?? 0} />}
-        {tabs.length > 0 && (
+        {tabs.length > 1 && (
           <div class="npc-tabs" role="tablist">
             {tabs.map((t) => (
               <button key={t} class={`npc-tab${st.tab === t ? " active" : ""}`} role="tab" aria-selected={st.tab === t} onClick={() => setNpcTab(t)}>
@@ -61,6 +61,8 @@ export function NpcWindow() {
             ))}
           </div>
         )}
+        {/* Uma aba só (Ferreiro, Mural, NPC só de missões): título de seção, não um botão solto entre a fala e o conteúdo. */}
+        {tabs.length === 1 && <div class="npc-tabs npc-tabs-single"><span class="npc-section-title">{TAB_LABEL[tabs[0]!]}</span></div>}
         {st.tab === "work" && <WorkTab npcId={m.npcId} />}
         {st.tab === "quests" && <NpcQuestList npcId={m.npcId} />}
         {st.tab === "bounties" && <BountyBoard />}

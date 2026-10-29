@@ -16,6 +16,14 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — NPC com uma aba só (Mestre Brás) (2026-10-29)
+
+| Verificação | Resultado |
+|---|---|
+| Reprodução | harness `?uitest` com `__ut.npcMsg` (Ferreiro, fala real) e `__ut.give("mithril_katana")`: antes, barra de abas com o único botão "Refinar" entre a fala e a explicação do refino; sem estouro horizontal (`scrollWidth` = `clientWidth`), fala e botão "Refinar para +1" no lugar em 1400 e 1000 px |
+| Depois | título de seção "REFINAR" no lugar do botão; aba de verdade só com 2+ (Bento, Dona Marta, Quadro) |
+| Typecheck | ok; nenhum E2E clica em `.npc-tab` de NPC de aba única |
+
 ## Resultados — janela de loot com filtros e subcategorias; pontinhos longe da parede (2026-10-28, noite)
 
 | Verificação | Resultado |
