@@ -1,5 +1,14 @@
 # Changelog
 
+## [Não lançado] — 2026-10-29 · NPC com uma aba só mostra um título, não um botão solto (Mestre Brás)
+
+Dono: "o Mestre Brás, o Ferreiro, está com a descrição quebrando com um botão". A janela do Ferreiro tem uma aba só
+("Refinar"); a barra de abas com um único botão ficava entre a fala e a explicação do refino, parecendo um botão perdido
+que não faz nada. Com uma aba só, a janela mostra o rótulo como título de seção (`.npc-section-title`); com duas ou mais,
+as abas continuam iguais. Vale também para o Mural de Excursões e para NPCs só de missões. Harness `?uitest` ganhou
+`__ut.npcMsg(msg)` (abre qualquer NPC pela mensagem) e `__ut.give(defId)` (item do catálogo real na mochila), para
+olhar janelas como a do Ferreiro sem servidor.
+
 ## [Não lançado] — 2026-10-28 · janela de loot com filtros e subcategorias; pontinhos de arrastar longe da parede
 
 Dono: "quero mais categorias e subcategorias e filtros na tela de loot. Por exemplo, food, classes e etc." e "quero que

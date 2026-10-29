@@ -223,7 +223,10 @@ export function startUiTest(): void {
   };
   const open = (tab?: string): void => { handleNpcOpen(npc(tab)); pushDepot(); if (tab) import("../npc/npc.ts").then((n) => n.setNpcTab(tab as "buy")); };
 
-  (window as unknown as Record<string, unknown>).__ut = { loot, feed, npc: open, me, inv: () => ({ equipment, backpack, gold }), EQUIP_SLOTS };
+  // npcMsg: abre qualquer NPC a partir da mensagem completa (ex.: o Ferreiro com a aba Refinar); give: põe um item do catálogo
+  // real na mochila (o refino só lista itens reais de level 35+).
+  const give = (defId: string, count = 1, rarity: Rarity = "common"): void => { const i = backpack.findIndex((x) => !x); if (i >= 0) { backpack[i] = inst(defId, count, rarity); pushInv(); } };
+  (window as unknown as Record<string, unknown>).__ut = { loot, feed, npc: open, npcMsg: (m: NpcOpenMsg) => { handleNpcOpen(m); pushDepot(); }, give, me, inv: () => ({ equipment, backpack, gold }), EQUIP_SLOTS };
 
   if (P.has("npc")) setTimeout(() => open(P.get("npc") || undefined), 300);
   setTimeout(() => { loot("common"); feed("level"); feed("drop"); }, 800);
