@@ -244,3 +244,7 @@ navegador aceita gzip (`Content-Encoding: gzip`, 1,5 MB → ~70 KB no mapa), sem
 **Guia completo para Windows (serviço, firewall, backups, atualização):** [deploy/windows/README-DEPLOY.md](deploy/windows/README-DEPLOY.md)
 
 **Com Docker (Windows, Linux ou Mac):** `docker compose up -d --build` — guia em [deploy/docker/README.md](deploy/docker/README.md).
+
+**Ambiente de desenvolvimento no servidor:** a branch `dev` roda ao lado da produção, em `http://<servidor>:2568`, com
+banco próprio (cópia da produção) e comandos de dev ligados. PRs entram primeiro na `dev`; testado lá, `dev` → `main`
+vai para a produção. Guia em [deploy/docker/README.md](deploy/docker/README.md#11-ambiente-de-desenvolvimento-no-servidor).
