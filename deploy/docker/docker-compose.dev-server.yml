@@ -1,0 +1,26 @@
+# Ambiente de DESENVOLVIMENTO no servidor (branch `dev`), ao lado da produção: outra pasta, container, porta e banco.
+# Override do compose principal. No checkout de dev (~/lemonquest-dev), o arquivo .env tem
+#   COMPOSE_FILE=docker-compose.yml:deploy/docker/docker-compose.dev-server.yml
+# e então os comandos de sempre valem para o dev:  git pull && docker compose up -d --build
+# Jogo em http://<servidor>:2568 · guia: deploy/docker/README.md, seção "Ambiente de desenvolvimento no servidor".
+#
+# Não confundir com o docker-compose.dev.yml da raiz (hot reload no PC, código montado do disco).
+
+# Projeto separado do de produção (container, rede e imagem próprios; um `--remove-orphans` de um não derruba o outro).
+name: lemonquest-dev
+
+services:
+  lemonquest:
+    image: lemonquest-dev:latest     # a imagem de produção (lemonquest:latest) e as tags pre-* não são tocadas
+    container_name: lemonquest-dev
+    ports: !override
+      - "2568:2567"
+    environment:
+      # Fora de produção para os comandos de dev (/level, /item, /gold, /tp...) funcionarem; o cliente buildado continua
+      # servido pelo próprio servidor numa porta só.
+      NODE_ENV: "development"
+      LEMONQUEST_SERVE_CLIENT: "1"
+      LEMONQUEST_DEV_COMMANDS: "1"
+      # ClickUp desligado no dev: o "Chegou!" e as conquistas de tarefas saem só na produção.
+      LEMONQUEST_CLICKUP_TOKEN: ""
+    # O banco continua em ./docker-data, mas aqui é a pasta do checkout de dev (~/lemonquest-dev/docker-data).

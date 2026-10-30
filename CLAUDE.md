@@ -33,6 +33,8 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
 Servidor isolado para teste manual ou smoke (não toca em `data/`):
 `E2E_PORT=2870 E2E_SKIP_BUILD=1 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`
 (comandos de dev `/level /item /gold /heal /tp /ml /quest` valem para os nomes em `E2E_ADMINS`).
+Ambiente de dev no servidor: branch `dev` em `~/lemonquest-dev`, porta 2568, override
+`deploy/docker/docker-compose.dev-server.yml` (PRs entram na `dev`; `dev` → `main` vai para a produção).
 
 ## Convenções
 - Tudo em português: código, comentários (explicam o porquê), UI, docs e commits (uma linha descritiva, sem prefixo).
