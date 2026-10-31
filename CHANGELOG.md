@@ -3,7 +3,7 @@
 ## [Não lançado] — 2026-10-31 · app de desktop (Windows, Mac e Linux)
 
 Dono: "criar um client" — ícone na área de trabalho, janela sem nada do navegador, teclas sem briga, abrir direto no
-servidor e atualizar sozinho. Pacote novo `packages/desktop` (Tauri 2, ~10 MB): uma janela carrega a página de boot,
+servidor e atualizar sozinho. Pacote novo `packages/desktop` (Tauri 2; o instalador do Windows tem 1,8 MB porque o WebView2 já vem com o sistema): uma janela carrega a página de boot,
 o Rust confere por TCP se o servidor responde e navega para o jogo, que continua 100 % remoto (sem IPC; só
 `window.__lemonApp` com versão/sistema/URL). Navegação presa à origem do servidor: wiki, ranking e qualquer link de
 fora abrem no navegador do sistema. Windows: atalhos do WebView2 desligados (F5, F12, Ctrl+F, Ctrl+P); macOS: menu sem
