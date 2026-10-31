@@ -11,10 +11,32 @@
 | Benchmark manual | `npx tsx packages/server/src/systems/pathfinding.bench.ts` | custo do A* (µs por caminho) |
 | Carga | servidor E2E (`E2E_PORT=2872 E2E_SKIP_BUILD=1 node e2e/start-server.mjs`) + `node tools/loadtest.mjs http://127.0.0.1:2872 --bots 10 --secs 130` | tick do servidor (log `[tick]`), ida e volta de um passo |
 | Fuzz | servidor E2E com `E2E_ADMINS="Fuzz Inv"` + `node tools/fuzz.mjs <url> --mode proto` / `--mode inventory --name "Fuzz Inv"` | servidor não cai nem registra exceção; inventário sem duplicação |
+| App de desktop | `cargo test` em `packages/desktop/src-tauri` + `appInfo.test.ts` no cliente + checklist manual por sistema | unitários dos módulos `endereco`, `nav`, `boot`, `saude`, `atualizador` e da sonda `appInfo`; instalação, boot, teclas e update em Windows/macOS/Linux à mão (`docs/superpowers/plans/2026-10-31-app-desktop-tauri.md`, Task 11) |
 | CI | `.github/workflows/ci.yml` | typecheck + unitários + build + Docker `/health` + E2E |
 
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
+
+## Resultados — app de desktop (2026-10-31)
+
+Unitários: `cargo test` em `packages/desktop/src-tauri` (23: endereco 7, nav 8, boot 2, saúde 4, atualizador 2);
+`appInfo.test.ts` (5). Typecheck 3× tsc. Suíte unitária inteira do monorepo: 1698 passando. Sem E2E novo (a casca não
+tem regra de jogo).
+
+Execução pelo controlador contra um servidor E2E isolado (porta 2870), em modo dev no Windows: porta morta → a boot fica
+no laço de tentativas e o app segue vivo (40 s+); servidor no ar → histórico do WebView2 mostra a boot
+(`http://127.0.0.1:1430/`) e, 2 s depois, `http://localhost:2870/` (o jogo), com conexões HTTP do webview ao servidor;
+updater sem Release publicada → log `[app] não conseguiu verificar versão nova` e nenhum diálogo. Esse teste achou e
+corrigiu dois defeitos: o `--url` não chegava ao binário (script `app:dev` precisava de um `--` a mais) e a boot
+carregava como `/` (não `/index.html`), então o laço nunca começava.
+
+Manual (pendente, com o dono), instaladores da Release `app-v0.1.0` e update para `app-v0.1.1`:
+
+| Sistema | Instalar/abrir | Boot → login | Teclas mortas (F5/F12/Ctrl+F/Ctrl+P/Ctrl+W) | Teclas do jogo | Wiki/Ranking fora | Janela lembrada | Servidor fora | Update 0.1.0 → 0.1.1 |
+|---|---|---|---|---|---|---|---|---|
+| Windows | não testado ainda | | | | | | | |
+| macOS | não testado ainda | | | | | | | |
+| Linux | não testado ainda | | | | | | | |
 
 ## Resultados — NPC com uma aba só (Mestre Brás) (2026-10-29)
 

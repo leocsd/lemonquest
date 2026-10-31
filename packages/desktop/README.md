@@ -40,6 +40,7 @@ nada do navegador, teclas do jogo livres e atualização automática. O jogo em 
 2. `git tag app-vX.Y.Z && git push origin app-vX.Y.Z`.
 3. O workflow `.github/workflows/app.yml` builda Windows (NSIS por usuário), macOS (DMG universal, assinatura ad-hoc)
    e Linux (AppImage) e publica a Release `app-vX.Y.Z` com os instaladores, as assinaturas e o `latest.json`.
+   Se um dos sistemas falhar, re-rode só aquele job no GitHub Actions: o `latest.json` da Release só fica completo com os três.
 4. Confira em `https://github.com/leocsd/lemonquest/releases/latest`. Os apps instalados perguntam para atualizar na
    próxima abertura.
 

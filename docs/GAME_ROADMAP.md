@@ -27,7 +27,7 @@ no GitHub Releases; URL padrão `http://embeddo-geral-00:2567`; update pergunta 
 | AD-4 | Tela de login: "Baixar o app" fora do app, "App vX" dentro; CI (`cargo check`/`test` por PR; Release por tag `app-v*`) | ✅ (2026-10-31) | `appInfo.test.ts`; workflow `app.yml` |
 | AD-5 | Validação manual nos 3 sistemas e ciclo real de update (app-v0.1.0 → app-v0.1.1) | ⏳ | `docs/TEST_PLAN.md` |
 | AD-6 | macOS: update sem assinatura Apple (só ad-hoc) é a parte menos provada; validar no Mac de quem usar antes de anunciar para Mac. Se não abrir depois do update, documentar reinstalação pelo DMG | 🧭 | — |
-| AD-7 | Linux: WebGL no WebKitGTK (Phaser cai para Canvas); se ficar lento, avaliar `WEBKIT_DISABLE_DMABUF_RENDERER=1` no AppImage | ⏳ | relato de quem usar Linux |
+| AD-7 | Linux: WebGL no WebKitGTK (Phaser cai para Canvas); se ficar lento, avaliar `WEBKIT_DISABLE_DMABUF_RENDERER=1` no AppImage. Conferir também o som (ogg/wav via GStreamer do sistema; distro mínima pode não ter os plugins) | ⏳ | relato de quem usar Linux |
 
 ## Loot automático configurável (2026-10-28)
 
