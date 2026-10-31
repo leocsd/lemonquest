@@ -46,7 +46,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFBNjJCQ0I1QzhGRTIwQzUKUldURklQN0l0YnhpcXY2Qk9seTNPcEUxdXc1M2QrbzdRMlNJQU5jT0U0cmsyY2p6dHpYVVlLU2gK",
       "endpoints": ["https://github.com/leocsd/lemonquest/releases/latest/download/latest.json"],
       "windows": {
         "installMode": "passive"

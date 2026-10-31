@@ -3,6 +3,7 @@
 // A página do jogo é 100 % remota, sem IPC: o único contato é o script de inicialização `window.__lemonApp`.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod atualizador;
 mod boot;
 mod menu;
 mod nav;
@@ -28,6 +29,7 @@ fn main() {
     let mut construtor = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build());
     #[cfg(target_os = "windows")]
     {
@@ -39,7 +41,10 @@ fn main() {
             menu::instalar(app)?;
             let args: Vec<String> = std::env::args().collect();
             match endereco::resolve_url(&args, endereco::URL_PADRAO) {
-                Ok(destino) => abrir_janela(app, destino)?,
+                Ok(destino) => {
+                    abrir_janela(app, destino)?;
+                    atualizador::verificar_em_segundo_plano(app.handle().clone());
+                }
                 Err(erro) => erro_fatal(app.handle(), &erro),
             }
             Ok(())
