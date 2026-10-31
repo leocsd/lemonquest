@@ -54,7 +54,7 @@ Motores de renderização: Windows = WebView2 (Chromium, o mesmo do Edge que o e
 
 ```
 packages/desktop/
-  package.json            # name @lemonquest/desktop, version X.Y.Z (fonte única da versão do app), scripts dev/build
+  package.json            # name @lemonquest/desktop, version X.Y.Z (fonte única da versão do app), scripts dev/build/tauri
   README.md               # pré-requisitos, build local, chaves, como soltar versão, atritos por SO
   src/boot.html           # página local: limão, "Conectando a <url>…", tenta /health, "Tentar agora"
   src-tauri/
