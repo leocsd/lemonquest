@@ -60,13 +60,13 @@ fn abrir_janela(app: &tauri::App, destino: Url) -> tauri::Result<()> {
         .on_navigation(move |url| match nav::classificar(&origem_nav, url) {
             nav::Destino::Dentro | nav::Destino::Local => true,
             nav::Destino::Fora => {
-                abrir_fora(&app_nav, url.as_str());
+                abrir_fora(&app_nav, url);
                 false
             }
         })
         // `target="_blank"` e `window.open` (wiki, ranking): no navegador do sistema, o jogo continua aberto aqui.
         .on_new_window(move |url, _| {
-            abrir_fora(&app_nova, url.as_str());
+            abrir_fora(&app_nova, &url);
             NewWindowResponse::Deny
         })
         // Cada carga da página de boot (inclusive o `location.reload()` do botão "Tentar agora") é uma tentativa.
@@ -85,7 +85,9 @@ fn abrir_janela(app: &tauri::App, destino: Url) -> tauri::Result<()> {
                     }
                 } else {
                     let automatico = n < TENTATIVAS_AUTOMATICAS;
-                    let _ = janela.eval(format!("window.__lemonBoot && window.__lemonBoot.falhou({n}, {automatico})"));
+                    if let Err(e) = janela.eval(format!("window.__lemonBoot && window.__lemonBoot.falhou({n}, {automatico})")) {
+                        eprintln!("[app] não conseguiu avisar a página de boot: {e}");
+                    }
                 }
             });
         })
@@ -93,9 +95,13 @@ fn abrir_janela(app: &tauri::App, destino: Url) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Abre a URL no navegador padrão do sistema.
-fn abrir_fora(app: &AppHandle, url: &str) {
-    if let Err(e) = app.opener().open_url(url, None::<&str>) {
+/// Abre a URL no navegador padrão do sistema — só `http(s)`; o resto é ignorado e registrado.
+fn abrir_fora(app: &AppHandle, url: &Url) {
+    if !nav::pode_abrir_fora(url) {
+        eprintln!("[app] navegação recusada (esquema não é http/https): {url}");
+        return;
+    }
+    if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
         eprintln!("[app] não conseguiu abrir no navegador: {url}: {e}");
     }
 }

@@ -28,6 +28,12 @@ pub fn e_boot(origem: &Url, url: &Url) -> bool {
     !mesma_origem(origem, url) && url.path() == "/index.html"
 }
 
+/// Só endereços web vão para o navegador do sistema: qualquer outro esquema (`file:`, `ms-msdt:`, protocolos
+/// registrados por programas…) seria executado pelo sistema sem pergunta nenhuma.
+pub fn pode_abrir_fora(url: &Url) -> bool {
+    matches!(url.scheme(), "http" | "https")
+}
+
 fn mesma_origem(a: &Url, b: &Url) -> bool {
     a.scheme() == b.scheme() && a.host_str() == b.host_str() && a.port_or_known_default() == b.port_or_known_default()
 }
@@ -88,5 +94,14 @@ mod testes {
         assert!(!e_boot(&u(ORIGEM), &u(ORIGEM)));
         assert!(!e_boot(&u(ORIGEM), &u("http://embeddo-geral-00:2567/index.html")));
         assert!(!e_boot(&u("http://localhost:2567/"), &u("http://localhost:2567/index.html")));
+    }
+
+    #[test]
+    fn so_http_e_https_abrem_fora() {
+        assert!(pode_abrir_fora(&u("https://github.com/leocsd/lemonquest/releases/latest")));
+        assert!(pode_abrir_fora(&u("http://outro-servidor.local:8080/")));
+        for d in ["file:///C:/Windows/system32/calc.exe", "ms-msdt:/id", "javascript:alert(1)", "about:blank", "mailto:x@y.z", "lemon://x"] {
+            assert!(!pode_abrir_fora(&u(d)), "{d}");
+        }
     }
 }
