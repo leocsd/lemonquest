@@ -1,5 +1,16 @@
 # Changelog
 
+## [Não lançado] — 2026-10-31 · app de desktop (Windows, Mac e Linux)
+
+Dono: "criar um client" — ícone na área de trabalho, janela sem nada do navegador, teclas sem briga, abrir direto no
+servidor e atualizar sozinho. Pacote novo `packages/desktop` (Tauri 2, ~10 MB): uma janela carrega a página de boot,
+o Rust confere por TCP se o servidor responde e navega para o jogo, que continua 100 % remoto (sem IPC; só
+`window.__lemonApp` com versão/sistema/URL). Navegação presa à origem do servidor: wiki, ranking e qualquer link de
+fora abrem no navegador do sistema. Windows: atalhos do WebView2 desligados (F5, F12, Ctrl+F, Ctrl+P); macOS: menu sem
+Cmd+W. Updater com chave própria (minisign) lendo o `latest.json` da Release mais nova do GitHub, perguntando antes
+("Atualizar agora?"). `--url` aponta para outro servidor. Tela de login ganha "Baixar o app" (no app, "App vX").
+CI: `cargo check`/`cargo test` em toda PR; tag `app-vX.Y.Z` builda os 3 sistemas e publica a Release. Servidor intacto.
+
 ## [Não lançado] — 2026-10-29 · NPC com uma aba só mostra um título, não um botão solto (Mestre Brás)
 
 Dono: "o Mestre Brás, o Ferreiro, está com a descrição quebrando com um botão". A janela do Ferreiro tem uma aba só

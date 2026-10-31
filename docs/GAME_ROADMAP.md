@@ -13,6 +13,22 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## App de desktop (2026-10-31)
+
+Spec: [superpowers/specs/2026-10-31-app-desktop-tauri-design.md](superpowers/specs/2026-10-31-app-desktop-tauri-design.md).
+Decisões do dono: casca que carrega o jogo do servidor; Windows + macOS + Linux; Tauri 2; instaladores e `latest.json`
+no GitHub Releases; URL padrão `http://embeddo-geral-00:2567`; update pergunta antes.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| AD-1 | Pacote `packages/desktop` (Tauri 2): janela, boot → jogo por TCP, navegação presa ao servidor, `_blank` no navegador do sistema, `--url` | ✅ (2026-10-31) | `cargo test` (endereco, nav, boot, saúde); manual |
+| AD-2 | Teclas: WebView2 sem atalhos de navegador (Windows), menu do macOS sem Cmd+W; F1–F4/F8/F9 e botão direito intactos | ✅ (2026-10-31) | manual no Windows |
+| AD-3 | Updater: chave minisign, `latest.json` na Release, diálogo Atualizar/Depois, falha avisa com link | ✅ (2026-10-31) | `cargo test` (textos); ciclo real 0.1.0 → 0.1.1 (AD-5) |
+| AD-4 | Tela de login: "Baixar o app" fora do app, "App vX" dentro; CI (`cargo check`/`test` por PR; Release por tag `app-v*`) | ✅ (2026-10-31) | `appInfo.test.ts`; workflow `app.yml` |
+| AD-5 | Validação manual nos 3 sistemas e ciclo real de update (app-v0.1.0 → app-v0.1.1) | ⏳ | `docs/TEST_PLAN.md` |
+| AD-6 | macOS: update sem assinatura Apple (só ad-hoc) é a parte menos provada; validar no Mac de quem usar antes de anunciar para Mac. Se não abrir depois do update, documentar reinstalação pelo DMG | 🧭 | — |
+| AD-7 | Linux: WebGL no WebKitGTK (Phaser cai para Canvas); se ficar lento, avaliar `WEBKIT_DISABLE_DMABUF_RENDERER=1` no AppImage | ⏳ | relato de quem usar Linux |
+
 ## Loot automático configurável (2026-10-28)
 
 | # | Item | Status | Validação |
