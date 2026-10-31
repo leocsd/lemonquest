@@ -24,7 +24,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "admin": "npm run admin -w @lemonquest/server --",
-    "app:dev": "npm run dev -w @lemonquest/desktop -- --",
+    "app:dev": "npm run dev -w @lemonquest/desktop -- -- --",
     "app:build": "npm run build -w @lemonquest/desktop --"
   },
   "devDependencies": {
