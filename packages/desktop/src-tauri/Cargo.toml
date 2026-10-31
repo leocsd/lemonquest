@@ -1,0 +1,30 @@
+[package]
+name = "lemonquest-desktop"
+# A versão do app vem de packages/desktop/package.json (tauri.conf.json lê "../package.json"); esta não é usada.
+version = "0.0.0"
+description = "App de desktop do The Lemon Quest: abre o jogo do servidor numa janela própria"
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = [] }
+tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-window-state = "2"
+serde_json = "1"
+url = "2"
+
+# Só no Windows: desliga os atalhos do WebView2 (F5, F12, Ctrl+P, Ctrl+F…). Mac e Linux não têm esses aceleradores.
+[target.'cfg(windows)'.dependencies]
+tauri-plugin-prevent-default = { version = "6", features = ["platform-windows"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

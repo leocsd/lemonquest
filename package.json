@@ -6,7 +6,8 @@
   "workspaces": [
     "packages/shared",
     "packages/server",
-    "packages/client"
+    "packages/client",
+    "packages/desktop"
   ],
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm:dev -w @lemonquest/server\" \"npm:dev -w @lemonquest/client\"",
@@ -22,7 +23,9 @@
     "typecheck": "tsc -p packages/shared && tsc -p packages/server && tsc -p packages/client",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "admin": "npm run admin -w @lemonquest/server --"
+    "admin": "npm run admin -w @lemonquest/server --",
+    "app:dev": "npm run dev -w @lemonquest/desktop -- --",
+    "app:build": "npm run build -w @lemonquest/desktop --"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

@@ -37,3 +37,7 @@ assets/maps/review/
 .env
 .env.*
 !.env.example
+
+# App de desktop (Tauri): compilação do Rust e arquivos gerados pela CLI
+packages/desktop/src-tauri/target/
+packages/desktop/src-tauri/gen/
