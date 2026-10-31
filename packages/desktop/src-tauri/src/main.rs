@@ -4,6 +4,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod boot;
+mod menu;
 mod nav;
 mod saude;
 mod endereco;
@@ -23,11 +24,19 @@ const TENTATIVAS_AUTOMATICAS: u32 = 10;
 const LIMITE_CONEXAO: Duration = Duration::from_secs(3);
 
 fn main() {
-    tauri::Builder::default()
+    #[allow(unused_mut)] // só o Windows acrescenta um plugin depois
+    let mut construtor = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_window_state::Builder::default().build());
+    #[cfg(target_os = "windows")]
+    {
+        construtor = construtor.plugin(teclas_windows());
+    }
+    construtor
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            menu::instalar(app)?;
             let args: Vec<String> = std::env::args().collect();
             match endereco::resolve_url(&args, endereco::URL_PADRAO) {
                 Ok(destino) => abrir_janela(app, destino)?,
@@ -37,6 +46,17 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o app do The Lemon Quest");
+}
+
+/// WebView2 trata F5, F12, Ctrl+P, Ctrl+F etc. como atalhos de navegador: desliga só isso. Nenhum grupo do plugin
+/// (`Flags::empty()`) para não tocar em F3 (modo de luta) nem no botão direito, que o jogo já trata.
+#[cfg(target_os = "windows")]
+fn teclas_windows<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    use tauri_plugin_prevent_default::{Flags, PlatformOptions};
+    tauri_plugin_prevent_default::Builder::new()
+        .with_flags(Flags::empty())
+        .platform(PlatformOptions::new().browser_accelerator_keys(false))
+        .build()
 }
 
 /// Cria a janela do jogo apontando para a página de boot e instala as regras de navegação e o laço boot → jogo.
