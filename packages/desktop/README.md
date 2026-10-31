@@ -65,7 +65,7 @@ Saída em `src-tauri/target/release/bundle/`.
 ## Atritos conhecidos (sem certificado pago)
 
 - **Windows**: SmartScreen avisa uma vez ("Mais informações → Executar assim mesmo"). Instala em
-  `%LOCALAPPDATA%\Programs\The Lemon Quest`, sem admin.
+  `%LOCALAPPDATA%\The Lemon Quest`, sem admin (atalhos no Menu Iniciar e na área de trabalho).
 - **macOS**: na primeira abertura, "Abrir assim mesmo" em Ajustes → Privacidade e Segurança. O `Info.plist` libera
   `http://` (a LAN não tem HTTPS).
 - **Linux**: `chmod +x` no AppImage. Se o WebKitGTK não der WebGL, o Phaser cai para Canvas sozinho.
