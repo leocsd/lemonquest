@@ -1,7 +1,7 @@
 // Navegação (ciclo 17): rótulo sobre o portal ("Minas Abandonadas · lv 10+", vermelho abaixo do level), "olhar" no
 // portal com o mesmo rótulo, e a faixa de level em volta do destino na janela de viagem (com o alerta de perigo).
 import { expect, test, type Page } from "@playwright/test";
-import { enterGame, openNpc, setLevel, snap, teleport, tileToClient, waitSettled } from "./helpers.ts";
+import { enterGame, openNpc, setLevel, snap, teleport, tileToClient, waitSettled, npcTab } from "./helpers.ts";
 
 /** Porta das Minas (tools/mapgen/expansion5.mjs) e o tile de retorno ao lado dela. */
 const MINAS = { door: { x: 89, y: 74 }, ret: { x: 88, y: 74 } };
@@ -44,7 +44,7 @@ test("portal: rótulo da cave vermelho abaixo do level, normal no level; olhar m
 test("viagem: faixa de level em volta do destino e alerta para quem está abaixo", async ({ page }) => {
   await enterGame(page, "paladin");
   const win = await openNpc(page, "coach_village", "Cocheiro Bastião");
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   const frontier = win.locator(".shop-row", { hasText: "Posto da Fronteira" }).getByTestId("travel-levels");
   await expect(frontier).toHaveText(/^Monstros em volta: lv \d+–\d+ · perigoso para o seu level$/);
   await expect(win.locator(".shop-row", { hasText: "Oficina dos Engenhos" }).getByTestId("travel-levels")).toHaveText("Sem monstros por perto");

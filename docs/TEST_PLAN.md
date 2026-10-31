@@ -35,7 +35,11 @@ Build de release local no Windows (`npm run app:build -- --bundles nsis` com a c
 
 E2E: o helper `openWithSession` gravava a sessão da conta em `sessionStorage`, mas desde o login salvo (27/10) o cliente lê
 `localStorage`; todos os E2E da `main` desde então estouravam o tempo ("cancelled"). Corrigido no helper (uma linha);
-`account.spec.ts` 2/2 localmente (10 s e 4 s).
+`account.spec.ts` 2/2 localmente (10 s e 4 s). Dois outros problemas pré-existentes corrigidos no E2E: desde a janela de NPC de
+aba única (29/10) os specs clicavam em `getByRole("tab")` que não existe mais — helpers `npcTab`/`expectNpcTabOpen`
+(clicam na aba se houver, senão aceitam o título de seção) em 12 specs; e `refine.spec.ts` clicava mais rápido que o
+limite de 4 refinos/s do servidor (excesso descartado em silêncio) — reclique no `expect.poll`. Localmente: guide,
+malha (7), montadora (9), mural e refine passam. Teto do job E2E na CI: 45 → 60 min.
 
 Manual (pendente, com o dono), instaladores da Release `app-v0.1.0` e update para `app-v0.1.1`:
 

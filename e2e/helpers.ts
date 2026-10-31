@@ -1,6 +1,6 @@
 // Utilitários dos testes E2E: contas/personagens novos pela API, entrar no mundo, chat/comandos de dev e leitura do
 // estado do jogo pela sonda window.__lq (WorldScene.installE2EProbe, ligada com ?e2e na URL).
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { E2E_NAMES } from "./names.ts";
 
 export type Vocation = "knight" | "paladin" | "sorcerer" | "druid";
@@ -301,4 +301,22 @@ export async function seenToast(page: Page, text: string, timeout = 15_000): Pro
     return hit;
   }, { timeout, message: `toast com "${text}"` }).not.toBe("");
   return hit;
+}
+
+/**
+ * Abre a aba `name` da janela de NPC. Desde 2026-10-29 uma janela com uma aba só não tem botão de aba: mostra o rótulo
+ * como título de seção (`.npc-section-title`) e o conteúdo já está aberto. Vale para os dois casos.
+ */
+export async function npcTab(win: Locator, name: string): Promise<void> {
+  const tab = win.getByRole("tab", { name });
+  const title = win.locator(".npc-section-title", { hasText: name });
+  await expect(tab.or(title)).toBeVisible();
+  if (await tab.count()) await tab.click();
+}
+
+/** A aba `name` está aberta: botão selecionado (várias abas) ou título de seção (aba única). */
+export async function expectNpcTabOpen(win: Locator, name: string): Promise<void> {
+  const tab = win.getByRole("tab", { name, selected: true });
+  const title = win.locator(".npc-section-title", { hasText: name });
+  await expect(tab.or(title)).toBeVisible();
 }

@@ -86,7 +86,7 @@ jobs:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
     # O último run do ciclo 8 levou 32 min (sem cache dos navegadores): folga para não virar vermelho por tempo.
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

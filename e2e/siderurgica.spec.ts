@@ -3,7 +3,7 @@
 // a pé (e por isso quem desloga lá volta lá); a porta de level com a saída sem level ao lado; um monstro do setor; o posto
 // avançado da Sala de Controle; o evento da segunda que chama o Golem do Convertedor; e as capturas de cada setor.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
 
 /** Coordenadas globais de expansion6.mjs e shared/data/npcs.ts (o servidor usa o tile ou o livre mais perto). */
 const MINERIO_ARRIVAL = { x: 24, y: 594 };
@@ -36,7 +36,7 @@ const zonesSeen = (page: Page) => page.evaluate(() => (window as any).__zones as
 
 async function travel(page: Page, npcId: string, npcName: string, dest: string, price: number) {
   const win = await openNpc(page, npcId, npcName);
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   const row = win.locator(".shop-row", { hasText: dest });
   await expect(row).toContainText(String(price));
   await row.getByRole("button", { name: "Viajar" }).click();
@@ -160,10 +160,10 @@ test("posto avançado: a Supervisora da Sala de Controle tem viagem (3 destinos)
   await teleport(page, 15, 634);
   await expect.poll(() => zoneFooter(page)).toBe("Sala de Controle");
   const win = await openNpc(page, "supervisora_controle", "Supervisora da Sala de Controle");
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   await expect(win.locator(".shop-row")).toHaveCount(3);
   for (const dest of ["Vila de Pedra Clara", "Estação do Minério", "Estação Central da Malha"]) await expect(win.locator(".shop-row", { hasText: dest })).toHaveCount(1);
-  await win.getByRole("tab", { name: "Depot" }).click();
+  await npcTab(win, "Depot");
   await expect(win.getByTestId("depot-search")).toBeVisible();
 });
 

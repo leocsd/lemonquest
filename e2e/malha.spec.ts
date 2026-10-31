@@ -3,7 +3,7 @@
 // alcançável do spawn e por isso quem desloga lá volta lá (e não no spawn); o Painel da Obra abre a aba "Na obra"
 // (sem token do ClickUp no E2E: estado sem notícias); a Cobra Listrada nasce no Pátio de Manobra.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
 
 /** Coordenadas de tools/mapgen/expansion4.mjs e shared/data/npcs.ts (o servidor usa o tile ou o livre mais perto). */
 const MALHA_ARRIVAL = { x: 60, y: 374 };
@@ -37,7 +37,7 @@ const zoneFooter = (page: Page) => page.locator(".minimap-zone-name").textConten
 
 async function travel(page: Page, npcId: string, npcName: string, dest: string) {
   const win = await openNpc(page, npcId, npcName);
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   const row = win.locator(".shop-row", { hasText: dest });
   await expect(row).toContainText(String(PRICE));
   await row.getByRole("button", { name: "Viajar" }).click();
@@ -123,9 +123,7 @@ test("portal oculto liga a Vila à Estação e a volta", async ({ page }) => {
 test("Painel da Obra mostra a aba Na obra", async ({ page }) => {
   await enterGame(page, "druid");
   const win = await openNpc(page, "painel_obra", "Painel da Obra");
-  const tab = win.getByRole("tab", { name: "Na obra" });
-  await expect(tab).toBeVisible();
-  await tab.click();
+  await npcTab(win, "Na obra");
   // O servidor E2E não tem LEMONQUEST_CLICKUP_TOKEN: o quadro responde offline (WorkTab.tsx).
   await expect(win).toContainText("O quadro está sem notícias da obra por enquanto.", { timeout: 10_000 });
   await snap(page, "malha-painel");
