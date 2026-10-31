@@ -1,5 +1,6 @@
 // Casca de desktop do The Lemon Quest. Spec: docs/superpowers/specs/2026-10-31-app-desktop-tauri-design.md.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod endereco;
 
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
