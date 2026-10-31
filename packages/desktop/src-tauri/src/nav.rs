@@ -3,6 +3,7 @@
 
 use url::Url;
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Destino {
     /// O jogo (mesma origem do servidor): carrega na janela.
     Dentro,
@@ -22,10 +23,11 @@ pub fn classificar(origem: &Url, destino: &Url) -> Destino {
     }
 }
 
-/// A página de boot é a `index.html` servida pelo app (`tauri://localhost`, `http://tauri.localhost` no Windows ou o
-/// dev server em `localhost`), nunca a `index.html` do servidor do jogo.
+/// A página de boot é a página local do app (`tauri://localhost`, `http://tauri.localhost` no Windows ou o dev server
+/// do Tauri em `127.0.0.1`/`localhost`) servida na raiz ou como `index.html`; nunca uma página do servidor do jogo
+/// nem de fora. No `tauri dev` a janela carrega a boot como `http://127.0.0.1:1430/` (raiz), por isso o `/` conta.
 pub fn e_boot(origem: &Url, url: &Url) -> bool {
-    !mesma_origem(origem, url) && url.path() == "/index.html"
+    !mesma_origem(origem, url) && e_local(url) && matches!(url.path(), "/" | "/index.html")
 }
 
 /// Só endereços web vão para o navegador do sistema: qualquer outro esquema (`file:`, `ms-msdt:`, protocolos
@@ -83,17 +85,27 @@ mod testes {
     }
 
     #[test]
-    fn boot_e_a_index_fora_da_origem() {
-        assert!(e_boot(&u(ORIGEM), &u("tauri://localhost/index.html")));
-        assert!(e_boot(&u(ORIGEM), &u("http://tauri.localhost/index.html")));
-        assert!(e_boot(&u("http://localhost:2567/"), &u("http://localhost:1430/index.html")));
+    fn boot_e_pagina_local_na_raiz_ou_index_fora_da_origem() {
+        for d in ["tauri://localhost/index.html", "tauri://localhost/", "http://tauri.localhost/index.html", "http://tauri.localhost/", "http://127.0.0.1:1430/", "http://localhost:1430/index.html"] {
+            assert!(e_boot(&u(ORIGEM), &u(d)), "{d}");
+        }
+        // servidor em localhost e dev server do Tauri em outra porta ao mesmo tempo
+        assert!(e_boot(&u("http://localhost:2567/"), &u("http://127.0.0.1:1430/")));
     }
 
     #[test]
     fn jogo_nunca_e_boot() {
         assert!(!e_boot(&u(ORIGEM), &u(ORIGEM)));
         assert!(!e_boot(&u(ORIGEM), &u("http://embeddo-geral-00:2567/index.html")));
+        assert!(!e_boot(&u("http://localhost:2567/"), &u("http://localhost:2567/")));
         assert!(!e_boot(&u("http://localhost:2567/"), &u("http://localhost:2567/index.html")));
+    }
+
+    #[test]
+    fn pagina_de_fora_ou_outro_caminho_nao_e_boot() {
+        assert!(!e_boot(&u(ORIGEM), &u("https://qualquer.site/index.html")));
+        assert!(!e_boot(&u(ORIGEM), &u("https://qualquer.site/")));
+        assert!(!e_boot(&u(ORIGEM), &u("http://127.0.0.1:1430/outra.html")));
     }
 
     #[test]
