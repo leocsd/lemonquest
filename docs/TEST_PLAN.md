@@ -33,6 +33,10 @@ carregava como `/` (não `/index.html`), então o laço nunca começava.
 Build de release local no Windows (`npm run app:build -- --bundles nsis` com a chave): `The Lemon Quest_0.1.0_x64-setup.exe`
 (1,8 MiB) e o `.sig` do updater gerados em 5m43s; NSIS 3.13 baixado pela CLI. Caminho de release provado antes da 1ª tag.
 
+E2E: o helper `openWithSession` gravava a sessão da conta em `sessionStorage`, mas desde o login salvo (27/10) o cliente lê
+`localStorage`; todos os E2E da `main` desde então estouravam o tempo ("cancelled"). Corrigido no helper (uma linha);
+`account.spec.ts` 2/2 localmente (10 s e 4 s).
+
 Manual (pendente, com o dono), instaladores da Release `app-v0.1.0` e update para `app-v0.1.1`:
 
 | Sistema | Instalar/abrir | Boot → login | Teclas mortas (F5/F12/Ctrl+F/Ctrl+P/Ctrl+W) | Teclas do jogo | Wiki/Ranking fora | Janela lembrada | Servidor fora | Update 0.1.0 → 0.1.1 |

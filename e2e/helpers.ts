@@ -50,7 +50,7 @@ export async function createPlayer(request: APIRequestContext, vocation: Vocatio
 /** Abre o jogo já com a sessão da conta (vai direto à lista de personagens). */
 export async function openWithSession(page: Page, p: Player): Promise<void> {
   await page.addInitScript(([s]) => {
-    if (!sessionStorage.getItem("lemonquest.accountSession")) sessionStorage.setItem("lemonquest.accountSession", s!);
+    if (!localStorage.getItem("lemonquest.accountSession")) localStorage.setItem("lemonquest.accountSession", s!);
   }, [p.session]);
   await page.goto("/?e2e");
 }
