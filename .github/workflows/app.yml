@@ -1,0 +1,73 @@
+name: App de desktop (release)
+
+# Tag app-vX.Y.Z → builda Windows (NSIS), macOS (DMG universal) e Linux (AppImage), publica a Release com os
+# instaladores, as assinaturas do updater e o latest.json que o app consulta. A versão vem de
+# packages/desktop/package.json e tem de bater com a tag.
+on:
+  push:
+    tags: ["app-v*"]
+
+jobs:
+  versao:
+    name: Tag bate com a versão do pacote
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          tag="${GITHUB_REF_NAME#app-v}"
+          pkg="$(node -p "require('./packages/desktop/package.json').version")"
+          [ "$tag" = "$pkg" ] || { echo "tag app-v$tag não bate com packages/desktop/package.json ($pkg)"; exit 1; }
+
+  release:
+    name: Build e Release (${{ matrix.platform }})
+    needs: versao
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin --bundles app,dmg
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: --bundles appimage
+            targets: ""
+          - platform: windows-latest
+            args: --bundles nsis
+            targets: ""
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+      - name: Dependências do WebKitGTK (Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/desktop/src-tauri
+      - run: npm ci --no-audit --no-fund
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: packages/desktop
+          tagName: app-v__VERSION__
+          releaseName: "App v__VERSION__"
+          releaseBody: "Instalador do app de desktop do The Lemon Quest. Windows: *-setup.exe · Mac: *.dmg · Linux: *.AppImage. O app abre o jogo do servidor do escritório e se atualiza sozinho."
+          releaseDraft: false
+          prerelease: false
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: ${{ matrix.args }}
