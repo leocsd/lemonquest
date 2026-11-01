@@ -15,6 +15,25 @@ perto" e "com o bot, tira o auto regen das poções".
 - **Alvo sempre o mais perto**: o ataque automático (F8) e o Estagiário procuram também com alvo e trocam para um monstro
   estritamente mais perto (empate fica; mirando jogador, não troca).
 - **Sem poção automática do cliente** (botão ⚗ e o painel saíram): a cura automática é a do Estagiário.
+- **Botão Aplicar** (dono: "preciso de um botão aplicar… o número fica voltando toda hora"): cura, ataque, buffs, reserva
+  de mana e alarmes viram um rascunho local (`ui/estagiario/rascunho.ts`) com a barra "Alterações não aplicadas" +
+  Aplicar/Descartar; os números aceitam digitação livre e só vão para a faixa no Aplicar. Causa do "voltando": cada
+  edição ia ao servidor e o `value` controlado do campo era redesenhado pelo eco e pelo estado de 10 s com a rota rodando.
+- **Correções da análise** (2026-11-01): poção que o level/vocação não deixa beber não trava mais a cura nem os buffs
+  (`InventorySystem.canDrink`; o alarme conta só as que dá para beber) e ação de cura recusada tenta a regra seguinte;
+  ondas viram para o alvo antes de sair e contam os bichos nos tiles da onda; área no alvo conta em volta do alvo, sem
+  bonecos nem monstros na PZ, pelos tiles (`monsterAt`); rota longe demais (> 40 tiles) não liga, gravação que termina
+  longe do começo avisa da volta e 5 pontos travados seguidos desligam a rota; dois alvos inalcançáveis se alternando não
+  zeram mais o relógio de "luta sem progresso" (os dois são ignorados); ponto ocupado conta ao lado; Aplicar só
+  reposiciona a rota se as rotas mudaram; alarme de jogador ignora o grupo e só rearma após 60 s fora; na gravação, só
+  portal de verdade vira ponto de portal (Investida e /tp não); Investida (lv 10) no ataque recomendado do cavaleiro;
+  pausado à mão, só escolhe alvo com o Ataque ligado pelo jogador.
+- **Acompanhante na velocidade do dono** (dono: "mesma velocidade do char atual… faz ele parar de ficar teleportando"):
+  `Monster.stepBaseMs` = `stepDuration` do dono (level e pressa) e segue a partir de 2 tiles (encosta ao lado); o
+  teleporte para o lado do dono ficou só para portal/escada/teleporte.
+- **Janela**: o cabeçalho mostra o ponto da rota ("ponto 3/12") e o motivo de não agir (`EstagiarioEstadoMsg.motivo`:
+  sem alvo, reserva de mana, alvo inalcançável, ponto travado, mirando jogador, pausado); a aba Ataque diz onde a regra
+  conta ("em volta de você" / "do alvo" / "na onda"); gravando, lembra de terminar perto do começo.
 
 ## [Não lançado] — 2026-11-01 · Estagiário (bot de caça dentro do jogo)
 

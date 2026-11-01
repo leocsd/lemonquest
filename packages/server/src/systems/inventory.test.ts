@@ -322,6 +322,21 @@ describe("inventory: potions", () => {
     expect(w.inv.usePotion(p, "mana")).toBe(true);
   });
 
+  it("canDrink e countPotions (Estagiário): só contam as poções que o level e a vocação deixam beber", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { level: 10, hp: 10, maxHp: 500 });
+    w.inv.addItem(p, makeItem("hp_pot_huge", 20)); // lv 30: ainda não bebe
+    expect(w.inv.canDrink(p, "hp")).toBe(false);
+    expect(w.inv.countPotions(p, "hp")).toBe(0);
+    expect(w.inv.usePotion(p, "hp", { silent: true })).toBe(false);
+    w.inv.addItem(p, makeItem("hp_pot", 3));
+    expect(w.inv.canDrink(p, "hp")).toBe(true);
+    expect(w.inv.countPotions(p, "hp")).toBe(3);
+    expect(w.inv.canDrink(p, "mana")).toBe(false);
+    p.level = 30;
+    expect(w.inv.countPotions(p, "hp")).toBe(23);
+  });
+
   it("discard destroys the item", () => {
     const w = invWorld();
     const p = w.mk();

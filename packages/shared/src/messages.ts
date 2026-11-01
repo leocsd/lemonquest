@@ -117,6 +117,10 @@ export type EstagiarioPausa = "" | "manual" | "npc";
 export interface EstagiarioEstadoMsg {
   config: EstagiarioConfig; cura: boolean; ataque: boolean; buffs: boolean; rota: string | null;
   pausa: EstagiarioPausa; gravando: boolean; pontosGravados: number; turnoMs: number;
+  /** Por que o Estagiário não está agindo agora, curto e em português ("" = tudo certo): "sem alvo por perto" etc. */
+  motivo: string;
+  /** Ponto da rota para onde está andando (i a partir de 0, de n pontos); null sem rota. */
+  ponto: { i: number; n: number } | null;
 }
 /** S2C.EstagiarioAlarme: aviso para o jogador (som, toast e título da aba). */
 export interface EstagiarioAlarmeMsg { tipo: AlarmeTipo; texto: string }

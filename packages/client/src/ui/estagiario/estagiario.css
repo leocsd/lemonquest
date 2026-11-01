@@ -72,3 +72,18 @@
 
 .est-alarm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 3px 4px; }
 .est-alarm .est-switch { min-width: 172px; }
+
+/* Barra do rascunho: aparece com alterações ainda não aplicadas (Aplicar manda, Descartar volta ao do servidor). */
+.est-pend {
+  display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 12px; color: var(--hud-text);
+  border-top: 1px solid var(--hud-line); background: rgba(255, 212, 71, 0.07);
+}
+.est-pend > span { flex: 1 1 auto; color: var(--hud-gold); }
+.est-pend .est-btn { align-self: center; }
+/* color com !important: o "#ui button { color: inherit }" (hud.css) vence a classe. */
+.est-pend .est-aplicar { color: #1b2030 !important; font-weight: 600; background: var(--hud-gold); border-color: var(--hud-gold); }
+.est-pend .est-aplicar:hover:not(:disabled) { background: #ffe27a; }
+
+/* Cabeçalho: ponto atual da rota e o motivo de não estar agindo (servidor: EstagiarioEstadoMsg.motivo/ponto). */
+.est-ponto { color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; }
+.est-motivo { font-size: 11px; color: #ffcf7a; font-style: italic; }

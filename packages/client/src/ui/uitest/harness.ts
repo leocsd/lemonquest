@@ -118,6 +118,7 @@ export function startUiTest(): void {
   const est: EstagiarioEstadoMsg = {
     config: { ...estagiarioPadrao(voc), rotas: [{ nome: "Ratos do esgoto", pontos: [{ x: 10, y: 10 }, { x: 14, y: 10 }, { x: 14, y: 16 }] }] },
     cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 95 * 60_000,
+    motivo: "", ponto: null,
   };
   let gravTimer = 0;
   const pushEst = () => setTimeout(() => estagiarioEstado(structuredClone(est)), 40);
@@ -212,8 +213,11 @@ export function startUiTest(): void {
         if (typeof t.cura === "boolean") est.cura = t.cura;
         if (typeof t.ataque === "boolean") est.ataque = t.ataque;
         if (typeof t.buffs === "boolean") est.buffs = t.buffs;
-        if (t.rota === null) est.rota = null;
-        else if (typeof t.rota === "string" && est.config.rotas.some((r) => r.nome === t.rota)) { est.rota = t.rota; est.ataque = true; est.buffs = true; }
+        if (t.rota === null) { est.rota = null; est.ponto = null; est.motivo = ""; }
+        else if (typeof t.rota === "string" && est.config.rotas.some((r) => r.nome === t.rota)) {
+          est.rota = t.rota; est.ataque = true; est.buffs = true;
+          est.ponto = { i: 0, n: est.config.rotas.find((r) => r.nome === t.rota)!.pontos.length }; est.motivo = "sem alvo por perto";
+        }
         me.bot = est.rota !== null;
         publishMe(); pushEst(); return;
       }

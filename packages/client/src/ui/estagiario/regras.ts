@@ -1,6 +1,8 @@
 // Edição pura da configuração do Estagiário (sem DOM nem rede, para testar no node: store.test.ts). A janela só junta os
 // pedaços; o servidor sanitiza tudo de novo (shared/estagiario.ts).
-import { NOME_ROTA_MAX, REGRAS_MAX, type AlarmeTipo, type EstagiarioConfig, type RegraAtaque, type RegraBuff, type RegraCura } from "@lemonquest/shared";
+import {
+  NOME_ROTA_MAX, REGRAS_MAX, spellDef, type AlarmeTipo, type EstagiarioConfig, type RegraAtaque, type RegraBuff, type RegraCura,
+} from "@lemonquest/shared";
 
 /** Regra nova de cura (vida abaixo de 50% → poção de vida), no fim; com REGRAS_MAX regras, a mesma lista. */
 export function addRegraCura(l: readonly RegraCura[]): readonly RegraCura[] {
@@ -78,3 +80,15 @@ export function turnoMostrado(
   if (e.rota !== null && e.pausa === "") return Math.max(0, e.turnoMs - dt);
   return Math.min(max, e.turnoMs + dt * recarga);
 }
+
+/**
+ * Onde a regra de ataque conta os bichos (como o servidor conta): a área no alvo em volta do alvo, a onda nos tiles
+ * dela virada para o alvo e o resto (área em volta, alvo único, família, grupo) em volta do jogador.
+ */
+export function ondeConta(magia: string): string {
+  const t = spellDef(magia)?.target;
+  return t === "area_target" ? "em volta do alvo" : t === "wave" ? "na onda virada para o alvo" : "em volta de você";
+}
+
+/** Ponto da rota em que o Estagiário está ("ponto 3/12"); sem rota, "". */
+export const fmtPonto = (p: { i: number; n: number } | null): string => (p ? `ponto ${p.i + 1}/${p.n}` : "");

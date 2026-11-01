@@ -1,14 +1,14 @@
 // Janela "Estagiário" (bot de caça; quem decide e age é o servidor, aqui só a configuração e o estado). Cabeçalho com os
-// interruptores de Cura, Ataque e Buffs, a rota rodando e o turno restante; cinco abas: Cura, Ataque, Buffs, Rota e Alarmes. Toda
-// edição vai por salvarConfig (junta os cliques numa mensagem só); ligar/desligar e gravar vão na hora. Abre pelo 🤖 do
-// trilho. Molde: items/LootFilterWindow.tsx.
+// interruptores de Cura, Ataque e Buffs, a rota rodando e o turno restante; cinco abas: Cura, Ataque, Buffs, Rota e Alarmes. Cura,
+// ataque, buffs, reserva de mana e alarmes mexem num rascunho (store.ts rascunhoStore) que só vai no "Aplicar"; ligar/desligar,
+// gravar, renomear e apagar rota vão na hora. Abre pelo 🤖 do trilho. Molde: items/LootFilterWindow.tsx.
 import { PixelIcon } from "../hud/icons.tsx";
 import {
   ALARMES, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao, buffsRecomendados,
   curaRecomendada, spellDef, spellsFor,
   type AlarmeTipo, type CuraAcao, type EstagiarioConfig, type EstagiarioEstadoMsg, type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
 } from "@lemonquest/shared";
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { groupsStore } from "../hotkeys/hotkeys.ts";
 import { itemsFor, type SpellItem } from "../hotkeys/spellsModel.ts";
 import { useStore } from "../hud/store.ts";
@@ -17,8 +17,9 @@ import { useWindowDrag } from "../hud/useWindowDrag.ts";
 import { meStore } from "../hud/world.ts";
 import { bindOverlay } from "../overlays.ts";
 import {
-  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, apagarRota, closeEstagiario, estadoRecebidoEm, estagiarioOpen, estagiarioStore,
-  fmtTurno, gravar, ligar, moverRegra, removerRegra, renomearRota, salvarConfig, setRegra, turnoMostrado,
+  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, editarRascunho,
+  estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, ondeConta, rascunhoStore,
+  rascunhoSujo, removerRegra, renomearRota, salvarConfig, setRegra, turnoMostrado,
 } from "./store.ts";
 import "./estagiario.css";
 
@@ -43,11 +44,6 @@ const ALARME_LABEL: Record<AlarmeTipo, { nome: string; quando: string }> = {
 
 const PAUSA_LABEL: Record<string, string> = { manual: "pausada: você se mexeu", npc: "pausada: conversa com NPC" };
 
-/** Número de um campo, limitado à faixa (campo vazio ou inválido = `dflt`). */
-const num = (e: Event, lo: number, hi: number, dflt: number): number => {
-  const v = Math.round(Number((e.currentTarget as HTMLInputElement).value));
-  return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : dflt;
-};
 const val = (e: Event) => (e.currentTarget as HTMLInputElement | HTMLSelectElement).value;
 
 export function EstagiarioWindow() {
@@ -58,6 +54,7 @@ export function EstagiarioWindow() {
 
 function EstagiarioDialog() {
   const e = useStore(estagiarioStore);
+  const r = useStore(rascunhoStore);
   const me = useStore(meStore);
   const [aba, setAba] = useState<Aba>("cura");
   const drag = useWindowDrag("estagiario");
@@ -69,7 +66,7 @@ function EstagiarioDialog() {
         <span class="est-title"><PixelIcon name="cracha" size={12} /> Estagiário</span>
         <button class="win-close" onClick={closeEstagiario} data-tip="Fechar" data-tip-sub="Esc" aria-label="Fechar">×</button>
       </div>
-      {!e || !me ? <div class="est-empty">Esperando o servidor…</div> : (
+      {!e || !r || !me ? <div class="est-empty">Esperando o servidor…</div> : (
         <>
           <Cabecalho e={e} />
           <div class="est-tabs" role="tablist">
@@ -81,12 +78,19 @@ function EstagiarioDialog() {
             ))}
           </div>
           <div class="est-body">
-            {aba === "cura" && <AbaCura c={e.config} voc={me.vocation} />}
-            {aba === "ataque" && <AbaAtaque c={e.config} voc={me.vocation} level={me.level} />}
-            {aba === "buffs" && <AbaBuffs c={e.config} voc={me.vocation} level={me.level} />}
+            {aba === "cura" && <AbaCura c={{ ...e.config, ...r }} voc={me.vocation} />}
+            {aba === "ataque" && <AbaAtaque c={{ ...e.config, ...r }} voc={me.vocation} level={me.level} />}
+            {aba === "buffs" && <AbaBuffs c={{ ...e.config, ...r }} voc={me.vocation} level={me.level} />}
             {aba === "rota" && <AbaRota e={e} />}
-            {aba === "alarmes" && <AbaAlarmes c={e.config} />}
+            {aba === "alarmes" && <AbaAlarmes c={{ ...e.config, ...r }} />}
           </div>
+          {rascunhoSujo(r, e.config) && (
+            <div class="est-pend" role="status">
+              <span>Alterações não aplicadas</span>
+              <button class="est-btn" onClick={descartarRascunho} data-testid="est-descartar">Descartar</button>
+              <button class="est-btn est-aplicar" onClick={aplicarRascunho} data-testid="est-aplicar">Aplicar</button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -115,7 +119,10 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
       <div class="est-status">
         <span class={`est-rota-now${pelaRota ? " on" : ""}`}>
           {pelaRota ? <>Rota <b>{e.rota}</b>{e.pausa ? ` · ${PAUSA_LABEL[e.pausa] ?? "pausada"}` : " · rodando"}</> : e.gravando ? "Gravando rota…" : "Sem rota"}
+          {pelaRota && e.ponto && <span class="est-ponto" data-testid="est-ponto"> · {fmtPonto(e.ponto)}</span>}
         </span>
+        {/* Por que não está agindo agora (o pausado já aparece ao lado da rota). */}
+        {e.motivo && !e.motivo.startsWith("pausado") && <span class="est-motivo" role="status" data-testid="est-motivo">{e.motivo}</span>}
         <span class="est-turno" data-tip="Turno de rota de caça" data-tip-sub="Gasta só com a rota rodando; recarrega 5 min por hora (máx. 2 h)">
           Turno {fmtTurno(turno)}
         </span>
@@ -137,6 +144,26 @@ function Interruptor({ label, on, disabled, hint, onClick, testid }: { label: st
   );
 }
 
+/**
+ * Campo de número do rascunho. Guarda o texto digitado (vazio, "0", "150"...) sem limitar nem trocar a cada tecla: o
+ * `value` do <input> é esse texto, então nenhum redesenho (estado do servidor, outro campo) apaga a digitação. O número
+ * vai cru ao rascunho (NaN se inválido) e a faixa só vale no Aplicar; quando o valor muda por fora (Aplicar com o número
+ * limitado, Descartar, recomendado), o texto passa a mostrá-lo.
+ */
+function CampoNumero({ label, lim, value, onValor, step }: { label: string; lim: { lo: number; hi: number }; value: number; onValor: (v: number) => void; step?: number }) {
+  const [texto, setTexto] = useState(() => (Number.isFinite(value) ? String(value) : ""));
+  // Layout (antes de pintar): sem um quadro com o texto velho depois do Aplicar/Descartar.
+  useLayoutEffect(() => {
+    if (!Object.is(lerNumero(texto), value)) setTexto(Number.isFinite(value) ? String(value) : "");
+  }, [value]);
+  return (
+    <input
+      class="est-num" type="number" min={lim.lo} max={lim.hi} step={step} aria-label={label} value={texto}
+      onInput={(ev) => { const t = val(ev); setTexto(t); onValor(lerNumero(t)); }}
+    />
+  );
+}
+
 // ---------- Cura ----------
 
 /** Valor do select de ação: "pocao:hp" | "pocao:mana" | "magia:<id>". */
@@ -145,7 +172,7 @@ const acaoDe = (k: string): CuraAcao => (k.startsWith("magia:") ? { magia: k.sli
 
 function AbaCura({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
   const curas = useMemo(() => spellsFor(voc).filter((s) => s.heal), [voc]);
-  const set = (cura: readonly RegraCura[]) => salvarConfig({ ...c, cura: [...cura] });
+  const set = (cura: readonly RegraCura[]) => editarRascunho({ cura: [...cura] });
   return (
     <div class="est-pane">
       <p class="est-note">Avaliadas de cima para baixo a cada instante: a primeira que vale e está pronta sai. Respeita as recargas de magia e poção.</p>
@@ -159,7 +186,7 @@ function AbaCura({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
               <option value="mana">Mana</option>
             </select>
             <span>abaixo de</span>
-            <input class="est-num" type="number" min={1} max={99} aria-label="Porcentagem" value={r.abaixoDe} onChange={(e) => set(setRegra(c.cura, i, { abaixoDe: num(e, 1, 99, r.abaixoDe) }))} />
+            <CampoNumero label="Porcentagem" lim={LIMITES.abaixoDe} value={r.abaixoDe} onValor={(v) => set(setRegra(c.cura, i, { abaixoDe: v }))} />
             <span>% →</span>
             <select class="est-sel est-grow" aria-label="Ação" value={acaoKey(r.acao)} onChange={(e) => set(setRegra(c.cura, i, { acao: acaoDe(val(e)) }))}>
               <option value="pocao:hp">Poção de vida</option>
@@ -211,7 +238,7 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
   const todas = opcoes.flatMap((g) => g.items);
   const [nova, setNova] = useState("");
   const escolhida = todas.some((s) => s.id === nova) ? nova : todas[0]?.id ?? "";
-  const set = (ataque: readonly RegraAtaque[]) => salvarConfig({ ...c, ataque: [...ataque] });
+  const set = (ataque: readonly RegraAtaque[]) => editarRascunho({ ataque: [...ataque] });
   const nome = (id: string) => todas.find((s) => s.id === id)?.name ?? spellDef(id)?.name ?? id;
   const opts = (atual?: string) => (
     <>
@@ -226,8 +253,9 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
   return (
     <div class="est-pane">
       <p class="est-note">
-        Alvo: o monstro mais próximo à vista (nunca jogador). Regras de cima para baixo: conta os monstros perto de você e conjura a
-        primeira que bate e está pronta. Família e grupo escolhem a magia pronta como as teclas inteligentes.
+        Alvo: o monstro mais próximo à vista (nunca jogador). Regras de cima para baixo: conta os monstros em volta de você (em volta
+        do alvo nas magias de área no alvo; nos tiles da onda virada para o alvo nas ondas) e conjura a primeira que bate e está pronta.
+        Família e grupo escolhem a magia pronta como as teclas inteligentes.
       </p>
       {c.ataque.length === 0 && <div class="est-empty">Nenhuma regra: só o ataque básico.</div>}
       <ol class="est-rules">
@@ -235,10 +263,10 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
           <li key={i} class="est-rule">
             <span class="est-idx">{i + 1}</span>
             <span>≥</span>
-            <input class="est-num" type="number" min={1} max={8} aria-label="Monstros" value={r.minBichos} onChange={(e) => set(setRegra(c.ataque, i, { minBichos: num(e, 1, 8, r.minBichos) }))} />
+            <CampoNumero label="Monstros" lim={LIMITES.minBichos} value={r.minBichos} onValor={(v) => set(setRegra(c.ataque, i, { minBichos: v }))} />
             <span>bichos a até</span>
-            <input class="est-num" type="number" min={1} max={4} aria-label="Raio em tiles" value={r.raio} onChange={(e) => set(setRegra(c.ataque, i, { raio: num(e, 1, 4, r.raio) }))} />
-            <span>tiles →</span>
+            <CampoNumero label="Raio em tiles" lim={LIMITES.raio} value={r.raio} onValor={(v) => set(setRegra(c.ataque, i, { raio: v }))} />
+            <span>tiles {ondeConta(r.magia)} →</span>
             <select class="est-sel est-grow" aria-label="Magia" value={r.magia} onChange={(e) => set(setRegra(c.ataque, i, { magia: val(e) }))}>
               {opts(r.magia)}
             </select>
@@ -255,7 +283,7 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
       <button class="est-btn" onClick={() => set(ataqueRecomendado(voc))} data-tip="Recomendado" data-tip-sub="Uma regra por magia de área (com o raio dela) e a tecla de alvo da vocação no fim" data-testid="est-ataque-recomendado">Usar recomendado</button>
       <label class="est-row">
         <span>Reserva de mana: não conjura ataque abaixo de</span>
-        <input class="est-num" type="number" min={0} max={90} step={5} aria-label="Reserva de mana" value={c.reservaMana} onChange={(e) => salvarConfig({ ...c, reservaMana: num(e, 0, 90, c.reservaMana) })} />
+        <CampoNumero label="Reserva de mana" lim={LIMITES.reservaMana} step={5} value={c.reservaMana} onValor={(v) => editarRascunho({ reservaMana: v })} />
         <span>% de mana</span>
       </label>
     </div>
@@ -269,7 +297,7 @@ function AbaBuffs({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; level
   const livres = opcoes.filter((s) => !c.buffs.some((r) => r.magia === s.id));
   const [nova, setNova] = useState("");
   const escolhida = livres.some((s) => s.id === nova) ? nova : livres[0]?.id ?? "";
-  const set = (buffs: readonly RegraBuff[]) => salvarConfig({ ...c, buffs: [...buffs] });
+  const set = (buffs: readonly RegraBuff[]) => editarRascunho({ buffs: [...buffs] });
   const rotulo = (id: string) => {
     const s = spellDef(id);
     return s ? `${s.name}${s.level > level ? ` (lv ${s.level})` : ""}` : id;
@@ -370,6 +398,7 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
         <div class="est-rec">
           <span class="est-rec-dot" aria-hidden="true" />
           <span>Gravando… {e.pontosGravados} {e.pontosGravados === 1 ? "ponto" : "pontos"}</span>
+          <span class="est-note">termine perto de onde começou (a rota é um circuito)</span>
           {nome === null ? (
             <button class="est-btn" onClick={() => { setNome(""); setErro(""); }} data-testid="est-parar">Parar e salvar</button>
           ) : (
@@ -416,12 +445,12 @@ function AbaAlarmes({ c }: { c: EstagiarioConfig }) {
           const on = t === "morte" || c.alarmes[t] !== false;
           return (
             <li key={t} class="est-alarm">
-              <Interruptor label={ALARME_LABEL[t].nome} on={on} disabled={t === "morte"} onClick={() => salvarConfig(alternarAlarme(c, t))} testid={`est-alarme-${t}`} />
+              <Interruptor label={ALARME_LABEL[t].nome} on={on} disabled={t === "morte"} onClick={() => editarRascunho({ alarmes: alternarAlarme(c, t).alarmes })} testid={`est-alarme-${t}`} />
               <span class="est-note">{ALARME_LABEL[t].quando}</span>
               {t === "vidaBaixa" && (
                 <label class="est-inline">
                   abaixo de
-                  <input class="est-num" type="number" min={1} max={99} aria-label="Vida do alarme" value={c.vidaAlarme} onChange={(e) => salvarConfig({ ...c, vidaAlarme: num(e, 1, 99, c.vidaAlarme) })} />
+                  <CampoNumero label="Vida do alarme" lim={LIMITES.vidaAlarme} value={c.vidaAlarme} onValor={(v) => editarRascunho({ vidaAlarme: v })} />
                   %
                 </label>
               )}
