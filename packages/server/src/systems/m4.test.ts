@@ -480,17 +480,17 @@ describe("fight modes", () => {
     expect(cheb(c.p.x, c.p.y, c.m.s.x, c.m.s.y)).toBe(1);
   });
 
-  it("ataque automático no modo Seguir procura até AUTO_SEEK_DIST (8) tiles; além disso, não", () => {
+  it("ataque automático no modo Seguir procura até AUTO_SEEK_DIST (12) tiles; além disso, não", () => {
     const c = chaseWorld(1);
     c.p.targetId = "";
     c.fight.onFightMode(c.p, { stance: "balanced", chase: true, auto: true });
-    c.p.x = 11; // 9 tiles do monstro (20,10)
+    c.p.x = 7; // 13 tiles do monstro (20,10)
     c.fight.tick(c.w.now(), c.w.players.values());
     expect(c.p.targetId).toBe("");
-    c.p.x = 12; // 8 tiles
+    c.p.x = 8; // 12 tiles
     c.w.run(500, c.step);
     expect(c.p.targetId).toBe(c.m.s.id);
-    expect(AUTO_SEEK_DIST).toBe(8);
+    expect(AUTO_SEEK_DIST).toBe(12);
   });
 
   it("ataque automático parado (seguir desligado) só pega o que já está ao alcance", () => {
