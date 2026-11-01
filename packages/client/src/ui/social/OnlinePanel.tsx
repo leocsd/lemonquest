@@ -63,7 +63,7 @@ function OnlineRow({ e, s }: { e: OnlineEntry; s: { inParty: boolean; leader: bo
     <li class={`online-row${e.friend ? " friend" : ""}${e.party ? " party" : ""}${e.away ? " away" : ""}`} data-online={e.name}>
       <img class="online-face" src={v.faceset} alt="" draggable={false} title={v.label} />
       <span class="online-main" data-tip={e.name} data-tip-sub={onlineTip(e, v.label)}>
-        <span class="online-name" style={{ color: v.color }}>{e.name}</span>
+        <span class="online-name" style={{ color: v.color }}>{e.bot && <span title="Estagiário caçando (bot)">🤖 </span>}{e.name}</span>
         <span class="online-sub">{onlineLine(e)}</span>
       </span>
       <span class="online-actions">

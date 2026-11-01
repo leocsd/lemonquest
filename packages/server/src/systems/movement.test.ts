@@ -371,6 +371,20 @@ describe("MovementSystem — passo recusado (bump)", () => {
   });
 });
 
+describe("MovementSystem — bloqueio por quem anda (acompanhante do Estagiário)", () => {
+  it("setExtraBlocker recebe o id de quem anda: o dono passa pelo tile do próprio acompanhante, outro jogador não", () => {
+    const t = setup();
+    const dono = t.add(player("dono", 2, 2));
+    const outro = t.add(player("outro", 2, 4));
+    // Acompanhante do "dono" em (3,2) e em (3,4): só bloqueia quem não é o dono.
+    t.sys.setExtraBlocker((x, y, id) => x === 3 && (y === 2 || y === 4) && id !== "dono");
+    t.sys.onMove(dono, { dir: Dir.E, seq: 1 });
+    expect(dono.x).toBe(3);
+    t.sys.onMove(outro, { dir: Dir.E, seq: 1 });
+    expect(outro.x).toBe(2);
+  });
+});
+
 describe("MovementSystem — passo devido ao soltar ou trocar de direção (MoveMsg.at)", () => {
   it("soltar antes do instante do passo: se a predição já está no próximo tile, o servidor completa esse passo", () => {
     const t = setup();

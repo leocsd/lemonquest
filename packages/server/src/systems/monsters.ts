@@ -299,13 +299,30 @@ export class MonsterManager {
     return best;
   }
 
-  /** Alvo atacável por um monstro selvagem: jogador online, vivo e fora da PZ, ou invocação de jogador viva. */
+  /**
+   * Alvo atacável por um monstro selvagem: jogador online, vivo e fora da PZ, ou invocação de jogador viva (o
+   * acompanhante do Estagiário não: ele é só visual, não luta nem apanha).
+   */
   validTarget(id: string): CreatureState | undefined {
     if (!id) return undefined;
     const p = this.getPlayer(id);
     if (p) return p.hp > 0 && !this.inPz(p.x, p.y) ? p : undefined;
     const m = this.list.get(id);
-    return m && m.s.ownerId && m.s.hp > 0 ? m.s : undefined;
+    return m && m.s.ownerId && m.s.hp > 0 && !this.isCompanion(m) ? m.s : undefined;
+  }
+
+  /** Acompanhante visível do Estagiário (MonsterDef.companion): fora de toda a luta. */
+  isCompanion(m: Monster): boolean {
+    return !!m.def.companion;
+  }
+
+  /**
+   * Há monstro em (x,y) que impede o jogador `playerId` de entrar? Todos, exceto o acompanhante dele mesmo (o dono passa
+   * por cima; os outros jogadores, não).
+   */
+  blocksPlayer(x: number, y: number, playerId: string): boolean {
+    const m = this.monsterAt(x, y);
+    return !!m && !(this.isCompanion(m) && m.s.ownerId === playerId);
   }
 
   /** O monstro pode mirar este id? (coliseu: só membros da partida e suas invocações). */
@@ -616,6 +633,7 @@ export class MonsterManager {
    */
   onDamaged(m: Monster, attackerId: string, amount: number, now: number, creditId = attackerId): void {
     if (m.def.stationary) return; // boneco de treino: não revida, não dá crédito
+    if (this.isCompanion(m)) return; // acompanhante do Estagiário: não entra na luta
     m.hurtAt = now;
     if (amount > 0 && creditId) {
       m.damageBy.set(creditId, (m.damageBy.get(creditId) ?? 0) + amount);
@@ -653,6 +671,7 @@ export class MonsterManager {
     // Um grito por família a cada HELP_SHOUT_MS: uma área que acerta 12 do bando não gera 12 gritos/efeitos.
     const last = this.lastShoutAt.get(family);
     if (last === undefined || now - last >= HELP_SHOUT_MS) { this.lastShoutAt.set(family, now); this.onCallHelp?.(m, now); }
+    // validTarget já recusa o acompanhante do Estagiário: o bando nunca é chamado contra ele.
     const target = this.validTarget(attackerId) ?? this.validTarget(m.s.targetId);
     if (!target) return 0;
     let n = 0;

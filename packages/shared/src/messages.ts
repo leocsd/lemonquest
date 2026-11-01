@@ -5,6 +5,7 @@ import type { Hotkey } from "./hotkeys.ts";
 import type { LootFilter } from "./lootFilter.ts";
 import type { SpellGroup } from "./data/spellFamilies.ts";
 import type { PartyShareReason } from "./party.ts";
+import type { AlarmeTipo, EstagiarioConfig } from "./estagiario.ts";
 export type { SkillId };
 import type { EquipSlot, ItemInstance, Rarity, Stats } from "./data/items.ts";
 import type { ArenaModId, ArenaTimeRecord } from "./data/arena.ts";
@@ -94,10 +95,31 @@ export const C2S = {
   Social: "social",
   /** Salva o filtro do loot automático do personagem (SetLootFilterMsg, shared/lootFilter.ts). */
   SetLootFilter: "setLootFilter",
+  /** Salva a configuração do Estagiário (EstagiarioConfigMsg, shared/estagiario.ts). */
+  EstagiarioConfig: "estagiarioConfig",
+  /** Liga/desliga cura, ataque ou a rota do Estagiário (EstagiarioToggleMsg). */
+  EstagiarioToggle: "estagiarioToggle",
+  /** Gravação de rota do Estagiário: iniciar, parar (com nome) ou descartar (EstagiarioGravarMsg). */
+  EstagiarioGravar: "estagiarioGravar",
 } as const;
 
 /** C2S.SetLootFilter: o filtro inteiro (o servidor limpa e devolve o que ficou gravado em S2C.LootFilter). */
 export interface SetLootFilterMsg { filter: LootFilter }
+/** C2S.EstagiarioConfig: a configuração inteira (o servidor sanitiza e devolve em S2C.EstagiarioEstado). */
+export interface EstagiarioConfigMsg { config: EstagiarioConfig }
+/** C2S.EstagiarioToggle: só o que vier definido muda; `rota` = nome da rota a rodar, null = parar. */
+export interface EstagiarioToggleMsg { cura?: boolean; ataque?: boolean; rota?: string | null }
+/** C2S.EstagiarioGravar: grava a rota andando; "parar" salva com `nome`. */
+export interface EstagiarioGravarMsg { acao: "iniciar" | "parar" | "descartar"; nome?: string }
+/** Por que a rota está pausada: "" = rodando/desligada, "manual" = o jogador mexeu, "npc" = janela de NPC aberta. */
+export type EstagiarioPausa = "" | "manual" | "npc";
+/** S2C.EstagiarioEstado: tudo que o painel do Estagiário mostra. */
+export interface EstagiarioEstadoMsg {
+  config: EstagiarioConfig; cura: boolean; ataque: boolean; rota: string | null;
+  pausa: EstagiarioPausa; gravando: boolean; pontosGravados: number; turnoMs: number;
+}
+/** S2C.EstagiarioAlarme: aviso para o jogador (som, toast e título da aba). */
+export interface EstagiarioAlarmeMsg { tipo: AlarmeTipo; texto: string }
 /** S2C.LootFilter: filtro do loot automático gravado no personagem (ao entrar, ao reconectar e após cada mudança). */
 export interface LootFilterMsg { filter: LootFilter }
 
@@ -300,6 +322,10 @@ export const S2C = {
   Online: "online",
   /** Filtro do loot automático gravado no personagem (LootFilterMsg). */
   LootFilter: "lootFilter",
+  /** Estado do Estagiário (EstagiarioEstadoMsg): ao entrar, ao reconectar e a cada mudança. */
+  EstagiarioEstado: "estagiarioEstado",
+  /** Alarme do Estagiário (EstagiarioAlarmeMsg): pausou ou precisa de você. */
+  EstagiarioAlarme: "estagiarioAlarme",
 } as const;
 
 /** Ocorrência da agenda. Horários em ms epoch, calculados no fuso do servidor (o mesmo do agendador). */

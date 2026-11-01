@@ -1,0 +1,74 @@
+/* Janela "Estagiário": cabeçalho (interruptores, rota, turno), abas e a lista de regras/rotas/alarmes. */
+.est-win { top: 80px; left: max(16px, calc(50% - 280px)); width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 60px); }
+.est-empty { padding: 10px 12px; color: #7d86a3; font-size: 12px; }
+.est-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px 6px; border-bottom: 1px solid var(--hud-line); }
+.est-switches { display: flex; gap: 6px; flex-wrap: wrap; }
+.est-status { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 11.5px; color: var(--hud-muted, #8b93ad); }
+.est-rota-now.on { color: #9dff8a; }
+.est-rota-now b { color: var(--hud-text); }
+.est-turno { font-variant-numeric: tabular-nums; color: var(--hud-gold); }
+
+/* Interruptor: botão com "trilho" à esquerda (role=switch). */
+.est-switch {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; font: inherit; font-size: 12px; cursor: pointer;
+  color: var(--hud-muted); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--hud-line); border-radius: 12px;
+}
+.est-switch:hover:not(:disabled) { color: var(--hud-text); background: rgba(255, 255, 255, 0.09); }
+.est-switch:disabled { cursor: default; }
+.est-knob { position: relative; width: 24px; height: 13px; border-radius: 7px; background: #2a3042; transition: background 120ms; }
+.est-knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 9px; height: 9px; border-radius: 50%; background: #8b93ad; transition: transform 120ms, background 120ms; }
+.est-switch.on { color: var(--hud-text); border-color: rgba(120, 200, 110, 0.5); }
+.est-switch.on .est-knob { background: #3f7f3a; }
+.est-switch.on .est-knob::after { transform: translateX(11px); background: #d9ffd2; }
+.est-switch:disabled.on .est-knob { background: #3a5a37; }
+.est-hint { font-size: 10.5px; color: var(--hud-muted, #8b93ad); font-style: italic; }
+
+.est-tabs { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 1px solid var(--hud-line); }
+.est-tab {
+  padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer; color: var(--hud-muted); background: none;
+  border: 1px solid transparent; border-bottom: 0; border-radius: 5px 5px 0 0; margin-bottom: -1px;
+}
+.est-tab:hover { color: var(--hud-text); }
+.est-tab.active { color: var(--hud-gold); background: rgba(255, 255, 255, 0.04); border-color: var(--hud-line); }
+
+.est-body { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 8px 8px 10px 10px; }
+.est-pane { display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #e4e8f5; }
+.est-note { margin: 0; font-size: 11px; line-height: 1.4; color: var(--hud-muted, #8b93ad); }
+.est-err { font-size: 11.5px; color: #ff9a92; }
+.est-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.est-inline { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; }
+.est-grow { flex: 1 1 140px; min-width: 0; }
+
+.est-rules, .est-routes, .est-alarms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.est-rule, .est-route {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 4px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.03);
+}
+.est-idx { width: 16px; text-align: center; font-size: 11px; color: var(--hud-gold); font-variant-numeric: tabular-nums; }
+.est-move { margin-left: auto; display: inline-flex; gap: 2px; }
+.est-sel, .est-num, .est-text {
+  padding: 3px 6px; font: inherit; font-size: 12px; color: #e4e8f5; background: #1b2030; border: 1px solid #343b4e; border-radius: 4px;
+}
+.est-num { width: 52px; font-variant-numeric: tabular-nums; }
+.est-sel:focus-visible, .est-num:focus-visible, .est-text:focus-visible { outline: 1px solid rgba(255, 212, 71, 0.6); }
+
+.est-btn, .est-mini {
+  font: inherit; cursor: pointer; color: var(--hud-text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--hud-line); border-radius: 4px;
+}
+.est-btn { padding: 3px 12px; font-size: 12px; align-self: flex-start; }
+.est-mini { padding: 1px 7px; font-size: 11px; color: var(--hud-muted); }
+.est-btn:hover:not(:disabled), .est-mini:hover:not(:disabled) { color: var(--hud-text); background: rgba(255, 255, 255, 0.11); }
+.est-btn:disabled, .est-mini:disabled { opacity: 0.4; cursor: default; }
+.est-del:hover:not(:disabled) { color: #ff9a92; border-color: rgba(217, 83, 79, 0.5); }
+.est-stop { color: #ffd0a0; border-color: rgba(217, 164, 65, 0.5); }
+
+.est-route.on { background: rgba(120, 200, 110, 0.09); box-shadow: inset 2px 0 0 #6fcf63; }
+.est-route-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.est-route-pts { font-size: 11px; color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; }
+
+.est-rec { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 5px; background: rgba(217, 83, 79, 0.08); }
+.est-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #e0544f; animation: est-blink 1.2s ease-in-out infinite; }
+@keyframes est-blink { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .est-rec-dot { animation: none; } }
+
+.est-alarm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 3px 4px; }
+.est-alarm .est-switch { min-width: 172px; }

@@ -108,6 +108,8 @@ export interface PlayerView {
   chase: boolean;
   /** true = ataque automático: escolhe sozinho o monstro mais próximo quando está sem alvo. */
   auto?: boolean;
+  /** Rota do Estagiário rodando (🤖 no nome). */
+  bot?: boolean;
   /** Id do jogador que está sendo seguido ("" = ninguém). */
   followId?: string;
   /** Caveira do PvP ("" = nenhuma; "white" | "red"). Ver shared/src/pvp.ts. */

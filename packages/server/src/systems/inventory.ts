@@ -6,9 +6,9 @@
 import { randomBytes } from "node:crypto";
 import {
   BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
-  instanceStats, levelNeeded, pickQuickPotion, refineLevel, vocationFits,
+  instanceStats, levelNeeded, pickQuickPotion, potionAmount, refineLevel, vocationFits,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
-  type ItemKind, type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
+  type ItemKind, type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionKind, type QuickPotionMsg, type Rarity, type SkillId,
   type SortContainerMsg, type StatId, type Stats, type UseItemMsg, type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -537,11 +537,36 @@ export class InventorySystem {
 
   /** C2S.QuickPotion: a melhor poção de vida/mana que o level permite (regra em shared/itemRules.ts; o cliente mostra a mesma). */
   onQuickPotion(p: PlayerState, msg: QuickPotionMsg): void {
+    if (!msg || (msg.kind !== "hp" && msg.kind !== "mana")) return;
+    this.usePotion(p, msg.kind);
+  }
+
+  /**
+   * Bebe a melhor poção de vida/mana que o level permite (a mesma escolha de Q/E). Devolve se bebeu. `silent`: sem os
+   * avisos de "sem poção"/"em recarga"/level — o Estagiário tenta a cada tick e não pode encher a tela do dono.
+   */
+  usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean }): boolean {
     const inv = this.inv.get(p.id);
-    if (!inv || !msg || (msg.kind !== "hp" && msg.kind !== "mana")) return;
-    const { index, needLevel } = pickQuickPotion(inv.backpack, msg.kind, p.level, this.defs, p.vocation);
-    if (index < 0) return this.warn(p, needLevel ? MSG.level(needLevel) : msg.kind === "hp" ? MSG.noHp : MSG.noMana);
-    this.useAt(p, inv, index);
+    if (!inv) return false;
+    const silent = !!opts?.silent;
+    const { index, needLevel } = pickQuickPotion(inv.backpack, kind, p.level, this.defs, p.vocation);
+    if (index < 0) {
+      if (!silent) this.warn(p, needLevel ? MSG.level(needLevel) : kind === "hp" ? MSG.noHp : MSG.noMana);
+      return false;
+    }
+    return this.useAt(p, inv, index, silent);
+  }
+
+  /** A recarga única das poções (vida e mana dividem a mesma) já passou? */
+  potionReady(p: PlayerState, now = this.now()): boolean {
+    return now >= (this.potionCdUntil.get(p.id) ?? 0);
+  }
+
+  /** Quantas poções do tipo há na mochila (todas as pilhas, de qualquer level) — o alarme de poção acabando. */
+  countPotions(p: PlayerState, kind: QuickPotionKind): number {
+    let n = 0;
+    for (const it of this.inv.get(p.id)?.backpack ?? []) if (it && potionAmount(this.defs(it.defId), kind) > 0) n += it.count;
+    return n;
   }
 
   /** C2S.DiscardItem: destrói o item do slot da mochila. */
@@ -748,43 +773,46 @@ export class InventorySystem {
     return count - left;
   }
 
-  private useAt(p: PlayerState, inv: Inventory, index: number): void {
+  /** Usa o item do slot da mochila. Devolve se usou (bebeu/comeu/abriu). `silent` = sem avisos de recusa. */
+  private useAt(p: PlayerState, inv: Inventory, index: number, silent = false): boolean {
+    const refuse = (text: string): false => { if (!silent) this.warn(p, text); return false; };
     const it = inv.backpack[index];
-    if (!it || p.hp <= 0) return;
+    if (!it || p.hp <= 0) return false;
     const def = this.defs(it.defId);
     const use = def?.use;
-    if (!use) return this.warn(p, MSG.notUsable);
+    if (!use) return refuse(MSG.notUsable);
     // Level do item vale para usar, não só para equipar: a Poção de Vida Grande (lv 30) curava 450 no lv 1.
     const need = levelNeeded(def, p.level);
-    if (need) return this.warn(p, MSG.level(need));
+    if (need) return refuse(MSG.level(need));
     // Poções por vocação (as fortes, como no Tibia): um mago não bebe a Poção de Vida Enorme do cavaleiro.
-    if (!vocationFits(def?.vocations, p.vocation)) return this.warn(p, MSG.vocation);
+    if (!vocationFits(def?.vocations, p.vocation)) return refuse(MSG.vocation);
     const now = this.now();
     if (use.chest) {
-      if (!this.o.openChest) return this.warn(p, MSG.notUsable);
-      if (now < (this.foodCdUntil.get(p.id) ?? 0)) return;
+      if (!this.o.openChest) return refuse(MSG.notUsable);
+      if (now < (this.foodCdUntil.get(p.id) ?? 0)) return false;
       this.foodCdUntil.set(p.id, now + Math.max(0, use.cooldownMs ?? 0));
       it.count -= 1;
       if (it.count <= 0) inv.backpack[index] = null;
       this.dirty.add(p.id);
       this.o.openChest(p, it.defId);
-      return;
+      return true;
     }
     if (use.food) {
-      if (now < (this.foodCdUntil.get(p.id) ?? 0)) return this.warn(p, MSG.foodCooldown);
-      if (!this.o.eat?.(p, use.food, now)) return this.info(p, MSG.satisfied);
+      if (now < (this.foodCdUntil.get(p.id) ?? 0)) return refuse(MSG.foodCooldown);
+      if (!this.o.eat?.(p, use.food, now)) { if (!silent) this.info(p, MSG.satisfied); return false; }
       this.foodCdUntil.set(p.id, now + Math.max(0, use.cooldownMs ?? 0));
       it.count -= 1;
       if (it.count <= 0) inv.backpack[index] = null;
       this.dirty.add(p.id);
-      return;
+      return true;
     }
-    if (now < (this.potionCdUntil.get(p.id) ?? 0)) return this.warn(p, MSG.cooldown);
+    if (now < (this.potionCdUntil.get(p.id) ?? 0)) return refuse(MSG.cooldown);
     this.potionCdUntil.set(p.id, now + Math.max(0, use.cooldownMs ?? 0));
     if ((use.heal ?? 0) > 0) this.o.heal?.(p, use.heal!);
     if ((use.mana ?? 0) > 0) this.o.restoreMana?.(p, use.mana!);
     it.count -= 1;
     if (it.count <= 0) inv.backpack[index] = null;
     this.dirty.add(p.id);
+    return true;
   }
 }

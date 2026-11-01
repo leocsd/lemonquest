@@ -1,4 +1,4 @@
-import type { LootFilter, SpellGroup, Vocation, WeeklyExtraKey } from "@lemonquest/shared";
+import type { EstagiarioConfig, TurnoEstado, LootFilter, SpellGroup, Vocation, WeeklyExtraKey } from "@lemonquest/shared";
 import type { PlayData } from "../systems/telemetry.ts";
 
 /** Dados flexíveis do personagem, guardados como JSON na coluna `data`. Cada marco acrescenta campos opcionais. */
@@ -16,6 +16,8 @@ export interface CharacterData {
   auto?: boolean;
   /** Filtro do loot automático (shared/lootFilter.ts). Ausente = pega tudo (o padrão não é gravado). */
   lootFilter?: LootFilter;
+  /** Estagiário: configuração e turno (o que está ligado não é gravado). Ausente = padrão e turno cheio. */
+  estagiario?: { config?: EstagiarioConfig; turno?: TurnoEstado };
   /** PvP: mortes injustas recentes (timestamps) — caveira vermelha. */
   pvpKills?: number[];
   /** PvP: fim da caveira branca (ms epoch); relogar não a apaga. */

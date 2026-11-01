@@ -10,7 +10,8 @@ import { SoundPopover } from "./SoundPopover.tsx";
 import { AutoPotionPopover } from "./AutoPotionPopover.tsx";
 import { lootFilterStore } from "../items/lootFilter.ts";
 import { lootFilterOpen, toggleLootFilter } from "../items/LootFilterWindow.tsx";
-import { isDefaultLootFilter, lootFilterSummary } from "@lemonquest/shared";
+import { estagiarioOpen, estagiarioStore, fmtTurno, toggleEstagiario } from "../estagiario/store.ts";
+import { isDefaultLootFilter, lootFilterSummary, type EstagiarioEstadoMsg } from "@lemonquest/shared";
 import { A11yPopover } from "./A11yPopover.tsx";
 import { autoPotionStore } from "../items/autoPotion.ts";
 import { mutedStore, volumeStore } from "../../game/sfx.ts";
@@ -33,6 +34,15 @@ import { bestiaryOpen, toggleBestiary } from "../bestiary/Bestiary.tsx";
 import { agendaOpen, toggleAgenda } from "../agenda/agenda.ts";
 import { challengesOpen, challengesReady, toggleChallenges } from "../challenges/challenges.ts";
 
+/** Legenda do botão do Estagiário no trilho: a rota rodando (e o turno) ou o que está ligado. */
+function estagiarioResumo(e: EstagiarioEstadoMsg | null): string {
+  if (!e) return "Bot de caça: cura, ataque e rota";
+  if (e.rota) return `Rota "${e.rota}"${e.pausa ? " (pausada)" : ""} · turno ${fmtTurno(e.turnoMs)}`;
+  if (e.gravando) return `Gravando rota… ${e.pontosGravados} pontos`;
+  const on = [e.cura && "cura", e.ataque && "ataque"].filter(Boolean).join(" e ");
+  return on ? `Ligado: ${on} · turno ${fmtTurno(e.turnoMs)}` : `Desligado · turno ${fmtTurno(e.turnoMs)}`;
+}
+
 export function Sidebar() {
   const open = useStore(sidebarOpen);
   const skills = useStore(skillsOpen);
@@ -46,6 +56,8 @@ export function Sidebar() {
   const lootWin = useStore(lootFilterOpen);
   const autoCfg = useStore(autoPotionStore);
   const lootCfg = useStore(lootFilterStore);
+  const estWin = useStore(estagiarioOpen);
+  const est = useStore(estagiarioStore);
   const outfit = useStore(outfitOpen);
   const questLog = useStore(questLogOpen);
   const achOpen = useStore(achievementsOpen);
@@ -172,6 +184,17 @@ export function Sidebar() {
           data-testid="rail-loot"
         >
           <PixelIcon name="funnel" size={14} />
+        </button>
+        <button
+          class={`rail-btn${estWin || est?.rota ? " active" : ""}`}
+          onClick={toggleEstagiario}
+          data-tip="Estagiário"
+          data-tip-sub={estagiarioResumo(est)}
+          aria-pressed={estWin}
+          aria-label="Estagiário"
+          data-testid="rail-estagiario"
+        >
+          <span class="rail-q" aria-hidden="true">🤖</span>
         </button>
         <button
           class="rail-btn"

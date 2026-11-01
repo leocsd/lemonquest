@@ -26,7 +26,7 @@ const WEEKDAY = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "s
 const SLOW_STEP_MS = 400;
 
 /** Entra na lista principal: o mesmo filtro do Bestiário (sem bonecos de treino e invocações de jogador). */
-const listed = (d: MonsterDef): boolean => !d.invulnerable && d.xp > 0;
+const listed = (d: MonsterDef): boolean => !d.invulnerable && !d.companion && d.xp > 0;
 /** Magia que invoca a criatura como aliada do jogador (Lobo Espiritual). */
 const summonSpellOf = (id: string) => Object.values(SPELLS).find((s) => s.summon?.monsterId === id);
 /** Levels de quem invoca mostrados na escala da invocação. */

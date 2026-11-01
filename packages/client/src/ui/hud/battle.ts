@@ -73,7 +73,8 @@ export function buildBattleList(players: ReadonlyMap<string, PlayerSnap>, myId: 
   const me = players.get(myId);
   if (!me) return [];
   const others = [...players.values()].filter((p) => p.id !== myId);
-  const list = toBattleEntries(others, "player", me, range);
+  // Rota do Estagiário rodando: 🤖 antes do nome (todos veem quem está no bot).
+  const list = toBattleEntries(others.map((p) => (p.bot ? { ...p, name: `🤖 ${p.name}` } : p)), "player", me, range);
   for (const src of Object.values(extra)) list.push(...src.filter((e) => e.distance <= range));
   return list.sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name));
 }

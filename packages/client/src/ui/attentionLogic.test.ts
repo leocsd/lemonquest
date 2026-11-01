@@ -27,6 +27,8 @@ describe("avisos de combate na aba (ciclo 18)", () => {
     expect(nextAlert("⚠ Vida baixa!", "attacked")).toBe("⚠ Vida baixa!");
     expect(nextAlert("⚠ Vida baixa!", "died")).toBe("☠ Você morreu!");
     expect(nextAlert("⚔ Atacado!", "whisper")).toBe("⚔ Atacado!"); // aviso sem marca não mexe nela
+    expect(nextAlert("", "estagiario")).toBe("🤖 Estagiário!"); // alarme do Estagiário (2026-11-01)
+    expect(nextAlert("⚠ Vida baixa!", "estagiario")).toBe("⚠ Vida baixa!");
   });
 
   it("hitsMe: dano, erro ou escudo de mana em mim; curas, poções e golpes em outros não", () => {

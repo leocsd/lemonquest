@@ -11,11 +11,13 @@ export function attentionTitle(base: string, count: number, alert = ""): string 
 }
 
 /** O que merece chamar a atenção de quem está em outra aba. */
-export type AttentionReason = "whisper" | "trade" | "party" | "friend" | "event" | "eventSoon" | "attacked" | "lowHp" | "died";
+export type AttentionReason = "whisper" | "trade" | "party" | "friend" | "event" | "eventSoon" | "attacked" | "lowHp" | "died" | "estagiario";
 
 /** Marca no título para os avisos de combate; a mais grave fica até a aba ser vista. */
 const ALERTS: Partial<Record<AttentionReason, { text: string; rank: number }>> = {
   attacked: { text: "⚔ Atacado!", rank: 1 },
+  // Alarme do Estagiário (2026-11-01): o bot caça sozinho e precisa de você (mesma gravidade de "atacado").
+  estagiario: { text: "🤖 Estagiário!", rank: 1 },
   lowHp: { text: "⚠ Vida baixa!", rank: 2 },
   died: { text: "☠ Você morreu!", rank: 3 },
 };
