@@ -3,7 +3,19 @@ import { createStore, type Unsubscribe } from "./store.ts";
 import type { Target } from "./target.ts";
 import type { PlayerSnap } from "./world.ts";
 
-export const BATTLE_RANGE = 10;
+/**
+ * Teto de distância (tiles, Chebyshev) da battle list. O filtro de verdade é a área do mapa visível na tela
+ * (`setBattleView`, pedido do dono em 2026-11-01: "no máximo o que aparece na tela"); era 10 tiles em volta.
+ */
+export const BATTLE_RANGE = 20;
+
+/** Retângulo de tiles visível (inclusive), fora do HUD. */
+export interface TileRect { x0: number; y0: number; x1: number; y1: number }
+let view: TileRect | null = null;
+/** A cena publica a área visível; null = sem filtro de tela (só o teto). */
+export function setBattleView(r: TileRect | null): void { view = r; }
+export const inBattleView = (x: number, y: number): boolean =>
+  !view || (x >= view.x0 && x <= view.x1 && y >= view.y0 && y <= view.y1);
 
 export interface BattleEntry {
   id: string;
@@ -51,7 +63,7 @@ export function toBattleEntries(items: Iterable<Positioned>, kind: BattleEntry["
   const out: BattleEntry[] = [];
   for (const it of items) {
     const d = chebyshev(it.x, it.y, me.x, me.y);
-    if (d <= range) out.push({ id: it.id, name: it.name, hpPct: hpPct(it.hp, it.maxHp), kind, distance: d });
+    if (d <= range && inBattleView(it.x, it.y)) out.push({ id: it.id, name: it.name, hpPct: hpPct(it.hp, it.maxHp), kind, distance: d });
   }
   return out;
 }

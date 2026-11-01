@@ -4,7 +4,7 @@ import { makeItem } from "./inventory.ts";
 import { LootSystem, RARITY_WEIGHTS, bonusPool, rollBonuses, rollLoot, rollRarity } from "./loot.ts";
 import { ImbuementSystem } from "./imbuement.ts";
 import { CLOSED, NpcSystem } from "./npcs.ts";
-import { CHASE_PAUSE_MS, FightModeSystem, stanceDealt, stanceTaken } from "./fightmode.ts";
+import { AUTO_SEEK_DIST, CHASE_PAUSE_MS, FightModeSystem, stanceDealt, stanceTaken } from "./fightmode.ts";
 import { MovementSystem } from "./movement.ts";
 import { handleDevCommand } from "./devcommands.ts";
 import { cheb, type Monster } from "./monsters.ts";
@@ -458,20 +458,6 @@ describe("fight modes", () => {
     expect(c.p.stance).toBe("defensive");
   });
 
-  it("andar pelo teclado atacando no modo Seguir vira Parado; sem alvo só pausa", () => {
-    const c = chaseWorld(1);
-    c.fight.manualStep(c.p);
-    expect(c.p.chase).toBe(false);
-    const x0 = c.p.x;
-    c.w.run(3000, c.step);
-    expect(c.p.x).toBe(x0);
-    // Sem alvo, andar não mexe no modo (o ataque automático ainda pode escolher um e perseguir).
-    c.fight.onFightMode(c.p, { stance: "balanced", chase: true });
-    c.p.targetId = "";
-    c.fight.manualStep(c.p);
-    expect(c.p.chase).toBe(true);
-  });
-
   it("alvo novo começa a perseguir na hora, mesmo logo depois de um movimento manual", () => {
     const c = chaseWorld(1);
     c.fight.pause("p", c.w.now());
@@ -492,6 +478,19 @@ describe("fight modes", () => {
     expect(c.p.targetId).toBe(c.m.s.id);
     c.w.run(6000, c.step);
     expect(cheb(c.p.x, c.p.y, c.m.s.x, c.m.s.y)).toBe(1);
+  });
+
+  it("ataque automático no modo Seguir procura até AUTO_SEEK_DIST (8) tiles; além disso, não", () => {
+    const c = chaseWorld(1);
+    c.p.targetId = "";
+    c.fight.onFightMode(c.p, { stance: "balanced", chase: true, auto: true });
+    c.p.x = 11; // 9 tiles do monstro (20,10)
+    c.fight.tick(c.w.now(), c.w.players.values());
+    expect(c.p.targetId).toBe("");
+    c.p.x = 12; // 8 tiles
+    c.w.run(500, c.step);
+    expect(c.p.targetId).toBe(c.m.s.id);
+    expect(AUTO_SEEK_DIST).toBe(8);
   });
 
   it("ataque automático parado (seguir desligado) só pega o que já está ao alcance", () => {

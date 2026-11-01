@@ -13,8 +13,11 @@ export const CHASE_REPATH_MS = 300;
 export const CHASE_PAUSE_MS = 1500;
 /** Distância máxima (tiles) para seguir um jogador; além disso o seguir é cancelado. */
 export const FOLLOW_MAX_DIST = 15;
-/** Até onde (tiles) o ataque automático procura monstros quando o jogador está no modo seguir. */
-export const AUTO_SEEK_DIST = 6;
+/**
+ * Até onde (tiles) o ataque automático procura monstros quando o jogador está no modo seguir. 6 → 8 (2026-11-01, pedido
+ * do dono): o alcance das magias à distância e o que ainda cabe na tela na vertical (~17 linhas). Sempre com linha de visão.
+ */
+export const AUTO_SEEK_DIST = 8;
 /** Intervalo mínimo (ms) entre buscas de alvo do ataque automático. */
 export const AUTO_SCAN_MS = 400;
 
@@ -95,17 +98,6 @@ export class FightModeSystem {
     p.followId = "";
     const s = this.st.get(p.id);
     if (s) s.path = null;
-  }
-
-  /**
-   * Andar pelo teclado enquanto ataca no modo Seguir: sai do modo Seguir (vira Parado), como no Tibia — senão a
-   * perseguição puxaria o jogador de volta ao alvo. Pedido do dono (2026-11-01). F8 volta a seguir.
-   */
-  manualStep(p: PlayerState): void {
-    if (!p.chase || !p.targetId) return;
-    p.chase = false;
-    this.st.delete(p.id);
-    this.notice(p, "Modo Parado: você andou enquanto atacava (F8 volta a seguir).");
   }
 
   /** Alvo novo escolhido: a perseguição começa já, sem esperar a pausa de um movimento manual anterior. */

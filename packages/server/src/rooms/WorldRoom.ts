@@ -615,7 +615,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       partyChat: (pl, text) => this.party.chat(pl, text),
     };
     this.on<MoveMsg>(C2S.Move, (p, m) => {
-      if (m?.dir != null) { this.fight.manualStep(p); this.fight.cancelFollow(p); }
+      // Andar não troca o modo de luta (dono, 2026-11-01: "pode deixar seguindo direto"): só pausa a perseguição.
+      if (m?.dir != null) this.fight.cancelFollow(p);
       this.fight.pause(p.id);
       this.movement.onMove(p, m);
     });
