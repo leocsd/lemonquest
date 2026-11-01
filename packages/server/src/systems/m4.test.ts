@@ -458,20 +458,6 @@ describe("fight modes", () => {
     expect(c.p.stance).toBe("defensive");
   });
 
-  it("andar pelo teclado atacando no modo Seguir vira Parado; sem alvo só pausa", () => {
-    const c = chaseWorld(1);
-    c.fight.manualStep(c.p);
-    expect(c.p.chase).toBe(false);
-    const x0 = c.p.x;
-    c.w.run(3000, c.step);
-    expect(c.p.x).toBe(x0);
-    // Sem alvo, andar não mexe no modo (o ataque automático ainda pode escolher um e perseguir).
-    c.fight.onFightMode(c.p, { stance: "balanced", chase: true });
-    c.p.targetId = "";
-    c.fight.manualStep(c.p);
-    expect(c.p.chase).toBe(true);
-  });
-
   it("alvo novo começa a perseguir na hora, mesmo logo depois de um movimento manual", () => {
     const c = chaseWorld(1);
     c.fight.pause("p", c.w.now());

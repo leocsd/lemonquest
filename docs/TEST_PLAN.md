@@ -33,8 +33,7 @@ Visitante e a Calça Impermeável. Suíte inteira: 1700 passando.
 
 ## Resultados — cavaleiro com exori gran/exori mas, alcance das magias e modo Seguir (2026-11-01)
 
-Typecheck 3× tsc; suíte unitária inteira: 1700 passando. `m4.test.ts` ganhou "andar pelo teclado atacando no modo
-Seguir vira Parado; sem alvo só pausa" e "alvo novo começa a perseguir na hora, mesmo logo depois de um movimento
+Typecheck 3× tsc; suíte unitária inteira: 1700 passando. `m4.test.ts` ganhou "alvo novo começa a perseguir na hora, mesmo logo depois de um movimento
 manual". Kit novo do cavaleiro calibrado por varredura de números contra `vocationBalance.test.ts` e `arena.test.ts`
 (50 testes, nenhuma meta alterada): o modelo do Coliseu muda de resultado aos saltos (uma onda a mais ou a menos com
 2 % de dano ou 10 de mana), então a combinação final (Giro Feroz 1,05×, Fúria Giratória 1,1× e Terremoto 1,5× o

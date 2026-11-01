@@ -38,7 +38,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Cavaleiro: \"exori gran\" virou o Giro Feroz (área em volta, lv 20) e \"exori mas\" (raio 2) chega no lv 35. No lv 70 entra o Terremoto (\"exori gran mas\", raio 3).",
       "O Golpe Brutal agora se fala \"exori ico\". O Golpe Frontal saiu.",
       "Magias à distância alcançam 2 tiles mais longe.",
-      "Modo Seguir: escolher o alvo já começa a perseguir na hora. Andar pelas setas enquanto ataca troca para Parado (F8 volta a seguir).",
+      "Modo Seguir: escolher o alvo já começa a perseguir na hora.",
     ],
   },
   {
