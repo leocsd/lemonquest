@@ -7,10 +7,15 @@ escritório é o **Estagiário**: você o "contrata" para caçar por você. Spec
 `docs/superpowers/specs/2026-11-01-estagiario-design.md`. Quem decide e age é o **servidor**, a cada tick, com os sistemas
 que já existiam (magias, poções, ataque automático, modo Seguir, loot automático, pathfinding); o cliente só configura e
 mostra. Assim a aba em segundo plano (que o navegador adormece) não atrapalha e o turno não dá para burlar.
-- **Janela "Estagiário"** pelo 🤖 do trilho à direita, com interruptores de Cura e Ataque, rota rodando e turno restante, e
-  quatro abas: **Cura** (até 6 regras de vida/mana → magia de cura da vocação ou poção, a melhor que você tem),
-  **Ataque** (até 6 regras "N bichos a até R tiles → magia, família ou grupo", reserva de mana), **Rota** e **Alarmes**.
+- **Janela "Estagiário"** pelo 🤖 do trilho à direita, com interruptores de Cura, Ataque e Buffs, rota rodando e turno restante, e
+  cinco abas: **Cura** (até 6 regras de vida/mana → magia de cura da vocação ou poção, a melhor que você tem),
+  **Ataque** (até 6 regras "N bichos a até R tiles → magia, família ou grupo", reserva de mana), **Buffs**, **Rota** e **Alarmes**.
   Salvo no personagem (`CharacterData.estagiario`).
+- **Buffs** (dono: "quero a opção também de buffs"): aba e interruptor próprios (fora do save, como Cura e Ataque; ligados
+  pela rota). Até 6 buffs da vocação (magias em si/no grupo que só aplicam condição: Pés Ligeiros, Pele de Ferro, Fúria,
+  Escudo de Mana, Muralha de Escudos, Luz Restauradora, Banho de Espuma...), reconjurados quando a condição acaba, com
+  "só em combate" por buff e "Usar recomendado" por vocação. Uma ação por tick: a cura vem antes; respeitam a reserva de
+  mana do ataque, menos o escudo de mana.
 - **Rota de caça**: "Gravar", andar pela caça, "Parar e salvar" com um nome (até 5 rotas, 200 pontos; ponto a cada mudança
   de direção, a cada 6 tiles e nos portais). Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê a até 12
   tiles (nunca jogador), o loot sai pelo loot automático e no fim volta ao começo. Ponto ou alvo inalcançável por 10 s é

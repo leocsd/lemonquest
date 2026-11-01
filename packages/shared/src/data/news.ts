@@ -19,6 +19,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Botão 🤖 no trilho à direita: o Estagiário cura você e ataca os bichos por perto com as magias e poções que você escolher.",
       "Grave uma rota de caça andando por ela; ligada, ele roda a rota sozinho, mata o que vê e pega o loot. Gasta turno (2 h por dia).",
       "Com a rota ligada aparece o 🤖 no seu nome e o seu Estagiário ao lado. Só funciona com o jogo aberto.",
+      "Aba Buffs: ele mantém ativos os buffs que você escolher (pressa, Pele de Ferro, Escudo de Mana...), alguns só em combate.",
       "Alarmes avisam com som quando a poção acaba, a vida cai, chega um jogador, alguém ataca ou manda mensagem.",
     ],
   },

@@ -117,7 +117,7 @@ export function startUiTest(): void {
   // Estagiário: o "servidor" guarda o estado e devolve como o de verdade (S2C.EstagiarioEstado), sem sanitizar.
   const est: EstagiarioEstadoMsg = {
     config: { ...estagiarioPadrao(voc), rotas: [{ nome: "Ratos do esgoto", pontos: [{ x: 10, y: 10 }, { x: 14, y: 10 }, { x: 14, y: 16 }] }] },
-    cura: false, ataque: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 95 * 60_000,
+    cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 95 * 60_000,
   };
   let gravTimer = 0;
   const pushEst = () => setTimeout(() => estagiarioEstado(structuredClone(est)), 40);
@@ -211,8 +211,9 @@ export function startUiTest(): void {
         const t = m as unknown as EstagiarioToggleMsg;
         if (typeof t.cura === "boolean") est.cura = t.cura;
         if (typeof t.ataque === "boolean") est.ataque = t.ataque;
+        if (typeof t.buffs === "boolean") est.buffs = t.buffs;
         if (t.rota === null) est.rota = null;
-        else if (typeof t.rota === "string" && est.config.rotas.some((r) => r.nome === t.rota)) { est.rota = t.rota; est.ataque = true; }
+        else if (typeof t.rota === "string" && est.config.rotas.some((r) => r.nome === t.rota)) { est.rota = t.rota; est.ataque = true; est.buffs = true; }
         me.bot = est.rota !== null;
         publishMe(); pushEst(); return;
       }

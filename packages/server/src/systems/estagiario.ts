@@ -4,9 +4,9 @@
 // puras (sanitização, turno, escolha de cura/ataque, gravação de rota) estão em shared/estagiario.ts.
 import {
   BUSCA_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TURNO_AVISO_MS, alarmeLigado, avancarTurno, dirFromDelta,
-  escolherAtaque, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId,
+  escolherAtaque, escolherBuff, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId,
   novaGravacao, pickFromFamily, resolveFamily, sanitizeEstagiario,
-  type AlarmeTipo, type CuraAcao, type EstagiarioAlarmeMsg, type EstagiarioConfig, type EstagiarioConfigMsg,
+  type AlarmeTipo, type ConditionId, type CuraAcao, type EstagiarioAlarmeMsg, type EstagiarioConfig, type EstagiarioConfigMsg,
   type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao,
   type NoticeMsg, type PontoRota, type QuickPotionKind, type SpellGroup, type TurnoEstado,
 } from "@lemonquest/shared";
@@ -32,6 +32,8 @@ export const MOCHILA_REARMA_MS = 60_000;
 
 export interface EstagiarioOptions {
   spells: { ready(p: PlayerState, id: string, now?: number): boolean; cast(p: PlayerState, id: string, targetId?: string, opts?: { silent?: boolean }): { ok: boolean } };
+  /** Condições ativas (ConditionSystem): o buff só é reconjurado quando a condição dele acabou. */
+  conditions: { has(targetId: string, id: ConditionId): boolean };
   potions: { potionReady(p: PlayerState, now?: number): boolean; usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean }): boolean; countPotions(p: PlayerState, kind: QuickPotionKind): number };
   fight: {
     nearestTarget(p: PlayerState, reach: number, ignorar?: (id: string) => boolean): string;
@@ -68,6 +70,8 @@ interface Estado {
   cura: boolean;
   /** O ataque que o jogador escolheu; com a rota rodando o ataque fica ligado de qualquer jeito. */
   ataque: boolean;
+  /** Os buffs que o jogador escolheu; com a rota rodando ficam ligados de qualquer jeito (como o ataque). */
+  buffs: boolean;
   rota: string | null;
   /** Ponto da rota para onde o Estagiário está andando. */
   indice: number;
@@ -114,7 +118,7 @@ export class EstagiarioSystem {
     const now = this.now();
     const config = saved?.config ? sanitizeEstagiario(saved.config, p.vocation, this.o.spellGroups(p)) : estagiarioPadrao(p.vocation);
     this.st.set(p.id, {
-      config, turno: avancarTurno(saved?.turno, now, false), cura: false, ataque: false, rota: null, indice: 0,
+      config, turno: avancarTurno(saved?.turno, now, false), cura: false, ataque: false, buffs: false, rota: null, indice: 0,
       caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, lutando: false,
       alvoId: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
@@ -152,6 +156,7 @@ export class EstagiarioSystem {
     if (!s || !obj(m)) return;
     if (typeof m.cura === "boolean") s.cura = m.cura;
     if (typeof m.ataque === "boolean") s.ataque = m.ataque;
+    if (typeof m.buffs === "boolean") s.buffs = m.buffs;
     if (m.rota === null) this.pararRota(p, s);
     else if (typeof m.rota === "string") this.ligarRota(p, s, m.rota);
     this.enviarEstado(p);
@@ -228,7 +233,7 @@ export class EstagiarioSystem {
   }
 
   /**
-   * Desliga só a rota (cura e ataque ficam), com aviso opcional e o estado. Usado pelo Coliseu ao entrar e ao sair da
+   * Desliga só a rota (cura, ataque e buffs ficam), com aviso opcional e o estado. Usado pelo Coliseu ao entrar e ao sair da
    * partida: a saída tira o acompanhante (despawnOwner) e a rota dentro da arena caçaria as ondas sozinha.
    */
   desligarRota(p: PlayerState, aviso?: string): void {
@@ -245,6 +250,7 @@ export class EstagiarioSystem {
     if (!s) return;
     s.cura = false;
     s.ataque = false;
+    s.buffs = false;
     s.grav = null;
     this.pararRota(p, s);
   }
@@ -259,10 +265,10 @@ export class EstagiarioSystem {
     const s = this.st.get(p.id);
     const now = this.now();
     if (!s) {
-      return { config: estagiarioPadrao(p.vocation), cura: false, ataque: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: avancarTurno(undefined, now, false).ms };
+      return { config: estagiarioPadrao(p.vocation), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: avancarTurno(undefined, now, false).ms };
     }
     return {
-      config: s.config, cura: s.cura, ataque: this.ataqueLigado(s), rota: s.rota, pausa: s.pausa,
+      config: s.config, cura: s.cura, ataque: this.ataqueLigado(s), buffs: this.buffsLigados(s), rota: s.rota, pausa: s.pausa,
       gravando: !!s.grav, pontosGravados: s.grav?.pontos.length ?? 0, turnoMs: avancarTurno(s.turno, now, this.rodando(s)).ms,
     };
   }
@@ -285,7 +291,9 @@ export class EstagiarioSystem {
     if (s.rota) this.tickRota(p, s, now);
     if (p.hp <= 0) return;
     // No máximo uma cura por tick; o ataque vem depois (a recarga global de magia separa os dois quando os dois são magia).
-    if (s.cura) this.curar(p, s, now);
+    // Buff só num tick sem cura (uma ação por tick entre os dois: a cura tem prioridade e o buff espera o próximo).
+    const curou = s.cura && this.curar(p, s, now);
+    if (!curou && this.buffsLigados(s)) this.buffar(p, s, now);
     if (this.ataqueLigado(s)) this.atacar(p, s, now);
     // Depois do ataque: o alvo escolhido neste tick já segura a caminhada (não dá um passo da rota para o lado errado).
     if (this.rodando(s)) { this.vigiar(p, s); this.andar(p, s, now); }
@@ -361,14 +369,28 @@ export class EstagiarioSystem {
     if (now - s.estadoEm >= ESTADO_PERIODICO_MS) this.enviarEstado(p, now);
   }
 
-  private curar(p: PlayerState, s: Estado, now: number): void {
+  /** Uma ação de cura (magia ou poção) se alguma regra vale; devolve se agiu. */
+  private curar(p: PlayerState, s: Estado, now: number): boolean {
     const pronto = (a: CuraAcao) => "magia" in a
       ? this.o.spells.ready(p, a.magia, now)
       : this.o.potions.potionReady(p, now) && this.o.potions.countPotions(p, a.pocao) > 0;
     const acao = escolherCura(p, s.config.cura, pronto);
-    if (!acao) return;
+    if (!acao) return false;
     if ("magia" in acao) this.o.spells.cast(p, acao.magia, undefined, { silent: true });
     else this.o.potions.usePotion(p, acao.pocao, { silent: true });
+    return true;
+  }
+
+  /** Reconjura o primeiro buff da lista que acabou (regras em escolherBuff); no máximo um por tick. */
+  private buffar(p: PlayerState, s: Estado, now: number): void {
+    if (!s.config.buffs.length) return;
+    const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
+    const comAlvo = !!this.o.monsters.wild(p.targetId);
+    const magia = escolherBuff(
+      s.config.buffs, (c) => this.o.conditions.has(p.id, c as ConditionId), comAlvo, manaPct, s.config.reservaMana,
+      (id) => this.o.spells.ready(p, id, now),
+    );
+    if (magia) this.o.spells.cast(p, magia, undefined, { silent: true });
   }
 
   private atacar(p: PlayerState, s: Estado, now: number): void {
@@ -602,6 +624,8 @@ export class EstagiarioSystem {
   private rodando(s: Estado): boolean { return !!s.rota && s.pausa === ""; }
 
   private ataqueLigado(s: Estado): boolean { return s.ataque || !!s.rota; }
+
+  private buffsLigados(s: Estado): boolean { return s.buffs || !!s.rota; }
 
   /** Atualiza o turno até `now` no estado atual (gastando se a rota roda, recarregando se não). */
   private acertar(s: Estado, now: number): TurnoEstado {

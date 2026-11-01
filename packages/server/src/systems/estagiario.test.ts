@@ -76,6 +76,9 @@ function setup(o: SetupOpts = {}) {
     companionOf: (id: string) => (acompanhantes.has(id) ? {} : undefined),
   };
   const npc = { aberto: false };
+  /** Condições ativas do jogador (o buff só é reconjurado quando a dele acabou). */
+  const conds = new Set<string>();
+  const conditions = { has: (_id: string, c: string) => conds.has(c) };
   const sent: { to: string; type: string; msg: any }[] = [];
   const mv = new MovementSystem(gradeAndar, { now: () => clock });
   mv.setExtraBlocker((x, y) => w.mm.isMonsterAt(x, y));
@@ -85,7 +88,7 @@ function setup(o: SetupOpts = {}) {
     ? new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => clock, ignorado: (pid, mid): boolean => sys.ignorado(pid, mid) })
     : null;
   const sys = new EstagiarioSystem({
-    spells, potions, fight: real ?? fight, monsters: w.mm,
+    spells, potions, conditions, fight: real ?? fight, monsters: w.mm,
     movement: o.andar ? mv : { isIdle: () => true, pathFor: () => null, follow: () => "ok" },
     companions, npcOpen: () => npc.aberto, spellGroups: () => o.groups ?? [],
     players: () => w.players.values(), send: (to, type, msg) => sent.push({ to, type, msg }),
@@ -110,7 +113,7 @@ function setup(o: SetupOpts = {}) {
   const notices = () => sent.filter((s) => s.type === S2C.Notice).map((s) => s.msg.text as string);
   const of = (k: string) => calls.filter((c) => c[0] === k);
   const indice = (): number => (sys as any).st.get("p").indice;
-  return { ...w, p, sys, mv, calls, of, prontas, pot, luta, npc, sent, estados, notices, tick, visitados, indice, acompanhantes, now: () => clock };
+  return { ...w, p, sys, mv, calls, of, prontas, conds, pot, luta, npc, sent, estados, notices, tick, visitados, indice, acompanhantes, now: () => clock };
 }
 
 /** Config com a rota "Ratos" de 3 pontos (10,10) → (15,10) → (20,10). */
@@ -266,6 +269,96 @@ describe("Estagiário: cura", () => {
     w.p.hp = 0;
     w.tick();
     expect(w.calls).toEqual([]);
+  });
+});
+
+describe("Estagiário: buffs", () => {
+  const comBuffs = (buffs: EstagiarioConfig["buffs"], extra: Partial<EstagiarioConfig> = {}): EstagiarioConfig =>
+    ({ ...estagiarioPadrao("knight"), cura: [], ataque: [], buffs, ...extra });
+
+  it("liga e desliga; conjura o buff que falta (silencioso), não com a condição ativa; desligado ou morto: nada", () => {
+    const w = setup({ saved: { config: comBuffs([{ magia: "swift_feet", emCombate: false }]) } });
+    w.prontas.add("swift_feet");
+    w.tick();
+    expect(w.of("cast")).toEqual([]); // desligado
+    w.sys.onToggle(w.p, { buffs: true });
+    expect(w.estados().at(-1)).toMatchObject({ buffs: true, cura: false, ataque: false });
+    w.tick();
+    expect(w.of("cast")).toEqual([["cast", "swift_feet", undefined, { silent: true }]]);
+
+    w.calls.length = 0;
+    w.conds.add("haste"); // pegou: não reconjura
+    w.tick(1000);
+    expect(w.of("cast")).toEqual([]);
+    w.conds.delete("haste"); // acabou: reconjura
+    w.tick();
+    expect(w.of("cast")).toHaveLength(1);
+
+    w.calls.length = 0;
+    w.p.hp = 0;
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    w.p.hp = 150;
+    w.sys.onToggle(w.p, { buffs: false });
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+  });
+
+  it("'só em combate': só com um monstro vivo de alvo; o de fora de combate vale sempre", () => {
+    const w = setup({ ratos: [{ x: 11, y: 10 }], saved: { config: comBuffs([{ magia: "iron_skin", emCombate: true }, { magia: "swift_feet", emCombate: false }]) } });
+    w.prontas.add("iron_skin");
+    w.sys.onToggle(w.p, { buffs: true });
+    w.tick();
+    expect(w.of("cast")).toEqual([]); // sem alvo: Pele de Ferro espera; Pés Ligeiros não está pronto
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.tick();
+    expect(w.of("cast")).toEqual([["cast", "iron_skin", undefined, { silent: true }]]);
+  });
+
+  it("uma ação por tick: com cura no tick, o buff espera o próximo", () => {
+    const w = setup({ over: { hp: 30 }, saved: { config: comBuffs([{ magia: "swift_feet", emCombate: false }], { cura: [{ quando: "vida", abaixoDe: 50, acao: { magia: "light_heal" } }] }) } });
+    w.prontas.add("light_heal").add("swift_feet");
+    w.sys.onToggle(w.p, { cura: true, buffs: true });
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["light_heal"]);
+    w.calls.length = 0;
+    w.p.hp = 150; // curado: o buff sai
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
+  });
+
+  it("reserva de mana: abaixo dela o buff não sai, menos o escudo de mana (sobrevivência)", () => {
+    const w = setup({ vocation: "sorcerer", over: { mana: 20 }, saved: { config: { ...comBuffs([{ magia: "swift_feet", emCombate: false }, { magia: "mana_shield", emCombate: false }]), reservaMana: 30 } } });
+    w.prontas.add("swift_feet");
+    w.sys.onToggle(w.p, { buffs: true });
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    w.prontas.add("mana_shield");
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["mana_shield"]);
+    w.calls.length = 0;
+    w.conds.add("manashield");
+    w.p.mana = 40;
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
+  });
+
+  it("com a rota rodando ficam ligados (o estado mostra); desligar a rota volta ao escolhido; desligarTudo desliga", () => {
+    const w = setup({ saved: { config: comRota({ buffs: [{ magia: "swift_feet", emCombate: false }] }) } });
+    w.prontas.add("swift_feet");
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    expect(w.estados().at(-1)).toMatchObject({ rota: "Ratos", buffs: true });
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toContain("swift_feet");
+    w.sys.onToggle(w.p, { rota: null });
+    expect(w.estados().at(-1)).toMatchObject({ buffs: false });
+
+    w.sys.onToggle(w.p, { buffs: true });
+    w.sys.desligarTudo(w.p);
+    expect(w.sys.estado(w.p).buffs).toBe(false);
+    w.calls.length = 0;
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
   });
 });
 
@@ -767,6 +860,7 @@ describe("Estagiário: cenário com os sistemas reais", () => {
     const sys = new EstagiarioSystem({
       spells: { ready: () => false, cast: () => ({ ok: false }) },
       potions: { potionReady: () => false, usePotion: () => false, countPotions: () => 0 },
+      conditions: { has: () => false },
       fight, monsters: w.mm, movement: mv,
       companions: { spawnCompanion: () => ({}), despawnCompanion: () => {}, companionOf: () => ({}) },
       npcOpen: () => false, spellGroups: () => [], players: () => w.players.values(), send: () => {}, now: () => w.now(),

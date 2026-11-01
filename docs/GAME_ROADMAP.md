@@ -29,6 +29,7 @@ turno de ~2 h por dia, qualquer lugar.
 | ES-4 | Alarmes: poção, vida baixa, jogador perto, atacado, mensagem privada, turno, mochila cheia, morte | ✅ (2026-11-01) | `server/systems/estagiario.test.ts`, `social`, `inventory`, `ground` |
 | ES-5 | Cliente: janela "Estagiário" (Cura, Ataque, Rota, Alarmes), botão 🤖 no trilho, 🤖 no nome, acompanhante na tela (fora da batalha, o dono atravessa), alarmes com som/toast/título | ✅ (2026-11-01) | `ui/estagiario/store.test.ts`, `storeSync.test.ts`, `battle.test.ts`, `attentionLogic.test.ts` |
 | ES-6 | E2E: gravar, ligar, 🤖, acompanhante fora da batalha e atravessável, rato morto sem comando, desligar | ✅ (2026-11-01) | `e2e/estagiario.spec.ts` (CI da PR) |
+| ES-8 | Buffs: aba e interruptor (ligados pela rota), até 6 buffs da vocação reconjurados quando a condição acaba, "só em combate", recomendados por vocação, cura antes, reserva de mana (menos o escudo de mana) | ✅ (2026-11-01) | `shared/estagiario.test.ts`, `server/systems/estagiario.test.ts`, `ui/estagiario/store.test.ts` |
 | ES-7 | Arte própria do acompanhante; reabastecer/vender/depositar sozinho ("refill"); rendimento menor para o bot | 🧭 | — |
 
 ## Combate e cavaleiro (2026-11-01)

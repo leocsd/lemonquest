@@ -1,11 +1,12 @@
 // Janela "Estagiário" (bot de caça; quem decide e age é o servidor, aqui só a configuração e o estado). Cabeçalho com os
-// interruptores de Cura e Ataque, a rota rodando e o turno restante; quatro abas: Cura, Ataque, Rota e Alarmes. Toda
+// interruptores de Cura, Ataque e Buffs, a rota rodando e o turno restante; cinco abas: Cura, Ataque, Buffs, Rota e Alarmes. Toda
 // edição vai por salvarConfig (junta os cliques numa mensagem só); ligar/desligar e gravar vão na hora. Abre pelo 🤖 do
 // trilho. Molde: items/LootFilterWindow.tsx.
 import { PixelIcon } from "../hud/icons.tsx";
 import {
-  ALARMES, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, curaRecomendada, spellDef, spellsFor,
-  type AlarmeTipo, type CuraAcao, type EstagiarioConfig, type EstagiarioEstadoMsg, type RegraAtaque, type RegraCura, type Vocation,
+  ALARMES, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao, buffsRecomendados,
+  curaRecomendada, spellDef, spellsFor,
+  type AlarmeTipo, type CuraAcao, type EstagiarioConfig, type EstagiarioEstadoMsg, type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
 } from "@lemonquest/shared";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { groupsStore } from "../hotkeys/hotkeys.ts";
@@ -16,7 +17,7 @@ import { useWindowDrag } from "../hud/useWindowDrag.ts";
 import { meStore } from "../hud/world.ts";
 import { bindOverlay } from "../overlays.ts";
 import {
-  addRegraAtaque, addRegraCura, alternarAlarme, apagarRota, closeEstagiario, estadoRecebidoEm, estagiarioOpen, estagiarioStore,
+  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, apagarRota, closeEstagiario, estadoRecebidoEm, estagiarioOpen, estagiarioStore,
   fmtTurno, gravar, ligar, moverRegra, removerRegra, renomearRota, salvarConfig, setRegra, turnoMostrado,
 } from "./store.ts";
 import "./estagiario.css";
@@ -24,9 +25,9 @@ import "./estagiario.css";
 // Esc pela pilha de sobreposições (a última janela aberta fecha primeiro), também com o foco num campo da janela.
 bindOverlay("estagiario", estagiarioOpen, (v) => v, () => closeEstagiario(), ".est-win");
 
-type Aba = "cura" | "ataque" | "rota" | "alarmes";
+type Aba = "cura" | "ataque" | "buffs" | "rota" | "alarmes";
 const ABAS: { id: Aba; label: string }[] = [
-  { id: "cura", label: "Cura" }, { id: "ataque", label: "Ataque" }, { id: "rota", label: "Rota" }, { id: "alarmes", label: "Alarmes" },
+  { id: "cura", label: "Cura" }, { id: "ataque", label: "Ataque" }, { id: "buffs", label: "Buffs" }, { id: "rota", label: "Rota" }, { id: "alarmes", label: "Alarmes" },
 ];
 
 const ALARME_LABEL: Record<AlarmeTipo, { nome: string; quando: string }> = {
@@ -82,6 +83,7 @@ function EstagiarioDialog() {
           <div class="est-body">
             {aba === "cura" && <AbaCura c={e.config} voc={me.vocation} />}
             {aba === "ataque" && <AbaAtaque c={e.config} voc={me.vocation} level={me.level} />}
+            {aba === "buffs" && <AbaBuffs c={e.config} voc={me.vocation} level={me.level} />}
             {aba === "rota" && <AbaRota e={e} />}
             {aba === "alarmes" && <AbaAlarmes c={e.config} />}
           </div>
@@ -104,6 +106,10 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
         <Interruptor
           label="Ataque" on={e.ataque} disabled={pelaRota} hint={pelaRota ? "ligado pela rota" : undefined}
           onClick={() => ligar({ ataque: !e.ataque })} testid="est-ataque"
+        />
+        <Interruptor
+          label="Buffs" on={e.buffs} disabled={pelaRota} hint={pelaRota ? "ligado pela rota" : undefined}
+          onClick={() => ligar({ buffs: !e.buffs })} testid="est-buffs"
         />
       </div>
       <div class="est-status">
@@ -252,6 +258,52 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
         <input class="est-num" type="number" min={0} max={90} step={5} aria-label="Reserva de mana" value={c.reservaMana} onChange={(e) => salvarConfig({ ...c, reservaMana: num(e, 0, 90, c.reservaMana) })} />
         <span>% de mana</span>
       </label>
+    </div>
+  );
+}
+
+// ---------- Buffs ----------
+
+function AbaBuffs({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; level: number }) {
+  const opcoes = useMemo(() => buffsDaVocacao(voc), [voc]);
+  const livres = opcoes.filter((s) => !c.buffs.some((r) => r.magia === s.id));
+  const [nova, setNova] = useState("");
+  const escolhida = livres.some((s) => s.id === nova) ? nova : livres[0]?.id ?? "";
+  const set = (buffs: readonly RegraBuff[]) => salvarConfig({ ...c, buffs: [...buffs] });
+  const rotulo = (id: string) => {
+    const s = spellDef(id);
+    return s ? `${s.name}${s.level > level ? ` (lv ${s.level})` : ""}` : id;
+  };
+  return (
+    <div class="est-pane">
+      <p class="est-note">
+        Mantém os buffs ativos: quando um acaba, conjura de novo (um por vez, depois da cura). "Só em combate" espera um monstro de
+        alvo. Respeita a reserva de mana do ataque, menos o escudo de mana. Acima do seu level, o buff é pulado.
+      </p>
+      {c.buffs.length === 0 && <div class="est-empty">Nenhum buff.</div>}
+      <ol class="est-rules">
+        {c.buffs.map((r, i) => (
+          <li key={i} class="est-rule">
+            <span class="est-idx">{i + 1}</span>
+            <select class="est-sel est-grow" aria-label="Buff" value={r.magia} onChange={(e) => set(setRegra(c.buffs, i, { magia: val(e) }))}>
+              {opcoes.filter((s) => s.id === r.magia || !c.buffs.some((x) => x.magia === s.id)).map((s) => <option key={s.id} value={s.id}>{rotulo(s.id)}</option>)}
+              {!opcoes.some((s) => s.id === r.magia) && <option value={r.magia}>{rotulo(r.magia)}</option>}
+            </select>
+            <label class="est-inline">
+              <input type="checkbox" checked={r.emCombate} onChange={(e) => set(setRegra(c.buffs, i, { emCombate: (e.currentTarget as HTMLInputElement).checked }))} />
+              só em combate
+            </label>
+            <Mover l={c.buffs} i={i} set={set} />
+          </li>
+        ))}
+      </ol>
+      <div class="est-row">
+        <select class="est-sel est-grow" aria-label="Buff novo" value={escolhida} onChange={(e) => setNova(val(e))} disabled={!livres.length}>
+          {livres.map((s) => <option key={s.id} value={s.id}>{rotulo(s.id)}</option>)}
+        </select>
+        <button class="est-btn" onClick={() => set(addRegraBuff(c.buffs, escolhida))} disabled={c.buffs.length >= REGRAS_MAX || !escolhida}>+ Buff</button>
+      </div>
+      <button class="est-btn" onClick={() => set(buffsRecomendados(voc))} data-tip="Recomendado" data-tip-sub="Troca a lista pelos buffs recomendados da vocação" data-testid="est-buffs-recomendado">Usar recomendado</button>
     </div>
   );
 }
