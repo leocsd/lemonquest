@@ -294,6 +294,34 @@ describe("inventory: potions", () => {
     expect([p.mana, bp(w)[3]?.count]).toEqual([0, 1]);
   });
 
+  it("usePotion silencioso (Estagiário): sem poção não avisa; com poção bebe, consome 1 e inicia a recarga", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { hp: 150, mana: 50 });
+    p.hp = 10;
+    expect(w.inv.usePotion(p, "hp", { silent: true })).toBe(false);
+    expect(w.notices()).toEqual([]);
+    expect(w.inv.potionReady(p)).toBe(true);
+    w.inv.addItem(p, makeItem("hp_pot", 3));
+    w.inv.addItem(p, makeItem("mana_pot", 2));
+    w.inv.addItem(p, makeItem("hp_pot", 2)); // empilha na primeira
+    w.inv.addItem(p, makeItem("health_potion", 4));
+    expect(w.inv.countPotions(p, "hp")).toBe(9);
+    expect(w.inv.countPotions(p, "mana")).toBe(2);
+    expect(w.inv.usePotion(p, "hp", { silent: true })).toBe(true);
+    expect(p.hp).toBe(110); // a melhor (health_potion, 100)
+    expect(w.inv.countPotions(p, "hp")).toBe(8);
+    expect(w.inv.potionReady(p)).toBe(false);
+    // Em recarga: silencioso não avisa e não bebe.
+    expect(w.inv.usePotion(p, "mana", { silent: true })).toBe(false);
+    expect(w.notices()).toEqual([]);
+    // Sem silent, o aviso de recarga continua.
+    expect(w.inv.usePotion(p, "mana")).toBe(false);
+    expect(w.notices().at(-1)).toBe(MSG.cooldown);
+    w.advance(1000);
+    expect(w.inv.potionReady(p)).toBe(true);
+    expect(w.inv.usePotion(p, "mana")).toBe(true);
+  });
+
   it("discard destroys the item", () => {
     const w = invWorld();
     const p = w.mk();

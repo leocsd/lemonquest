@@ -294,7 +294,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         return this.combat.inCombat(p.id, now) ? "Você está em combate. Espere um pouco para viajar." : null;
       },
     });
-    this.movement.setExtraBlocker((x, y) => this.monsters.isMonsterAt(x, y) || this.npcs.isNpcAt(x, y));
+    this.movement.setExtraBlocker((x, y, id) => (id ? this.monsters.blocksPlayer(x, y, id) : this.monsters.isMonsterAt(x, y)) || this.npcs.isNpcAt(x, y));
     this.pvp = new PvpSystem({
       inPz: (x, y) => this.monsters.inPz(x, y),
       inArena: (id) => !!this.arena?.inMatch(id),

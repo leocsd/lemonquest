@@ -36,6 +36,8 @@ export interface SocialHost {
   inPz?(x: number, y: number): boolean;
   /** Os dois estão no mesmo grupo. Ausente = nunca. */
   sameParty?(a: string, b: string): boolean;
+  /** Sussurro entregue a `to` (o Estagiário avisa o dono que alguém falou com ele enquanto o bot caça). */
+  onWhisper?(to: PlayerState, from: PlayerState): void;
   now?(): number;
 }
 
@@ -141,6 +143,7 @@ export class SocialSystem {
     this.o.send(target.id, S2C.Chat, msg);
     this.replyTo.set(p.id, target.id);
     this.replyTo.set(target.id, p.id);
+    this.o.onWhisper?.(target, p);
   }
 
   // --- quem está online -----------------------------------------------------------------------------------------

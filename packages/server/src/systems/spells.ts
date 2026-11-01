@@ -158,12 +158,42 @@ export class SpellSystem {
     return true;
   }
 
-  /** Pipeline completo. Envia CastResult (só ao conjurador) e, se deu certo, SpellCast (a todos). */
-  cast(p: PlayerState, spellId: string, targetId?: string): CastResultMsg {
+  /**
+   * Pipeline completo. Envia CastResult (só ao conjurador) e, se deu certo, SpellCast (a todos). `silent`: a falha não
+   * é enviada — o Estagiário tenta magias por conta própria a cada tick e não pode encher a tela do dono de "sem mana"
+   * ou "em recarga"; o sucesso vai sempre, para a barra de magias do cliente mostrar a recarga.
+   */
+  cast(p: PlayerState, spellId: string, targetId?: string, opts?: { silent?: boolean }): CastResultMsg {
     const now = this.now();
     const res = this.tryCast(p, spellId, targetId, now);
-    this.o.send(p.id, S2C.CastResult, res);
+    if (res.ok || !opts?.silent) this.o.send(p.id, S2C.CastResult, res);
     return res;
+  }
+
+  /**
+   * A magia está pronta para `p` agora (vivo, vocação, level, recarga própria e global, mana)? Não olha alvo, alcance
+   * nem PZ: o Estagiário usa isto para escolher entre as magias do grupo antes de mirar.
+   */
+  ready(p: PlayerState, spellId: string, now = this.now()): boolean {
+    const s = (this.o.spells ?? spellDef)(spellId);
+    return !!s && !this.check(p, s) && !this.checkCost(p, s, now);
+  }
+
+  /** Checagens que não dependem de alvo/PZ (mesma ordem de tryCast). null = pronta. */
+  private check(p: PlayerState, s: SpellDef): CastResultMsg | null {
+    if (p.hp <= 0) return this.fail(s.id, "dead");
+    if (!s.vocations.includes(p.vocation as never)) return this.fail(s.id, "vocation");
+    if (p.level < s.level) return this.fail(s.id, "level");
+    return null;
+  }
+
+  /** Recarga própria + global (se a magia usa a global) e mana. null = pronta. */
+  private checkCost(p: PlayerState, s: SpellDef, now: number): CastResultMsg | null {
+    const cdLeft = Math.max(0, (this.cd.get(p.id)?.get(s.id) ?? 0) - now);
+    const gLeft = s.global !== false ? Math.max(0, (this.globalCd.get(p.id) ?? 0) - now) : 0;
+    if (cdLeft > 0 || gLeft > 0) return this.fail(s.id, "cooldown", { cooldownMs: cdLeft, globalMs: gLeft });
+    if (p.mana < spellMana(s, p.level)) return this.fail(s.id, "mana");
+    return null;
   }
 
   private fail(spellId: string, reason: CastFailReason, extra: Partial<CastResultMsg> = {}): CastResultMsg {
@@ -173,9 +203,8 @@ export class SpellSystem {
   private tryCast(p: PlayerState, spellId: string, targetId: string | undefined, now: number): CastResultMsg {
     const s = (this.o.spells ?? spellDef)(spellId);
     if (!s) return this.fail(spellId, "unknown");
-    if (p.hp <= 0) return this.fail(s.id, "dead");
-    if (!s.vocations.includes(p.vocation as never)) return this.fail(s.id, "vocation");
-    if (p.level < s.level) return this.fail(s.id, "level");
+    const basic = this.check(p, s);
+    if (basic) return basic;
     const mm = this.o.monsters;
     const aggressive = isAggressive(s);
     const casterPz = mm.inPz(p.x, p.y);
@@ -187,11 +216,9 @@ export class SpellSystem {
       if (!ok) return this.fail(s.id, "pz");
     }
     const usesGlobal = s.global !== false;
-    const cdLeft = Math.max(0, (this.cd.get(p.id)?.get(s.id) ?? 0) - now);
-    const gLeft = usesGlobal ? Math.max(0, (this.globalCd.get(p.id) ?? 0) - now) : 0;
-    if (cdLeft > 0 || gLeft > 0) return this.fail(s.id, "cooldown", { cooldownMs: cdLeft, globalMs: gLeft });
+    const cost = this.checkCost(p, s, now);
+    if (cost) return cost;
     const manaCost = spellMana(s, p.level);
-    if (p.mana < manaCost) return this.fail(s.id, "mana");
 
     const r = this.resolveTarget(p, s, targetId);
     if (!r.ok) return this.fail(s.id, r.reason);

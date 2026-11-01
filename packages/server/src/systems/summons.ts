@@ -1,6 +1,7 @@
 // Invocações: monstros aliados com dono (MonsterState.ownerId = sessionId). Seguem o dono (até 3 tiles),
 // atacam o alvo do dono ou quem ataca o dono/a invocação, não dão XP, somem ao expirar ou quando o dono
 // sai/morre/se afasta mais de SUMMON_LEASH tiles. 1 conjuração ativa por jogador (reconjurar substitui).
+// Também o acompanhante do Estagiário (MonsterDef.companion): uma "invocação" só visual, que segue o dono e nunca luta.
 import { DIR_DELTA, Dir, dirFromDelta, mitigate, monsterDef, rollInt, summonScaled, type MonsterDef } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { THINK_MS, computePath, followPath, greedyStep } from "./ai.ts";
@@ -14,6 +15,10 @@ export const SUMMON_LEASH = 20;
 export const SUMMON_FOLLOW_DIST = 3;
 /** Só procura/persegue alvos a até esta distância do dono. */
 export const SUMMON_FIGHT_DIST = 8;
+/** Acompanhante do Estagiário: anda atrás do dono quando passa disto (tiles)... */
+export const COMPANION_FOLLOW_DIST = 2;
+/** ...e reaparece ao lado dele quando passa disto (teleporte, portal, escada): não tenta atravessar o mapa a pé. */
+export const COMPANION_WARP_DIST = 6;
 
 const RING: Dir[] = [Dir.S, Dir.E, Dir.W, Dir.N, Dir.SE, Dir.SW, Dir.NE, Dir.NW];
 
@@ -28,6 +33,11 @@ export interface SummonOptions {
 export class SummonSystem {
   /** dono → ids das invocações ativas. */
   private readonly byOwner = new Map<string, Set<string>>();
+  /**
+   * dono → id do acompanhante do Estagiário. Separado das invocações de combate: reconjurar o Lobo (summon) não o
+   * apaga, ele não expira e não aparece em `ownedBy`.
+   */
+  private readonly companions = new Map<string, string>();
   private readonly until = new Map<string, number>();
 
   constructor(private readonly o: SummonOptions) {
@@ -61,7 +71,7 @@ export class SummonSystem {
     if (!base) return 0;
     // Vida e dano escalam com o level do invocador (GD-05); o catálogo fica no level base da criatura.
     const def = summonScaled(base, p.level);
-    this.despawnOwner(p.id);
+    this.despawnSummons(p.id);
     const tiles = this.freeTilesAround(p.x, p.y, Math.max(1, spec.count));
     const set = new Set<string>();
     for (const t of tiles) {
@@ -73,8 +83,14 @@ export class SummonSystem {
     return set.size;
   }
 
-  /** Remove todas as invocações do jogador (saída, morte, reconjuração). */
+  /** Remove tudo o que o jogador tem no mundo — invocações e acompanhante (saída, morte). */
   despawnOwner(ownerId: string): void {
+    this.despawnSummons(ownerId);
+    this.despawnCompanion(ownerId);
+  }
+
+  /** Remove só as invocações de combate (reconjuração). */
+  private despawnSummons(ownerId: string): void {
     const set = this.byOwner.get(ownerId);
     if (!set) return;
     for (const id of [...set]) {
@@ -84,11 +100,39 @@ export class SummonSystem {
     this.byOwner.delete(ownerId);
   }
 
+  /**
+   * Põe o acompanhante do Estagiário ao lado do dono (sem tile livre, no próprio tile dele: o dono passa por cima do
+   * acompanhante). Já existe → devolve o mesmo. null = def ausente.
+   */
+  spawnCompanion(p: PlayerState, now?: number): Monster | null {
+    const cur = this.companionOf(p.id);
+    if (cur) return cur;
+    const def = this.def("estagiario") ?? monsterDef("estagiario");
+    if (!def) return null;
+    const t = this.freeTilesAround(p.x, p.y, 1)[0] ?? { x: p.x, y: p.y };
+    const m = this.o.monsters.spawnSummon(def, t.x, t.y, p.id, now);
+    this.companions.set(p.id, m.s.id);
+    return m;
+  }
+
+  /** Tira o acompanhante do dono do mundo (Estagiário desligado). */
+  despawnCompanion(ownerId: string): void {
+    const m = this.companionOf(ownerId);
+    this.companions.delete(ownerId);
+    if (m) this.o.monsters.kill(m);
+  }
+
+  companionOf(ownerId: string): Monster | undefined {
+    const id = this.companions.get(ownerId);
+    return id ? this.o.monsters.get(id) : undefined;
+  }
+
   ownedBy(ownerId: string): string[] {
     return [...(this.byOwner.get(ownerId) ?? [])];
   }
 
   private forget(m: Monster) {
+    if (this.companions.get(m.s.ownerId) === m.s.id) this.companions.delete(m.s.ownerId);
     this.until.delete(m.s.id);
     const set = this.byOwner.get(m.s.ownerId);
     if (set) { set.delete(m.s.id); if (set.size === 0) this.byOwner.delete(m.s.ownerId); }
@@ -97,6 +141,7 @@ export class SummonSystem {
   /** IA da invocação (chamada pelo MonsterManager a cada tick). */
   update(m: Monster, now: number): void {
     const w = this.o.monsters;
+    if (w.isCompanion(m)) { this.companionUpdate(m, now); return; }
     const owner = this.o.getPlayer(m.s.ownerId);
     if (!owner || owner.hp <= 0 || now >= (this.until.get(m.s.id) ?? 0) || cheb(owner.x, owner.y, m.s.x, m.s.y) > SUMMON_LEASH) {
       w.kill(m, now);
@@ -107,6 +152,33 @@ export class SummonSystem {
       this.think(m, owner, now);
     }
     this.act(m, owner, now);
+  }
+
+  /**
+   * IA do acompanhante: não expira nem luta; só fica perto do dono. Dono ausente/morto → some (o Estagiário o recria
+   * quando o dono voltar a caçar).
+   */
+  private companionUpdate(m: Monster, now: number): void {
+    const w = this.o.monsters;
+    const owner = this.o.getPlayer(m.s.ownerId);
+    if (!owner || owner.hp <= 0) { w.kill(m, now); return; }
+    m.s.targetId = "";
+    const d = cheb(owner.x, owner.y, m.s.x, m.s.y);
+    if (d > COMPANION_WARP_DIST) {
+      const t = this.freeTilesAround(owner.x, owner.y, 1)[0] ?? { x: owner.x, y: owner.y };
+      w.place(m, t.x, t.y);
+      m.path = null;
+      return;
+    }
+    if (d <= COMPANION_FOLLOW_DIST) { m.path = null; return; }
+    const goal = { x: owner.x, y: owner.y };
+    if (now >= m.nextThinkAt) {
+      m.nextThinkAt = now + THINK_MS;
+      const moved = cheb(goal.x, goal.y, m.pathGoal.x, m.pathGoal.y);
+      if (!m.path || m.path.length === 0 || moved >= 1) computePath(m, w, goal, now, true);
+    }
+    if (now < m.stepEndsAt) return;
+    if (!followPath(m, w, now, goal)) greedyStep(m, w, goal, now, false);
   }
 
   private pickTarget(m: Monster, owner: PlayerState): Monster | undefined {

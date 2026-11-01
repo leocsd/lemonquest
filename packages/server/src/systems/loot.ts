@@ -132,6 +132,8 @@ export interface LootOptions {
   lootSharers?: (p: PlayerState, m: Monster) => PlayerState[];
   /** Filtro do loot automático de cada jogador (shared/lootFilter.ts). Ausente = pega tudo. */
   filterOf?: (p: PlayerState) => LootFilter;
+  /** Abate em que algo não coube na mochila de `p` (caiu no chão ou se perdeu): alarme do Estagiário. */
+  onBackpackFull?: (p: PlayerState) => void;
 }
 
 /**
@@ -213,6 +215,7 @@ export class LootSystem {
     }
     if (fell > 0) this.o.send(p.id, S2C.Notice, { text: `Mochila cheia: ${fell === 1 ? "1 item caiu" : `${fell} itens caíram`} no chão.`, kind: "warn" } satisfies NoticeMsg);
     if (lost > 0) this.o.send(p.id, S2C.Notice, { text: `Mochila cheia: ${lost === 1 ? "1 item perdido" : `${lost} itens perdidos`}.`, kind: "warn" } satisfies NoticeMsg);
+    if (fell + lost > 0) this.o.onBackpackFull?.(p);
     if (got.length || roll.gold > 0 || lost > 0 || fell > 0 || skipped.length) {
       const msg: LootMsg = { x, y, monsterName, items: got, gold: roll.gold };
       if (lost > 0) msg.lostFull = lost;

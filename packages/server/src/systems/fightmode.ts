@@ -51,6 +51,8 @@ interface ChaseState {
 
 export class FightModeSystem {
   private readonly st = new Map<string, ChaseState>();
+  /** Perseguição forçada (Estagiário caçando): age como `p.chase` ligado sem mexer na escolha salva do jogador. */
+  private readonly forced = new Set<string>();
   private readonly now: () => number;
 
   constructor(private readonly o: FightModeOptions) {
@@ -116,6 +118,16 @@ export class FightModeSystem {
 
   removePlayer(id: string): void {
     this.st.delete(id);
+    this.forced.delete(id);
+  }
+
+  /**
+   * Liga/desliga a perseguição forçada: enquanto ligada, o tick persegue o alvo como se `p.chase === true`, sem mudar
+   * `p.chase` (que é gravado e é a escolha do jogador quando ele mesmo joga).
+   */
+  forceChase(id: string, on: boolean): void {
+    if (on) this.forced.add(id);
+    else this.forced.delete(id);
   }
 
   private state(id: string): ChaseState {
@@ -138,7 +150,7 @@ export class FightModeSystem {
       const t: Point | undefined = p.targetId ? this.o.monsters.wild(p.targetId)?.s ?? this.o.getPlayer?.(p.targetId) : undefined;
       // Seguindo um jogador: só para de andar para lutar quando o alvo já está ao alcance.
       if (p.followId && !(t && this.inReach(p, t, range))) { this.followStep(p, now); continue; }
-      if (!p.chase || !t) { const s = this.st.get(p.id); if (s) s.path = null; continue; }
+      if (!(p.chase || this.forced.has(p.id)) || !t) { const s = this.st.get(p.id); if (s) s.path = null; continue; }
       const s = this.state(p.id);
       if (now < s.pausedUntil) continue;
       // Perseguindo, gruda no alvo (ao lado), qualquer que seja a vocação: quem ataca à distância também chega junto.
@@ -196,6 +208,17 @@ export class FightModeSystem {
     const range = Math.max(1, this.o.attackRange(p));
     // Parado (ou seguindo um jogador) só pega o que já dá para atacar; perseguindo, procura um pouco além.
     const reach = p.chase && !p.followId ? Math.max(range, AUTO_SEEK_DIST) : range;
+    const id = this.nearestTarget(p, reach);
+    if (id) p.targetId = id;
+  }
+
+  /**
+   * Monstro selvagem mais próximo a até `reach` tiles (vivo, não boneco de treino, fora da PZ, com linha de visão); ""
+   * se nada (ou se o jogador está na PZ). A busca do ataque automático, exposta para o Estagiário escolher alvo.
+   */
+  nearestTarget(p: PlayerState, reach: number): string {
+    const mm = this.o.monsters;
+    if (!mm.all || !mm.inPz || mm.inPz(p.x, p.y)) return "";
     let best = "", bestD = Infinity;
     for (const m of mm.all()) {
       if (m.s.ownerId || m.s.hp <= 0 || m.def.invulnerable) continue;
@@ -204,6 +227,6 @@ export class FightModeSystem {
       if (mm.los && !mm.los(p.x, p.y, m.s.x, m.s.y)) continue;
       best = m.s.id; bestD = d;
     }
-    if (best) p.targetId = best;
+    return best;
   }
 }

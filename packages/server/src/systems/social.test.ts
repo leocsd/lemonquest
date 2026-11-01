@@ -4,7 +4,7 @@ import { EMOTE_COOLDOWN_MS, MAX_FRIENDS, ONLINE_CHECK_MS, SocialSystem, WHISPER_
 
 type Sent = { to: string; type: string; msg: any };
 
-function world(names: string[], extra: { offline?: string[]; muted?: Record<string, number>; zoneAt?: (x: number, y: number) => string | null; away?: string[]; inPz?: (x: number, y: number) => boolean; sameParty?: (a: string, b: string) => boolean } = {}) {
+function world(names: string[], extra: { offline?: string[]; muted?: Record<string, number>; zoneAt?: (x: number, y: number) => string | null; away?: string[]; inPz?: (x: number, y: number) => boolean; sameParty?: (a: string, b: string) => boolean; onWhisper?: (to: any, from: any) => void } = {}) {
   let t = 1_000_000;
   const players = names.map((n, i) => ({ id: `s${i}`, name: n }) as any);
   const records = new Map(players.map((p: any) => [p.id, { data: {} } as any]));
@@ -21,6 +21,7 @@ function world(names: string[], extra: { offline?: string[]; muted?: Record<stri
     ...(extra.away ? { away: (id: string) => extra.away!.includes(id) } : {}),
     ...(extra.inPz ? { inPz: extra.inPz } : {}),
     ...(extra.sameParty ? { sameParty: extra.sameParty } : {}),
+    ...(extra.onWhisper ? { onWhisper: extra.onWhisper } : {}),
     now: () => t,
   });
   const by = (n: string) => players.find((p: any) => p.name === n);
@@ -63,6 +64,17 @@ describe("social: sussurro", () => {
     const last = w.sent.filter((s) => s.type === S2C.Chat).slice(-2);
     expect(last[0]!.msg).toMatchObject({ from: "Qa Ac", to: "Qa Ab", text: "tudo ótimo" });
     expect(w.sent.some((s) => s.to === "s2" && s.type === S2C.Chat)).toBe(false); // terceiro não recebe
+  });
+
+  it("onWhisper (Estagiário): chamado uma vez por sussurro entregue, com destino e remetente; recusado não chama", () => {
+    const calls: [string, string][] = [];
+    const w = world(["Ana", "Beto"], { onWhisper: (to, from) => calls.push([to.name, from.name]) });
+    w.social.command(w.by("Ana"), "/w Beto oi");
+    expect(calls).toEqual([["Beto", "Ana"]]);
+    w.social.command(w.by("Ana"), "/w Beto de novo"); // rajada: recusado
+    expect(calls).toHaveLength(1);
+    w.social.command(w.by("Ana"), "/w Beto"); // vazio
+    expect(calls).toHaveLength(1);
   });
 
   it("prefere o nome mais longo quando um abre o outro", () => {
