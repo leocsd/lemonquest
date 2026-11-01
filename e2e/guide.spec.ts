@@ -1,7 +1,7 @@
 // Seta-guia do novato: aponta o Capitão, depois a floresta dos ratos, e some quando o personagem passa do level inicial;
 // depois o botão "Guiar" do rastreador religa a seta para a missão (ciclo 17).
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, setLevel, teleport, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, setLevel, teleport, walkableNear, npcTab } from "./helpers.ts";
 
 const guide = (page: Page) => page.evaluate(() => (window as any).__lq.guide() as { onScreen: boolean; label: string; dist: number } | null);
 
@@ -23,7 +23,7 @@ test("seta-guia: Capitão → floresta → some ao subir de level", async ({ pag
     await page.waitForTimeout(800);
     return win.isVisible();
   }, { timeout: 20_000, intervals: [300] }).toBe(true);
-  await win.getByRole("tab", { name: "Missões" }).click();
+  await npcTab(win, "Missões");
   await win.locator('.quest-card[data-quest="rats_barn"]').getByRole("button", { name: "Aceitar" }).click();
   await win.getByRole("button", { name: "Fechar" }).click();
   await expect.poll(() => guide(page)).toMatchObject({ label: expect.stringContaining("Ratos") });

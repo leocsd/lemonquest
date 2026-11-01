@@ -70,6 +70,16 @@ o servidor desligado também conta.
 
 Não use a mesma senha do trabalho: a rede do escritório não é criptografada (HTTP).
 
+## App de desktop
+
+Em vez do navegador, dá para jogar num app próprio (Windows, Mac e Linux): ícone na área de trabalho, janela só do
+jogo, nenhuma tecla brigando com o navegador e atualização automática. Baixe na tela de login ("Baixar o app") ou em
+<https://github.com/leocsd/lemonquest/releases/latest>. O app abre o servidor do escritório; para apontar para outro,
+rode-o com `--url http://host:porta`. Detalhes, build e como soltar versão: [`packages/desktop/README.md`](packages/desktop/README.md).
+
+Avisos únicos por PC, por não termos certificado pago: no Windows o SmartScreen pede "Mais informações → Executar
+assim mesmo"; no Mac, "Abrir assim mesmo" em Privacidade e Segurança.
+
 ## Administradores
 
 Admin = personagem listado em `LEMONQUEST_ADMINS` (vírgulas, sem diferença de maiúsculas: `"Leonardo, Ana Maria"`).

@@ -4,7 +4,7 @@
 // só dos tiers 7–8: a Katana não pede.
 import { expect, test, type Page } from "@playwright/test";
 import { NPCS } from "../packages/shared/src/data/npcs.ts";
-import { countOf, enterGame, inventory, openNpc, recordToasts, say, seenToast, snap } from "./helpers.ts";
+import { countOf, enterGame, inventory, openNpc, recordToasts, say, seenToast, snap, expectNpcTabOpen } from "./helpers.ts";
 
 type Inst = { defId: string; count: number; refine?: number } | null;
 const katana = async (p: Page) => ((await inventory(p))!.backpack as Inst[]).find((b) => b?.defId === "mithril_katana") ?? null;
@@ -22,7 +22,7 @@ test("refino: Katana de Mithril do +0 ao +5 no Ferreiro, cobrando ouro e Esmeral
   await recordToasts(page);
 
   const win = await openNpc(page, "blacksmith", NPCS.blacksmith!.name);
-  await expect(win.getByRole("tab", { name: "Refinar" })).toHaveAttribute("aria-selected", "true");
+  await expectNpcTabOpen(win, "Refinar");
   const row = win.getByRole("option", { name: /Katana de Mithril/ });
   await expect(row).toContainText("+0/5");
   const detail = win.locator(".refine-detail");
@@ -43,12 +43,18 @@ test("refino: Katana de Mithril do +0 ao +5 no Ferreiro, cobrando ouro e Esmeral
   await expect(page.locator(`.hud-panel [data-loc="bp:${bpIndex}"] .item-refine`)).toHaveText("+1");
 
   // Até o +5: falhas são sorteadas (10–50%); cada clique espera o inventário voltar (botão destrava).
+  // O servidor aceita 4 refinos por segundo e descarta o excesso em silêncio (MESSAGE_LIMITS): com o inventário
+  // voltando a cada tick, o laço clica mais rápido que isso e um clique se perde — se o ouro não mudou, clica de novo.
   const btn = detail.locator(".refine-btn");
   for (let i = 0; i < 40 && ((await katana(page))?.refine ?? 0) < 5; i++) {
     const before = await gold(page);
     await expect(btn).toBeEnabled({ timeout: 10_000 });
     await btn.click();
-    await expect.poll(() => gold(page), { timeout: 10_000 }).toBeLessThan(before);
+    await expect.poll(async () => {
+      if ((await gold(page)) < before) return true;
+      if (await btn.isEnabled()) await btn.click();
+      return (await gold(page)) < before;
+    }, { timeout: 10_000, intervals: [400], message: "ouro gasto no refino" }).toBe(true);
   }
   expect((await katana(page))?.refine).toBe(5);
   await expect(btn).toHaveText("Refino máximo");

@@ -1,7 +1,7 @@
 // Carroça: Vila → Posto da Fronteira com o Cocheiro Bastião (paga 150), volta com a Cocheira Zuleica, e sem ouro o
 // botão "Viajar" fica travado com o aviso "Ouro insuficiente".
 import { expect, test, type Page } from "@playwright/test";
-import { enterGame, inventory, me, openNpc, say, setLevel, snap } from "./helpers.ts";
+import { enterGame, inventory, me, openNpc, say, setLevel, snap, npcTab } from "./helpers.ts";
 
 /** Chegadas (shared/data/npcs.ts): o servidor usa o tile ou o livre mais perto. */
 const FRONTIER = { x: 214, y: 61 };
@@ -23,7 +23,7 @@ const zonesSeen = (page: Page) => page.evaluate(() => (window as any).__zones as
 
 async function travel(page: Page, npcId: string, npcName: string, dest: string) {
   const win = await openNpc(page, npcId, npcName);
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   const row = win.locator(".shop-row", { hasText: dest });
   await expect(row).toContainText("150");
   await row.getByRole("button", { name: "Viajar" }).click();
@@ -54,7 +54,7 @@ test("carroça: sem ouro o botão fica travado com 'Ouro insuficiente'", async (
   await setLevel(page, 10);
   expect(await gold(page)).toBeLessThan(150);
   const win = await openNpc(page, "coach_village", "Cocheiro Bastião");
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   const row = win.locator(".shop-row", { hasText: "Posto da Fronteira" });
   const btn = row.getByRole("button", { name: "Viajar" });
   await expect(btn).toBeDisabled();

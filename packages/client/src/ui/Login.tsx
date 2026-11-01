@@ -5,6 +5,7 @@ import {
 } from "@lemonquest/shared";
 import { session } from "../session.ts";
 import { loading } from "./loading.ts";
+import { APP_DOWNLOAD_URL, appInfo, nomeDoSo } from "./appInfo.ts";
 import { PixelIcon } from "./hud/icons.tsx";
 import { VOCATION_META, vocationMeta } from "./hud/vocations.ts";
 import { OutfitCanvas } from "./outfit/OutfitCanvas.tsx";
@@ -507,6 +508,9 @@ export function Login() {
     );
   }
 
+  // Dentro do app de desktop mostra a versão; no navegador, o link para baixar o app.
+  const app = appInfo();
+
   return (
     <div class="login-wrap" onKeyDown={stop}>
       <div class={`panel login-card step-${step}`}>
@@ -514,6 +518,9 @@ export function Login() {
         {body}
         {error && <div class="error" role="alert">{error}</div>}
         <p class="login-notice">Rede do escritório sem criptografia: não use a mesma senha do trabalho.</p>
+        {app
+          ? <p class="login-app" data-testid="login-app">App v{app.versao} · {nomeDoSo(app.so)}</p>
+          : <p class="login-app"><a href={APP_DOWNLOAD_URL} target="_blank" rel="noopener">Baixar o app para Windows, Mac ou Linux</a></p>}
       </div>
       {del && (
         <div

@@ -11,10 +11,46 @@
 | Benchmark manual | `npx tsx packages/server/src/systems/pathfinding.bench.ts` | custo do A* (µs por caminho) |
 | Carga | servidor E2E (`E2E_PORT=2872 E2E_SKIP_BUILD=1 node e2e/start-server.mjs`) + `node tools/loadtest.mjs http://127.0.0.1:2872 --bots 10 --secs 130` | tick do servidor (log `[tick]`), ida e volta de um passo |
 | Fuzz | servidor E2E com `E2E_ADMINS="Fuzz Inv"` + `node tools/fuzz.mjs <url> --mode proto` / `--mode inventory --name "Fuzz Inv"` | servidor não cai nem registra exceção; inventário sem duplicação |
+| App de desktop | `cargo test` em `packages/desktop/src-tauri` + `appInfo.test.ts` no cliente + checklist manual por sistema | unitários dos módulos `endereco`, `nav`, `boot`, `saude`, `atualizador` e da sonda `appInfo`; instalação, boot, teclas e update em Windows/macOS/Linux à mão (`docs/superpowers/plans/2026-10-31-app-desktop-tauri.md`, Task 11) |
 | CI | `.github/workflows/ci.yml` | typecheck + unitários + build + Docker `/health` + E2E |
 
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
+
+## Resultados — app de desktop (2026-10-31)
+
+Unitários: `cargo test` em `packages/desktop/src-tauri` (23: endereco 7, nav 8, boot 2, saúde 4, atualizador 2);
+`appInfo.test.ts` (5). Typecheck 3× tsc. Suíte unitária inteira do monorepo: 1698 passando. Sem E2E novo (a casca não
+tem regra de jogo).
+
+Execução pelo controlador contra um servidor E2E isolado (porta 2870), em modo dev no Windows: porta morta → a boot fica
+no laço de tentativas e o app segue vivo (40 s+); servidor no ar → histórico do WebView2 mostra a boot
+(`http://127.0.0.1:1430/`) e, 2 s depois, `http://localhost:2870/` (o jogo), com conexões HTTP do webview ao servidor;
+updater sem Release publicada → log `[app] não conseguiu verificar versão nova` e nenhum diálogo. Esse teste achou e
+corrigiu dois defeitos: o `--url` não chegava ao binário (script `app:dev` precisava de um `--` a mais) e a boot
+carregava como `/` (não `/index.html`), então o laço nunca começava.
+
+Build de release local no Windows (`npm run app:build -- --bundles nsis` com a chave): `The Lemon Quest_0.1.0_x64-setup.exe`
+(1,8 MiB) e o `.sig` do updater gerados em 5m43s; NSIS 3.13 baixado pela CLI. Caminho de release provado antes da 1ª tag.
+
+E2E: o helper `openWithSession` gravava a sessão da conta em `sessionStorage`, mas desde o login salvo (27/10) o cliente lê
+`localStorage`; todos os E2E da `main` desde então estouravam o tempo ("cancelled"). Corrigido no helper (uma linha);
+`account.spec.ts` 2/2 localmente (10 s e 4 s). Dois outros problemas pré-existentes corrigidos no E2E: desde a janela de NPC de
+aba única (29/10) os specs clicavam em `getByRole("tab")` que não existe mais — helpers `npcTab`/`expectNpcTabOpen`
+(clicam na aba se houver, senão aceitam o título de seção) em 12 specs; e `refine.spec.ts` clicava mais rápido que o
+limite de 4 refinos/s do servidor (excesso descartado em silêncio) — reclique no `expect.poll`. Localmente: guide,
+malha (7), montadora (9), mural e refine passam. Teto do job E2E na CI: 45 → 60 min. Terceiro ajuste:
+`panels.spec.ts` ainda media a Mochila com a linha antiga de 45 px; a grade de 5 por linha (27/10) tem linha de 41 + 1,
+e as alturas passaram a ser calculadas pela fórmula de `panelSize.ts` (3 linhas = 124, 2 = 83, 5 = 206). Primeira
+suíte E2E completa na CI desde 27/10: 97 ✓, 1 instável (coliseu), 2 ✘ (os da Mochila, corrigidos aqui).
+
+Manual (pendente, com o dono), instaladores da Release `app-v0.1.0` e update para `app-v0.1.1`:
+
+| Sistema | Instalar/abrir | Boot → login | Teclas mortas (F5/F12/Ctrl+F/Ctrl+P/Ctrl+W) | Teclas do jogo | Wiki/Ranking fora | Janela lembrada | Servidor fora | Update 0.1.0 → 0.1.1 |
+|---|---|---|---|---|---|---|---|---|
+| Windows | não testado ainda | | | | | | | |
+| macOS | não testado ainda | | | | | | | |
+| Linux | não testado ainda | | | | | | | |
 
 ## Resultados — NPC com uma aba só (Mestre Brás) (2026-10-29)
 

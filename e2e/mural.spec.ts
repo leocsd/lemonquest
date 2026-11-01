@@ -2,7 +2,7 @@
 // Agenda → Excursões e marca "Quero ir"; A recebe o cartão e convida (o convite de grupo de sempre); B aceita e o
 // painel Online de A mostra B no grupo, com a zona. A estrela põe B nos amigos; Sussurrar abre o chat com "/w nome ".
 import { expect, test, type Page } from "@playwright/test";
-import { enterGame, openNpc } from "./helpers.ts";
+import { enterGame, openNpc, expectNpcTabOpen } from "./helpers.ts";
 
 const section = (page: Page, id: string) => page.locator(`.hud-panel [data-panel-id="${id}"]`);
 
@@ -21,7 +21,7 @@ test("mural: marcar, quero ir, convite pelo cartão e painel online", async ({ b
 
     // A no Mural: Coliseu (todas as faixas), agora, 4 vagas; faixa sugerida do lv 1 (1–1) cobre B.
     const win = await openNpc(a, "excursion_board", "Mural de Excursões");
-    await expect(win.getByRole("tab", { name: "Excursões" })).toHaveAttribute("aria-selected", "true");
+    await expectNpcTabOpen(win, "Excursões");
     await win.getByTestId("ex-dest").selectOption("coliseu");
     await win.getByTestId("ex-slots").selectOption("4");
     await win.getByTestId("ex-post").click();
