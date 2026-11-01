@@ -1,10 +1,10 @@
 // Harness de desenvolvimento (?uitest, só em modo dev): simula o servidor para a UI de itens/NPC/loot/feed,
 // sem Colyseus. Defs falsas só entram em ITEMS se o id ainda não existir. Uso: http://localhost:3080/?uitest
 // Parâmetros: ?npc=buy|sell|depot (abre o NPC), ?voc=knight|sorcerer..., ?lv=8
-// Console: __ut.loot("epic"), __ut.feed("boss"), __ut.npc("depot")
+// Console: __ut.loot("epic"), __ut.feed("boss"), __ut.npc("depot"), __ut.alarme("jogador")
 import {
-  BACKPACK_SIZE, C2S, DEPOT_SIZE, EQUIP_SLOTS, ITEMS, instanceStats, itemDef,
-  type EquipSlot, type FeedMsg, type InventoryMsg, type ItemDef, type ItemInstance, type ItemLocation, type LootMsg, type NpcOpenMsg, type NpcTradeMsg, type Rarity, type SetOutfitMsg, type StatId,
+  BACKPACK_SIZE, C2S, DEPOT_SIZE, EQUIP_SLOTS, ITEMS, NOME_ROTA_MAX, ROTAS_MAX, estagiarioPadrao, instanceStats, itemDef,
+  type AlarmeTipo, type EquipSlot, type EstagiarioConfigMsg, type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioToggleMsg, type FeedMsg, type InventoryMsg, type ItemDef, type ItemInstance, type ItemLocation, type LootMsg, type NpcOpenMsg, type NpcTradeMsg, type Rarity, type SetOutfitMsg, type StatId,
 } from "@lemonquest/shared";
 import { session } from "../../session.ts";
 import { setBattleEntries } from "../hud/battle.ts";
@@ -12,6 +12,8 @@ import { playersStore, type PlayerSnap } from "../hud/world.ts";
 import { depotStore, inventoryStore } from "../items/inventory.ts";
 import { handleFeed, handleLoot } from "../items/loot.ts";
 import { setItemTransport } from "../items/net.ts";
+import { alarme as estagiarioAlarme } from "../estagiario/alarmes.ts";
+import { onEstadoFromServer as estagiarioEstado } from "../estagiario/store.ts";
 import { handleNpcOpen } from "../npc/npc.ts";
 import { onlineStore } from "../social/online.ts";
 
@@ -111,6 +113,15 @@ export function startUiTest(): void {
   };
 
   const notice = (text: string) => console.info("[uitest/server]", text);
+
+  // Estagiário: o "servidor" guarda o estado e devolve como o de verdade (S2C.EstagiarioEstado), sem sanitizar.
+  const est: EstagiarioEstadoMsg = {
+    config: { ...estagiarioPadrao(voc), rotas: [{ nome: "Ratos do esgoto", pontos: [{ x: 10, y: 10 }, { x: 14, y: 10 }, { x: 14, y: 16 }] }] },
+    cura: false, ataque: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 95 * 60_000,
+  };
+  let gravTimer = 0;
+  const pushEst = () => setTimeout(() => estagiarioEstado(structuredClone(est)), 40);
+  pushEst();
   const npc = (tab?: string): NpcOpenMsg => ({
     npcId: "ut_shop", name: "Bento, o Mercador", greeting: "Bem-vindo, viajante! Dê uma olhada nas minhas mercadorias. Pago bem por armas e armaduras usadas.",
     shop: { sells: [{ itemId: "ut_hp", price: 40 }, { itemId: "ut_mp", price: 45 }, { itemId: "ut_sword", price: 120 }, { itemId: "ut_helmet", price: 40 }, { itemId: "ut_amulet", price: 4000 }], buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material"], sellRatio: 0.3 },
@@ -120,6 +131,7 @@ export function startUiTest(): void {
 
   setItemTransport((type, msg) => {
     const m = msg as Record<string, unknown>;
+    if (type.startsWith("estagiario")) console.info("[uitest/send]", type, JSON.stringify(msg));
     switch (type) {
       case C2S.MoveItem: {
         const from = m.from as ItemLocation, to = m.to as ItemLocation, count = m.count as number | undefined;
@@ -194,6 +206,32 @@ export function startUiTest(): void {
         }, 60);
         return;
       }
+      case C2S.EstagiarioConfig: est.config = structuredClone((m as unknown as EstagiarioConfigMsg).config); pushEst(); return;
+      case C2S.EstagiarioToggle: {
+        const t = m as unknown as EstagiarioToggleMsg;
+        if (typeof t.cura === "boolean") est.cura = t.cura;
+        if (typeof t.ataque === "boolean") est.ataque = t.ataque;
+        if (t.rota === null) est.rota = null;
+        else if (typeof t.rota === "string" && est.config.rotas.some((r) => r.nome === t.rota)) { est.rota = t.rota; est.ataque = true; }
+        me.bot = est.rota !== null;
+        publishMe(); pushEst(); return;
+      }
+      case C2S.EstagiarioGravar: {
+        const g = m as unknown as EstagiarioGravarMsg;
+        clearInterval(gravTimer);
+        if (g.acao === "iniciar" && !est.rota) {
+          est.gravando = true; est.pontosGravados = 1;
+          gravTimer = window.setInterval(() => { est.pontosGravados++; pushEst(); }, 1500);
+        } else if (g.acao === "parar" && est.gravando) {
+          const nome = (g.nome ?? "").trim().slice(0, NOME_ROTA_MAX);
+          const outras = est.config.rotas.filter((r) => r.nome.toLowerCase() !== nome.toLowerCase());
+          if (!nome || outras.length >= ROTAS_MAX) { notice("rota recusada (sem nome ou rotas cheias)"); pushEst(); return; }
+          const pontos = Array.from({ length: est.pontosGravados }, (_, i) => ({ x: 10 + i, y: 10 }));
+          est.config = { ...est.config, rotas: [...outras, { nome, pontos }] };
+          est.gravando = false; est.pontosGravados = 0;
+        } else if (g.acao === "descartar") { est.gravando = false; est.pontosGravados = 0; }
+        pushEst(); return;
+      }
       case C2S.FightMode: {
         const f = m as { stance: PlayerSnap["stance"]; chase: boolean; auto?: boolean };
         setTimeout(() => { me.stance = f.stance; me.chase = f.chase; me.auto = !!f.auto; publishMe(); }, 80);
@@ -226,7 +264,8 @@ export function startUiTest(): void {
   // npcMsg: abre qualquer NPC a partir da mensagem completa (ex.: o Ferreiro com a aba Refinar); give: põe um item do catálogo
   // real na mochila (o refino só lista itens reais de level 35+).
   const give = (defId: string, count = 1, rarity: Rarity = "common"): void => { const i = backpack.findIndex((x) => !x); if (i >= 0) { backpack[i] = inst(defId, count, rarity); pushInv(); } };
-  (window as unknown as Record<string, unknown>).__ut = { loot, feed, npc: open, npcMsg: (m: NpcOpenMsg) => { handleNpcOpen(m); pushDepot(); }, give, me, inv: () => ({ equipment, backpack, gold }), EQUIP_SLOTS };
+  const alarme = (tipo: AlarmeTipo = "jogador"): void => estagiarioAlarme({ tipo, texto: `Alarme de teste: ${tipo}` });
+  (window as unknown as Record<string, unknown>).__ut = { loot, feed, alarme, est, npc: open, npcMsg: (m: NpcOpenMsg) => { handleNpcOpen(m); pushDepot(); }, give, me, inv: () => ({ equipment, backpack, gold }), EQUIP_SLOTS };
 
   if (P.has("npc")) setTimeout(() => open(P.get("npc") || undefined), 300);
   setTimeout(() => { loot("common"); feed("level"); feed("drop"); }, 800);

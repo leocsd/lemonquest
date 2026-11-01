@@ -334,3 +334,14 @@ describe("social: amigo que não existe mais", () => {
     expect(notices(w, "s0").at(-1)).toContain("não encontrado");
   });
 });
+
+describe("social: painel Online com o Estagiário (2026-11-01)", () => {
+  it("quem está com a rota do Estagiário rodando vem com bot (🤖 no painel); os outros, sem o campo", () => {
+    const w = world(["Ana", "Beto", "Caio"]);
+    Object.assign(w.by("Beto"), { level: 20, vocation: "knight", bot: true });
+    Object.assign(w.by("Caio"), { level: 20, vocation: "druid", bot: false });
+    const list = w.social.onlineFor(w.by("Ana")).list;
+    expect(list.find((e) => e.name === "Beto")!.bot).toBe(true);
+    expect("bot" in list.find((e) => e.name === "Caio")!).toBe(false);
+  });
+});

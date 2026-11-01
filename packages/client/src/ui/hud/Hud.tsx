@@ -16,6 +16,7 @@ import { clearTarget, getTarget } from "./target.ts";
 import { meStore } from "./world.ts";
 import { Tooltip } from "./Tooltip.tsx";
 import "../items/bind.ts";
+import "../estagiario/bind.ts";
 import { DragLayer } from "../items/DragLayer.tsx";
 import { useItemKeys } from "../items/keys.ts";
 import { closeTopOverlay } from "../overlays.ts";

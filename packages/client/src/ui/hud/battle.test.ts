@@ -54,3 +54,11 @@ describe("battle list: o que aparece na tela (2026-11-01)", () => {
     expect(buildBattleList(players, "me", monsters).filter((e) => e.kind === "monster").map((e) => e.id)).toEqual(["m12"]);
   });
 });
+
+describe("battle list: Estagiário (2026-11-01)", () => {
+  it("jogador com a rota do Estagiário rodando aparece com 🤖 antes do nome; os outros, como estão", () => {
+    const p = (id: string, x: number, bot = false) => ({ id, name: id, x, y: 10, hp: 10, maxHp: 10, bot }) as unknown as PlayerSnap;
+    const players = new Map([["me", p("me", 10, true)], ["ana", p("ana", 11, true)], ["bia", p("bia", 12)]]);
+    expect(buildBattleList(players, "me", {}).map((e) => e.name)).toEqual(["🤖 ana", "bia"]);
+  });
+});

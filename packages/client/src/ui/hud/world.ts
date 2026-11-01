@@ -15,7 +15,7 @@ const snap = (p: PlayerView): PlayerSnap => ({
   hp: p.hp, maxHp: p.maxHp, mana: p.mana, maxMana: p.maxMana, xp: p.xp, targetId: p.targetId ?? "",
   magicLevel: p.magicLevel ?? 0, skillMelee: p.skillMelee ?? 10, skillDistance: p.skillDistance ?? 10, skillShield: p.skillShield ?? 10,
   magicPct: p.magicPct ?? 0, meleePct: p.meleePct ?? 0, distancePct: p.distancePct ?? 0, shieldPct: p.shieldPct ?? 0, speedPct: p.speedPct ?? 100, stance: p.stance ?? "balanced", chase: !!p.chase,
-  auto: !!p.auto, followId: p.followId ?? "", skull: p.skull ?? "", blessed: !!p.blessed,
+  auto: !!p.auto, bot: !!p.bot, followId: p.followId ?? "", skull: p.skull ?? "", blessed: !!p.blessed,
   outfit: p.outfit ?? "", addons: p.addons ?? 0, title: p.title ?? "", partyId: p.partyId ?? "", sex: p.sex === "f" ? "f" : "m",
 });
 
