@@ -7,7 +7,7 @@ import { MECHANICS } from "./mechanics.mts";
 
 export function render(m: WikiModel): WikiPage[] {
   // Bonecos de treino (invulneráveis) não contam como criatura do bestiário.
-  const creatures = m.monsters.filter((d) => !d.invulnerable).length;
+  const creatures = m.monsters.filter((d) => !d.invulnerable && !d.companion).length;
   const cards: [string, string, number, string][] = [
     ["criaturas/index.html", "Criaturas", creatures, "Vida, dano, resistências, loot e onde nascem."],
     ["itens/index.html", "Itens", m.items.length, "Equipamentos, poções e materiais: quem dropa, quem vende, quem compra."],

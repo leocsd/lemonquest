@@ -18,6 +18,8 @@ export interface OnlineEntry {
   zone?: string;
   /** No mundo sem ninguém no controle (caiu ou saiu em combate). */
   away?: boolean;
+  /** Rota do Estagiário rodando (🤖 no nome). */
+  bot?: boolean;
 }
 
 /** S2C.Online: só para você (as zonas visíveis dependem de quem pergunta). Você não entra na lista. */

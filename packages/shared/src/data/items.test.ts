@@ -125,6 +125,7 @@ describe("ITEMS", () => {
   it("loot de monstros referencia itens existentes", () => {
     for (const m of Object.values(MONSTERS)) {
       if (m.invulnerable) { expect(m.loot).toBeUndefined(); expect(m.gold).toBeUndefined(); continue; } // boneco de treino
+      if (m.companion) continue; // acompanhante do Estagiário: sem loot nem XP, como as invocações
       if (m.id.startsWith("summoned_")) { expect(m.loot).toBeUndefined(); continue; }
       expect(m.gold, m.id).toBeDefined();
       expect(m.gold![0]).toBeLessThanOrEqual(m.gold![1]);

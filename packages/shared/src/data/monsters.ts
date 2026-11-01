@@ -31,6 +31,8 @@ export interface CreatureSprite {
 }
 
 export interface MonsterDef {
+  /** Acompanhante (Estagiário): nunca é alvo, não toma dano, não ataca, não dá XP; fora da battle list e da wiki. */
+  companion?: boolean;
   id: string;
   name: string;              // PT-BR, exibido no jogo
   level: number;             // nível sugerido (para cor do nome e balanceamento)
@@ -203,6 +205,13 @@ export const MONSTERS: Record<string, MonsterDef> = {
     id: "summoned_butterfly", name: "Borboleta Encantada", level: 20, hp: 180, xp: 0, damage: [14, 26], damageKind: "holy", armor: 3,
     attackMs: 1600, attackRange: 1, stepMs: 240, aggroRange: 0, fleeAtHpPct: 0, respawnMs: 0,
     sprite: grid4(M + "Butterfly/SpriteSheet.png", { tint: 0xffb8e6 }),
+  },
+  // Estagiário (2026-11-01): só acompanha o dono enquanto a rota de caça roda. Visual de um morador da vila.
+  estagiario: {
+    id: "estagiario", name: "Estagiário", level: 1, hp: 1, xp: 0, damage: [0, 0], damageKind: "physical", armor: 0,
+    attackMs: 60_000, attackRange: 1, stepMs: 260, aggroRange: 0, fleeAtHpPct: 0, respawnMs: 0,
+    companion: true,
+    sprite: grid4("ninja/Actor/Character/Boy/SpriteSheet.png"),
   },
   snake: {
     id: "snake", name: "Cobra", level: 12, hp: 140, xp: 60, damage: [10, 22], damageKind: "earth", armor: 3,
