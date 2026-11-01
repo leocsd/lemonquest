@@ -39,7 +39,10 @@ E2E: o helper `openWithSession` gravava a sessão da conta em `sessionStorage`, 
 aba única (29/10) os specs clicavam em `getByRole("tab")` que não existe mais — helpers `npcTab`/`expectNpcTabOpen`
 (clicam na aba se houver, senão aceitam o título de seção) em 12 specs; e `refine.spec.ts` clicava mais rápido que o
 limite de 4 refinos/s do servidor (excesso descartado em silêncio) — reclique no `expect.poll`. Localmente: guide,
-malha (7), montadora (9), mural e refine passam. Teto do job E2E na CI: 45 → 60 min.
+malha (7), montadora (9), mural e refine passam. Teto do job E2E na CI: 45 → 60 min. Terceiro ajuste:
+`panels.spec.ts` ainda media a Mochila com a linha antiga de 45 px; a grade de 5 por linha (27/10) tem linha de 41 + 1,
+e as alturas passaram a ser calculadas pela fórmula de `panelSize.ts` (3 linhas = 124, 2 = 83, 5 = 206). Primeira
+suíte E2E completa na CI desde 27/10: 97 ✓, 1 instável (coliseu), 2 ✘ (os da Mochila, corrigidos aqui).
 
 Manual (pendente, com o dono), instaladores da Release `app-v0.1.0` e update para `app-v0.1.1`:
 
