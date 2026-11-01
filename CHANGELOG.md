@@ -1,5 +1,24 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · leitura geral de balanço aplicada
+
+Dono: "atualize tudo" (sobre os achados da leitura de magias, vocações, progressão, monstros, itens e economia).
+- **Druida**: Lasca de Gelo (`exori frigo`) cresce 1,6 por level (era 0,6; a Bola de Fogo segue 0,6); no lv 30 vai de
+  ~97 para ~126 de dano. Fúria da Natureza perdeu 10 de base (Coliseu). Fada espelha os dois.
+- **Paladino**: Flecha Paralisante vira flecha de controle (lentidão 5 s, mana 40) e sai da tecla inteligente "Flecha no
+  alvo" (era dominada pela Flecha Sagrada); a barra recomendada ganha uma tecla para ela.
+- **Bênção** acompanha a perda da morte: 50 × level × 1 até o lv 59, ×2 no 60, ×2,5 no 80, ×3 no 100 (15 mil no lv 100).
+- **Armas Carmesim (lv 85)**: uma por vocação (espada 145, arco 129, varinha e bastão 95), só de drop raro (0,3–0,4%)
+  do Senhor dos Dragões, do Behemoth e do Cão Infernal; fora do Baú de Recompensa (`isExclusiveItem`).
+- **Chefes das regiões novas** com mais equipamento (Fornalha, Protótipo, Covil da Chama, Golem, Monstro da Estufa,
+  Barba-Ruiva, Rei Kongra): loot por vida 1,5–3× maior; as peças Abissais ficam no teto da regra (8%).
+- **Espírito de Chama**: equipamento 0,8–1,5% → 0,4–0,6% (dominava o lv 38).
+- **Poção de Mana Forte**: 800 → 1.000 de mana (360 de ouro); recuperava menos que a Grande do lv 30.
+- **Missões do lv 80+** trocam as poções de lv 30 por ouro do mesmo valor. **Galho Seco** cai do lobo (não tinha fonte).
+- Comentários com números velhos atualizados; testes de balanço com teto de 30 s.
+Medido: pior/melhor das vocações 0,73 / 0,76 / 0,82 (lv 30/60/100); todas as metas de `vocationBalance.test.ts`,
+`arena.test.ts` e `spells.test.ts` mantidas.
+
 ## [Não lançado] — 2026-11-01 · cavaleiro com exori gran e exori mas em área; magias mais longe; modo Seguir na hora
 
 Dono: "sinto falta do exori gran e exori mas do knight", "posso usar skill com uma distância maior", "o modo atacar

@@ -17,6 +17,16 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — leitura geral de balanço aplicada (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1700 passando. Cada mudança medida contra `vocationBalance.test.ts` e
+`arena.test.ts` antes de entrar: a Poção de Mana Forte com 1.100 fazia o grupo justo da 60 e o lv 110 completarem (ficou
+1.000); a Flecha Paralisante com mais dano também (virou controle); a Lasca de Gelo mais forte só passou com a Fúria da
+Natureza −10 de base. Testes atualizados: preço da bênção (`combatFormulas`), chances fixadas dos chefes da Siderúrgica e
+da Montadora (`items.test.ts`, peças Abissais 6% → 8%, no teto da regra 5–8%), contagem de exclusivos do baú
+(`quests.test.ts`, + armas Carmesim), barra recomendada do paladino 7 → 8 (`hotkeys.test.ts`). Pior/melhor das vocações:
+0,73 / 0,76 / 0,82. Valor de loot dos chefes por script (chance × quantidade × preço de venda; ouro travado).
+
 ## Resultados — cavaleiro com exori gran/exori mas, alcance das magias e modo Seguir (2026-11-01)
 
 Typecheck 3× tsc; suíte unitária inteira: 1700 passando. `m4.test.ts` ganhou "andar pelo teclado atacando no modo

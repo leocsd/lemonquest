@@ -554,6 +554,8 @@ export const MONSTERS: Record<string, MonsterDef> = {
     attackMs: 2200, attackRange: 3, stepMs: 360, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 120_000,
     gold: [300, 600],
     loot: [
+      { itemId: "crimson_blade", chance: 0.004 },
+      { itemId: "crimson_wand", chance: 0.004 }, // armas Carmesim (lv 85, 2026-11-01)
       { itemId: "red_dragon_scale", chance: 0.4 },
       { itemId: "dragon_ham", chance: 0.4, min: 1, max: 4 },
       { itemId: "health_potion_large", chance: 0.15, min: 1, max: 2 },
@@ -575,6 +577,8 @@ export const MONSTERS: Record<string, MonsterDef> = {
     attackMs: 2000, attackRange: 1, stepMs: 340, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 120_000,
     gold: [350, 700],
     loot: [
+      { itemId: "crimson_bow", chance: 0.004 },
+      { itemId: "crimson_blade", chance: 0.003 }, // armas Carmesim (lv 85, 2026-11-01)
       { itemId: "behemoth_claw", chance: 0.35 },
       { itemId: "meat", chance: 0.4, min: 2, max: 4 },
       { itemId: "health_potion_large", chance: 0.18, min: 1, max: 2 },
@@ -992,6 +996,8 @@ export const MONSTERS: Record<string, MonsterDef> = {
     attackMs: 1900, attackRange: 1, stepMs: 280, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 130_000,
     gold: [380, 750],
     loot: [
+      { itemId: "crimson_rod", chance: 0.004 },
+      { itemId: "crimson_wand", chance: 0.003 }, // armas Carmesim (lv 85, 2026-11-01)
       { itemId: "hellhound_fang", chance: 0.4 },
       { itemId: "demonic_essence", chance: 0.1 },
       { itemId: "health_potion_large", chance: 0.18, min: 1, max: 3 },
@@ -1032,14 +1038,16 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     attackMs: 1800, attackRange: 1, stepMs: 320, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
     gold: [2000, 3500],
+    // 2026-11-01: chances de equipamento subiram (chefes das regiões novas rendiam 3–5× menos loot por vida que os
+    // clássicos do mesmo level; o ouro segue travado em monsters.test.ts).
     loot: [
       { itemId: "redbeard_hook", chance: 1 },
       { itemId: "pirate_coin", chance: 1, min: 10, max: 25 },
       { itemId: "pirate_hat", chance: 0.5 },
       { itemId: "health_potion_large", chance: 1, min: 2, max: 4 },
-      { itemId: "mithril_katana", chance: 0.2 },
-      { itemId: "elven_bow", chance: 0.2 },
-      { itemId: "ring_dragon", chance: 0.15 },
+      { itemId: "mithril_katana", chance: 0.3 },
+      { itemId: "elven_bow", chance: 0.3 },
+      { itemId: "ring_dragon", chance: 0.22 },
     ],
     sprite: grid4(C + "RedGladiator/SpriteSheet.png", { tint: 0xffa080, scale: 1.5 }),
   },
@@ -1051,14 +1059,16 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     attackMs: 1800, attackRange: 1, stepMs: 300, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
     gold: [2200, 3800],
+    // 2026-11-01: chances de equipamento subiram (chefes das regiões novas rendiam 3–5× menos loot por vida que os
+    // clássicos do mesmo level; o ouro segue travado em monsters.test.ts).
     loot: [
       { itemId: "kongra_crown", chance: 1 },
       { itemId: "ape_fur", chance: 1, min: 4, max: 8 },
       { itemId: "banana", chance: 1, min: 5, max: 10 },
-      { itemId: "amulet_goblin_king", chance: 0.15 },
-      { itemId: "mithril_armor", chance: 0.2 },
-      { itemId: "master_archer_armor", chance: 0.2 },
-      { itemId: "archmage_armor", chance: 0.2 },
+      { itemId: "amulet_goblin_king", chance: 0.3 },
+      { itemId: "mithril_armor", chance: 0.35 },
+      { itemId: "master_archer_armor", chance: 0.35 },
+      { itemId: "archmage_armor", chance: 0.35 },
     ],
     sprite: grid4(C + "MonkeyBoxerRed/SpriteSheet.png", { tint: 0xffd070, scale: 1.8 }),
   },
@@ -1473,17 +1483,19 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     attackMs: 2200, attackRange: 4, stepMs: 380, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 10_800_000, boss: true,
     gold: [4500, 8000],
+    // 2026-11-01: chances de equipamento subiram (chefes das regiões novas rendiam 3–5× menos loot por vida que os
+    // clássicos do mesmo level; o ouro segue travado em monsters.test.ts).
     loot: [
       { itemId: "ancestral_heart", chance: 1 },
       { itemId: "ember", chance: 1, min: 4, max: 8 },
       { itemId: "necro_skull", chance: 1, min: 2, max: 4 },
       { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
       { itemId: "gem_purple", chance: 0.7, min: 1, max: 2 },
-      { itemId: "demon_helmet", chance: 0.12 },
-      { itemId: "dragon_scale_helmet", chance: 0.12 },
-      { itemId: "ferumbras_helmet", chance: 0.12 },
-      { itemId: "ring_demodras", chance: 0.1 },
-      { itemId: "magic_longsword", chance: 0.08 },
+      { itemId: "demon_helmet", chance: 0.24 },
+      { itemId: "dragon_scale_helmet", chance: 0.24 },
+      { itemId: "ferumbras_helmet", chance: 0.24 },
+      { itemId: "ring_demodras", chance: 0.2 },
+      { itemId: "magic_longsword", chance: 0.16 },
     ],
     sprite: strip(B + "GiantFlam/Idle.png", 50, 5, { tint: 0xd090ff, scale: 1.6 }),
   },
@@ -1722,17 +1734,19 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     attackMs: 2200, attackRange: 1, stepMs: 420, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 10_800_000, boss: true,
     gold: [4800, 8500],
+    // 2026-11-01: chances de equipamento subiram (chefes das regiões novas rendiam 3–5× menos loot por vida que os
+    // clássicos do mesmo level; o ouro segue travado em monsters.test.ts).
     loot: [
       { itemId: "nucleo_convertedor", chance: 1 },
       { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
       { itemId: "placa_aco_fundido", chance: 1, min: 3, max: 6 },
       { itemId: "gem_red", chance: 0.6, min: 1, max: 2 },
       { itemId: "gem_purple", chance: 0.5 },
-      { itemId: "calca_antichama", chance: 0.15 },
-      { itemId: "botas_termicas", chance: 0.15 },
+      { itemId: "calca_antichama", chance: 0.3 },
+      { itemId: "botas_termicas", chance: 0.3 },
       { itemId: "anel_alto_forno", chance: 0.1 },
       { itemId: "amuleto_rubi", chance: 0.1 },
-      { itemId: "ring_demodras", chance: 0.05 },
+      { itemId: "ring_demodras", chance: 0.1 },
     ],
     // Walk.png 744x62 = 12 frames de 62x62 (GiantBamboo recolorido em aço: tools/monsters/recolor.mjs).
     sprite: strip("monsters/ConverterGolem.png", 62, 12, { scale: 1.5 }),
@@ -1804,20 +1818,22 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     attackMs: 2000, attackRange: 4, stepMs: 400, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 14_400_000, boss: true,
     gold: [14000, 24000],
+    // 2026-11-01: chances de equipamento subiram (chefes das regiões novas rendiam 3–5× menos loot por vida que os
+    // clássicos do mesmo level; o ouro segue travado em monsters.test.ts).
     loot: [
       { itemId: "coracao_fornalha", chance: 1 },
       { itemId: "frasco_aco_liquido", chance: 1, min: 1, max: 2 },
       { itemId: "gem_red", chance: 1, min: 2, max: 3 },
       { itemId: "health_potion_large", chance: 1, min: 4, max: 6 },
       { itemId: "abyss_shard", chance: 1, min: 2, max: 3 },
-      { itemId: "abyss_armor", chance: 0.06 },
-      { itemId: "abyss_archer_armor", chance: 0.06 },
-      { itemId: "abyss_mage_armor", chance: 0.06 },
-      { itemId: "abyss_shield", chance: 0.06 }, // a Montadora (ciclo 20) completa com elmos e grimório no Protótipo
-      { itemId: "avental_forjador", chance: 0.15 },
-      { itemId: "elmo_laminador", chance: 0.15 },
-      { itemId: "boots_haste", chance: 0.12 },
-      { itemId: "amulet_orshabaal", chance: 0.05 },
+      { itemId: "abyss_armor", chance: 0.08 },
+      { itemId: "abyss_archer_armor", chance: 0.08 },
+      { itemId: "abyss_mage_armor", chance: 0.08 },
+      { itemId: "abyss_shield", chance: 0.08 }, // a Montadora (ciclo 20) completa com elmos e grimório no Protótipo
+      { itemId: "avental_forjador", chance: 0.3 },
+      { itemId: "elmo_laminador", chance: 0.3 },
+      { itemId: "boots_haste", chance: 0.24 },
+      { itemId: "amulet_orshabaal", chance: 0.1 },
     ],
     // Walk.png 744x62 = 12 frames de 62x62: a "chaminé viva" laranja do pack, sem recolorir.
     sprite: strip(B + "GiantBamboo2/Walk.png", 62, 12, { scale: 2 }),
@@ -2043,14 +2059,18 @@ export const MONSTERS: Record<string, MonsterDef> = {
     attackMs: 2200, attackRange: 3, stepMs: 380, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 10_800_000, boss: true,
     // 4500–8000: com 7500 de teto o Golem do Convertedor (76), vizinho de cima, saía da regra dos chefes (ouro/vida).
     gold: [4500, 8000],
+    // 2026-11-01: chances de equipamento subiram (chefes das regiões novas rendiam 3–5× menos loot por vida que os
+    // clássicos do mesmo level; o ouro segue travado em monsters.test.ts).
     loot: [
       { itemId: "mt_brasa_estufa", chance: 1 },
       { itemId: "mt_tinta", chance: 1, min: 3, max: 6 },
       { itemId: "health_potion_large", chance: 1, min: 3, max: 6 },
       { itemId: "mana_potion_large", chance: 1, min: 3, max: 6 },
       { itemId: "gem_purple", chance: 0.25 },
-      { itemId: "mt_avental_pintor", chance: 0.12 },
-      { itemId: "ring_dragon", chance: 0.1 },
+      { itemId: "mt_avental_pintor", chance: 0.25 },
+      { itemId: "ring_dragon", chance: 0.2 },
+      { itemId: "dragon_scale_helmet", chance: 0.12 },
+      { itemId: "ring_demodras", chance: 0.1 },
     ],
     // GiantSlime2/Idle.png 310x52 = 5 frames de 62x52, recolorido em tinta quente (tools/monsters/recolor.mjs).
     sprite: strip("monsters/MtPaintBlob.png", 52, 5, { frameWidth: 62, scale: 1.6 }),
@@ -2066,15 +2086,19 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     attackMs: 2000, attackRange: 1, stepMs: 320, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 14_400_000, boss: true,
     gold: [17000, 27000],
+    // 2026-11-01: chances de equipamento subiram (chefes das regiões novas rendiam 3–5× menos loot por vida que os
+    // clássicos do mesmo level; o ouro segue travado em monsters.test.ts).
     loot: [
       { itemId: "mt_chave_prototipo", chance: 1 },
       { itemId: "abyss_shard", chance: 1, min: 1, max: 3 },
       { itemId: "mt_cromo", chance: 1, min: 3, max: 6 },
-      { itemId: "mt_amuleto_cromado", chance: 0.1 },
-      { itemId: "abyss_helmet", chance: 0.06 },
-      { itemId: "abyss_archer_helmet", chance: 0.06 },
-      { itemId: "abyss_mage_helmet", chance: 0.06 },
-      { itemId: "spellbook_abyss", chance: 0.06 },
+      { itemId: "mt_amuleto_cromado", chance: 0.25 },
+      { itemId: "abyss_helmet", chance: 0.08 },
+      { itemId: "abyss_archer_helmet", chance: 0.08 },
+      { itemId: "abyss_mage_helmet", chance: 0.08 },
+      { itemId: "spellbook_abyss", chance: 0.08 },
+      { itemId: "boots_haste", chance: 0.2 },
+      { itemId: "amulet_orshabaal", chance: 0.08 },
     ],
     // Walk.png 576x48 = 6 frames de 96x48 (Samurai Rubro gigante recolorido em limão e cromo: tools/monsters/recolor.mjs).
     sprite: strip("monsters/MtPrototype.png", 48, 6, { frameWidth: 96, scale: 1.6 }),

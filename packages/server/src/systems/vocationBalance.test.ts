@@ -47,6 +47,7 @@ const spread = (L: Level, table = SKILL_ESTIMATE) => {
 const leader = (list: Row[], key: "dps" | "survival") => list.reduce((a, b) => (b.m[key] > a.m[key] ? b : a)).f.v;
 
 describe("balanço das vocações (P = dano × sobrevivência)", () => {
+  // Teto de 30 s nos testes que simulam os três levels: o padrão (5 s) estourava com a CPU disputada (6,5 s medidos).
   it("tabela por level (console); o pacote pressiona todo mundo (sobrevivência finita)", () => {
     for (const L of BALANCE_LEVELS) {
       const top = Math.max(...best(L).map((r) => r.m.p));
@@ -64,15 +65,16 @@ describe("balanço das vocações (P = dano × sobrevivência)", () => {
         expect(m.dps, `${f.v}/${f.build} lv ${L}`).toBeGreaterThan(0);
       }
     }
-  });
+  }, 30_000);
 
   it("15-13: pior/melhor ≥ 0,65 nos lv 30/60/100", () => {
     // Antes do 15-13 (skills da produção, já com 15-3/4/5/6/9): 0,52 / 0,39 / 0,49, o cavaleiro o pior nos três levels.
     // Depois (Chuva de Gelo de 4 s, paladino com 13 de vida/level, magias de dano do cavaleiro +40%, level no
     // spellPower): 0,74 / 0,66 / 0,86. MANA_SHIELD_ABSORB fica 0,5: 0,6 quase não mexe no P e leva a vida efetiva do
-    // mago lv 100 a 1,28× a do cavaleiro.
+    // mago lv 100 a 1,28× a do cavaleiro. 2026-11-01 (cavaleiro com exori gran/mas em área, Lasca de Gelo do druida
+    // mais forte): 0,73 / 0,76 / 0,82, o druida o pior no 30 e no 60.
     for (const L of BALANCE_LEVELS) expect(spread(L), `lv ${L}`).toBeGreaterThanOrEqual(0.65);
-  });
+  }, 30_000);
 
   it("Fada (vocação oculta, 2026-10-28): druida de outro elemento — nunca a mais forte com folga, nunca abaixo do piso", () => {
     // Vida/mana e magias espelham o druida; só o elemento muda (sagrado em vez de gelo/terra), e o pacote de cada level
@@ -98,6 +100,7 @@ describe("balanço das vocações (P = dano × sobrevivência)", () => {
 
   it("sensibilidade: com a arma da meta do plano (28/46/66) cavaleiro e paladino não lideram com folga (console)", () => {
     // Medido no 15-13: 0,74 / 0,73 / 0,83; no lv 100 o cavaleiro de duas mãos fica 2% à frente do paladino.
+    // 2026-11-01: 0,76 / 0,75 / 0,73; o cavaleiro lidera nos três (lv 100: 1,15× o paladino, 1,22× o druida).
     for (const L of BALANCE_LEVELS) {
       const list = best(L, PLAN_SKILLS), top = Math.max(...list.map((r) => r.m.p));
       console.log(`arma 28/46/66, lv ${L}: pior/melhor ${spread(L, PLAN_SKILLS).toFixed(2)} — ` +

@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-01b",
+    date: "1º de novembro",
+    title: "Balanço: druida, paladino, bênção e armas novas",
+    items: [
+      "Druida: a Lasca de Gelo cresce mais com o level. Paladino: a Flecha Paralisante prende por 5 s e custa menos (agora é a flecha de controle).",
+      "Armas Carmesim no lv 85, uma por vocação: caem raramente do Senhor dos Dragões, do Behemoth e do Cão Infernal.",
+      "Chefes das regiões novas largam mais equipamento. A bênção fica mais cara do lv 60 em diante, junto com a perda da morte.",
+    ],
+  },
+  {
     id: "2026-11-01a",
     date: "1º de novembro",
     title: "Cavaleiro com exori gran e exori mas",

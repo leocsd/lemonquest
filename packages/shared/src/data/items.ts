@@ -351,10 +351,10 @@ add({ id: "shogun_seal", name: "Selo do Shogun Abissal", kind: "quest", value: 0
 // ---------------------------------------------------------------------------
 // Armas
 // ---------------------------------------------------------------------------
-type WOpts = { range?: number; kind?: DamageKind; twoHanded?: boolean; stats?: Stats };
+type WOpts = { range?: number; kind?: DamageKind; twoHanded?: boolean; stats?: Stats; /** Level fora da tabela de tiers (armas Carmesim, lv 85). */ level?: number };
 const weapon = (id: string, name: string, wt: WeaponType, voc: Vocation, icon: ItemIcon, tier: number, attack: number, value: number, description: string, o: WOpts = {}): void =>
   add({
-    id, name, kind: "weapon", slot: "weapon", icon, vocations: [voc], level: TIER_LEVEL[tier - 1], weaponType: wt,
+    id, name, kind: "weapon", slot: "weapon", icon, vocations: [voc], level: o.level ?? TIER_LEVEL[tier - 1], weaponType: wt,
     range: o.range ?? 1, damageKind: o.kind ?? "physical", ...(o.twoHanded ? { twoHanded: true } : {}),
     stats: { attack, ...o.stats }, value, description,
   });
@@ -574,6 +574,20 @@ buildSet({ prefix: "ferumbras", tier: 7, palette: "steel", tint: 0xd890ff, slots
 // quadros que já existem com `ABYSS_TINT`. Sem botas (Botas da Pressa) e sem grevas de cavaleiro e de mago (as do tier 7
 // seguem valendo). Valores 120–300 mil; o escudo e o grimório valem o mesmo (regra dos livros de magia).
 // ---------------------------------------------------------------------------
+// Armas Carmesim (2026-11-01): degrau no lv 85 entre o tier 7 (lv 70) e o Abissal (lv 100). Antes, do lv 70 ao 100
+// (~1.000 abates) nenhuma arma nova; só o refino. Uma por vocação, ataque no meio do caminho entre os dois tiers, só de
+// drop raro (0,3–0,5 %) do Senhor dos Dragões, do Behemoth e do Cão Infernal. Contam como tier 7 nos testes de tier.
+// Fora do Baú de Recompensa e de outros sorteios genéricos (`isExclusiveItem`), como o Abissal: senão o baú do lv 85+
+// só sortearia essas quatro armas.
+export const CRIMSON_LEVEL = 85;
+const crimsonFrom = ITEM_LIST.length;
+export const CRIMSON_TINT = 0xff3050;
+weapon("crimson_blade", "Lâmina Carmesim", "sword", "knight", img(W + "Sword2/Sprite.png", CRIMSON_TINT), 7, 145, 235000, "Temperada no sangue de um Senhor dos Dragões. Ainda está morna.", { level: CRIMSON_LEVEL, stats: { melee: 3, crit: 4 } });
+weapon("crimson_bow", "Arco Carmesim", "bow", "paladin", img(W + "Bow/Sprite.png", CRIMSON_TINT), 7, Math.ceil(112 * BOW_ATTACK_MULT), 235000, "Feito com o chifre de um Behemoth: a corda geme ao soltar.", { ...BOW, level: CRIMSON_LEVEL, stats: { distance: 4, crit: 4 } });
+weapon("crimson_wand", "Varinha Carmesim", "wand", "sorcerer", img(W + "MagicWand/Sprite.png", CRIMSON_TINT), 7, 95, 235000, "Uma brasa de dragão presa num cristal vermelho.", { ...WAND, kind: "fire", level: CRIMSON_LEVEL, stats: { magic: 5, manaMax: 180 } });
+weapon("crimson_rod", "Bastão Carmesim", "rod", "druid", img(W + "Stick/Sprite.png", CRIMSON_TINT), 7, 95, 235000, "Galho de uma árvore que cresceu no Inferno e não queimou.", { ...WAND, kind: "earth", level: CRIMSON_LEVEL, stats: { magic: 5, manaMax: 180 } });
+export const CRIMSON_ITEM_IDS: readonly string[] = ITEM_LIST.slice(crimsonFrom).map((d) => d.id);
+
 const abyssFrom = ITEM_LIST.length;
 weapon("abyss_blade", "Lâmina Abissal", "sword", "knight", img(W + "BigSword/Sprite.png", ABYSS_TINT), 8, 160, 280000, "Forjada no fundo do Profundo. A lâmina bebe a luz em volta.", { stats: { melee: 4, crit: 4 } });
 bow("abyss_bow", "Arco Abissal", img(W + "Bow2/Sprite.png", ABYSS_TINT), 8, 125, 280000, "A corda vibra num tom que só os mortos escutam.", { distance: 5, crit: 4 });
@@ -737,4 +751,5 @@ export const isEquipable = (d: ItemDef): boolean => d.slot != null;
 
 const ABYSS_SET = new Set(ABYSS_ITEM_IDS);
 /** Fora de loja e de sorteio genérico de equipamento (Baú de Recompensa): os itens únicos e o tier 8. */
-export const isExclusiveItem = (d: ItemDef): boolean => !!d.unique || ABYSS_SET.has(d.id);
+const CRIMSON_SET = new Set(CRIMSON_ITEM_IDS);
+export const isExclusiveItem = (d: ItemDef): boolean => !!d.unique || ABYSS_SET.has(d.id) || CRIMSON_SET.has(d.id);

@@ -87,7 +87,7 @@ export function spellMana(s: Pick<SpellDef, "mana" | "manaPerLevel" | "manaMax">
 }
 
 /**
- * Catálogo: 6-8 magias por vocação (uma única cura própria "exura" e o "utani hur" para todas; druida ainda tem a cura em grupo "exura mas sio"). Palavras únicas (ver tabela no fim do arquivo).
+ * Catálogo: 12–14 magias por vocação (cura "exura" para todas, mais a própria do cavaleiro e do paladino e o "utani hur" para todas; druida ainda tem a cura em grupo "exura mas sio"). Palavras únicas (ver tabela no fim do arquivo).
  * Valor esperado = base + level*perLevel + magicLevel*perMagic (magicLevel estimado no spells.test.ts).
  */
 export const SPELLS: Record<string, SpellDef> = {
@@ -500,7 +500,8 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Gerada pelo console.table do spells.test.ts. dmg/heal = média por alvo, sem variância.
  *
  * magia                voc       lvl  mana  cd(s)  esperado
- * CURA (todas as vocações; mana = 20 + 1.5*level, máx. 70; cd 1 s; fórmula 22 + 2.2*level + 0.45*ML, ±15%)
+ * CURA (todas as vocações; mana = 20 + 1.5*level, máx. 70; cd 1 s; fórmula 20 + 1.23*level + 3*ML, ±15% desde 2026-10-27;
+ *   as linhas abaixo ainda trazem os números da fórmula antiga — a tabela atual sai no console.table do spells.test.ts)
  * Cura (exura)          todas    1   ~22     1    lv1 ~24 (16% HP); lv10 mago ~47 (24%) pal ~45 (19%) cav ~44 (16%)
  *                                 lv20 (mana 50): mago ~73 (30%), pal ~68 (20%), cav ~67 (15%)
  *                                 lv30 (mana 65): mago ~98 (33%), pal ~91 (21%), cav ~90 (15%)

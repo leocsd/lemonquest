@@ -491,15 +491,15 @@ describe("ciclo 19: Siderúrgica", () => {
       expect(dropsOf(id).some((m) => !m.boss), id).toBe(common);
       if (!common) expect(sold.has(id), id).toBe(false);
     }
-    expect([chance("fornalha_primordial", "avental_forjador"), chance("fornalha_primordial", "elmo_laminador")]).toEqual([0.15, 0.15]);
+    expect([chance("fornalha_primordial", "avental_forjador"), chance("fornalha_primordial", "elmo_laminador")]).toEqual([0.3, 0.3]); // 0,15 → 0,3 em 2026-11-01 (loot dos chefes regionais)
     expect([chance("golem_convertedor", "anel_alto_forno"), chance("golem_convertedor", "amuleto_rubi")]).toEqual([0.1, 0.1]);
   });
 
-  it("Fornalha Primordial: Fragmento Abissal sempre e 4 peças do tier 8 a 6% (os elmos e o grimório ficam para o ciclo 20)", () => {
+  it("Fornalha Primordial: Fragmento Abissal sempre e 4 peças do tier 8 a 8% (6% até 2026-11-01; os elmos e o grimório ficam para o ciclo 20)", () => {
     expect(chance("fornalha_primordial", "abyss_shard")).toBe(1);
     const t8 = MONSTERS.fornalha_primordial!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard");
     expect(t8.map((e) => [e.itemId, e.chance])).toEqual([
-      ["abyss_armor", 0.06], ["abyss_archer_armor", 0.06], ["abyss_mage_armor", 0.06], ["abyss_shield", 0.06],
+      ["abyss_armor", 0.08], ["abyss_archer_armor", 0.08], ["abyss_mage_armor", 0.08], ["abyss_shield", 0.08],
     ]);
   });
 });
@@ -598,11 +598,11 @@ describe("ciclo 20: Montadora", () => {
     expect(ITEMS.ring_demodras!.vocations).toBeUndefined();
   });
 
-  it("O Protótipo: Fragmento Abissal sempre e os elmos e o grimório do tier 8 a 6% (a Fornalha dá as armaduras e o escudo)", () => {
+  it("O Protótipo: Fragmento Abissal sempre e os elmos e o grimório do tier 8 a 8% (6% até 2026-11-01; a Fornalha dá as armaduras e o escudo)", () => {
     expect(chance("mt_prototipo", "abyss_shard")).toBe(1);
     const t8 = MONSTERS.mt_prototipo!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard");
     expect(t8.map((e) => [e.itemId, e.chance])).toEqual([
-      ["abyss_helmet", 0.06], ["abyss_archer_helmet", 0.06], ["abyss_mage_helmet", 0.06], ["spellbook_abyss", 0.06],
+      ["abyss_helmet", 0.08], ["abyss_archer_helmet", 0.08], ["abyss_mage_helmet", 0.08], ["spellbook_abyss", 0.08],
     ]);
     // Os dois chefes finais de região juntos dão uma peça de cada forma de vocação (sem repetir).
     const both = ["fornalha_primordial", "mt_prototipo"].flatMap((b) => MONSTERS[b]!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard").map((e) => e.itemId));
