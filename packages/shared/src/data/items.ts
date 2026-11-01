@@ -195,7 +195,9 @@ potion("mana_potion_large", "Poção de Mana Grande", img("Potion/MilkPot.png", 
 potion("health_potion_strong", "Poção de Vida Forte", img("Potion/Heart.png", 0xff6a6a), 370, 50, { heal: 550 }, "Recupera 550 de vida. Só cavaleiros e paladinos.", ["knight", "paladin"]);
 potion("health_potion_great", "Poção de Vida Enorme", img("Potion/Heart.png", 0xffd447), 470, 80, { heal: 700 }, "Recupera 700 de vida. Só cavaleiros.", ["knight"]);
 potion("health_potion_supreme", "Poção de Vida Suprema", img("Potion/Heart.png", 0xc080ff), 540, 110, { heal: 800 }, "Recupera 800 de vida. Só cavaleiros.", ["knight"]);
-potion("mana_potion_strong", "Poção de Mana Forte", img("Potion/MilkPot.png", 0x7aa8ff), 290, 50, { mana: 800 }, "Recupera 800 de mana. Só feiticeiros, druidas e paladinos.", ["sorcerer", "druid", "paladin"]);
+// 2026-11-01: 800 → 1.000 de mana (e 290 → 360, mesmo preço por ponto): recuperava menos que a Grande do lv 30 (900).
+// 1.100 deixava o grupo do Coliseu forte demais no modelo (arena.test.ts: justo da 60 e lv 110 completando).
+potion("mana_potion_strong", "Poção de Mana Forte", img("Potion/MilkPot.png", 0x7aa8ff), 360, 50, { mana: 1000 }, "Recupera 1.000 de mana. Só feiticeiros, druidas e paladinos.", ["sorcerer", "druid", "paladin"]);
 potion("mana_potion_great", "Poção de Mana Enorme", img("Potion/MilkPot.png", 0xff80e0), 470, 80, { mana: 1300 }, "Recupera 1.300 de mana. Só feiticeiros e druidas.", ["sorcerer", "druid"]);
 potion("spirit_potion", "Poção de Espírito", img("Potion/MilkPot.png", 0xffe08a), 410, 80, { heal: 400, mana: 400 }, "Recupera 400 de vida e 400 de mana. Só paladinos.", ["paladin"]);
 

@@ -214,9 +214,12 @@ export const SPELLS: Record<string, SpellDef> = {
 
   // ------------------------------------------------------------------ DRUIDA (cura e controle)
   // Espelho da Bola de Fogo: sem ela o druida não tinha dano barato até o level 5 (só a Cura e o auto-ataque).
+  // 2026-11-01: perLevel 0,6 → 1,6 (a Bola de Fogo segue 0,6): do lv 20 ao 49 a Lasca era a melhor magia de alvo do druida
+  // (97 de dano no lv 30, contra 156 do feiticeiro com o Raio de Energia, que o druida não tem). A Fúria da Natureza
+  // (lv 90) perdeu 10 de base para o grupo do Coliseu lv 110 não completar (arena.test.ts).
   ice_shard: {
     id: "ice_shard", name: "Lasca de Gelo", words: "exori frigo", vocations: ["druid"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 7, damage: { kind: "ice", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "ice",
+    target: "target", range: 7, damage: { kind: "ice", base: 11, perLevel: 1.6, perMagic: 2.5, variance: 0.2 }, fx: "ice",
     description: "Dispara uma lasca de gelo contra o alvo.",
   },
   roots: {
@@ -298,10 +301,13 @@ export const SPELLS: Record<string, SpellDef> = {
     description: "Uma flecha que explode no alvo e queima tudo ao redor dele.",
   },
   crippling_arrow: {
-    id: "crippling_arrow", name: "Flecha Paralisante", words: "exori con hur", vocations: ["paladin"], level: 50, mana: 60, cooldownMs: 8000,
+    // 2026-11-01: era dominada pela Flecha Sagrada (mesmo dano com o dobro de mana e de recarga, e física contra a
+    // armadura cheia). Virou a flecha de CONTROLE: lentidão 3 s → 5 s e mana 60 → 40, e saiu da tecla
+    // inteligente "Flecha no alvo". Mais dano mexia no Coliseu (arena.test.ts).
+    id: "crippling_arrow", name: "Flecha Paralisante", words: "exori con hur", vocations: ["paladin"], level: 50, mana: 40, cooldownMs: 8000,
     target: "target", range: 8, damage: { kind: "physical", base: 40, perLevel: 3, perMagic: 3.5, variance: 0.2 },
-    condition: { id: "slow", durationMs: 3000, value: 50 }, fx: "arrow",
-    description: "Acerta o alvo na perna: dano e 50% de lentidão por 3 segundos.",
+    condition: { id: "slow", durationMs: 5000, value: 50 }, fx: "arrow",
+    description: "Acerta o alvo na perna: dano e 50% de lentidão por 5 segundos. A flecha para segurar quem foge ou quem vem.",
   },
   divine_judgment: {
     id: "divine_judgment", name: "Julgamento Divino", words: "exori gran san", vocations: ["paladin"], level: 70, mana: 120, cooldownMs: 8000,
@@ -357,7 +363,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   nature_fury: {
     id: "nature_fury", name: "Fúria da Natureza", words: "exori gran frigo", vocations: ["druid"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 8, damage: { kind: "ice", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "ice", base: 60, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "ice",
     description: "O gelo mais forte do druida: dano enorme no alvo e 50% de lentidão.",
   },
@@ -396,7 +402,7 @@ export const SPELLS: Record<string, SpellDef> = {
   // Palavras mágicas na "língua das fadas": todas começam com "plim". spells.test.ts confere o espelho magia a magia.
   pixie_dust: {
     id: "pixie_dust", name: "Pó de Pirlimpimpim", words: "plim", vocations: ["fairy"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 7, damage: { kind: "holy", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "sparkle",
+    target: "target", range: 7, damage: { kind: "holy", base: 11, perLevel: 1.6, perMagic: 2.5, variance: 0.2 }, fx: "sparkle",
     description: "Sopra um punhado de pó brilhante no alvo. Faz cócegas — das que doem.",
   },
   fairy_kiss: {
@@ -463,7 +469,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   goodnight_kiss: {
     id: "goodnight_kiss", name: "Beijo de Boa Noite", words: "plim boa noite", vocations: ["fairy"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 8, damage: { kind: "holy", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "holy", base: 60, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "sparkle",
     description: "O beijo mais forte da Fada: dano enorme no alvo, que fica com tanto sono que anda pela metade por 4 segundos.",
   },

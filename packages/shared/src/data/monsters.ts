@@ -178,6 +178,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     pack: { family: "wolf", shout: "Auuuu!" },
     gold: [8, 20],
     loot: [
+      { itemId: "branch", chance: 0.15 }, // 2026-11-01: o Galho Seco não tinha fonte nenhuma (lobo da floresta).
       { itemId: "meat", chance: 0.1 },
       { itemId: "wolf_pelt", chance: 0.5 },
       { itemId: "wolf_fang", chance: 0.3, min: 1, max: 2 },
@@ -331,17 +332,19 @@ export const MONSTERS: Record<string, MonsterDef> = {
     id: "flame_spirit", name: "Espírito de Chama", level: 38, hp: 480, xp: 600, damage: [35, 70], damageKind: "fire", armor: 8,
     attackMs: 2000, attackRange: 4, stepMs: 380, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 80_000,
     gold: [90, 180],
+    // 2026-11-01: equipamento 0,8–1,5% → 0,4–0,6% (como o Bucaneiro): com 5 drops de equipamento o Espírito pagava
+    // 1,1 de ouro por vida contra 0,38–0,68 dos vizinhos do lv 38.
     loot: [
       { itemId: "ember", chance: 0.55 },
       { itemId: "health_potion_large", chance: 0.08 },
       { itemId: "mana_potion_large", chance: 0.08 },
-      { itemId: "mithril_legs", chance: 0.015 },
-      { itemId: "archmage_armor", chance: 0.015 },
-      { itemId: "master_archer_armor", chance: 0.01 },
-      { itemId: "master_archer_helmet", chance: 0.01 },
-      { itemId: "inferno_wand", chance: 0.008 },
+      { itemId: "mithril_legs", chance: 0.006 },
+      { itemId: "archmage_armor", chance: 0.006 },
+      { itemId: "master_archer_armor", chance: 0.005 },
+      { itemId: "master_archer_helmet", chance: 0.005 },
+      { itemId: "inferno_wand", chance: 0.004 },
       { itemId: "gem_yellow", chance: 0.04 },
-      { itemId: "ring_dragon", chance: 0.008 },
+      { itemId: "ring_dragon", chance: 0.004 },
     ],
     sprite: grid4(M + "Flam/SpriteSheet.png"),
   },
