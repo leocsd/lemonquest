@@ -24,11 +24,17 @@ const AVISO_TURNO = "O turno do Estagiário acabou por hoje.";
 const AVISO_PZ = "Saia da zona de proteção para ligar a rota.";
 /** Caminho até o ponto recalculado no máximo a cada 300 ms (= CHASE_REPATH_MS da perseguição): A* a cada tick pesa. */
 const CAMINHO_MS = 300;
+/** Monstro largado por não dar para chegar nele (água, cerca): a busca o ignora por este tempo e a rota segue. */
+export const IGNORAR_ALVO_MS = 30_000;
 
 export interface EstagiarioOptions {
   spells: { ready(p: PlayerState, id: string, now?: number): boolean; cast(p: PlayerState, id: string, targetId?: string, opts?: { silent?: boolean }): { ok: boolean } };
   potions: { potionReady(p: PlayerState, now?: number): boolean; usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean }): boolean; countPotions(p: PlayerState, kind: QuickPotionKind): number };
-  fight: { nearestTarget(p: PlayerState, reach: number): string; forceChase(id: string, on: boolean): void; resume(id: string): void };
+  fight: {
+    nearestTarget(p: PlayerState, reach: number, ignorar?: (id: string) => boolean): string;
+    forceChase(id: string, on: boolean): void;
+    resume(id: string): void;
+  };
   monsters: Pick<MonsterManager, "wild" | "all" | "inPz">;
   /** Caminhada da rota (Task 5). */
   movement: Pick<MovementSystem, "isIdle" | "pathFor" | "follow">;
@@ -59,6 +65,13 @@ interface Estado {
   progressoEm: number;
   /** Havia alvo vivo no tick anterior: ao matar, a rota retoma pelo ponto mais próximo. */
   lutando: boolean;
+  /** Alvo (monstro) acompanhado: menor distância, vida e quando um dos dois caiu pela última vez (alvo travado → larga). */
+  alvoId: string;
+  alvoDist: number;
+  alvoHp: number;
+  alvoProgressoEm: number;
+  /** Monstros largados → até quando a busca os ignora. */
+  ignorados: Map<string, number>;
   /** Gravação em curso (e a posição do tick anterior, para ver o passo/teleporte). */
   grav: Gravacao | null;
   gravPos: Point;
@@ -87,6 +100,7 @@ export class EstagiarioSystem {
     this.st.set(p.id, {
       config, turno: avancarTurno(saved?.turno, now, false), cura: false, ataque: false, rota: null, indice: 0,
       caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, lutando: false,
+      alvoId: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
       pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0,
     });
@@ -138,6 +152,8 @@ export class EstagiarioSystem {
     if (m.acao === "iniciar") {
       // A rota andando seria gravada por cima de si mesma.
       if (s.rota) this.notice(p, "Desligue a rota para gravar outra.");
+      // Recomeçar jogaria fora os pontos já andados (clique duplo no botão, por exemplo).
+      else if (s.grav) this.notice(p, "Já está gravando.");
       else { s.grav = novaGravacao(p); s.gravPos = { x: p.x, y: p.y }; }
     } else if (m.acao === "descartar") s.grav = null;
     else if (m.acao === "parar" && s.grav) this.salvarGravacao(p, s, s.grav, m.nome);
@@ -268,7 +284,7 @@ export class EstagiarioSystem {
       if (p.targetId && this.ehJogador(p.targetId)) return;
       if (now - s.buscaEm < BUSCA_MS) return;
       s.buscaEm = now;
-      const id = this.o.fight.nearestTarget(p, BUSCA_TILES);
+      const id = this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignorado(s, m, now));
       if (!id) return;
       p.targetId = id;
       // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador está
@@ -304,7 +320,7 @@ export class EstagiarioSystem {
     const rota = this.rotaDe(s, s.rota!);
     if (!rota) return;
     const pts = rota.pontos, n = pts.length;
-    if (this.alvoVivo(p)) { s.lutando = true; s.caminho = null; return; }
+    if (this.alvoVivo(p) && !this.alvoTravado(p, s, now)) { s.lutando = true; s.caminho = null; return; }
     if (s.lutando) { s.lutando = false; this.irPara(s, indiceMaisProximo(pts, p), now); }
     if (s.indice < 0 || s.indice >= n) this.irPara(s, 0, now);
     const em = (q: PontoRota) => q.x === p.x && q.y === p.y;
@@ -316,7 +332,7 @@ export class EstagiarioSystem {
     const alvo = pts[s.indice]!;
     const d = cheb(p.x, p.y, alvo.x, alvo.y);
     if (d < s.melhorDist) { s.melhorDist = d; s.progressoEm = now; }
-    else if (now - s.progressoEm >= PONTO_TRAVADO_MS) { this.irPara(s, (s.indice + 1) % n, now); return; }
+    else if (now - s.progressoEm >= PONTO_TRAVADO_MS) { this.irPara(s, this.depoisDoTravado(pts, s.indice), now); return; }
     this.passo(p, s, alvo, now);
   }
 
@@ -335,6 +351,47 @@ export class EstagiarioSystem {
     const r = mv.follow(p, dir, now);
     if (r === "ok") s.caminho!.shift();
     else if (r !== "busy") s.caminho = null; // bloqueado: recalcula no próximo tick permitido
+  }
+
+  /**
+   * Próximo ponto depois de um ponto travado. Portal travado (porta com requisito, por exemplo): os pontos seguintes
+   * são do outro lado e também não dá para chegar; pula até depois do próximo portal da rota (a volta), ou, sem outro
+   * portal, para o primeiro ponto (circuito), em vez de esperar PONTO_TRAVADO_MS em cada ponto do outro lado.
+   */
+  private depoisDoTravado(pts: readonly PontoRota[], i: number): number {
+    const n = pts.length;
+    if (!pts[i]!.portal) return (i + 1) % n;
+    for (let k = 1; k < n; k++) if (pts[(i + k) % n]!.portal) return (i + k + 1) % n;
+    return i === 0 ? 1 % n : 0;
+  }
+
+  /**
+   * Monstro alvo que não se aproxima nem perde vida por PONTO_TRAVADO_MS (à vista mas inalcançável: do outro lado da
+   * água ou de uma cerca): larga o alvo e ignora o monstro por IGNORAR_ALVO_MS, para a rota não gastar o turno parada.
+   * Vida caindo conta como progresso (quem ataca à distância acerta sem chegar perto).
+   */
+  private alvoTravado(p: PlayerState, s: Estado, now: number): boolean {
+    const m = this.o.monsters.wild(p.targetId);
+    if (!m) return false; // alvo jogador (mirado à mão): o jogador é que decide
+    const d = cheb(p.x, p.y, m.s.x, m.s.y);
+    if (s.alvoId !== m.s.id) {
+      s.alvoId = m.s.id; s.alvoDist = d; s.alvoHp = m.s.hp; s.alvoProgressoEm = now;
+      return false;
+    }
+    if (d < s.alvoDist || m.s.hp < s.alvoHp) { s.alvoDist = Math.min(d, s.alvoDist); s.alvoHp = Math.min(m.s.hp, s.alvoHp); s.alvoProgressoEm = now; return false; }
+    if (now - s.alvoProgressoEm < PONTO_TRAVADO_MS) return false;
+    s.ignorados.set(m.s.id, now + IGNORAR_ALVO_MS);
+    s.alvoId = "";
+    p.targetId = "";
+    return true;
+  }
+
+  private ignorado(s: Estado, id: string, now: number): boolean {
+    const ate = s.ignorados.get(id);
+    if (ate === undefined) return false;
+    if (now < ate) return true;
+    s.ignorados.delete(id);
+    return false;
   }
 
   /** Vai para o ponto `i` do zero: caminho novo e o relógio de "ponto travado" recomeça. */
@@ -374,6 +431,8 @@ export class EstagiarioSystem {
   private ligarRota(p: PlayerState, s: Estado, nome: string): void {
     const rota = this.rotaDe(s, nome);
     if (!rota || p.hp <= 0) return;
+    // A caminhada da rota seria gravada como se fosse do jogador.
+    if (s.grav) { this.notice(p, "Pare a gravação antes de ligar a rota."); return; }
     const now = this.now();
     if (this.o.monsters.inPz(p.x, p.y)) { this.notice(p, AVISO_PZ); return; }
     this.acertar(s, now);
@@ -396,6 +455,8 @@ export class EstagiarioSystem {
     if (!s.rota) return;
     this.acertar(s, now); // fecha a conta do turno no estado em que estava (rodando ou pausada)
     s.rota = null;
+    s.ignorados.clear();
+    s.alvoId = "";
     s.pausa = "";
     s.pausaAte = 0;
     p.bot = false;

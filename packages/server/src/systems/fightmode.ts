@@ -214,14 +214,15 @@ export class FightModeSystem {
 
   /**
    * Monstro selvagem mais próximo a até `reach` tiles (vivo, não boneco de treino, fora da PZ, com linha de visão); ""
-   * se nada (ou se o jogador está na PZ). A busca do ataque automático, exposta para o Estagiário escolher alvo.
+   * se nada (ou se o jogador está na PZ). A busca do ataque automático, exposta para o Estagiário escolher alvo
+   * (`ignorar`: monstros que o Estagiário largou por não conseguir chegar; o ataque automático não passa nada).
    */
-  nearestTarget(p: PlayerState, reach: number): string {
+  nearestTarget(p: PlayerState, reach: number, ignorar?: (id: string) => boolean): string {
     const mm = this.o.monsters;
     if (!mm.all || !mm.inPz || mm.inPz(p.x, p.y)) return "";
     let best = "", bestD = Infinity;
     for (const m of mm.all()) {
-      if (m.s.ownerId || m.s.hp <= 0 || m.def.invulnerable) continue;
+      if (m.s.ownerId || m.s.hp <= 0 || m.def.invulnerable || ignorar?.(m.s.id)) continue;
       const d = cheb(p.x, p.y, m.s.x, m.s.y);
       if (d >= bestD || d > reach || mm.inPz(m.s.x, m.s.y)) continue;
       if (mm.los && !mm.los(p.x, p.y, m.s.x, m.s.y)) continue;

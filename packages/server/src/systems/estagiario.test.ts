@@ -9,7 +9,7 @@ import type { PlayerState } from "../state.ts";
 import { EstagiarioSystem } from "./estagiario.ts";
 import { FightModeSystem } from "./fightmode.ts";
 import { MovementSystem } from "./movement.ts";
-import { def, openGrid, player, world } from "./testkit.ts";
+import { def, grid, openGrid, player, world } from "./testkit.ts";
 
 type Chamada = [string, ...unknown[]];
 
@@ -23,6 +23,10 @@ interface SetupOpts {
   andar?: boolean;
   /** Portais emulados ("x,y" → destino), conferidos depois do movimento como o PortalSystem. */
   portais?: Record<string, { x: number; y: number }>;
+  /** Busca de alvo e perseguição do FightModeSystem real (corpo a corpo); sem ele, a busca falsa de `luta.alvo`. */
+  lutaReal?: boolean;
+  /** Tiles bloqueados só para andar (como água ou cerca: a visão passa, o caminho não). */
+  paredes?: { x: number; y: number }[];
 }
 
 /**
@@ -32,6 +36,8 @@ interface SetupOpts {
 function setup(o: SetupOpts = {}) {
   const defs: Record<string, MonsterDef> = { rato: def({ id: "rato", hp: 30, aggroRange: 0, stationary: true, respawnMs: 999_999 }) };
   const grade = openGrid(40, 40);
+  const bloqueados = new Set((o.paredes ?? []).map((t) => `${t.x},${t.y}`));
+  const gradeAndar = grid(Array.from({ length: 40 }, (_, y) => Array.from({ length: 40 }, (_, x) => (bloqueados.has(`${x},${y}`) ? "#" : ".")).join("")));
   const w = world({
     grid: grade, defs: (id) => defs[id],
     spawns: (o.ratos ?? []).map((r) => ({ defId: "rato", x: r.x, y: r.y, count: 1, radius: 0 })),
@@ -55,7 +61,10 @@ function setup(o: SetupOpts = {}) {
   };
   const luta = { alvo: "" };
   const fight = {
-    nearestTarget: (_p: PlayerState, reach: number) => { calls.push(["busca", reach]); return luta.alvo; },
+    nearestTarget: (_p: PlayerState, reach: number, ignorar?: (id: string) => boolean) => {
+      calls.push(["busca", reach]);
+      return luta.alvo && !ignorar?.(luta.alvo) ? luta.alvo : "";
+    },
     forceChase: (id: string, on: boolean) => { calls.push(["chase", id, on]); },
     resume: (id: string) => { calls.push(["resume", id]); },
   };
@@ -65,11 +74,12 @@ function setup(o: SetupOpts = {}) {
   };
   const npc = { aberto: false };
   const sent: { to: string; type: string; msg: any }[] = [];
-  const mv = new MovementSystem(grade, { now: () => clock });
+  const mv = new MovementSystem(gradeAndar, { now: () => clock });
   mv.setExtraBlocker((x, y) => w.mm.isMonsterAt(x, y));
   mv.addPlayer(p);
+  const real = o.lutaReal ? new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => clock }) : null;
   const sys = new EstagiarioSystem({
-    spells, potions, fight, monsters: w.mm,
+    spells, potions, fight: real ?? fight, monsters: w.mm,
     movement: o.andar ? mv : { isIdle: () => true, pathFor: () => null, follow: () => "ok" },
     companions, npcOpen: () => npc.aberto, spellGroups: () => o.groups ?? [],
     players: () => w.players.values(), send: (to, type, msg) => sent.push({ to, type, msg }),
@@ -83,6 +93,7 @@ function setup(o: SetupOpts = {}) {
     while (clock < end) {
       clock += TICK_MS;
       sys.tick(clock);
+      real?.tick(clock, w.players.values());
       mv.tick(clock, w.players.values());
       const dest = o.portais?.[`${p.x},${p.y}`];
       if (dest) mv.teleport(p, dest.x, dest.y);
@@ -490,6 +501,29 @@ describe("Estagiário: gravação de rota", () => {
     expect(w.sys.estado(w.p).config.rotas).toEqual([{ nome: "Caça dos ratos", pontos }]);
   });
 
+  it("iniciar de novo durante a gravação é ignorado (com aviso), sem perder os pontos", () => {
+    const w = setup();
+    w.sys.onGravar(w.p, { acao: "iniciar" });
+    w.tick();
+    andarAte(w, 13, 10);
+    andarAte(w, 13, 12);
+    const antes = w.sys.estado(w.p).pontosGravados;
+    expect(antes).toBe(2);
+    w.sys.onGravar(w.p, { acao: "iniciar" });
+    expect(w.notices().at(-1)).toBe("Já está gravando.");
+    expect(w.sys.estado(w.p).pontosGravados).toBe(antes);
+  });
+
+  it("ligar a rota durante a gravação é recusado (com aviso)", () => {
+    const w = setup({ saved: { config: comRota() } });
+    w.sys.onGravar(w.p, { acao: "iniciar" });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    expect(w.p.bot).toBe(false);
+    expect(w.sys.estado(w.p)).toMatchObject({ rota: null, gravando: true });
+    expect(w.notices().at(-1)).toBe("Pare a gravação antes de ligar a rota.");
+    expect(w.of("spawn")).toEqual([]);
+  });
+
   it("recusa iniciar com a rota rodando", () => {
     const w = setup({ saved: { config: comRota() } });
     w.sys.onToggle(w.p, { rota: "Ratos" });
@@ -585,12 +619,75 @@ describe("Estagiário: rodar a rota", () => {
 
   it("ponto ocupado (chega ao lado e não progride): também pula", () => {
     // O rato parado no ponto (15,10) ocupa o tile: o caminho chega ao lado e não chega mais perto.
-    const w = setup({ andar: true, ratos: [{ x: 15, y: 10 }], saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 10, y: 14 }]) } });
+    const w = setup({ andar: true, ratos: [{ x: 15, y: 10 }], saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 14, y: 35 }]) } });
     w.sys.onToggle(w.p, { rota: "R" }); // a busca falsa nunca acha alvo: só a caminhada conta
     w.tick(3000);
     expect(w.indice()).toBe(1);
+    expect([w.p.x, w.p.y]).toEqual([14, 10]); // ao lado do ponto, sem chegar
     w.tick(PONTO_TRAVADO_MS);
-    expect(w.indice()).not.toBe(1);
+    expect(w.indice()).toBe(2); // pulou para o próximo (ainda andando até ele, longe)
+  });
+
+  it("portal trancado pulado: pula também o trecho do outro lado (até depois do próximo portal)", () => {
+    // A porta em (13,10) devolve o jogador (requisito não cumprido): o outro lado (30,30)…(34,30) é inalcançável.
+    const w = setup({
+      andar: true, portais: { "13,10": { x: 12, y: 10 } },
+      saved: { config: rota([
+        { x: 10, y: 10 }, { x: 13, y: 10, portal: true }, { x: 30, y: 30 }, { x: 33, y: 30 }, { x: 34, y: 30, portal: true },
+        { x: 12, y: 14 }, { x: 10, y: 14 },
+      ]) },
+    });
+    w.sys.onToggle(w.p, { rota: "R" });
+    w.tick(PONTO_TRAVADO_MS - 500);
+    expect(w.indice()).toBe(1);
+    w.tick(1500);
+    expect(w.indice()).toBe(5); // nada de 10 s em (30,30) e mais 10 s em (33,30)…
+    w.tick(2000);
+    expect(w.visitados.has("12,14")).toBe(true);
+  });
+
+  it("portal trancado sem outro portal na rota: o resto é do outro lado, volta ao primeiro ponto", () => {
+    const w = setup({
+      andar: true, portais: { "13,10": { x: 12, y: 10 } },
+      saved: { config: rota([{ x: 10, y: 30 }, { x: 10, y: 10 }, { x: 13, y: 10, portal: true }, { x: 30, y: 30 }, { x: 33, y: 30 }]) },
+      over: { x: 10, y: 10 },
+    });
+    w.sys.onToggle(w.p, { rota: "R" });
+    w.tick(1000);
+    expect(w.indice()).toBe(2);
+    w.tick(PONTO_TRAVADO_MS + 500);
+    expect(w.indice()).toBe(0);
+  });
+
+  it("alvo à vista mas inalcançável (atrás de água/cerca): larga o alvo em PONTO_TRAVADO_MS e a rota segue", () => {
+    // Rato em (14,10) cercado por tiles que só bloqueiam o andar: a busca real o vê (linha de visão), a perseguição não chega.
+    const cerca = [];
+    for (let x = 13; x <= 15; x++) for (let y = 9; y <= 11; y++) if (x !== 14 || y !== 10) cerca.push({ x, y });
+    const w = setup({
+      andar: true, lutaReal: true, ratos: [{ x: 14, y: 10 }], paredes: cerca,
+      saved: { config: rota([{ x: 10, y: 10 }, { x: 10, y: 20 }]) },
+    });
+    const rato = [...w.mm.all()][0]!;
+    w.sys.onToggle(w.p, { rota: "R" });
+    w.tick(5000);
+    expect(w.p.targetId).toBe(rato.s.id);
+    expect([w.p.x, w.p.y]).toEqual([10, 10]); // preso: nem a perseguição nem a rota andam
+    w.tick(PONTO_TRAVADO_MS - 5000 + 500);
+    expect(w.p.targetId).toBe("");
+    w.tick(3000);
+    expect(w.visitados.has("10,20")).toBe(true); // a rota seguiu
+    expect(w.p.targetId).toBe(""); // e não voltou a mirar o mesmo rato
+  });
+
+  it("alvo que está apanhando (vida caindo) não é largado, mesmo sem chegar mais perto", () => {
+    const w = setup({ andar: true, ratos: [{ x: 25, y: 25 }], saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }]) } });
+    const rato = [...w.mm.all()][0]!;
+    rato.s.hp = 1000;
+    w.luta.alvo = rato.s.id;
+    w.sys.onToggle(w.p, { rota: "R" });
+    for (let i = 0; i < 30; i++) { rato.s.hp -= 1; w.tick(500); } // 15 s apanhando de longe
+    expect(w.p.targetId).toBe(rato.s.id);
+    expect([w.p.x, w.p.y]).toEqual([10, 10]);
   });
 
   it("com alvo vivo não anda; ao matar, retoma pelo ponto mais próximo", () => {
@@ -630,7 +727,8 @@ describe("Estagiário: cenário com os sistemas reais", () => {
     const grade = openGrid(30, 10);
     const w = world({
       grid: grade, defs: () => def({ id: "rato", hp: 10, armor: 0, aggroRange: 0, stationary: true, respawnMs: 999_999 }),
-      spawns: [{ defId: "rato", x: 12, y: 6, count: 1, radius: 0 }],
+      // Rato a 12 tiles de (10,2) e a mais de 12 de todo o caminho antes dele: só é visto depois de passar pelo ponto.
+      spawns: [{ defId: "rato", x: 22, y: 6, count: 1, radius: 0 }],
     });
     w.mm.spawnAll();
     const rato = [...w.mm.all()][0]!;
@@ -650,11 +748,14 @@ describe("Estagiário: cenário com os sistemas reais", () => {
     });
     sys.load(p, { config: { ...estagiarioPadrao("knight"), rotas: [{ nome: "Ratos", pontos: [{ x: 2, y: 2 }, { x: 10, y: 2 }, { x: 10, y: 6 }] }] } });
     const visitados = new Set<string>();
+    let passouEm = -1, mirouEm = -1;
     const passo = () => {
       sys.tick(w.now());
+      if (p.targetId && mirouEm < 0) mirouEm = w.now();
       fight.tick(w.now(), w.players.values());
       mv.tick(w.now(), w.players.values());
       visitados.add(`${p.x},${p.y}`);
+      if (p.x === 10 && p.y === 2 && passouEm < 0) passouEm = w.now();
     };
     sys.onToggle(p, { cura: true, rota: "Ratos" });
     expect(p.bot).toBe(true);
@@ -662,6 +763,8 @@ describe("Estagiário: cenário com os sistemas reais", () => {
     let ms = 0;
     while (ms < 20_000 && !(visitados.has("10,2") && !w.mm.wild(rato.s.id))) { w.run(TICK_MS, passo); ms += TICK_MS; }
     expect(visitados.has("10,2")).toBe(true);
+    expect(mirouEm).toBeGreaterThan(passouEm); // passou pelo ponto e só então viu o rato
+    expect(passouEm).toBeGreaterThan(0);
     expect(w.mm.wild(rato.s.id)).toBeUndefined();
     expect(sys.estado(p).turnoMs).toBeLessThan(turno);
     expect(p.bot).toBe(true);
