@@ -17,7 +17,7 @@ export const NEWS: readonly NewsEntry[] = [
     title: "Lista de batalha do tamanho da tela",
     items: [
       "A lista de batalha mostra todos os bichos que aparecem na tela (antes, só até 10 tiles). O Espaço percorre essa lista.",
-      "Ataque automático no modo Seguir procura bichos a até 8 tiles (antes 6).",
+      "Ataque automático no modo Seguir procura bichos a até 12 tiles (antes 6).",
     ],
   },
   {

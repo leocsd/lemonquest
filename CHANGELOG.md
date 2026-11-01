@@ -6,7 +6,7 @@ Dono: "a lista de batalha tenha os bichos com mais distância, no máximo o que 
 sozinho também tenha a distância alta". A battle list mostra as criaturas e os jogadores dentro da área do mapa visível
 (fora do HUD; `PixelCamera.visibleTiles` → `setBattleView`), com teto de 20 tiles (era um quadrado fixo de 10 tiles em
 volta). O Espaço (próximo alvo) usa a mesma lista. O ataque automático no modo Seguir procura monstros a até 8 tiles
-(era 6), o alcance das magias à distância; parado continua só no alcance do ataque. Andar pelo teclado não troca mais
+(era 6; no mesmo dia subiu para 12, "só 8 ficou pouco": ~a largura da tela); parado continua só no alcance do ataque. Andar pelo teclado não troca mais
 o modo Seguir para Parado (dono: "pode deixar seguindo direto"); só pausa a perseguição por 1,5 s.
 
 ## [Não lançado] — 2026-11-01 · chat mais estreito
