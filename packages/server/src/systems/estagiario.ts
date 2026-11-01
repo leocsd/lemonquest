@@ -1,18 +1,20 @@
 // Estagiário (spec docs/superpowers/specs/2026-11-01-estagiario-design.md): o bot de caça do próprio jogo. O cérebro
 // fica aqui no servidor (a aba do navegador adormece em segundo plano, justamente no caso AFK) e age pelas APIs dos
-// sistemas que já existem: magias, poções, busca de alvo/perseguição e o acompanhante visível. As regras puras
-// (sanitização, turno, escolha de cura/ataque) estão em shared/estagiario.ts.
+// sistemas que já existem: magias, poções, busca de alvo/perseguição, caminho (A*) e o acompanhante visível. As regras
+// puras (sanitização, turno, escolha de cura/ataque, gravação de rota) estão em shared/estagiario.ts.
 import {
-  BUSCA_TILES, PAUSA_MANUAL_MS, S2C, alarmeLigado, avancarTurno, escolherAtaque, escolherCura, estagiarioPadrao,
-  indiceMaisProximo, isFamilyId, pickFromFamily, resolveFamily, sanitizeEstagiario,
+  BUSCA_TILES, PAUSA_MANUAL_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, alarmeLigado, avancarTurno, dirFromDelta,
+  escolherAtaque, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId,
+  novaGravacao, pickFromFamily, resolveFamily, sanitizeEstagiario,
   type AlarmeTipo, type CuraAcao, type EstagiarioAlarmeMsg, type EstagiarioConfig, type EstagiarioConfigMsg,
-  type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioPausa, type EstagiarioToggleMsg, type NoticeMsg,
-  type QuickPotionKind, type SpellGroup, type TurnoEstado,
+  type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao,
+  type NoticeMsg, type PontoRota, type QuickPotionKind, type SpellGroup, type TurnoEstado,
 } from "@lemonquest/shared";
 import type { CharacterData } from "../persistence/types.ts";
 import type { PlayerState } from "../state.ts";
 import { cheb, type MonsterManager } from "./monsters.ts";
 import type { MovementSystem } from "./movement.ts";
+import type { Point } from "./pathfinding.ts";
 
 /** Intervalo do estado periódico com a rota rodando (o cliente mostra o turno restante). */
 export const ESTADO_PERIODICO_MS = 10_000;
@@ -20,6 +22,8 @@ export const ESTADO_PERIODICO_MS = 10_000;
 const BUSCA_MS = 400;
 const AVISO_TURNO = "O turno do Estagiário acabou por hoje.";
 const AVISO_PZ = "Saia da zona de proteção para ligar a rota.";
+/** Caminho até o ponto recalculado no máximo a cada 300 ms (= CHASE_REPATH_MS da perseguição): A* a cada tick pesa. */
+const CAMINHO_MS = 300;
 
 export interface EstagiarioOptions {
   spells: { ready(p: PlayerState, id: string, now?: number): boolean; cast(p: PlayerState, id: string, targetId?: string, opts?: { silent?: boolean }): { ok: boolean } };
@@ -44,8 +48,20 @@ interface Estado {
   /** O ataque que o jogador escolheu; com a rota rodando o ataque fica ligado de qualquer jeito. */
   ataque: boolean;
   rota: string | null;
-  /** Ponto da rota em que o Estagiário está (a caminhada é da Task 5). */
+  /** Ponto da rota para onde o Estagiário está andando. */
   indice: number;
+  /** Caminho (A*) até `pontos[caminhoAlvo]`, calculado em `caminhoEm`; -1 = nenhum (recalcula no próximo passo). */
+  caminho: Point[] | null;
+  caminhoEm: number;
+  caminhoAlvo: number;
+  /** Menor distância ao ponto atual e quando ela diminuiu pela última vez (ponto travado → pula). */
+  melhorDist: number;
+  progressoEm: number;
+  /** Havia alvo vivo no tick anterior: ao matar, a rota retoma pelo ponto mais próximo. */
+  lutando: boolean;
+  /** Gravação em curso (e a posição do tick anterior, para ver o passo/teleporte). */
+  grav: Gravacao | null;
+  gravPos: Point;
   pausa: EstagiarioPausa;
   pausaAte: number;
   /** O jogador estava na PZ no tick anterior (desliga a rota só na entrada). */
@@ -70,6 +86,8 @@ export class EstagiarioSystem {
     const config = saved?.config ? sanitizeEstagiario(saved.config, p.vocation, this.o.spellGroups(p)) : estagiarioPadrao(p.vocation);
     this.st.set(p.id, {
       config, turno: avancarTurno(saved?.turno, now, false), cura: false, ataque: false, rota: null, indice: 0,
+      caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, lutando: false,
+      grav: null, gravPos: { x: p.x, y: p.y },
       pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0,
     });
   }
@@ -95,7 +113,7 @@ export class EstagiarioSystem {
     s.config = sanitizeEstagiario(m.config, p.vocation, this.o.spellGroups(p));
     const rota = s.rota && this.rotaDe(s, s.rota);
     if (s.rota && !rota) this.desligarRota(p, s);
-    else if (rota) s.indice = indiceMaisProximo(rota.pontos, p); // os pontos podem ter mudado
+    else if (rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), this.now()); // os pontos podem ter mudado
     this.enviarEstado(p);
   }
 
@@ -109,9 +127,22 @@ export class EstagiarioSystem {
     this.enviarEstado(p);
   }
 
-  /** Gravação de rota: a Task 5 completa (iniciar/parar/descartar); por enquanto só responde o estado. */
-  onGravar(p: PlayerState, _m: EstagiarioGravarMsg): void {
-    if (this.st.has(p.id)) this.enviarEstado(p);
+  /**
+   * Gravação de rota: "iniciar" começa a guardar os passos (o tick vê cada passo/teleporte); "parar" salva com o nome
+   * (mesmo nome substitui; recusa sem nome, parado ou com as rotas cheias, e aí continua gravando para o jogador
+   * corrigir); "descartar" só larga a gravação.
+   */
+  onGravar(p: PlayerState, m: EstagiarioGravarMsg): void {
+    const s = this.st.get(p.id);
+    if (!s || !obj(m)) return;
+    if (m.acao === "iniciar") {
+      // A rota andando seria gravada por cima de si mesma.
+      if (s.rota) this.notice(p, "Desligue a rota para gravar outra.");
+      else { s.grav = novaGravacao(p); s.gravPos = { x: p.x, y: p.y }; }
+    } else if (m.acao === "descartar") s.grav = null;
+    else if (m.acao === "parar" && s.grav) this.salvarGravacao(p, s, s.grav, m.nome);
+    else if (m.acao !== "parar") return;
+    this.enviarEstado(p);
   }
 
   /** Movimento manual (setas ou clique no chão): a rota pausa por PAUSA_MANUAL_MS, renovada a cada comando. */
@@ -123,10 +154,14 @@ export class EstagiarioSystem {
     if (s.pausa === "") this.mudarPausa(id, s, "manual", now);
   }
 
-  /** Morreu: a rota desliga (o acompanhante sai junto); cura e ataque continuam para a próxima vida. */
+  /**
+   * Morreu: a rota desliga (o acompanhante sai junto) e a gravação é largada (o teleporte para o templo viraria um
+   * "portal" na rota); cura e ataque continuam para a próxima vida.
+   */
   onDied(p: PlayerState): void {
     const s = this.st.get(p.id);
-    if (!s?.rota) return;
+    if (!s?.rota && !s?.grav) return;
+    s.grav = null;
     this.desligarRota(p, s);
     this.enviarEstado(p);
   }
@@ -137,6 +172,7 @@ export class EstagiarioSystem {
     if (!s) return;
     s.cura = false;
     s.ataque = false;
+    s.grav = null;
     this.desligarRota(p, s);
   }
 
@@ -154,7 +190,7 @@ export class EstagiarioSystem {
     }
     return {
       config: s.config, cura: s.cura, ataque: this.ataqueLigado(s), rota: s.rota, pausa: s.pausa,
-      gravando: false, pontosGravados: 0, turnoMs: avancarTurno(s.turno, now, this.rodando(s)).ms,
+      gravando: !!s.grav, pontosGravados: s.grav?.pontos.length ?? 0, turnoMs: avancarTurno(s.turno, now, this.rodando(s)).ms,
     };
   }
 
@@ -172,11 +208,24 @@ export class EstagiarioSystem {
   // --- tick ---------------------------------------------------------------------------------------------------------
 
   private tickPlayer(p: PlayerState, s: Estado, now: number): void {
+    if (s.grav) this.gravar(p, s, now);
     if (s.rota) this.tickRota(p, s, now);
     if (p.hp <= 0) return;
     // No máximo uma cura por tick; o ataque vem depois (a recarga global de magia separa os dois quando os dois são magia).
     if (s.cura) this.curar(p, s, now);
     if (this.ataqueLigado(s)) this.atacar(p, s, now);
+    // Depois do ataque: o alvo escolhido neste tick já segura a caminhada (não dá um passo da rota para o lado errado).
+    if (this.rodando(s)) this.andar(p, s, now);
+  }
+
+  /** Gravando: guarda o passo (ou o teleporte) entre o tick anterior e este; ponto novo → estado para o painel. */
+  private gravar(p: PlayerState, s: Estado, now: number): void {
+    const g = s.grav!;
+    if (p.x === s.gravPos.x && p.y === s.gravPos.y) return;
+    const antes = g.pontos.length;
+    s.grav = gravarPasso(g, s.gravPos, p);
+    s.gravPos = { x: p.x, y: p.y };
+    if (s.grav.pontos.length !== antes) this.enviarEstado(p, now);
   }
 
   private tickRota(p: PlayerState, s: Estado, now: number): void {
@@ -185,7 +234,12 @@ export class EstagiarioSystem {
     s.emPz = pz;
     if (entrou) { this.desligarRota(p, s, now); this.enviarEstado(p); return; }
     const pausa: EstagiarioPausa = this.o.npcOpen(p.id) ? "npc" : now < s.pausaAte ? "manual" : "";
-    if (pausa !== s.pausa) this.mudarPausa(p.id, s, pausa, now);
+    if (pausa !== s.pausa) {
+      this.mudarPausa(p.id, s, pausa, now);
+      // Na pausa o jogador andou à mão (ou foi ao NPC): ao voltar, segue do ponto mais perto de onde ele está.
+      const rota = this.rotaDe(s, s.rota!);
+      if (pausa === "" && rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
+    }
     if (!this.rodando(s)) return;
     this.acertar(s, now);
     if (s.turno.ms <= 0) {
@@ -217,7 +271,9 @@ export class EstagiarioSystem {
       const id = this.o.fight.nearestTarget(p, BUSCA_TILES);
       if (!id) return;
       p.targetId = id;
-      this.o.fight.resume(p.id); // persegue já, sem esperar a pausa de um movimento manual anterior
+      // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador está
+      // jogando à mão: retomar cancelaria a pausa de 1,5 s que o Move/WalkTo acabou de pôr na perseguição.
+      if (this.rodando(s)) this.o.fight.resume(p.id);
     }
     if (!s.config.ataque.length) return;
     const bichosEm = (r: number) => {
@@ -237,6 +293,84 @@ export class EstagiarioSystem {
 
   // --- rota ---------------------------------------------------------------------------------------------------------
 
+  /**
+   * Um passo da rota (tick, rota rodando). Com alvo vivo não anda (a perseguição forçada aproxima); ao matar, retoma
+   * pelo ponto mais próximo. Chegou ao ponto → o seguinte (circuito); ponto de portal: pisar nele teleporta para o
+   * ponto seguinte, que conta como alcançado. Sem chegar mais perto por PONTO_TRAVADO_MS (inalcançável, ocupado, fora
+   * do mapa) → pula. O passo é o da perseguição (FightModeSystem.stepToward): A* recalculado no máximo a cada
+   * CAMINHO_MS ou quando o ponto muda, um `follow` por vez.
+   */
+  private andar(p: PlayerState, s: Estado, now: number): void {
+    const rota = this.rotaDe(s, s.rota!);
+    if (!rota) return;
+    const pts = rota.pontos, n = pts.length;
+    if (this.alvoVivo(p)) { s.lutando = true; s.caminho = null; return; }
+    if (s.lutando) { s.lutando = false; this.irPara(s, indiceMaisProximo(pts, p), now); }
+    if (s.indice < 0 || s.indice >= n) this.irPara(s, 0, now);
+    const em = (q: PontoRota) => q.x === p.x && q.y === p.y;
+    for (let k = 0; k < n; k++) { // pontos repetidos/portal: pode avançar mais de um no mesmo tick
+      const a = pts[s.indice]!, prox = (s.indice + 1) % n;
+      if (em(a) || (a.portal && em(pts[prox]!))) this.irPara(s, prox, now);
+      else break;
+    }
+    const alvo = pts[s.indice]!;
+    const d = cheb(p.x, p.y, alvo.x, alvo.y);
+    if (d < s.melhorDist) { s.melhorDist = d; s.progressoEm = now; }
+    else if (now - s.progressoEm >= PONTO_TRAVADO_MS) { this.irPara(s, (s.indice + 1) % n, now); return; }
+    this.passo(p, s, alvo, now);
+  }
+
+  private passo(p: PlayerState, s: Estado, alvo: PontoRota, now: number): void {
+    const mv = this.o.movement;
+    if (!mv.isIdle(p, now)) return;
+    if (s.caminhoAlvo !== s.indice || (now - s.caminhoEm >= CAMINHO_MS && !s.caminho?.length)) {
+      s.caminho = mv.pathFor(p, { x: alvo.x, y: alvo.y });
+      s.caminhoEm = now;
+      s.caminhoAlvo = s.indice;
+    }
+    const next = s.caminho?.[0];
+    if (!next) return;
+    const dir = dirFromDelta(next.x - p.x, next.y - p.y);
+    if (dir === null) { s.caminho = null; return; }
+    const r = mv.follow(p, dir, now);
+    if (r === "ok") s.caminho!.shift();
+    else if (r !== "busy") s.caminho = null; // bloqueado: recalcula no próximo tick permitido
+  }
+
+  /** Vai para o ponto `i` do zero: caminho novo e o relógio de "ponto travado" recomeça. */
+  private irPara(s: Estado, i: number, now: number): void {
+    s.indice = i;
+    s.caminho = null;
+    s.caminhoAlvo = -1;
+    s.melhorDist = Infinity;
+    s.progressoEm = now;
+  }
+
+  /** Alvo atual vivo: monstro selvagem ou jogador (mirado à mão) ainda no mundo. */
+  private alvoVivo(p: PlayerState): boolean {
+    if (!p.targetId) return false;
+    if (this.o.monsters.wild(p.targetId)) return true;
+    const q = this.jogador(p.targetId);
+    return !!q && q.hp > 0;
+  }
+
+  private salvarGravacao(p: PlayerState, s: Estado, g: Gravacao, nome: unknown): void {
+    const pontos = fecharGravacao(g, p);
+    if (pontos.length < 2) { this.notice(p, "Ande um pouco antes de salvar a rota."); return; }
+    // O nome é limpo pela mesma sanitização da configuração (sem duplicar a regra).
+    const nova = sanitizeEstagiario({ rotas: [{ nome, pontos }] }, p.vocation).rotas[0];
+    if (!nova) { this.notice(p, "Dê um nome à rota."); return; }
+    const chave = nova.nome.toLowerCase();
+    const i = s.config.rotas.findIndex((r) => r.nome.toLowerCase() === chave);
+    if (i < 0 && s.config.rotas.length >= ROTAS_MAX) { this.notice(p, `Já há ${ROTAS_MAX} rotas: apague uma antes.`); return; }
+    const rotas = [...s.config.rotas];
+    if (i < 0) rotas.push(nova); else rotas[i] = nova;
+    s.config = { ...s.config, rotas };
+    s.grav = null;
+    // Substituiu a rota que está ligada (ligada durante a gravação): segue a versão nova pelo ponto mais próximo.
+    if (s.rota && s.rota.toLowerCase() === chave) { s.rota = nova.nome; this.irPara(s, indiceMaisProximo(nova.pontos, p), this.now()); }
+  }
+
   private ligarRota(p: PlayerState, s: Estado, nome: string): void {
     const rota = this.rotaDe(s, nome);
     if (!rota || p.hp <= 0) return;
@@ -246,7 +380,8 @@ export class EstagiarioSystem {
     if (s.turno.ms <= 0) { this.notice(p, AVISO_TURNO); return; }
     const ja = !!s.rota;
     s.rota = rota.nome;
-    s.indice = indiceMaisProximo(rota.pontos, p);
+    this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
+    s.lutando = false;
     s.pausa = "";
     s.pausaAte = 0;
     s.emPz = false;
