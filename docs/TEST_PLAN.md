@@ -17,6 +17,31 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — leitura geral de balanço aplicada (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1700 passando. Cada mudança medida contra `vocationBalance.test.ts` e
+`arena.test.ts` antes de entrar: a Poção de Mana Forte com 1.100 fazia o grupo justo da 60 e o lv 110 completarem (ficou
+1.000); a Flecha Paralisante com mais dano também (virou controle); a Lasca de Gelo mais forte só passou com a Fúria da
+Natureza −10 de base. Testes atualizados: preço da bênção (`combatFormulas`), chances fixadas dos chefes da Siderúrgica e
+da Montadora (`items.test.ts`, peças Abissais 6% → 8%, no teto da regra 5–8%), contagem de exclusivos do baú
+(`quests.test.ts`, + armas Carmesim), barra recomendada do paladino 7 → 8 (`hotkeys.test.ts`). Pior/melhor das vocações:
+0,73 / 0,76 / 0,82. Valor de loot dos chefes por script (chance × quantidade × preço de venda; ouro travado).
+CB-5 (mesmo dia): `spells.test.ts` com `powerEstimate` (dano de cavaleiro/paladino pelo `spellPower`; cura pelo ML) —
+só a meta do Golpe Giratório mudou de forma (por segundo, ≤ 1,2× o auto-ataque); `items.test.ts` ganhou `dominates`
+(peça regional não supera a referência do slot em todos os atributos), que achou as Calças Antichama, o Boné de
+Visitante e a Calça Impermeável. Suíte inteira: 1700 passando.
+
+## Resultados — cavaleiro com exori gran/exori mas, alcance das magias e modo Seguir (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1700 passando. `m4.test.ts` ganhou "andar pelo teclado atacando no modo
+Seguir vira Parado; sem alvo só pausa" e "alvo novo começa a perseguir na hora, mesmo logo depois de um movimento
+manual". Kit novo do cavaleiro calibrado por varredura de números contra `vocationBalance.test.ts` e `arena.test.ts`
+(50 testes, nenhuma meta alterada): o modelo do Coliseu muda de resultado aos saltos (uma onda a mais ou a menos com
+2 % de dano ou 10 de mana), então a combinação final (Giro Feroz 1,05×, Fúria Giratória 1,1× e Terremoto 1,5× o
+`exori`, todas com recarga 8 s; mana 25/40/110) fica perto das bordas — mexer nela pede rodar os dois arquivos.
+`spells.test.ts`: cavaleiro 14 magias, 60 no total; o teste da onda retangular usa a forma direto (nenhuma magia usa
+mais `rect`). E2E `spells.spec.ts` (cavaleiro lv 50) conjura `exori gran` e `exori mas`; roda no CI da PR.
+
 ## Resultados — app de desktop (2026-10-31)
 
 Unitários: `cargo test` em `packages/desktop/src-tauri` (23: endereco 7, nav 8, boot 2, saúde 4, atualizador 2);

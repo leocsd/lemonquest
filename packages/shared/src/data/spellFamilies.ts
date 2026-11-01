@@ -22,8 +22,10 @@ const fam = (vocation: Vocation, key: string, name: string, desc: string, spells
 
 export const SPELL_FAMILIES: readonly SpellFamily[] = [
   fam("knight", "target", "Golpe no alvo", "A mais forte pronta entre Golpe Aniquilador e Golpe Brutal.", ["annihilation_strike", "brutal_strike"]),
-  fam("knight", "area", "Golpe em área", "A mais forte pronta entre Fúria Giratória, Golpe Frontal e Golpe Giratório.", ["whirlwind", "front_sweep", "spin_strike"]),
-  fam("paladin", "target", "Flecha no alvo", "A mais forte pronta entre Flecha Paralisante, Flecha Sagrada e Flecha Perfurante.", ["crippling_arrow", "holy_arrow", "piercing_arrow"]),
+  fam("knight", "area", "Golpe em área", "A mais forte pronta entre Terremoto, Fúria Giratória, Giro Feroz e Golpe Giratório.", ["earthquake", "whirlwind", "front_sweep", "spin_strike"]),
+  // 2026-11-01: a Flecha Paralisante virou flecha de controle (lentidão) e saiu da família: a tecla inteligente só dispara
+  // dano; a Paralisante vai numa tecla própria ou num grupo do jogador.
+  fam("paladin", "target", "Flecha no alvo", "A mais forte pronta entre Flecha Sagrada e Flecha Perfurante.", ["holy_arrow", "piercing_arrow"]),
   fam("paladin", "area", "Chuva no alvo", "A mais forte pronta entre Chuva de Estrelas, Julgamento Divino, Flecha Explosiva e Chuva de Flechas.", ["star_rain", "divine_judgment", "explosive_arrow", "arrow_rain"]),
   fam("sorcerer", "target", "Ataque no alvo", "A mais forte pronta entre Chama Eterna, Morte Súbita, Raio de Energia e Bola de Fogo.", ["eternal_flame", "sudden_death", "energy_beam", "fireball"]),
   fam("sorcerer", "area", "Área em volta", "A mais forte pronta entre Tempestade Elétrica e Inferno.", ["electric_storm", "inferno"]),

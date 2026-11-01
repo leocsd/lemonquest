@@ -101,9 +101,12 @@ describe("combat formulas", () => {
     expect(deathXpLoss(30, xpForLevel(31) - 1, 0.5)).toBe(deathPenalty(30, xpForLevel(31) - 1)); // mult < 1 não reduz
   });
 
-  it("blessing price scales linearly with level", () => {
+  it("preço da bênção: 50 por level, multiplicado pelo estágio da morte (×2 no 60, ×2,5 no 80, ×3 no 100)", () => {
     expect(blessingPrice(1)).toBe(50);
-    expect(blessingPrice(80)).toBe(4000);
+    expect(blessingPrice(59)).toBe(2950);
+    expect(blessingPrice(60)).toBe(6000);
+    expect(blessingPrice(80)).toBe(10000);
+    expect(blessingPrice(100)).toBe(15000);
     expect(blessingPrice(0)).toBe(50); // nunca menos que o level 1
   });
 

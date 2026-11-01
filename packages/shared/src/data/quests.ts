@@ -445,7 +445,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Demodras ainda respira. Volte quando ele cair.",
       complete: "Demodras caiu! Contam essa história por mil anos. Agora você é um Matador de Dragões.",
     },
-    rewards: { xp: 80000, gold: 15000, items: [{ itemId: "health_potion_large", count: 20 }], unlock: "title:matador_dragoes" },
+    rewards: { xp: 80000, gold: 21000, unlock: "title:matador_dragoes" },
   }),
   q({
     id: "abyss_gates", name: "Os Portões do Abismo", giver: "frontier_priest", minLevel: 90, requires: ["evil_eyes"],
@@ -460,7 +460,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Ainda sinto o enxofre daqui. Quinze behemoths e dez demônios.",
       complete: "Os portões se fecharam... por enquanto. Você fez o que poucos fariam.",
     },
-    rewards: { xp: 90000, gold: 20000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
+    rewards: { xp: 90000, gold: 32400 },
   }),
   // Ciclo 12 (GD-08): o 100–109 não tinha missão. Esta prepara o trono de Orshabaal (110) com o loot dos demônios.
   q({
@@ -477,7 +477,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Vinte demônios, dez chifres e cinco essências. O selo não se forja sozinho.",
       complete: "O selo está pronto e brilha como brasa. Com ele, o trono de Orshabaal fica ao alcance de quem tiver coragem.",
     },
-    rewards: { xp: 120000, gold: 25000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }] },
+    rewards: { xp: 120000, gold: 40500 },
   }),
   q({
     // Ciclo 14 (decisão do dono): o selo forjado na missão anterior é o que abre o caminho ao trono.
@@ -490,7 +490,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Orshabaal ainda ri no fundo do Abismo. Volte quando ele calar.",
       complete: "Orshabaal foi banido! A Fronteira inteira vai rezar por você. Daqui para frente, você é o Exorcista.",
     },
-    rewards: { xp: 180000, gold: 40000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:exorcista" },
+    rewards: { xp: 180000, gold: 49000, unlock: "title:exorcista" },
   }),
   // Ciclo 16: os chefes de covil das quatro caves profundas (lateObjects14 no mapa). Dá para fazer em qualquer ordem; o
   // Shogun (lv 125) é o que segura a missão no fim de jogo.
@@ -509,7 +509,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Ainda tem covil com dono no meu mapa. Quatro chefes, quatro covis. Três e meio não conta.",
       complete: "Quatro covis, quatro donos a menos! Vou ter que desenhar o mapa de novo, desta vez com o seu nome em cada sala. Daqui para a frente, você é o Caçador de Covis.",
     },
-    rewards: { xp: 150000, gold: 40000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }], unlock: "title:cacador_covis" },
+    rewards: { xp: 150000, gold: 55500, unlock: "title:cacador_covis" },
   }),
   // --- Costa Esmeralda: Porto Esperança (25–120) -------------------------------------------------------
   q({
@@ -662,7 +662,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Vinte dragões de gelo e dez escamas, guerreiro.",
       complete: "Escamas lindas! Os escudos do norte vão aguentar qualquer sopro, e o norte nunca vai esquecer o seu nome. Tome.",
     },
-    rewards: { xp: 70000, gold: 14000, items: [{ itemId: "dragon_ham", count: 10 }, { itemId: "health_potion_large", count: 10 }] },
+    rewards: { xp: 70000, gold: 17000, items: [{ itemId: "dragon_ham", count: 10 }] },
   }),
   q({
     id: "heroes_rest", name: "O Descanso dos Heróis", giver: "port_priest", minLevel: 65,
@@ -694,7 +694,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Vinte e cinco elementais e cinco núcleos. O vulcão não espera.",
       complete: "Núcleos perfeitos! Eles pulsam no ritmo de algo muito antigo... Tome a sua recompensa.",
     },
-    rewards: { xp: 70000, gold: 14000, items: [{ itemId: "health_potion_large", count: 20 }] },
+    rewards: { xp: 70000, gold: 20000 },
   }),
   q({
     id: "hellhounds", name: "Os Cães do Inferno", giver: "sage_ignis", minLevel: 95, requires: ["magma_heart"],
@@ -706,7 +706,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Ainda ouço os latidos lá do porto. Vinte cães!",
       complete: "Os cães se calaram. Agora sim, a cratera está ao seu alcance.",
     },
-    rewards: { xp: 90000, gold: 18000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
+    rewards: { xp: 90000, gold: 30400 },
   }),
   // Ciclo 12 (GD-08): ponte entre os cães (95) e Ferumbras (120), na faixa 100–109 que não tinha missão.
   q({
@@ -722,7 +722,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Quinze colossos e cinco placas. A Cidadela não vai se abrir sozinha.",
       complete: "Este metal... foi forjado com magia, não com fogo. Ferumbras está por trás disso, tenho certeza.",
     },
-    rewards: { xp: 150000, gold: 30000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }] },
+    rewards: { xp: 150000, gold: 45500 },
   }),
   q({
     id: "ferumbras_end", name: "O Fim de Ferumbras", giver: "sage_ignis", minLevel: 120, requires: ["hellhounds"],
@@ -737,7 +737,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Ferumbras ainda vive. Dez colossos e o feiticeiro!",
       complete: "Você venceu Ferumbras! Ele vai voltar, sempre volta... mas hoje o mundo é seu, Algoz de Ferumbras.",
     },
-    rewards: { xp: 200000, gold: 50000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:algoz_ferumbras" },
+    rewards: { xp: 200000, gold: 59000, unlock: "title:algoz_ferumbras" },
   }),
   // --- Malha da Ferrovia (25–55, ciclo 11) ------------------------------------------------------------------------
   // Região só de trem. NPCs por papel; da equipe, só apelidos já existentes (Pedrão, Julião, Iago), que continuam na
@@ -1127,7 +1127,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Ainda ouço os martelos lá embaixo. Quinze forjadores, dez gosmas, dois frascos.",
       complete: "Dois frascos... brilham como a primeira corrida. Então é verdade: a Fornalha acordou de vez. Descanse, porque o próximo passo é ela.",
     },
-    rewards: { xp: 110000, gold: 25000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }, { itemId: "gem_red", count: 3 }] },
+    rewards: { xp: 110000, gold: 40500, items: [{ itemId: "gem_red", count: 3 }] },
   }),
   q({
     id: "fornalha_primordial", name: "A Fornalha Primordial", giver: "espirito_fundidor", minLevel: 112, requires: ["poco_do_cadinho"],
@@ -1139,7 +1139,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "A Fornalha ainda queima. Eu sinto daqui.",
       complete: "Apagada... depois de tanto tempo. Você tem um coração de aço, e agora todo mundo vai saber. Obrigado. Posso descansar.",
     },
-    rewards: { xp: 180000, gold: 45000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:coracao_de_aco" },
+    rewards: { xp: 180000, gold: 54000, unlock: "title:coracao_de_aco" },
   }),
   // --- Montadora (ciclo 20, lv 10–112): as máquinas da linha criaram vontade própria e tudo sai amarelo-limão. Porteiro e
   // Lavador-Chefe (Portaria), Operadora da Prensa (Estamparia), Mestra Soldadora (Funilaria), Pintor-Chefe (Cabines),
@@ -1329,7 +1329,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "Ainda não vi você descer para o Crash Test. E quinze dublês, lembra?",
       complete: "Batida de verdade, e você inteiro! Os bonecos não, ainda bem. Leve as poções: quem volta do Crash Test volta mancando.",
     },
-    rewards: { xp: 95000, gold: 20000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
+    rewards: { xp: 95000, gold: 32400 },
   }),
   q({
     id: "mt_cromados", name: "Cromados", giver: "mt_piloto", minLevel: 100, requires: ["mt_linha"],
@@ -1360,7 +1360,7 @@ export const QUEST_LIST: QuestDef[] = [
       progress: "O Protótipo ainda dá volta lá embaixo. Ouço o motor daqui.",
       complete: "Recolhido! Trinta anos de pista e esta foi a melhor volta que eu já vi. A partir de hoje você é Piloto de Testes, com título e tudo. Pode deixar que eu assino.",
     },
-    rewards: { xp: 190000, gold: 45000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:piloto_testes" },
+    rewards: { xp: 190000, gold: 54000, unlock: "title:piloto_testes" },
   }),
 ];
 

@@ -97,6 +97,23 @@ export class FightModeSystem {
     if (s) s.path = null;
   }
 
+  /**
+   * Andar pelo teclado enquanto ataca no modo Seguir: sai do modo Seguir (vira Parado), como no Tibia — senão a
+   * perseguição puxaria o jogador de volta ao alvo. Pedido do dono (2026-11-01). F8 volta a seguir.
+   */
+  manualStep(p: PlayerState): void {
+    if (!p.chase || !p.targetId) return;
+    p.chase = false;
+    this.st.delete(p.id);
+    this.notice(p, "Modo Parado: você andou enquanto atacava (F8 volta a seguir).");
+  }
+
+  /** Alvo novo escolhido: a perseguição começa já, sem esperar a pausa de um movimento manual anterior. */
+  resume(id: string): void {
+    const s = this.st.get(id);
+    if (s) { s.pausedUntil = 0; s.path = null; }
+  }
+
   /** Movimento manual: pausa a perseguição por CHASE_PAUSE_MS. */
   pause(id: string, now = this.now()): void {
     const s = this.state(id);

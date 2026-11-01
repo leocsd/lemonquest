@@ -614,14 +614,21 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       castWords: (pl, text) => this.spells.castWords(pl, text), command, muted,
       partyChat: (pl, text) => this.party.chat(pl, text),
     };
-    this.on<MoveMsg>(C2S.Move, (p, m) => { this.fight.pause(p.id); if (m?.dir != null) this.fight.cancelFollow(p); this.movement.onMove(p, m); });
+    this.on<MoveMsg>(C2S.Move, (p, m) => {
+      if (m?.dir != null) { this.fight.manualStep(p); this.fight.cancelFollow(p); }
+      this.fight.pause(p.id);
+      this.movement.onMove(p, m);
+    });
     this.on<WalkToMsg>(C2S.WalkTo, (p, m) => {
       // `stop` (clique que virou "olhar") só larga o caminho: não pausa a luta nem cancela o seguir.
       if (m?.stop !== true) { this.fight.pause(p.id); this.fight.cancelFollow(p); }
       this.movement.onWalkTo(p, m);
     });
     this.on<TurnMsg>(C2S.Turn, (p, m) => this.movement.onTurn(p, m));
-    this.on<AttackMsg>(C2S.Attack, (p, m) => { this.combat.onAttack(p, m); if (p.targetId) this.fight.cancelFollow(p); });
+    this.on<AttackMsg>(C2S.Attack, (p, m) => {
+      this.combat.onAttack(p, m);
+      if (p.targetId) { this.fight.cancelFollow(p); this.fight.resume(p.id); }
+    });
     this.on<FollowMsg>(C2S.Follow, (p, m) => this.fight.onFollow(p, m));
     this.on<ChatSendMsg>(C2S.Chat, (p, m, c) =>
       handleChat(this, c, p, m, this.chatHooks));

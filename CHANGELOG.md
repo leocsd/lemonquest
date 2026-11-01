@@ -1,5 +1,51 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · leitura geral de balanço aplicada
+
+Dono: "atualize tudo" (sobre os achados da leitura de magias, vocações, progressão, monstros, itens e economia).
+- **Druida**: Lasca de Gelo (`exori frigo`) cresce 1,6 por level (era 0,6; a Bola de Fogo segue 0,6); no lv 30 vai de
+  ~97 para ~126 de dano. Fúria da Natureza perdeu 10 de base (Coliseu). Fada espelha os dois.
+- **Paladino**: Flecha Paralisante vira flecha de controle (lentidão 5 s, mana 40) e sai da tecla inteligente "Flecha no
+  alvo" (era dominada pela Flecha Sagrada); a barra recomendada ganha uma tecla para ela.
+- **Bênção** acompanha a perda da morte: 50 × level × 1 até o lv 59, ×2 no 60, ×2,5 no 80, ×3 no 100 (15 mil no lv 100).
+- **Armas Carmesim (lv 85)**: uma por vocação (espada 145, arco 129, varinha e bastão 95), só de drop raro (0,3–0,4%)
+  do Senhor dos Dragões, do Behemoth e do Cão Infernal; fora do Baú de Recompensa (`isExclusiveItem`).
+- **Chefes das regiões novas** com mais equipamento (Fornalha, Protótipo, Covil da Chama, Golem, Monstro da Estufa,
+  Barba-Ruiva, Rei Kongra): loot por vida 1,5–3× maior; as peças Abissais ficam no teto da regra (8%).
+- **Espírito de Chama**: equipamento 0,8–1,5% → 0,4–0,6% (dominava o lv 38).
+- **Poção de Mana Forte**: 800 → 1.000 de mana (360 de ouro); recuperava menos que a Grande do lv 30.
+- **Missões do lv 80+** trocam as poções de lv 30 por ouro do mesmo valor. **Galho Seco** cai do lobo (não tinha fonte).
+- Comentários com números velhos atualizados; testes de balanço com teto de 30 s.
+- **Pendências da leitura (CB-5)**: `spells.test.ts` passa a medir o dano de cavaleiro e paladino pela potência real
+  (`spellPower`), não pelo ML (a meta "o Golpe Giratório não substitui o auto-ataque" virou por segundo) e a tabela no fim
+  de `spells.ts` foi regerada; os testes das peças da Siderúrgica e da Montadora também exigem que a peça não supere a
+  referência do slot em todos os atributos (Calças Antichama armadura 4 → 3, Boné de Visitante sem armadura, Calça
+  Impermeável 45 de vida sem armadura); Amuleto de Rubi armadura 4 → 3 (dominava o de Escamas); Kappa do Lodo XP 760 →
+  830 e Poção de Vida Grande no loot (era dominado pela Carniphila); Protótipo e Fornalha ganham peças do tier 7, como o
+  Orshabaal (loot por vida 0,95 → 1,49 e 1,40 → 1,79; Orshabaal 2,37).
+Medido: pior/melhor das vocações 0,73 / 0,76 / 0,82 (lv 30/60/100); todas as metas de `vocationBalance.test.ts`,
+`arena.test.ts` e `spells.test.ts` mantidas.
+
+## [Não lançado] — 2026-11-01 · cavaleiro com exori gran e exori mas em área; magias mais longe; modo Seguir na hora
+
+Dono: "sinto falta do exori gran e exori mas do knight", "posso usar skill com uma distância maior", "o modo atacar
+seguindo demora muito para começar a seguir" e "se eu tiver atacando seguindo e apertar para andar, quero que saia do
+modo atacar seguindo".
+- **Cavaleiro, áreas como no Tibia**: `exori gran` vira o **Giro Feroz** (área r1, lv 20, 1,05× o `exori` por golpe,
+  recarga 8 s); o golpe de alvo único do lv 30 (Golpe Brutal) passa a ser `exori ico`; `exori mas` (Fúria Giratória, r2)
+  desce do lv 70 para o 35 (mana 40); no lv 70 entra o **Terremoto** (`exori gran mas`, r3, 1,5× o `exori`, mana 110).
+  O Golpe Frontal (`exori min`, 3×3 à frente) saiu: o cavaleiro já estava no teto de 14 magias. O Giro Feroz herdou o id
+  do Golpe Frontal (`front_sweep`) para não apagar atalhos e grupos salvos. Tecla inteligente "Golpe em área": Terremoto
+  › Fúria Giratória › Giro Feroz › Golpe Giratório. Números calibrados contra `vocationBalance.test.ts` e `arena.test.ts`
+  (o modelo conta 4 alvos para qualquer área, então o ganho do raio maior fica fora dele; as metas não mudaram).
+- **Alcance das magias**: toda magia à distância ganhou +2 tiles (4→6, 5→7, 6→8), nas quatro vocações e na Fada.
+  Golpes corpo a corpo e a Investida (4) iguais.
+- **Modo Seguir na hora**: escolher um alvo zera a pausa de 1,5 s que um passo manual deixava
+  (`FightModeSystem.resume`), e a perseguição começa no tick seguinte.
+- **Andar sai do modo Seguir**: andar pelo teclado atacando no modo Seguir vira Parado, como no Tibia, com o aviso
+  "Modo Parado… (F8 volta a seguir)" (`FightModeSystem.manualStep`). Sem alvo, andar só pausa como antes; clicar no chão
+  para andar também só pausa.
+
 ## [Não lançado] — 2026-10-31 · app de desktop (Windows, Mac e Linux)
 
 Dono: "criar um client" — ícone na área de trabalho, janela sem nada do navegador, teclas sem briga, abrir direto no

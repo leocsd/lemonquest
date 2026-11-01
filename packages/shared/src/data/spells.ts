@@ -73,7 +73,8 @@ export interface SpellDef {
 
 export const GLOBAL_SPELL_COOLDOWN_MS = 1000;
 
-/** Alcance (tiles) de magia no alvo sem `range` próprio. */
+/** Alcance (tiles) de magia no alvo sem `range` próprio. Pedido do dono (2026-11-01): as magias à distância ganharam +2
+ * tiles (4→6, 5→7, 6→8; a tela mostra ~15–19 tiles na vertical); golpes corpo a corpo e a Investida (4) ficaram iguais. */
 export const DEFAULT_SPELL_RANGE = 7;
 
 /** A magia precisa de um alvo (e de alcance até ele). */
@@ -86,7 +87,7 @@ export function spellMana(s: Pick<SpellDef, "mana" | "manaPerLevel" | "manaMax">
 }
 
 /**
- * Catálogo: 6-8 magias por vocação (uma única cura própria "exura" e o "utani hur" para todas; druida ainda tem a cura em grupo "exura mas sio"). Palavras únicas (ver tabela no fim do arquivo).
+ * Catálogo: 12–14 magias por vocação (cura "exura" para todas, mais a própria do cavaleiro e do paladino e o "utani hur" para todas; druida ainda tem a cura em grupo "exura mas sio"). Palavras únicas (ver tabela no fim do arquivo).
  * Valor esperado = base + level*perLevel + magicLevel*perMagic (magicLevel estimado no spells.test.ts).
  */
 export const SPELLS: Record<string, SpellDef> = {
@@ -138,8 +139,10 @@ export const SPELLS: Record<string, SpellDef> = {
     target: "self", condition: { id: "protect", durationMs: 10_000, value: 30 }, fx: "buff",
     description: "Reduz em 30% o dano recebido por 10 segundos.",
   },
+  // 2026-11-01 (pedido do dono): palavras "exori gran" → "exori ico", como o golpe de alvo único do Tibia; o "exori gran"
+  // virou o giro forte em volta (front_sweep, lv 20).
   brutal_strike: {
-    id: "brutal_strike", name: "Golpe Brutal", words: "exori gran", vocations: ["knight"], level: 30, mana: 45, cooldownMs: 8000,
+    id: "brutal_strike", name: "Golpe Brutal", words: "exori ico", vocations: ["knight"], level: 30, mana: 45, cooldownMs: 8000,
     target: "target", range: 1, damage: { kind: "physical", base: 56, perLevel: 5.6, perMagic: 5.6, variance: 0.2 }, fx: "physical",
     description: "Um golpe devastador no alvo à sua frente.",
   },
@@ -155,17 +158,17 @@ export const SPELLS: Record<string, SpellDef> = {
   // ------------------------------------------------------------------ PALADINO (à distância)
   piercing_arrow: {
     id: "piercing_arrow", name: "Flecha Perfurante", words: "exori con", vocations: ["paladin"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 6, damage: { kind: "physical", base: 13, perLevel: 1, perMagic: 2, variance: 0.2 }, fx: "arrow",
+    target: "target", range: 8, damage: { kind: "physical", base: 13, perLevel: 1, perMagic: 2, variance: 0.2 }, fx: "arrow",
     description: "Dispara uma flecha certeira contra o alvo.",
   },
   arrow_rain: {
     id: "arrow_rain", name: "Chuva de Flechas", words: "exevo mas con", vocations: ["paladin"], level: 15, mana: 35, cooldownMs: 6000,
-    target: "area_target", range: 6, radius: 2, damage: { kind: "physical", base: 12, perLevel: 1.8, perMagic: 2.5, variance: 0.2 }, fx: "arrow",
+    target: "area_target", range: 8, radius: 2, damage: { kind: "physical", base: 12, perLevel: 1.8, perMagic: 2.5, variance: 0.2 }, fx: "arrow",
     description: "Uma saraivada de flechas cai sobre a área ao redor do alvo.",
   },
   holy_arrow: {
     id: "holy_arrow", name: "Flecha Sagrada", words: "exori san", vocations: ["paladin"], level: 20, mana: 30, cooldownMs: 4000,
-    target: "target", range: 6, damage: { kind: "holy", base: 25, perLevel: 3, perMagic: 3.5, variance: 0.2 }, fx: "holy",
+    target: "target", range: 8, damage: { kind: "holy", base: 25, perLevel: 3, perMagic: 3.5, variance: 0.2 }, fx: "holy",
     description: "Uma flecha banhada em luz sagrada.",
   },
   holy_wave: {
@@ -177,7 +180,7 @@ export const SPELLS: Record<string, SpellDef> = {
   // ------------------------------------------------------------------ FEITICEIRO (AoE mágico)
   fireball: {
     id: "fireball", name: "Bola de Fogo", words: "exori flam", vocations: ["sorcerer"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 5, damage: { kind: "fire", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "fire",
+    target: "target", range: 7, damage: { kind: "fire", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "fire",
     description: "Lança uma bola de fogo contra o alvo.",
   },
   energy_wave: {
@@ -187,7 +190,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   fire_burst: {
     id: "fire_burst", name: "Explosão de Fogo", words: "exevo mas flam", vocations: ["sorcerer"], level: 10, mana: 40, cooldownMs: 6000,
-    target: "area_target", range: 5, radius: 2, damage: { kind: "fire", base: 10, perLevel: 1.5, perMagic: 2.5, variance: 0.2 },
+    target: "area_target", range: 7, radius: 2, damage: { kind: "fire", base: 10, perLevel: 1.5, perMagic: 2.5, variance: 0.2 },
     condition: { id: "burn", durationMs: 4000, value: 4 }, fx: "fire",
     description: "Explode o alvo e a área ao redor, deixando os atingidos em chamas.",
   },
@@ -199,7 +202,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   energy_beam: {
     id: "energy_beam", name: "Raio de Energia", words: "exori vis", vocations: ["sorcerer"], level: 20, mana: 45, cooldownMs: 4000,
-    target: "target", range: 5, damage: { kind: "energy", base: 15, perLevel: 2, perMagic: 3, variance: 0.2 }, fx: "energy",
+    target: "target", range: 7, damage: { kind: "energy", base: 15, perLevel: 2, perMagic: 3, variance: 0.2 }, fx: "energy",
     description: "Um raio concentrado de energia contra um único alvo.",
   },
   inferno: {
@@ -211,21 +214,24 @@ export const SPELLS: Record<string, SpellDef> = {
 
   // ------------------------------------------------------------------ DRUIDA (cura e controle)
   // Espelho da Bola de Fogo: sem ela o druida não tinha dano barato até o level 5 (só a Cura e o auto-ataque).
+  // 2026-11-01: perLevel 0,6 → 1,6 (a Bola de Fogo segue 0,6): do lv 20 ao 49 a Lasca era a melhor magia de alvo do druida
+  // (97 de dano no lv 30, contra 156 do feiticeiro com o Raio de Energia, que o druida não tem). A Fúria da Natureza
+  // (lv 90) perdeu 10 de base para o grupo do Coliseu lv 110 não completar (arena.test.ts).
   ice_shard: {
     id: "ice_shard", name: "Lasca de Gelo", words: "exori frigo", vocations: ["druid"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 5, damage: { kind: "ice", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "ice",
+    target: "target", range: 7, damage: { kind: "ice", base: 11, perLevel: 1.6, perMagic: 2.5, variance: 0.2 }, fx: "ice",
     description: "Dispara uma lasca de gelo contra o alvo.",
   },
   roots: {
     id: "roots", name: "Raiz", words: "exori tera", vocations: ["druid"], level: 5, mana: 20, cooldownMs: 15_000,
-    target: "target", range: 4, damage: { kind: "earth", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
+    target: "target", range: 6, damage: { kind: "earth", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
     condition: { id: "rooted", durationMs: 3000 }, fx: "root",
     description: "Raízes prendem o alvo no lugar por 3 segundos.",
   },
   ice_rain: {
     // Ciclo 15-13: recarga 6 s → 4 s (o druida lv 30 rendia 0,63 do feiticeiro em dano × sobrevivência; agora 0,74).
     id: "ice_rain", name: "Chuva de Gelo", words: "exevo mas frigo", vocations: ["druid"], level: 10, mana: 40, cooldownMs: 4000,
-    target: "area_target", range: 5, radius: 2, damage: { kind: "ice", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
+    target: "area_target", range: 7, radius: 2, damage: { kind: "ice", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 40 }, fx: "ice",
     description: "Estilhaços de gelo caem na área e deixam os inimigos mais lentos.",
   },
@@ -254,11 +260,15 @@ export const SPELLS: Record<string, SpellDef> = {
   // Valor no level de desbloqueio um pouco acima da melhor magia antiga da mesma categoria (alvo único / área) naquele
   // level (metas em spells.test.ts). Nenhuma cura nova: cada vocação segue com uma cura própria.
   front_sweep: {
-    id: "front_sweep", name: "Golpe Frontal", words: "exori min", vocations: ["knight"], level: 35, mana: 30, cooldownMs: 5000,
-    // Ciclo 7: era length 1 / base 20 (3 tiles, mesmo dano por alvo do Golpe Giratório com 4× a mana). Retângulo 3×3
-    // (não cone): continua pegando as duas diagonais encostadas na frente do cavaleiro.
-    target: "wave", length: 3, width: 3, rect: true, damage: { kind: "physical", base: 42, perLevel: 2.66, perMagic: 2.8, variance: 0.2 }, fx: "physical",
-    description: "Um golpe largo que atinge uma área de 3×3 tiles à sua frente.",
+    // 2026-11-01 (pedido do dono, "sinto falta do exori gran e do exori mas"): era o Golpe Frontal (exori min, lv 35,
+    // retângulo 3×3 à frente). Virou o segundo giro em volta, como o exori gran do Tibia; o id fica para não apagar
+    // atalhos e grupos salvos (ids que não existem mais são descartados). Por golpe 1,05× o Golpe Giratório, recarga 8 s:
+    // o ganho é um giro a mais entre as recargas do exori. Os números das três áreas novas (exori gran, exori mas,
+    // Terremoto) seguem a ordem por golpe exori < gran < mas < Terremoto e foram calibrados contra vocationBalance.test.ts
+    // e arena.test.ts (o modelo conta 4 alvos para qualquer área, então o raio maior é o ganho que ele não mede).
+    id: "front_sweep", name: "Giro Feroz", words: "exori gran", vocations: ["knight"], level: 20, mana: 25, cooldownMs: 8000,
+    target: "area_self", radius: 1, damage: { kind: "physical", base: 23.52, perLevel: 2.058, perMagic: 2.94, variance: 0.2 }, fx: "physical",
+    description: "Um segundo giro, ainda mais forte: atinge todos os inimigos ao seu redor. Use entre um Golpe Giratório e outro.",
   },
   berserk: {
     id: "berserk", name: "Fúria", words: "utito tempo", vocations: ["knight"], level: 50, mana: 60, cooldownMs: 30_000,
@@ -266,9 +276,18 @@ export const SPELLS: Record<string, SpellDef> = {
     description: "Aumenta em 25% todo o dano que você causa por 10 segundos.",
   },
   whirlwind: {
-    id: "whirlwind", name: "Fúria Giratória", words: "exori mas", vocations: ["knight"], level: 70, mana: 80, cooldownMs: 8000,
-    target: "area_self", radius: 2, damage: { kind: "physical", base: 56, perLevel: 3.36, perMagic: 4.2, variance: 0.2 }, fx: "physical",
+    // 2026-11-01: lv 70 → 35 (mana 80 → 40, 1,1× o Golpe Giratório por golpe): a área r2 do cavaleiro chega junto com as
+    // dos outros (paladino r2 no lv 15, magos r3 no lv 30); no lv 70 entra o Terremoto (r3).
+    id: "whirlwind", name: "Fúria Giratória", words: "exori mas", vocations: ["knight"], level: 35, mana: 40, cooldownMs: 8000,
+    target: "area_self", radius: 2, damage: { kind: "physical", base: 24.64, perLevel: 2.156, perMagic: 3.08, variance: 0.2 }, fx: "physical",
     description: "Gira com toda a força e atinge todos os inimigos num raio de 2 tiles.",
+  },
+  earthquake: {
+    // 2026-11-01: a área grande do cavaleiro no lv 70 (no lugar da Fúria Giratória, que desceu para o lv 35); 1,5× o
+    // Golpe Giratório por golpe.
+    id: "earthquake", name: "Terremoto", words: "exori gran mas", vocations: ["knight"], level: 70, mana: 110, cooldownMs: 8000,
+    target: "area_self", radius: 3, damage: { kind: "physical", base: 33.6, perLevel: 2.94, perMagic: 4.2, variance: 0.2 }, fx: "physical",
+    description: "Bate a arma no chão com tanta força que a terra treme: atinge todos os inimigos num raio de 3 tiles.",
   },
   annihilation_strike: {
     id: "annihilation_strike", name: "Golpe Aniquilador", words: "exori gran ico", vocations: ["knight"], level: 90, mana: 100, cooldownMs: 12_000,
@@ -278,23 +297,26 @@ export const SPELLS: Record<string, SpellDef> = {
 
   explosive_arrow: {
     id: "explosive_arrow", name: "Flecha Explosiva", words: "exevo con flam", vocations: ["paladin"], level: 35, mana: 50, cooldownMs: 6000,
-    target: "area_target", range: 6, radius: 1, damage: { kind: "fire", base: 30, perLevel: 2.8, perMagic: 3, variance: 0.2 }, fx: "fire",
+    target: "area_target", range: 8, radius: 1, damage: { kind: "fire", base: 30, perLevel: 2.8, perMagic: 3, variance: 0.2 }, fx: "fire",
     description: "Uma flecha que explode no alvo e queima tudo ao redor dele.",
   },
   crippling_arrow: {
-    id: "crippling_arrow", name: "Flecha Paralisante", words: "exori con hur", vocations: ["paladin"], level: 50, mana: 60, cooldownMs: 8000,
-    target: "target", range: 6, damage: { kind: "physical", base: 40, perLevel: 3, perMagic: 3.5, variance: 0.2 },
-    condition: { id: "slow", durationMs: 3000, value: 50 }, fx: "arrow",
-    description: "Acerta o alvo na perna: dano e 50% de lentidão por 3 segundos.",
+    // 2026-11-01: era dominada pela Flecha Sagrada (mesmo dano com o dobro de mana e de recarga, e física contra a
+    // armadura cheia). Virou a flecha de CONTROLE: lentidão 3 s → 5 s e mana 60 → 40, e saiu da tecla
+    // inteligente "Flecha no alvo". Mais dano mexia no Coliseu (arena.test.ts).
+    id: "crippling_arrow", name: "Flecha Paralisante", words: "exori con hur", vocations: ["paladin"], level: 50, mana: 40, cooldownMs: 8000,
+    target: "target", range: 8, damage: { kind: "physical", base: 40, perLevel: 3, perMagic: 3.5, variance: 0.2 },
+    condition: { id: "slow", durationMs: 5000, value: 50 }, fx: "arrow",
+    description: "Acerta o alvo na perna: dano e 50% de lentidão por 5 segundos. A flecha para segurar quem foge ou quem vem.",
   },
   divine_judgment: {
     id: "divine_judgment", name: "Julgamento Divino", words: "exori gran san", vocations: ["paladin"], level: 70, mana: 120, cooldownMs: 8000,
-    target: "area_target", range: 6, radius: 2, damage: { kind: "holy", base: 50, perLevel: 3.2, perMagic: 4, variance: 0.2 }, fx: "holy",
+    target: "area_target", range: 8, radius: 2, damage: { kind: "holy", base: 50, perLevel: 3.2, perMagic: 4, variance: 0.2 }, fx: "holy",
     description: "Luz sagrada cai sobre o alvo e os inimigos num raio de 2 tiles dele.",
   },
   star_rain: {
     id: "star_rain", name: "Chuva de Estrelas", words: "exevo gran mas con", vocations: ["paladin"], level: 90, mana: 160, cooldownMs: 8000,
-    target: "area_target", range: 6, radius: 3, damage: { kind: "physical", base: 60, perLevel: 3.4, perMagic: 4, variance: 0.2 }, fx: "arrow",
+    target: "area_target", range: 8, radius: 3, damage: { kind: "physical", base: 60, perLevel: 3.4, perMagic: 4, variance: 0.2 }, fx: "arrow",
     description: "Uma chuva de flechas cobre o alvo e tudo num raio de 3 tiles.",
   },
 
@@ -306,7 +328,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   sudden_death: {
     id: "sudden_death", name: "Morte Súbita", words: "exori mort", vocations: ["sorcerer"], level: 50, mana: 100, cooldownMs: 6000,
-    target: "target", range: 6, damage: { kind: "death", base: 50, perLevel: 3, perMagic: 3.4, variance: 0.2 }, fx: "death",
+    target: "target", range: 8, damage: { kind: "death", base: 50, perLevel: 3, perMagic: 3.4, variance: 0.2 }, fx: "death",
     description: "Energia da morte concentrada num único alvo.",
   },
   electric_storm: {
@@ -316,7 +338,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   eternal_flame: {
     id: "eternal_flame", name: "Chama Eterna", words: "exori gran flam", vocations: ["sorcerer"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 6, damage: { kind: "fire", base: 80, perLevel: 4.2, perMagic: 4.8, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "fire", base: 80, perLevel: 4.2, perMagic: 4.8, variance: 0.2 },
     condition: { id: "burn", durationMs: 8000, value: 30 }, fx: "fire",
     description: "O fogo mais forte do feiticeiro: dano enorme no alvo, que continua queimando.",
   },
@@ -329,7 +351,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   earth_crush: {
     id: "earth_crush", name: "Esmagar Terra", words: "exori gran tera", vocations: ["druid"], level: 50, mana: 100, cooldownMs: 6000,
-    target: "target", range: 6, damage: { kind: "earth", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "earth", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
     condition: { id: "poison", durationMs: 10_000, value: 15 }, fx: "earth",
     description: "Pedras esmagam o alvo e o deixam envenenado.",
   },
@@ -341,7 +363,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   nature_fury: {
     id: "nature_fury", name: "Fúria da Natureza", words: "exori gran frigo", vocations: ["druid"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 6, damage: { kind: "ice", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "ice", base: 60, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "ice",
     description: "O gelo mais forte do druida: dano enorme no alvo e 50% de lentidão.",
   },
@@ -364,7 +386,7 @@ export const SPELLS: Record<string, SpellDef> = {
     id: "elemental_rupture", name: "Ruptura Elemental", words: "exori mas vis", vocations: ["sorcerer"], level: 100, mana: 120, cooldownMs: 20_000,
     // Responde à resistência elemental (monstro toma metade do próprio elemento): por 12 s o alvo perde a resistência e
     // toma +15% de todo dano elemental, de qualquer um do grupo.
-    target: "target", range: 5, condition: { id: "exposed", durationMs: 12_000, value: 15 }, fx: "energy",
+    target: "target", range: 7, condition: { id: "exposed", durationMs: 12_000, value: 15 }, fx: "energy",
     description: "Rompe as defesas do alvo por 12 segundos: ele perde a resistência elemental e toma 15% a mais de dano mágico.",
   },
   earth_roots: {
@@ -380,7 +402,7 @@ export const SPELLS: Record<string, SpellDef> = {
   // Palavras mágicas na "língua das fadas": todas começam com "plim". spells.test.ts confere o espelho magia a magia.
   pixie_dust: {
     id: "pixie_dust", name: "Pó de Pirlimpimpim", words: "plim", vocations: ["fairy"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 5, damage: { kind: "holy", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "sparkle",
+    target: "target", range: 7, damage: { kind: "holy", base: 11, perLevel: 1.6, perMagic: 2.5, variance: 0.2 }, fx: "sparkle",
     description: "Sopra um punhado de pó brilhante no alvo. Faz cócegas — das que doem.",
   },
   fairy_kiss: {
@@ -390,7 +412,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   soap_bubble: {
     id: "soap_bubble", name: "Bolha de Sabão", words: "plim bolha", vocations: ["fairy"], level: 5, mana: 20, cooldownMs: 15_000,
-    target: "target", range: 4, damage: { kind: "holy", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
+    target: "target", range: 6, damage: { kind: "holy", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
     condition: { id: "rooted", durationMs: 3000 }, fx: "sparkle",
     description: "Prende o alvo dentro de uma bolha de sabão por 3 segundos. Ele fica bravo, mas fica fofo.",
   },
@@ -402,7 +424,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   confetti_rain: {
     id: "confetti_rain", name: "Chuva de Confete", words: "plim festa", vocations: ["fairy"], level: 10, mana: 40, cooldownMs: 4000,
-    target: "area_target", range: 5, radius: 2, damage: { kind: "holy", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
+    target: "area_target", range: 7, radius: 2, damage: { kind: "holy", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 40 }, fx: "sparkle",
     description: "Confete cai na área ao redor do alvo: dano e os monstros ficam lentos (param para olhar).",
   },
@@ -435,7 +457,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   rainbow_beam: {
     id: "rainbow_beam", name: "Raio Arco-Íris", words: "plim arco iris", vocations: ["fairy"], level: 50, mana: 100, cooldownMs: 6000,
-    target: "target", range: 6, damage: { kind: "energy", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "energy", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
     condition: { id: "energy", durationMs: 10_000, value: 15 }, fx: "sparkle",
     description: "Um arco-íris inteiro na cara do alvo: dano e choque colorido por 10 segundos.",
   },
@@ -447,7 +469,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   goodnight_kiss: {
     id: "goodnight_kiss", name: "Beijo de Boa Noite", words: "plim boa noite", vocations: ["fairy"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 6, damage: { kind: "holy", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "holy", base: 60, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "sparkle",
     description: "O beijo mais forte da Fada: dano enorme no alvo, que fica com tanto sono que anda pela metade por 4 segundos.",
   },
@@ -473,58 +495,64 @@ export function spellByWords(text: string): SpellDef | undefined {
 }
 
 /*
- * Tabela de balanceamento (valor esperado no level de desbloqueio; ML estimado antigo: mago 0.75*lvl, paladino lvl/4,
- * cavaleiro lvl/7; sem o spellPower de cavaleiro/paladino, que no jogo rende bem mais).
- * Gerada pelo console.table do spells.test.ts. dmg/heal = média por alvo, sem variância.
+ * Tabela de balanceamento, gerada pelo console.table do spells.test.ts (2026-11-01): valor esperado no level de
+ * desbloqueio, média por alvo, sem variância nem armadura. Dano com a potência das magias (`spellPower`: cavaleiro e
+ * paladino pela skill da arma e o level; magos pelo ML de `skillEstimate`); cura pelo ML. Regerar ao mexer em números.
  *
- * magia                voc       lvl  mana  cd(s)  esperado
- * CURA (todas as vocações; mana = 20 + 1.5*level, máx. 70; cd 1 s; fórmula 22 + 2.2*level + 0.45*ML, ±15%)
- * Cura (exura)          todas    1   ~22     1    lv1 ~24 (16% HP); lv10 mago ~47 (24%) pal ~45 (19%) cav ~44 (16%)
- *                                 lv20 (mana 50): mago ~73 (30%), pal ~68 (20%), cav ~67 (15%)
- *                                 lv30 (mana 65): mago ~98 (33%), pal ~91 (21%), cav ~90 (15%)
- *                                 (antes: 22 + 2*level + 1.8*ML → mago 36% no lv20 e 41% no lv30)
- * Cura em Grupo        druid     15    80     5    cura 72,5/alvo (r4); lv 90 (ML 67): ~363 a cada 5 s  [antes 50 mana, cd 8, 52/alvo]
- * Pés Ligeiros (utani hur)  todas  5  20  15    haste +30%, 30 s (correr; fora do cooldown global)
- * Removidas: Cura Intensa (exura gran), Cura Vital (exura vita), Cura Sagrada Leve (exura san) e Tratar Ferimentos (exura ico):
- * cada vocação tem exatamente UMA cura própria.
- *
- * Golpe Giratório      knight     1     8     4    dmg 24 (área r1, 2.2x auto)  [ciclo 15-13: magias de dano do cavaleiro +40%]
- * Provocar             knight     5    15    20    taunt r3, 5 s
- * Investida            knight    10    20     8    dmg 60 (dash 4)
- * Pele de Ferro        knight    15    20    30    -30% dano, 10 s
- * Golpe Brutal         knight    30    45     8    dmg 246 (4,6x auto)
- * Flecha Perfurante    paladin    1     8     2    dmg 14 (2.3x auto)
- * Chuva de Flechas     paladin   15    35     6    dmg 47 (área r2)
- * Flecha Sagrada       paladin   20    30     4    dmg 103 (holy)
- * Onda Sagrada         paladin   30    90     8    dmg 131 (área r3)
- * Bola de Fogo         sorcerer   1     8     2    dmg 12 (2.3x auto)
- * Onda de Energia      sorcerer   5    20     4    dmg 29 (onda 4x3)
- * Explosão de Fogo     sorcerer  10    40     6    dmg 43 (área r2 + burn); lvl 15: 60, lvl 20: 78
- * Escudo de Mana       sorc/druid 15   30    30    manashield 20 s (druida desde o ciclo 15)
- * Raio de Energia      sorcerer  20    45     4    dmg 100 (alvo único)
- * Inferno              sorcerer  30   160     8    dmg 208 (área r3 + burn)
- * Raiz                 druid      5    20    15    dmg 17 + root 3 s
- * Chuva de Gelo        druid     10    40     4    dmg 39 (área r2 + slow); lvl 15: 55, lvl 20: 72  [recarga 6 s até o ciclo 15]
- * Invocar Lobo         druid     20    90    60    1 lobo espiritual, 60 s
- * Nevasca              druid     30   150     8    dmg 199 (área r3 + slow)
- *
- * FIM DE JOGO (lv 35-90) — magia               voc       lvl  mana (% da máx.)  cd(s)  esperado
- * Golpe Frontal        knight     35    30 (14%)    5    dmg 150 (retângulo 3x3 à frente, 9 tiles)
- * Fúria                knight     50    60 (20%)   30    buff + berserk 25
- * Fúria Giratória      knight     70    80 (20%)    8    dmg 333 (área r2)
- * Golpe Aniquilador    knight     90   100 (20%)   12    dmg 889 (alvo)
- * Flecha Explosiva     paladin    35    50 (9%)    6    dmg 152 (área no alvo r1)
- * Flecha Paralisante   paladin    50    60 (8%)    8    dmg 232 (alvo + slow)
- * Julgamento Divino    paladin    70   120 (11%)    8    dmg 342 (área no alvo r2)
- * Chuva de Estrelas    paladin    90   160 (12%)    8    dmg 454 (área no alvo r3)
- * Onda de Fogo         sorcerer   35    70 (7%)    6    dmg 243 (onda 5x3 + burn)
- * Morte Súbita         sorcerer   50   100 (7%)    6    dmg 326 (alvo)
- * Tempestade Elétrica  sorcerer   70   260 (12%)    8    dmg 530 (área r4)
- * Chama Eterna         sorcerer   90   180 (7%)   10    dmg 780 (alvo + burn)
- * Onda de Gelo         druid      35    70 (7%)    6    dmg 243 (onda 5x3 + slow)
- * Esmagar Terra        druid      50   100 (7%)    6    dmg 256 (alvo + poison)
- * Tempestade de Terra  druid      70   260 (12%)    8    dmg 508 (área r4 + poison)
- * Fúria da Natureza    druid      90   180 (7%)   10    dmg 693 (alvo + slow)
+ * magia                 palavras              voc       lvl  mana   cd   valor
+ * Cura                  exura                 knight      1    20    1   cura 21 (14% da vida)
+ * Golpe Giratório       exori                 knight      1     8    4   dano 24 (2.2x auto)
+ * Provocar              exeta res             knight      5    15   20   utilidade
+ * Pés Ligeiros          utani hur             knight      5    20   15   utilidade
+ * Investida             exori hur             knight     10    20    8   dano 90 (3.3x auto)
+ * Limpar Feridas        exura ico             knight     15    40    1   cura 55 (15% da vida)
+ * Pele de Ferro         utamo tempo           knight     15    20   30   utilidade
+ * Giro Feroz            exori gran            knight     20    25    8   dano 112 (2.2x auto)
+ * Golpe Brutal          exori ico             knight     30    45    8   dano 364 (5.1x auto)
+ * Fúria Giratória       exori mas             knight     35    40    8   dano 183 (1.9x auto)
+ * Fúria                 utito tempo           knight     50    60   30   utilidade
+ * Terremoto             exori gran mas        knight     70   110    8   dano 433 (2.5x auto)
+ * Golpe Aniquilador     exori gran ico        knight     90   100   12   dano 1204 (6.8x auto)
+ * Muralha de Escudos    utamo mas res         knight    100   120   40   utilidade
+ * Cura                  exura                 paladin     1    20    1   cura 21 (14% da vida)
+ * Flecha Perfurante     exori con             paladin     1     8    2   dano 14 (1.6x auto)
+ * Pés Ligeiros          utani hur             paladin     5    20   15   utilidade
+ * Chuva de Flechas      exevo mas con         paladin    15    35    6   dano 69 (1.7x auto)
+ * Flecha Sagrada        exori san             paladin    20    30    4   dano 141 (3.3x auto)
+ * Onda Sagrada          exevo mas san         paladin    30    90    8   dano 185 (3x auto)
+ * Cura Divina           exura san             paladin    35    60    1   cura 112 (19% da vida)
+ * Flecha Explosiva      exevo con flam        paladin    35    50    6   dano 209 (2.4x auto)
+ * Flecha Paralisante    exori con hur         paladin    50    40    8   dano 316 (3x auto)
+ * Julgamento Divino     exori gran san        paladin    70   120    8   dano 458 (3.4x auto)
+ * Chuva de Estrelas     exevo gran mas con    paladin    90   160    8   dano 594 (3.8x auto)
+ * Luz Restauradora      exura mas san         paladin   100   150   20   utilidade
+ * Cura                  exura                 sorcerer    1    20    1   cura 21 (14% da vida)
+ * Bola de Fogo          exori flam            sorcerer    1     8    2   dano 12 (1.5x auto)
+ * Pés Ligeiros          utani hur             sorcerer    5    20   15   utilidade
+ * Onda de Energia       exevo vis lux         sorcerer    5    20    4   dano 27 (3.1x auto)
+ * Explosão de Fogo      exevo mas flam        sorcerer   10    40    6   dano 40 (2.2x auto)
+ * Escudo de Mana        utamo vita            sorcerer   15    30   30   utilidade
+ * Raio de Energia       exori vis             sorcerer   20    45    4   dano 94 (3x auto)
+ * Inferno               exevo gran mas flam   sorcerer   30   160    8   dano 200 (4.3x auto)
+ * Onda de Fogo          exevo flam hur        sorcerer   35    70    6   dano 226 (3.5x auto)
+ * Morte Súbita          exori mort            sorcerer   50   100    6   dano 288 (3.5x auto)
+ * Tempestade Elétrica   exevo gran mas vis    sorcerer   70   260    8   dano 442 (4.1x auto)
+ * Chama Eterna          exori gran flam       sorcerer   90   180   10   dano 626 (5.1x auto)
+ * Ruptura Elemental     exori mas vis         sorcerer  100   120   20   utilidade
+ * Cura                  exura                 druid       1    20    1   cura 21 (14% da vida)
+ * Lasca de Gelo         exori frigo           druid       1     8    2   dano 13 (1.7x auto)
+ * Pés Ligeiros          utani hur             druid       5    20   15   utilidade
+ * Raiz                  exori tera            druid       5    20   15   dano 15 (1.8x auto)
+ * Chuva de Gelo         exevo mas frigo       druid      10    40    4   dano 36 (2x auto)
+ * Escudo de Mana        utamo vita            druid      15    30   30   utilidade
+ * Cura em Grupo         exura mas sio         druid      15    80    5   cura 72 (31% da vida)
+ * Invocar Lobo          utevo res lupo        druid      20    90   60   utilidade
+ * Nevasca               exevo gran mas frigo  druid      30   150    8   dano 191 (4.1x auto)
+ * Onda de Gelo          exevo frigo hur       druid      35    70    6   dano 226 (3.5x auto)
+ * Esmagar Terra         exori gran tera       druid      50   100    6   dano 228 (2.7x auto)
+ * Tempestade de Terra   exevo gran mas tera   druid      70   260    8   dano 424 (4x auto)
+ * Fúria da Natureza     exori gran frigo      druid      90   180   10   dano 549 (4.5x auto)
+ * Raízes da Terra       exevo mas tera        druid     100   160   25   utilidade
  *
  * FADA (oculta) — espelho do druida, magia a magia (spells.test.ts "Fada"):
  * Pó de Pirlimpimpim = Lasca de Gelo · Beijinho Curativo = Cura · Bolha de Sabão = Raiz · Asinhas Ligeiras = Pés Ligeiros
