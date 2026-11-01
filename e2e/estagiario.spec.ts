@@ -89,7 +89,7 @@ test("Estagiário: grava a rota, liga, crachá no nome, acompanhante fora da bat
     .toBeGreaterThan(xp0);
 
   // O dono passa por cima do próprio acompanhante: teleporta para um vizinho ortogonal livre dele (o acompanhante só
-  // anda com o dono a mais de 2 tiles, então fica onde está) e aperta a seta na direção dele. A rota ainda roda até a
+  // anda com o dono a mais de 1 tile, então fica onde está) e aperta a seta na direção dele. A rota ainda roda até a
   // seta (que a pausa) e pode dar um passo antes: tenta de novo com o tile relido.
   let pisou = "";
   for (let tentativa = 0; tentativa < 5 && pisou !== "pisou"; tentativa++) {

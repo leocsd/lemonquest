@@ -1,6 +1,7 @@
 // Acompanhante do Estagiário: invocação "de enfeite" (MonsterDef.companion) — segue o dono, não luta, não é atacado.
 import { describe, expect, it } from "vitest";
-import { MONSTERS, type MonsterAbility, type MonsterDef } from "@lemonquest/shared";
+import { Dir, MONSTERS, TICK_MS, stepDuration, type MonsterAbility, type MonsterDef } from "@lemonquest/shared";
+import { vi } from "vitest";
 import { MonsterAbilitySystem } from "./monsterAbilities.ts";
 import { cheb } from "./monsters.ts";
 import { SummonSystem } from "./summons.ts";
@@ -94,15 +95,36 @@ describe("acompanhante do Estagiário", () => {
     expect(c.s.targetId).toBe("");
   });
 
-  it("segue o dono até ≤ 2 tiles e reaparece ao lado se ele for para longe (> 6)", () => {
+  it("segue o dono até ≤ 1 tile e reaparece ao lado se ele for para longe (> 6)", () => {
     const w = setup();
     const c = w.summons.spawnCompanion(w.p, w.now())!;
     w.p.x = 15; // 5 tiles: anda
     w.run(4000);
-    expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBeLessThanOrEqual(2);
+    expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(1);
     w.p.x = 5; w.p.y = 30; // teletransporte
     w.run(100);
     expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(1);
+  });
+
+  it("anda na velocidade do dono (com pressa também): acompanha a caminhada sem ficar para trás nem teleportar", () => {
+    const w = setup();
+    w.p.level = 40; w.p.speedPct = 150; // Pés Ligeiros
+    w.p.x = 5; w.p.y = 20;
+    const c = w.summons.spawnCompanion(w.p, w.now())!;
+    const place = vi.spyOn(w.mm, "place");
+    const passo = stepDuration(w.p.level, Dir.E, 100, 150);
+    let acc = 0, maxD = 0;
+    w.run(passo * 28, () => {
+      acc += TICK_MS;
+      if (acc >= passo && w.p.x < 33) { acc -= passo; w.p.x++; }
+      maxD = Math.max(maxD, cheb(c.s.x, c.s.y, w.p.x, w.p.y));
+    });
+    expect(w.p.x).toBe(33);
+    expect(c.stepBaseMs).toBe(stepDuration(40, Dir.S, 100, 150));
+    expect(place).not.toHaveBeenCalled(); // nunca precisou reaparecer
+    expect(maxD).toBeLessThanOrEqual(3);
+    w.run(1000);
+    expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(1); // parou: encosta ao lado (segue a partir de 2 tiles)
   });
 
   it("reconjurar o Lobo não apaga o acompanhante; despawnCompanion e despawnOwner o removem", () => {

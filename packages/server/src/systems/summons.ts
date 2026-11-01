@@ -2,7 +2,7 @@
 // atacam o alvo do dono ou quem ataca o dono/a invocação, não dão XP, somem ao expirar ou quando o dono
 // sai/morre/se afasta mais de SUMMON_LEASH tiles. 1 conjuração ativa por jogador (reconjurar substitui).
 // Também o acompanhante do Estagiário (MonsterDef.companion): uma "invocação" só visual, que segue o dono e nunca luta.
-import { DIR_DELTA, Dir, dirFromDelta, mitigate, monsterDef, rollInt, summonScaled, type MonsterDef } from "@lemonquest/shared";
+import { DIR_DELTA, Dir, dirFromDelta, mitigate, monsterDef, rollInt, stepDuration, summonScaled, type MonsterDef } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { THINK_MS, computePath, followPath, greedyStep } from "./ai.ts";
 import type { CombatSystem } from "./combat.ts";
@@ -15,8 +15,11 @@ export const SUMMON_LEASH = 20;
 export const SUMMON_FOLLOW_DIST = 3;
 /** Só procura/persegue alvos a até esta distância do dono. */
 export const SUMMON_FIGHT_DIST = 8;
-/** Acompanhante do Estagiário: anda atrás do dono quando passa disto (tiles)... */
-export const COMPANION_FOLLOW_DIST = 2;
+/**
+ * Acompanhante do Estagiário: anda atrás do dono quando passa disto (tiles)... Com a velocidade do dono (stepBaseMs),
+ * 1 basta: ele encosta e anda colado, sem ficar para trás (com 2 ele largava um passo atrás e, com pressa, teleportava).
+ */
+export const COMPANION_FOLLOW_DIST = 1;
 /** ...e reaparece ao lado dele quando passa disto (teleporte, portal, escada): não tenta atravessar o mapa a pé. */
 export const COMPANION_WARP_DIST = 6;
 
@@ -163,8 +166,11 @@ export class SummonSystem {
     const owner = this.o.getPlayer(m.s.ownerId);
     if (!owner || owner.hp <= 0) { w.kill(m, now); return; }
     m.s.targetId = "";
+    // Mesma velocidade do dono (level e pressa/lentidão; diagonal e chão o tryStep aplica): o def.stepMs fixo o deixava
+    // para trás, e passando de COMPANION_WARP_DIST ele "teleportava" (pedido do dono, 2026-11-01).
+    m.stepBaseMs = stepDuration(owner.level, Dir.S, 100, owner.speedPct ?? 100);
     const d = cheb(owner.x, owner.y, m.s.x, m.s.y);
-    if (d > COMPANION_WARP_DIST) {
+    if (d > COMPANION_WARP_DIST) { // só reserva: teleporte/portal/escada do dono
       const t = this.freeTilesAround(owner.x, owner.y, 1)[0] ?? { x: owner.x, y: owner.y };
       w.place(m, t.x, t.y);
       m.path = null;

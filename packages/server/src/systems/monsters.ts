@@ -76,6 +76,11 @@ export interface Monster {
   damageBy: Map<string, number>;
   /** Velocidade em % (condições haste/slow; 0 = enraizado). Ausente = 100. */
   speedPct?: number;
+  /**
+   * Passo base (ms, ortogonal no chão normal) no lugar de `def.stepMs`: o acompanhante do Estagiário anda na
+   * velocidade do dono (SummonSystem.companionUpdate). Diagonal, chão e `speedPct` continuam valendo em tryStep.
+   */
+  stepBaseMs?: number;
   /** Provocação (taunt): forçado a atacar `tauntBy` até `tauntUntil`. */
   tauntBy?: string;
   tauntUntil?: number;
@@ -615,7 +620,8 @@ export class MonsterManager {
     const b = m.bounds;
     if (b && (tx < b.x0 || tx > b.x1 || ty < b.y0 || ty > b.y1)) return false;
     const speed = this.o.groundSpeed?.speedAt(s.x, s.y) ?? 100;
-    const dur = applySpeedPct(Math.round(((isDiagonal(dir) ? m.def.stepMs * DIAGONAL_COST : m.def.stepMs) * speed) / 100), pct);
+    const base = m.stepBaseMs ?? m.def.stepMs;
+    const dur = applySpeedPct(Math.round(((isDiagonal(dir) ? base * DIAGONAL_COST : base) * speed) / 100), pct);
     const startAt = now - m.stepEndsAt <= TICK_MS ? m.stepEndsAt : now;
     m.stepEndsAt = startAt + dur;
     this.occ.delete(s.y * this.W + s.x);
