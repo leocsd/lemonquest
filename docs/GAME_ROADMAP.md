@@ -13,6 +13,18 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Combate e cavaleiro (2026-11-01)
+
+Pedidos do dono: "sinto falta do exori gran e exori mas do knight" (escolheu "áreas, como no Tibia"), magias mais longe,
+modo Seguir na hora e andar saindo do modo Seguir.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| CB-1 | Magias à distância +2 tiles (4→6, 5→7, 6→8); corpo a corpo e Investida iguais | ✅ (2026-11-01) | `spells.test.ts` (shared e servidor) |
+| CB-2 | Modo Seguir: escolher alvo zera a pausa de 1,5 s do passo manual; andar pelo teclado atacando vira Parado (aviso, F8 volta) | ✅ (2026-11-01) | `m4.test.ts` (2 testes novos) |
+| CB-3 | Cavaleiro: `exori gran` Giro Feroz (r1, lv 20), Golpe Brutal → `exori ico`, `exori mas` lv 70 → 35, Terremoto `exori gran mas` (r3, lv 70); sai o Golpe Frontal | ✅ (2026-11-01) | `vocationBalance.test.ts` e `arena.test.ts` sem mudar metas; E2E `spells.spec` (cavaleiro lv 50) |
+| CB-4 | Achados da leitura de balanço (druida fraco em alvo único lv 20–49, Flecha Paralisante dominada pela Sagrada, bênção barata, sem equipamento lv 70–100, chefes regionais rendendo menos, tabelas desatualizadas) | 🧭 | aguardam escolha do dono |
+
 ## App de desktop (2026-10-31)
 
 Spec: [superpowers/specs/2026-10-31-app-desktop-tauri-design.md](superpowers/specs/2026-10-31-app-desktop-tauri-design.md).

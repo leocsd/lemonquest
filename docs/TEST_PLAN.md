@@ -17,6 +17,17 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — cavaleiro com exori gran/exori mas, alcance das magias e modo Seguir (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1700 passando. `m4.test.ts` ganhou "andar pelo teclado atacando no modo
+Seguir vira Parado; sem alvo só pausa" e "alvo novo começa a perseguir na hora, mesmo logo depois de um movimento
+manual". Kit novo do cavaleiro calibrado por varredura de números contra `vocationBalance.test.ts` e `arena.test.ts`
+(50 testes, nenhuma meta alterada): o modelo do Coliseu muda de resultado aos saltos (uma onda a mais ou a menos com
+2 % de dano ou 10 de mana), então a combinação final (Giro Feroz 1,05×, Fúria Giratória 1,1× e Terremoto 1,5× o
+`exori`, todas com recarga 8 s; mana 25/40/110) fica perto das bordas — mexer nela pede rodar os dois arquivos.
+`spells.test.ts`: cavaleiro 14 magias, 60 no total; o teste da onda retangular usa a forma direto (nenhuma magia usa
+mais `rect`). E2E `spells.spec.ts` (cavaleiro lv 50) conjura `exori gran` e `exori mas`; roda no CI da PR.
+
 ## Resultados — app de desktop (2026-10-31)
 
 Unitários: `cargo test` em `packages/desktop/src-tauri` (23: endereco 7, nav 8, boot 2, saúde 4, atualizador 2);

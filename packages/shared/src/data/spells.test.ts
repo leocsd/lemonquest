@@ -54,9 +54,9 @@ describe("SPELLS", () => {
       expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(SELF_HEALS[v]);
       expect(list.every((s) => s.vocations.includes(v))).toBe(true);
     }
-    expect(Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).length]))).toEqual({ knight: 13, paladin: 12, sorcerer: 13, druid: 14 });
+    expect(Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).length]))).toEqual({ knight: 14, paladin: 12, sorcerer: 13, druid: 14 });
     // 45 das quatro vocações + 14 da Fada (vocação oculta, espelho do druida — ver o describe "Fada").
-    expect(Object.keys(SPELLS).length).toBe(59);
+    expect(Object.keys(SPELLS).length).toBe(60);
   });
 
   describe("Fada (vocação oculta, 2026-10-28): espelho do druida, magia a magia", () => {

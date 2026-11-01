@@ -139,8 +139,10 @@ export const SPELLS: Record<string, SpellDef> = {
     target: "self", condition: { id: "protect", durationMs: 10_000, value: 30 }, fx: "buff",
     description: "Reduz em 30% o dano recebido por 10 segundos.",
   },
+  // 2026-11-01 (pedido do dono): palavras "exori gran" → "exori ico", como o golpe de alvo único do Tibia; o "exori gran"
+  // virou o giro forte em volta (front_sweep, lv 20).
   brutal_strike: {
-    id: "brutal_strike", name: "Golpe Brutal", words: "exori gran", vocations: ["knight"], level: 30, mana: 45, cooldownMs: 8000,
+    id: "brutal_strike", name: "Golpe Brutal", words: "exori ico", vocations: ["knight"], level: 30, mana: 45, cooldownMs: 8000,
     target: "target", range: 1, damage: { kind: "physical", base: 56, perLevel: 5.6, perMagic: 5.6, variance: 0.2 }, fx: "physical",
     description: "Um golpe devastador no alvo à sua frente.",
   },
@@ -255,11 +257,15 @@ export const SPELLS: Record<string, SpellDef> = {
   // Valor no level de desbloqueio um pouco acima da melhor magia antiga da mesma categoria (alvo único / área) naquele
   // level (metas em spells.test.ts). Nenhuma cura nova: cada vocação segue com uma cura própria.
   front_sweep: {
-    id: "front_sweep", name: "Golpe Frontal", words: "exori min", vocations: ["knight"], level: 35, mana: 30, cooldownMs: 5000,
-    // Ciclo 7: era length 1 / base 20 (3 tiles, mesmo dano por alvo do Golpe Giratório com 4× a mana). Retângulo 3×3
-    // (não cone): continua pegando as duas diagonais encostadas na frente do cavaleiro.
-    target: "wave", length: 3, width: 3, rect: true, damage: { kind: "physical", base: 42, perLevel: 2.66, perMagic: 2.8, variance: 0.2 }, fx: "physical",
-    description: "Um golpe largo que atinge uma área de 3×3 tiles à sua frente.",
+    // 2026-11-01 (pedido do dono, "sinto falta do exori gran e do exori mas"): era o Golpe Frontal (exori min, lv 35,
+    // retângulo 3×3 à frente). Virou o segundo giro em volta, como o exori gran do Tibia; o id fica para não apagar
+    // atalhos e grupos salvos (ids que não existem mais são descartados). Por golpe 1,05× o Golpe Giratório, recarga 8 s:
+    // o ganho é um giro a mais entre as recargas do exori. Os números das três áreas novas (exori gran, exori mas,
+    // Terremoto) seguem a ordem por golpe exori < gran < mas < Terremoto e foram calibrados contra vocationBalance.test.ts
+    // e arena.test.ts (o modelo conta 4 alvos para qualquer área, então o raio maior é o ganho que ele não mede).
+    id: "front_sweep", name: "Giro Feroz", words: "exori gran", vocations: ["knight"], level: 20, mana: 25, cooldownMs: 8000,
+    target: "area_self", radius: 1, damage: { kind: "physical", base: 23.52, perLevel: 2.058, perMagic: 2.94, variance: 0.2 }, fx: "physical",
+    description: "Um segundo giro, ainda mais forte: atinge todos os inimigos ao seu redor. Use entre um Golpe Giratório e outro.",
   },
   berserk: {
     id: "berserk", name: "Fúria", words: "utito tempo", vocations: ["knight"], level: 50, mana: 60, cooldownMs: 30_000,
@@ -267,9 +273,18 @@ export const SPELLS: Record<string, SpellDef> = {
     description: "Aumenta em 25% todo o dano que você causa por 10 segundos.",
   },
   whirlwind: {
-    id: "whirlwind", name: "Fúria Giratória", words: "exori mas", vocations: ["knight"], level: 70, mana: 80, cooldownMs: 8000,
-    target: "area_self", radius: 2, damage: { kind: "physical", base: 56, perLevel: 3.36, perMagic: 4.2, variance: 0.2 }, fx: "physical",
+    // 2026-11-01: lv 70 → 35 (mana 80 → 40, 1,1× o Golpe Giratório por golpe): a área r2 do cavaleiro chega junto com as
+    // dos outros (paladino r2 no lv 15, magos r3 no lv 30); no lv 70 entra o Terremoto (r3).
+    id: "whirlwind", name: "Fúria Giratória", words: "exori mas", vocations: ["knight"], level: 35, mana: 40, cooldownMs: 8000,
+    target: "area_self", radius: 2, damage: { kind: "physical", base: 24.64, perLevel: 2.156, perMagic: 3.08, variance: 0.2 }, fx: "physical",
     description: "Gira com toda a força e atinge todos os inimigos num raio de 2 tiles.",
+  },
+  earthquake: {
+    // 2026-11-01: a área grande do cavaleiro no lv 70 (no lugar da Fúria Giratória, que desceu para o lv 35); 1,5× o
+    // Golpe Giratório por golpe.
+    id: "earthquake", name: "Terremoto", words: "exori gran mas", vocations: ["knight"], level: 70, mana: 110, cooldownMs: 8000,
+    target: "area_self", radius: 3, damage: { kind: "physical", base: 33.6, perLevel: 2.94, perMagic: 4.2, variance: 0.2 }, fx: "physical",
+    description: "Bate a arma no chão com tanta força que a terra treme: atinge todos os inimigos num raio de 3 tiles.",
   },
   annihilation_strike: {
     id: "annihilation_strike", name: "Golpe Aniquilador", words: "exori gran ico", vocations: ["knight"], level: 90, mana: 100, cooldownMs: 12_000,
@@ -493,7 +508,8 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Provocar             knight     5    15    20    taunt r3, 5 s
  * Investida            knight    10    20     8    dmg 60 (dash 4)
  * Pele de Ferro        knight    15    20    30    -30% dano, 10 s
- * Golpe Brutal         knight    30    45     8    dmg 246 (4,6x auto)
+ * Giro Feroz (exori gran) knight 20   25     8    dmg 71 (área r1, 1,05x o exori por golpe; 2026-11-01)
+ * Golpe Brutal (exori ico) knight 30  45     8    dmg 246 (4,6x auto; era exori gran até 2026-11-01)
  * Flecha Perfurante    paladin    1     8     2    dmg 14 (2.3x auto)
  * Chuva de Flechas     paladin   15    35     6    dmg 47 (área r2)
  * Flecha Sagrada       paladin   20    30     4    dmg 103 (holy)
@@ -510,9 +526,10 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Nevasca              druid     30   150     8    dmg 199 (área r3 + slow)
  *
  * FIM DE JOGO (lv 35-90) — magia               voc       lvl  mana (% da máx.)  cd(s)  esperado
- * Golpe Frontal        knight     35    30 (14%)    5    dmg 150 (retângulo 3x3 à frente, 9 tiles)
+ * Fúria Giratória      knight     35    40 (18%)    8    dmg 112 (área r2, 1,1x o exori; era lv 70 até 2026-11-01)
  * Fúria                knight     50    60 (20%)   30    buff + berserk 25
- * Fúria Giratória      knight     70    80 (20%)    8    dmg 333 (área r2)
+ * Terremoto            knight     70   110 (28%)    8    dmg 265 (área r3, 1,5x o exori; exori gran mas)
+   (cavaleiro: estes valores usam o ML estimado; no jogo o spellPower pelo skill rende bem mais)
  * Golpe Aniquilador    knight     90   100 (20%)   12    dmg 889 (alvo)
  * Flecha Explosiva     paladin    35    50 (9%)    6    dmg 152 (área no alvo r1)
  * Flecha Paralisante   paladin    50    60 (8%)    8    dmg 232 (alvo + slow)

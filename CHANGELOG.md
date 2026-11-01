@@ -1,5 +1,25 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · cavaleiro com exori gran e exori mas em área; magias mais longe; modo Seguir na hora
+
+Dono: "sinto falta do exori gran e exori mas do knight", "posso usar skill com uma distância maior", "o modo atacar
+seguindo demora muito para começar a seguir" e "se eu tiver atacando seguindo e apertar para andar, quero que saia do
+modo atacar seguindo".
+- **Cavaleiro, áreas como no Tibia**: `exori gran` vira o **Giro Feroz** (área r1, lv 20, 1,05× o `exori` por golpe,
+  recarga 8 s); o golpe de alvo único do lv 30 (Golpe Brutal) passa a ser `exori ico`; `exori mas` (Fúria Giratória, r2)
+  desce do lv 70 para o 35 (mana 40); no lv 70 entra o **Terremoto** (`exori gran mas`, r3, 1,5× o `exori`, mana 110).
+  O Golpe Frontal (`exori min`, 3×3 à frente) saiu: o cavaleiro já estava no teto de 14 magias. O Giro Feroz herdou o id
+  do Golpe Frontal (`front_sweep`) para não apagar atalhos e grupos salvos. Tecla inteligente "Golpe em área": Terremoto
+  › Fúria Giratória › Giro Feroz › Golpe Giratório. Números calibrados contra `vocationBalance.test.ts` e `arena.test.ts`
+  (o modelo conta 4 alvos para qualquer área, então o ganho do raio maior fica fora dele; as metas não mudaram).
+- **Alcance das magias**: toda magia à distância ganhou +2 tiles (4→6, 5→7, 6→8), nas quatro vocações e na Fada.
+  Golpes corpo a corpo e a Investida (4) iguais.
+- **Modo Seguir na hora**: escolher um alvo zera a pausa de 1,5 s que um passo manual deixava
+  (`FightModeSystem.resume`), e a perseguição começa no tick seguinte.
+- **Andar sai do modo Seguir**: andar pelo teclado atacando no modo Seguir vira Parado, como no Tibia, com o aviso
+  "Modo Parado… (F8 volta a seguir)" (`FightModeSystem.manualStep`). Sem alvo, andar só pausa como antes; clicar no chão
+  para andar também só pausa.
+
 ## [Não lançado] — 2026-10-31 · app de desktop (Windows, Mac e Linux)
 
 Dono: "criar um client" — ícone na área de trabalho, janela sem nada do navegador, teclas sem briga, abrir direto no
