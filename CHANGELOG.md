@@ -1,5 +1,14 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · lista de batalha até a borda da tela; ataque automático procura mais longe
+
+Dono: "a lista de batalha tenha os bichos com mais distância, no máximo o que aparece na tela" e "o modo de atacar
+sozinho também tenha a distância alta". A battle list mostra as criaturas e os jogadores dentro da área do mapa visível
+(fora do HUD; `PixelCamera.visibleTiles` → `setBattleView`), com teto de 20 tiles (era um quadrado fixo de 10 tiles em
+volta). O Espaço (próximo alvo) usa a mesma lista. O ataque automático no modo Seguir procura monstros a até 8 tiles
+(era 6), o alcance das magias à distância; parado continua só no alcance do ataque. Andar pelo teclado não troca mais
+o modo Seguir para Parado (dono: "pode deixar seguindo direto"); só pausa a perseguição por 1,5 s.
+
 ## [Não lançado] — 2026-11-01 · chat mais estreito
 
 Dono: "quero que o tamanho do chat seja um pouco menor, quesito largura". A largura continua acompanhando a tela, mas
@@ -47,9 +56,8 @@ modo atacar seguindo".
   Golpes corpo a corpo e a Investida (4) iguais.
 - **Modo Seguir na hora**: escolher um alvo zera a pausa de 1,5 s que um passo manual deixava
   (`FightModeSystem.resume`), e a perseguição começa no tick seguinte.
-- **Andar sai do modo Seguir**: andar pelo teclado atacando no modo Seguir vira Parado, como no Tibia, com o aviso
-  "Modo Parado… (F8 volta a seguir)" (`FightModeSystem.manualStep`). Sem alvo, andar só pausa como antes; clicar no chão
-  para andar também só pausa.
+- ~~**Andar sai do modo Seguir**~~: entrou e saiu no mesmo dia — o dono preferiu que andar não troque o modo ("pode
+  deixar seguindo direto"). Andar só pausa a perseguição por 1,5 s, como antes; o modo fica em Seguir.
 
 ## [Não lançado] — 2026-10-31 · app de desktop (Windows, Mac e Linux)
 

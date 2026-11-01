@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-01c",
+    date: "1º de novembro",
+    title: "Lista de batalha do tamanho da tela",
+    items: [
+      "A lista de batalha mostra todos os bichos que aparecem na tela (antes, só até 10 tiles). O Espaço percorre essa lista.",
+      "Ataque automático no modo Seguir procura bichos a até 8 tiles (antes 6).",
+    ],
+  },
+  {
     id: "2026-11-01b",
     date: "1º de novembro",
     title: "Balanço: druida, paladino, bênção e armas novas",
@@ -30,7 +39,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Cavaleiro: \"exori gran\" virou o Giro Feroz (área em volta, lv 20) e \"exori mas\" (raio 2) chega no lv 35. No lv 70 entra o Terremoto (\"exori gran mas\", raio 3).",
       "O Golpe Brutal agora se fala \"exori ico\". O Golpe Frontal saiu.",
       "Magias à distância alcançam 2 tiles mais longe.",
-      "Modo Seguir: escolher o alvo já começa a perseguir na hora. Andar pelas setas enquanto ataca troca para Parado (F8 volta a seguir).",
+      "Modo Seguir: escolher o alvo já começa a perseguir na hora.",
     ],
   },
   {
