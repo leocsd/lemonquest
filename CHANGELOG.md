@@ -1,5 +1,10 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · chat mais estreito
+
+Dono: "quero que o tamanho do chat seja um pouco menor, quesito largura". A largura continua acompanhando a tela, mas
+agora vai de 220 a 360 px (era de 240 a 420 px).
+
 ## [Não lançado] — 2026-11-01 · leitura geral de balanço aplicada
 
 Dono: "atualize tudo" (sobre os achados da leitura de magias, vocações, progressão, monstros, itens e economia).
