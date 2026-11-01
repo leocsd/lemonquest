@@ -105,7 +105,8 @@ test("cavaleiro lv 50: Fúria (utito tempo) gasta mana e aparece nas condições
   await teleport(page, spot.x, spot.y);
   await castWorks(page, "utito tempo", "berserk", false);
   await expect(page.locator(".conditions [data-tip^='Fúria']")).toHaveCount(1);
-  await castWorks(page, "exori min", "front_sweep", false);
+  await castWorks(page, "exori gran", "front_sweep", false);
+  await castWorks(page, "exori mas", "whirlwind", false);
 });
 
 test("cavaleiro lv 100: Muralha de Escudos (utamo mas res) protege e aparece nas condições; a tecla 10 aparece na barra", async ({ page }) => {

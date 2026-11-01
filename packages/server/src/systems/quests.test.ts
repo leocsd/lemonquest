@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABYSS_ITEM_IDS, BOUNTY_BANDS, BOUNTY_CHEST_ID, ITEMS, MONSTERS, QUEST_LIST, QUESTS, RARITIES, S2C, isEquipable, isExclusiveItem, itemDef, npcMarker, npcDef,
+  ABYSS_ITEM_IDS, BOUNTY_BANDS, CRIMSON_ITEM_IDS, BOUNTY_CHEST_ID, ITEMS, MONSTERS, QUEST_LIST, QUESTS, RARITIES, S2C, isEquipable, isExclusiveItem, itemDef, npcMarker, npcDef,
   applyXpStage, bountyTitle, isValidUnlockId, pluralPt, questStatus, questsForNpc, xpForLevel, type QuestDef, type QuestsMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -527,7 +527,7 @@ describe("baú de recompensa", () => {
 
   it("ciclo 16: tier 8 e itens únicos nunca saem do baú, nem no lv 150 (o tier 8 cai de monstro comum do Profundo)", () => {
     const exclusive = Object.values(ITEMS).filter(isExclusiveItem);
-    expect(exclusive.length).toBe(ABYSS_ITEM_IDS.length + 4); // + os 4 únicos da Aniquilação
+    expect(exclusive.length).toBe(ABYSS_ITEM_IDS.length + CRIMSON_ITEM_IDS.length + 4); // + as 4 armas Carmesim (lv 85) e os 4 únicos da Aniquilação
     for (const d of exclusive) expect(chestEligible(d.id), d.id).toBe(false);
     // As botas novas dos tiers 6 e 7 seguem a regra das outras peças: caem de monstro comum, então valem.
     for (const id of ["crown_boots", "demon_boots", "royal_boots", "dragon_scale_boots", "mystic_boots", "ferumbras_boots"]) expect(chestEligible(id), id).toBe(true);

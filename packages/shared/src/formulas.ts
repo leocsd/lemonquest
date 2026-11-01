@@ -241,7 +241,7 @@ export function levelForXp(xp: number): number {
 export const XP_STAGES: readonly { fromLevel: number; mult: number }[] = [
   { fromLevel: 1, mult: 1 },
   // Ciclo 7: era {60: 0,6; 80: 0,4; 100: 0,3} — 10 a 23 abates por level do 40 ao 120 (lv 100: 20 demônios) e o
-  // 1→120 em ~9–27 h de caça. Assim: ~25 abates no lv 40, ~31 no 70 e ~51 no 100; o 40→120 dobra (~15–37 h).
+  // 1→120 em ~9–27 h de caça. Assim: ~30 abates no lv 40 (35 nos frames da Montadora), ~31 no 70 e ~51 no 100; o 40→120 dobra (~15–37 h).
   { fromLevel: 40, mult: 0.5 },
   { fromLevel: 60, mult: 0.3 },
   { fromLevel: 80, mult: 0.2 },
@@ -301,9 +301,12 @@ export function deathXpLoss(level: number, xp: number, mult = 1): number {
 
 /** Bênção no templo: preço em ouro escalado pelo level. Consumida na próxima morte, zera o deathPenalty. */
 // 200 → 50 por level (ciclo 9, GD-09): a 200 a bênção custava 25–40 min de renda para proteger 6–8 min de XP e ninguém comprava.
+// 2026-11-01: o preço acompanha o estágio da morte (DEATH_PENALTY_STAGES): ×1 até o lv 59, ×2 no 60, ×2,5 no 80 e ×3 no
+// 100. Com o ciclo 15 a morte no lv 100 passou a tirar ~15 demônios de XP e a bênção (5.000) custava uns 2 abates.
 export const BLESSING_GOLD_PER_LEVEL = 50;
 export function blessingPrice(level: number): number {
-  return Math.max(1, level) * BLESSING_GOLD_PER_LEVEL;
+  const lvl = Math.max(1, level);
+  return Math.round(lvl * BLESSING_GOLD_PER_LEVEL * (deathPenaltyPct(lvl) / DEATH_PENALTY_STAGES[0]!.pct));
 }
 
 /** Divide `total` de XP proporcionalmente ao dano causado (arredondado, mínimo 1 por participante). */

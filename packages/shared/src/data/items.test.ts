@@ -18,6 +18,24 @@ const mats = JSON.parse(readFileSync(root + "assets/icons/materials.json", "utf8
 const all = Object.values(ITEMS);
 const weapons = all.filter((d) => d.kind === "weapon");
 
+
+/**
+ * `a` domina `b`: cada atributo de `a` (armadura, ataque, vida, mana, skills…) ≥ o de `b` e pelo menos um maior. Uma
+ * peça regional mais barata que a referência do slot não pode dominá-la (2026-11-01: o Amuleto de Rubi dominava o de
+ * Escamas e a regra só comparava o valor).
+ */
+const dominates = (a: ItemDef, b: ItemDef): boolean => {
+  const sa = (a.stats ?? {}) as Record<string, number>, sb = (b.stats ?? {}) as Record<string, number>;
+  const keys = new Set([...Object.keys(sa), ...Object.keys(sb)]);
+  let more = false;
+  for (const k of keys) {
+    const x = sa[k] ?? 0, y = sb[k] ?? 0;
+    if (x < y) return false;
+    if (x > y) more = true;
+  }
+  return more;
+};
+
 describe("ITEMS", () => {
   it("ids batem com as chaves", () => {
     for (const [k, d] of Object.entries(ITEMS)) expect(d.id).toBe(k);
@@ -467,6 +485,8 @@ describe("ciclo 19: Siderúrgica", () => {
           .reduce<ItemDef | undefined>((b, x) => (!b || x.value > b.value ? x : b), undefined)!;
         expect(ref, `${id} ${v}`).toBeDefined();
         expect(d.value, `${id} ${v}: referência ${ref.id} (${ref.value})`).toBeLessThan(ref.value);
+        // E não a supera em todos os atributos: senão seria a melhor peça do slot, só que mais barata.
+        expect(dominates(d, ref), `${id} ${v}: domina ${ref.id} em todos os atributos`).toBe(false);
       }
     }
   });
@@ -491,15 +511,15 @@ describe("ciclo 19: Siderúrgica", () => {
       expect(dropsOf(id).some((m) => !m.boss), id).toBe(common);
       if (!common) expect(sold.has(id), id).toBe(false);
     }
-    expect([chance("fornalha_primordial", "avental_forjador"), chance("fornalha_primordial", "elmo_laminador")]).toEqual([0.15, 0.15]);
+    expect([chance("fornalha_primordial", "avental_forjador"), chance("fornalha_primordial", "elmo_laminador")]).toEqual([0.3, 0.3]); // 0,15 → 0,3 em 2026-11-01 (loot dos chefes regionais)
     expect([chance("golem_convertedor", "anel_alto_forno"), chance("golem_convertedor", "amuleto_rubi")]).toEqual([0.1, 0.1]);
   });
 
-  it("Fornalha Primordial: Fragmento Abissal sempre e 4 peças do tier 8 a 6% (os elmos e o grimório ficam para o ciclo 20)", () => {
+  it("Fornalha Primordial: Fragmento Abissal sempre e 4 peças do tier 8 a 8% (6% até 2026-11-01; os elmos e o grimório ficam para o ciclo 20)", () => {
     expect(chance("fornalha_primordial", "abyss_shard")).toBe(1);
     const t8 = MONSTERS.fornalha_primordial!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard");
     expect(t8.map((e) => [e.itemId, e.chance])).toEqual([
-      ["abyss_armor", 0.06], ["abyss_archer_armor", 0.06], ["abyss_mage_armor", 0.06], ["abyss_shield", 0.06],
+      ["abyss_armor", 0.08], ["abyss_archer_armor", 0.08], ["abyss_mage_armor", 0.08], ["abyss_shield", 0.08],
     ]);
   });
 });
@@ -555,6 +575,8 @@ describe("ciclo 20: Montadora", () => {
           .reduce<ItemDef | undefined>((b, x) => (!b || x.value > b.value ? x : b), undefined)!;
         expect(ref, `${id} ${v}`).toBeDefined();
         expect(d.value, `${id} ${v}: referência ${ref.id} (${ref.value})`).toBeLessThan(ref.value);
+        // E não a supera em todos os atributos: senão seria a melhor peça do slot, só que mais barata.
+        expect(dominates(d, ref), `${id} ${v}: domina ${ref.id} em todos os atributos`).toBe(false);
       }
     }
   });
@@ -598,11 +620,11 @@ describe("ciclo 20: Montadora", () => {
     expect(ITEMS.ring_demodras!.vocations).toBeUndefined();
   });
 
-  it("O Protótipo: Fragmento Abissal sempre e os elmos e o grimório do tier 8 a 6% (a Fornalha dá as armaduras e o escudo)", () => {
+  it("O Protótipo: Fragmento Abissal sempre e os elmos e o grimório do tier 8 a 8% (6% até 2026-11-01; a Fornalha dá as armaduras e o escudo)", () => {
     expect(chance("mt_prototipo", "abyss_shard")).toBe(1);
     const t8 = MONSTERS.mt_prototipo!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard");
     expect(t8.map((e) => [e.itemId, e.chance])).toEqual([
-      ["abyss_helmet", 0.06], ["abyss_archer_helmet", 0.06], ["abyss_mage_helmet", 0.06], ["spellbook_abyss", 0.06],
+      ["abyss_helmet", 0.08], ["abyss_archer_helmet", 0.08], ["abyss_mage_helmet", 0.08], ["spellbook_abyss", 0.08],
     ]);
     // Os dois chefes finais de região juntos dão uma peça de cada forma de vocação (sem repetir).
     const both = ["fornalha_primordial", "mt_prototipo"].flatMap((b) => MONSTERS[b]!.loot!.filter((e) => ABYSS_ITEM_IDS.includes(e.itemId) && e.itemId !== "abyss_shard").map((e) => e.itemId));

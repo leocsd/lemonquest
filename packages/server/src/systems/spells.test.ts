@@ -188,10 +188,9 @@ describe("areas", () => {
     expect(circleTiles(5, 5, 1, (x, y) => x === 6 && y === 5)).toHaveLength(8);
   });
 
-  it("Golpe Frontal: retângulo 3×3 à frente (pega as diagonais encostadas); as outras ondas seguem em cone", () => {
-    const s = SPELLS.front_sweep!;
-    expect(s).toMatchObject({ target: "wave", length: 3, width: 3, rect: true });
-    const t = waveTiles(10, 10, Dir.N, s.length!, s.width!, undefined, s.rect);
+  it("onda retangular (`rect`): 3×3 à frente pega as diagonais encostadas; as outras ondas seguem em cone", () => {
+    // Era o Golpe Frontal (exori min); desde 2026-11-01 nenhuma magia usa `rect`, mas o formato continua disponível.
+    const t = waveTiles(10, 10, Dir.N, 3, 3, undefined, true);
     expect(t).toHaveLength(9);
     for (const y of [9, 8, 7]) for (const x of [9, 10, 11]) expect(t).toContainEqual({ x, y });
     // Parede bem à frente para só a coluna do meio; as diagonais encostadas continuam.
@@ -202,7 +201,6 @@ describe("areas", () => {
     expect(wall).not.toContainEqual({ x: 12, y: 10 });
     // Sem `rect`, a mesma onda é o cone de antes (1 + 3 + 3).
     expect(waveTiles(10, 10, Dir.N, 3, 3)).toHaveLength(7);
-    expect(Object.values(SPELLS).filter((x) => x.rect).map((x) => x.id)).toEqual(["front_sweep"]);
   });
 
   it("wave tiles: cone forward, widening, diagonal facing uses horizontal, walls stop rays", () => {

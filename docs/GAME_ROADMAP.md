@@ -13,6 +13,19 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Combate e cavaleiro (2026-11-01)
+
+Pedidos do dono: "sinto falta do exori gran e exori mas do knight" (escolheu "áreas, como no Tibia"), magias mais longe,
+modo Seguir na hora e andar saindo do modo Seguir.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| CB-1 | Magias à distância +2 tiles (4→6, 5→7, 6→8); corpo a corpo e Investida iguais | ✅ (2026-11-01) | `spells.test.ts` (shared e servidor) |
+| CB-2 | Modo Seguir: escolher alvo zera a pausa de 1,5 s do passo manual; andar pelo teclado atacando vira Parado (aviso, F8 volta) | ✅ (2026-11-01) | `m4.test.ts` (2 testes novos) |
+| CB-3 | Cavaleiro: `exori gran` Giro Feroz (r1, lv 20), Golpe Brutal → `exori ico`, `exori mas` lv 70 → 35, Terremoto `exori gran mas` (r3, lv 70); sai o Golpe Frontal | ✅ (2026-11-01) | `vocationBalance.test.ts` e `arena.test.ts` sem mudar metas; E2E `spells.spec` (cavaleiro lv 50) |
+| CB-4 | Leitura de balanço aplicada ("atualize tudo"): Lasca de Gelo do druida, Flecha Paralisante de controle, bênção pelo estágio da morte, armas Carmesim lv 85, loot dos chefes regionais, Espírito de Chama, Poção de Mana Forte, poções das missões lv 80+, Galho Seco | ✅ (2026-11-01) | `vocationBalance`, `arena`, `spells`, `items`, `quests`, `combatFormulas` |
+| CB-5 | Resto da leitura: `spells.test.ts` pela potência real (tabela regerada), peças regionais não dominam a referência do slot (Calças Antichama, Boné de Visitante, Calça Impermeável, Amuleto de Rubi), Kappa do Lodo com mais XP e loot, Protótipo e Fornalha com peças do tier 7 | ✅ (2026-11-01) | `spells.test.ts`, `items.test.ts`; script de loot por vida |
+
 ## App de desktop (2026-10-31)
 
 Spec: [superpowers/specs/2026-10-31-app-desktop-tauri-design.md](superpowers/specs/2026-10-31-app-desktop-tauri-design.md).
@@ -518,7 +531,7 @@ custo de poder).
 
 | Item | O que é | Esforço | Status |
 |---|---|---|---|
-| Bênção no templo | Reduz a zero a penalidade de XP na próxima morte; preço = level × 200 de ouro. Vendida por Liora (Vila), Irmão Tadeu (Posto) e Irmã Celeste (Porto) | pequeno | ✅ |
+| Bênção no templo | Reduz a zero a penalidade de XP na próxima morte; preço = 50 × level de ouro, ×2 no lv 60, ×2,5 no 80 e ×3 no 100 (acompanha a perda da morte, 2026-11-01). Vendida por Liora (Vila), Irmão Tadeu (Posto) e Irmã Celeste (Porto) | pequeno | ✅ |
 | Venda de tier 5-7 | Tier 5 no preço de tabela (Bento/Tomé/Dona Marta); tier 6-7 em "encomenda especial" a 1,5× o valor de loot, 1 peça por personagem por semana | pequeno | ✅ |
 | Tarefas de caça | **Já existia** (Quadro de Recompensas, `bounties.ts`): 3/dia por faixa de level, até lv 88+. Moeda nova (Marca de Caça) descartada nesta rodada, ver nota | quase zero | ✅ |
 | Missões recorrentes | NPC pede N de um material específico, rotação semanal. Reaproveita o próprio Quadro de Recompensas (aba "Encomenda") | pequeno | ✅ |

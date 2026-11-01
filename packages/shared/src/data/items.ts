@@ -195,7 +195,9 @@ potion("mana_potion_large", "Poção de Mana Grande", img("Potion/MilkPot.png", 
 potion("health_potion_strong", "Poção de Vida Forte", img("Potion/Heart.png", 0xff6a6a), 370, 50, { heal: 550 }, "Recupera 550 de vida. Só cavaleiros e paladinos.", ["knight", "paladin"]);
 potion("health_potion_great", "Poção de Vida Enorme", img("Potion/Heart.png", 0xffd447), 470, 80, { heal: 700 }, "Recupera 700 de vida. Só cavaleiros.", ["knight"]);
 potion("health_potion_supreme", "Poção de Vida Suprema", img("Potion/Heart.png", 0xc080ff), 540, 110, { heal: 800 }, "Recupera 800 de vida. Só cavaleiros.", ["knight"]);
-potion("mana_potion_strong", "Poção de Mana Forte", img("Potion/MilkPot.png", 0x7aa8ff), 290, 50, { mana: 800 }, "Recupera 800 de mana. Só feiticeiros, druidas e paladinos.", ["sorcerer", "druid", "paladin"]);
+// 2026-11-01: 800 → 1.000 de mana (e 290 → 360, mesmo preço por ponto): recuperava menos que a Grande do lv 30 (900).
+// 1.100 deixava o grupo do Coliseu forte demais no modelo (arena.test.ts: justo da 60 e lv 110 completando).
+potion("mana_potion_strong", "Poção de Mana Forte", img("Potion/MilkPot.png", 0x7aa8ff), 360, 50, { mana: 1000 }, "Recupera 1.000 de mana. Só feiticeiros, druidas e paladinos.", ["sorcerer", "druid", "paladin"]);
 potion("mana_potion_great", "Poção de Mana Enorme", img("Potion/MilkPot.png", 0xff80e0), 470, 80, { mana: 1300 }, "Recupera 1.300 de mana. Só feiticeiros e druidas.", ["sorcerer", "druid"]);
 potion("spirit_potion", "Poção de Espírito", img("Potion/MilkPot.png", 0xffe08a), 410, 80, { heal: 400, mana: 400 }, "Recupera 400 de vida e 400 de mana. Só paladinos.", ["paladin"]);
 
@@ -349,10 +351,10 @@ add({ id: "shogun_seal", name: "Selo do Shogun Abissal", kind: "quest", value: 0
 // ---------------------------------------------------------------------------
 // Armas
 // ---------------------------------------------------------------------------
-type WOpts = { range?: number; kind?: DamageKind; twoHanded?: boolean; stats?: Stats };
+type WOpts = { range?: number; kind?: DamageKind; twoHanded?: boolean; stats?: Stats; /** Level fora da tabela de tiers (armas Carmesim, lv 85). */ level?: number };
 const weapon = (id: string, name: string, wt: WeaponType, voc: Vocation, icon: ItemIcon, tier: number, attack: number, value: number, description: string, o: WOpts = {}): void =>
   add({
-    id, name, kind: "weapon", slot: "weapon", icon, vocations: [voc], level: TIER_LEVEL[tier - 1], weaponType: wt,
+    id, name, kind: "weapon", slot: "weapon", icon, vocations: [voc], level: o.level ?? TIER_LEVEL[tier - 1], weaponType: wt,
     range: o.range ?? 1, damageKind: o.kind ?? "physical", ...(o.twoHanded ? { twoHanded: true } : {}),
     stats: { attack, ...o.stats }, value, description,
   });
@@ -572,6 +574,20 @@ buildSet({ prefix: "ferumbras", tier: 7, palette: "steel", tint: 0xd890ff, slots
 // quadros que já existem com `ABYSS_TINT`. Sem botas (Botas da Pressa) e sem grevas de cavaleiro e de mago (as do tier 7
 // seguem valendo). Valores 120–300 mil; o escudo e o grimório valem o mesmo (regra dos livros de magia).
 // ---------------------------------------------------------------------------
+// Armas Carmesim (2026-11-01): degrau no lv 85 entre o tier 7 (lv 70) e o Abissal (lv 100). Antes, do lv 70 ao 100
+// (~1.000 abates) nenhuma arma nova; só o refino. Uma por vocação, ataque no meio do caminho entre os dois tiers, só de
+// drop raro (0,3–0,5 %) do Senhor dos Dragões, do Behemoth e do Cão Infernal. Contam como tier 7 nos testes de tier.
+// Fora do Baú de Recompensa e de outros sorteios genéricos (`isExclusiveItem`), como o Abissal: senão o baú do lv 85+
+// só sortearia essas quatro armas.
+export const CRIMSON_LEVEL = 85;
+const crimsonFrom = ITEM_LIST.length;
+export const CRIMSON_TINT = 0xff3050;
+weapon("crimson_blade", "Lâmina Carmesim", "sword", "knight", img(W + "Sword2/Sprite.png", CRIMSON_TINT), 7, 145, 235000, "Temperada no sangue de um Senhor dos Dragões. Ainda está morna.", { level: CRIMSON_LEVEL, stats: { melee: 3, crit: 4 } });
+weapon("crimson_bow", "Arco Carmesim", "bow", "paladin", img(W + "Bow/Sprite.png", CRIMSON_TINT), 7, Math.ceil(112 * BOW_ATTACK_MULT), 235000, "Feito com o chifre de um Behemoth: a corda geme ao soltar.", { ...BOW, level: CRIMSON_LEVEL, stats: { distance: 4, crit: 4 } });
+weapon("crimson_wand", "Varinha Carmesim", "wand", "sorcerer", img(W + "MagicWand/Sprite.png", CRIMSON_TINT), 7, 95, 235000, "Uma brasa de dragão presa num cristal vermelho.", { ...WAND, kind: "fire", level: CRIMSON_LEVEL, stats: { magic: 5, manaMax: 180 } });
+weapon("crimson_rod", "Bastão Carmesim", "rod", "druid", img(W + "Stick/Sprite.png", CRIMSON_TINT), 7, 95, 235000, "Galho de uma árvore que cresceu no Inferno e não queimou.", { ...WAND, kind: "earth", level: CRIMSON_LEVEL, stats: { magic: 5, manaMax: 180 } });
+export const CRIMSON_ITEM_IDS: readonly string[] = ITEM_LIST.slice(crimsonFrom).map((d) => d.id);
+
 const abyssFrom = ITEM_LIST.length;
 weapon("abyss_blade", "Lâmina Abissal", "sword", "knight", img(W + "BigSword/Sprite.png", ABYSS_TINT), 8, 160, 280000, "Forjada no fundo do Profundo. A lâmina bebe a luz em volta.", { stats: { melee: 4, crit: 4 } });
 bow("abyss_bow", "Arco Abissal", img(W + "Bow2/Sprite.png", ABYSS_TINT), 8, 125, 280000, "A corda vibra num tom que só os mortos escutam.", { distance: 5, crit: 4 });
@@ -672,7 +688,8 @@ add({ id: "capacete_fundidor", name: "Capacete de Fundidor", kind: "helmet", slo
   description: "Aba larga e viseira contra respingo. Gusa no capacete é sinal de experiência." });
 add({ id: "botas_fundidor", name: "Botas de Fundidor", kind: "boots", slot: "boots", icon: { ...gear("boots", "steel"), tint: 0xff9a50 }, level: 50, stats: { armor: 2, hpMax: 50, speed: 8 }, value: 22000,
   description: "Biqueira de aço e sola que não derrete. Golem nenhum pisa no seu pé." });
-add({ id: "calca_antichama", name: "Calças Antichama", kind: "legs", slot: "legs", icon: { ...gear("legs_pants", "steel"), tint: 0xffc080 }, level: 60, stats: { armor: 4, hpMax: 90 }, value: 26000,
+// armadura 4 → 3 (2026-11-01): dominava as Calças da Coroa (4) do cavaleiro
+add({ id: "calca_antichama", name: "Calças Antichama", kind: "legs", slot: "legs", icon: { ...gear("legs_pants", "steel"), tint: 0xffc080 }, level: 60, stats: { armor: 3, hpMax: 90 }, value: 26000,
   description: "Tecido grosso que não pega fogo. Pega fuligem, mas fogo, não." });
 add({ id: "botas_termicas", name: "Botas Térmicas", kind: "boots", slot: "boots", icon: { ...gear("boots", "steel"), tint: 0xff7050 }, level: 70, stats: { armor: 2, hpMax: 80, manaMax: 40, speed: 9 }, value: 45000,
   description: "Quentes no pé e frias na sola. Ninguém na usina entende como." });
@@ -681,7 +698,8 @@ add({ id: "avental_forjador", name: "Avental do Forjador", kind: "armor", slot: 
 add({ id: "elmo_laminador", name: "Elmo do Laminador", kind: "helmet", slot: "helmet", icon: { ...gear("helmet_horned", "steel"), tint: 0xffa070 }, level: 85, stats: { armor: 4, hpMax: 120 }, value: 48000,
   description: "Saiu inteiro do laminador novo. A chapa era fina; o elmo, nem tanto." });
 trinket("anel_alto_forno", "Anel do Alto-Forno", "ring", "gold", 60, { crit: 3, hpRegen: 4, manaRegen: 2, speed: 2 }, 48000, "Forjado na boca do Alto-Forno. Segura o calor por você.");
-trinket("amuleto_rubi", "Amuleto de Rubi", "amulet", "dragon", 70, { armor: 4, hpMax: 240, manaMax: 60 }, 42000, "Um rubi do fundo da panela de aço, preso numa corrente que nunca esfria.");
+// Armadura 4 → 3 (2026-11-01): com 4 dominava o Amuleto de Escamas (lv 55, 45 mil) em todos os atributos.
+trinket("amuleto_rubi", "Amuleto de Rubi", "amulet", "dragon", 70, { armor: 3, hpMax: 240, manaMax: 60 }, 42000, "Um rubi do fundo da panela de aço, preso numa corrente que nunca esfria.");
 
 // ---------------------------------------------------------------------------
 // Montadora (ciclo 20, lv 10–120): materiais da linha (o Cromo Puro entra no refino +4/+5 do tier 8 e no encantamento
@@ -707,9 +725,11 @@ add({ id: "mt_brasa_estufa", name: "Brasa da Estufa", kind: "quest", value: 0, i
 add({ id: "mt_chave_prototipo", name: "Chave do Protótipo", kind: "quest", value: 0, icon: img("Treasure/GoldKey.png", 0xf2e14a), description: "Não liga nenhum carro conhecido. Prova de que O Protótipo caiu." });
 // Equipamento de todas as vocações (o escudo, só do cavaleiro: o paladino só tem o Escudo de Madeira, e um escudo geral
 // de 2.900 viraria o "melhor" dele no modelo). Recompensa de missão e loot raro de comum: entram no Baú de Recompensa.
-add({ id: "mt_bone_visitante", name: "Boné de Visitante", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 12, stats: { armor: 1, speed: 2 }, value: 95,
+// sem armadura (2026-11-01): dominava o Elmo de Bronze
+add({ id: "mt_bone_visitante", name: "Boné de Visitante", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 12, stats: { speed: 2 }, value: 95,
   description: "Amarelo, com a aba torta. Com ele ninguém pergunta quem você é." });
-add({ id: "mt_calca_impermeavel", name: "Calça Impermeável", kind: "legs", slot: "legs", icon: gear("legs_pants", "bronze"), level: 20, stats: { armor: 2, hpMax: 25 }, value: 850,
+// Sem armadura e com mais vida (2026-11-01): com armadura 2 e 25 de vida dominava as Grevas de Ferro do cavaleiro (1).
+add({ id: "mt_calca_impermeavel", name: "Calça Impermeável", kind: "legs", slot: "legs", icon: gear("legs_pants", "bronze"), level: 20, stats: { hpMax: 45 }, value: 850,
   description: "Espuma não passa, água também não. O suor, infelizmente, também não." });
 add({ id: "mt_escudo_porta", name: "Escudo de Porta", kind: "shield", slot: "shield", icon: gear("shield_kite", "steel"), vocations: ["knight"], level: 30, stats: { armor: 2, shield: 3, hpMax: 30 }, value: 2900,
   description: "Já foi a porta de um carro. A maçaneta ainda funciona." });
@@ -735,4 +755,5 @@ export const isEquipable = (d: ItemDef): boolean => d.slot != null;
 
 const ABYSS_SET = new Set(ABYSS_ITEM_IDS);
 /** Fora de loja e de sorteio genérico de equipamento (Baú de Recompensa): os itens únicos e o tier 8. */
-export const isExclusiveItem = (d: ItemDef): boolean => !!d.unique || ABYSS_SET.has(d.id);
+const CRIMSON_SET = new Set(CRIMSON_ITEM_IDS);
+export const isExclusiveItem = (d: ItemDef): boolean => !!d.unique || ABYSS_SET.has(d.id) || CRIMSON_SET.has(d.id);
