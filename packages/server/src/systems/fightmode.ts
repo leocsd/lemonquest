@@ -14,10 +14,11 @@ export const CHASE_PAUSE_MS = 1500;
 /** Distância máxima (tiles) para seguir um jogador; além disso o seguir é cancelado. */
 export const FOLLOW_MAX_DIST = 15;
 /**
- * Até onde (tiles) o ataque automático procura monstros quando o jogador está no modo seguir. 6 → 8 (2026-11-01, pedido
- * do dono): o alcance das magias à distância e o que ainda cabe na tela na vertical (~17 linhas). Sempre com linha de visão.
+ * Até onde (tiles) o ataque automático procura monstros quando o jogador está no modo seguir. 6 → 8 → 12 (2026-11-01,
+ * pedidos do dono: "só 8 ficou pouco"): ~o que cabe na tela na horizontal (~30 tiles de largura, menos o painel da
+ * direita). Sempre com linha de visão; o modo Seguir aproxima até o alcance das magias.
  */
-export const AUTO_SEEK_DIST = 8;
+export const AUTO_SEEK_DIST = 12;
 /** Intervalo mínimo (ms) entre buscas de alvo do ataque automático. */
 export const AUTO_SCAN_MS = 400;
 
