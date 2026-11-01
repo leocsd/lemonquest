@@ -102,8 +102,10 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
         if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10 # o download dos navegadores já travou por 60 min numa oscilação do GitHub
       - run: npx playwright install-deps chromium
         if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 10
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
