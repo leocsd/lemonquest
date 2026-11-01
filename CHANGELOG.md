@@ -9,6 +9,11 @@ volta). O Espaço (próximo alvo) usa a mesma lista. O ataque automático no mod
 (era 6), o alcance das magias à distância; parado continua só no alcance do ataque. Andar pelo teclado não troca mais
 o modo Seguir para Parado (dono: "pode deixar seguindo direto"); só pausa a perseguição por 1,5 s.
 
+## [Não lançado] — 2026-11-01 · chat mais estreito
+
+Dono: "quero que o tamanho do chat seja um pouco menor, quesito largura". A largura continua acompanhando a tela, mas
+agora vai de 220 a 360 px (era de 240 a 420 px).
+
 ## [Não lançado] — 2026-11-01 · leitura geral de balanço aplicada
 
 Dono: "atualize tudo" (sobre os achados da leitura de magias, vocações, progressão, monstros, itens e economia).

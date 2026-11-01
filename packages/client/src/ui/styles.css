@@ -164,7 +164,8 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 /* ---------- Chat ---------- */
 .chat {
   position: fixed; left: 10px; bottom: 10px; z-index: 10;
-  width: max(240px, min(420px, calc((100vw - var(--hud-right, 0px)) / 2 - 272px))); /* não invade a barra de magias + poções */
+  /* Não invade a barra de magias + poções. 2026-11-01 (dono: "um pouco menor na largura"): teto 420 → 360 px, piso 240 → 220. */
+  width: max(220px, min(360px, calc((100vw - var(--hud-right, 0px)) / 2 - 272px)));
   display: flex; flex-direction: column; font-size: 13px;
   background: rgba(17, 20, 28, 0.74); backdrop-filter: blur(2px);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);

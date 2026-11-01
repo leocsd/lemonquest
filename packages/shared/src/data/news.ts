@@ -28,6 +28,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Druida: a Lasca de Gelo cresce mais com o level. Paladino: a Flecha Paralisante prende por 5 s e custa menos (agora é a flecha de controle).",
       "Armas Carmesim no lv 85, uma por vocação: caem raramente do Senhor dos Dragões, do Behemoth e do Cão Infernal.",
       "Chefes das regiões novas largam mais equipamento. A bênção fica mais cara do lv 60 em diante, junto com a perda da morte.",
+      "O chat ficou um pouco mais estreito e deixa mais mapa à vista.",
     ],
   },
   {
