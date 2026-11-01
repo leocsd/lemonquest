@@ -1,48 +1,119 @@
 // Envio e confirmação da configuração do Estagiário (store.ts): o transporte (items/net.ts → session.ts, que lê
 // `location` ao carregar) é trocado por um espião.
-import { C2S, estagiarioPadrao, type EstagiarioEstadoMsg } from "@lemonquest/shared";
+import { C2S, estagiarioPadrao, type EstagiarioConfig, type EstagiarioEstadoMsg } from "@lemonquest/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sent: { type: string; msg: unknown }[] = [];
 vi.mock("../items/net.ts", () => ({ send: (type: string, msg: unknown) => { sent.push({ type, msg }); } }));
 
-const { ESTAGIARIO_SEND_DELAY_MS, estagiarioStore, flushConfig, ligar, onEstadoFromServer, salvarConfig } = await import("./store.ts");
+const {
+  ESTAGIARIO_SEND_DELAY_MS, PENDENTE_MS, aplicarRascunho, descartarRascunho, editarRascunho, estagiarioStore, flushConfig, ligar,
+  onEstadoFromServer, rascunhoStore, rascunhoSujo, resetRascunho, salvarConfig,
+} = await import("./store.ts");
 
+const ROTA = { nome: "Ratos", pontos: [{ x: 1, y: 1 }] };
+const base = (): EstagiarioConfig => ({ ...estagiarioPadrao("knight"), rotas: [ROTA] });
 const estado = (over: Partial<EstagiarioEstadoMsg> = {}): EstagiarioEstadoMsg => ({
-  config: estagiarioPadrao("knight"), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 1000, ...over,
+  config: base(), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 1000, ...over,
 });
+const configs = () => sent.filter((s) => s.type === C2S.EstagiarioConfig).map((s) => (s.msg as { config: EstagiarioConfig }).config);
+const sujo = () => rascunhoSujo(rascunhoStore.get()!, estagiarioStore.get()!.config);
 
-describe("estagiário: envio da configuração", () => {
-  beforeEach(() => { vi.useFakeTimers(); sent.length = 0; flushConfig(); sent.length = 0; onEstadoFromServer(estado()); });
+describe("estagiário: rotas (renomear/apagar vão na hora, juntas)", () => {
+  beforeEach(() => { vi.useFakeTimers(); flushConfig(); resetRascunho(); onEstadoFromServer(estado()); sent.length = 0; });
   afterEach(() => { vi.useRealTimers(); });
 
   it("cliques seguidos viram uma mensagem só, depois do atraso; sem mudança nova, o flush não reenvia", () => {
     const c = estagiarioStore.get()!.config;
-    salvarConfig({ ...c, reservaMana: 10 });
-    salvarConfig({ ...c, reservaMana: 20 });
-    expect(estagiarioStore.get()!.config.reservaMana).toBe(20); // mostra na hora
+    salvarConfig({ ...c, rotas: [] });
+    salvarConfig({ ...c, rotas: [{ ...ROTA, nome: "Novo" }] });
+    expect(estagiarioStore.get()!.config.rotas[0]!.nome).toBe("Novo"); // mostra na hora
     expect(sent).toHaveLength(0);
     vi.advanceTimersByTime(ESTAGIARIO_SEND_DELAY_MS);
-    expect(sent).toEqual([{ type: C2S.EstagiarioConfig, msg: { config: { ...c, reservaMana: 20 } } }]);
+    expect(configs()).toEqual([{ ...c, rotas: [{ ...ROTA, nome: "Novo" }] }]);
     flushConfig();
     expect(sent).toHaveLength(1);
   });
 
-  it("estado do servidor com edição local ainda não enviada: fica a config local, o resto do estado entra", () => {
-    const c = estagiarioStore.get()!.config;
-    salvarConfig({ ...c, reservaMana: 55 });
-    onEstadoFromServer(estado({ cura: true, turnoMs: 500 })); // config antiga do servidor
-    expect(estagiarioStore.get()).toMatchObject({ cura: true, turnoMs: 500, config: { reservaMana: 55 } });
+  it("estado do servidor com rota ainda não enviada: ficam as rotas locais, o resto do estado entra", () => {
+    salvarConfig({ ...base(), rotas: [] });
+    onEstadoFromServer(estado({ cura: true, turnoMs: 500 })); // rotas antigas do servidor
+    expect(estagiarioStore.get()).toMatchObject({ cura: true, turnoMs: 500, config: { rotas: [] } });
     vi.advanceTimersByTime(ESTAGIARIO_SEND_DELAY_MS);
-    // Depois do envio, a confirmação do servidor manda.
-    onEstadoFromServer(estado({ config: { ...c, reservaMana: 60 } }));
-    expect(estagiarioStore.get()!.config.reservaMana).toBe(60);
+    onEstadoFromServer(estado({ config: { ...base(), rotas: [] } }));
+    expect(estagiarioStore.get()!.config.rotas).toEqual([]);
   });
 
   it("ligar manda antes a configuração pendente (ordem preservada)", () => {
-    const c = estagiarioStore.get()!.config;
-    salvarConfig({ ...c, reservaMana: 5 });
+    salvarConfig({ ...base(), rotas: [] });
     ligar({ cura: true });
     expect(sent.map((s) => s.type)).toEqual([C2S.EstagiarioConfig, C2S.EstagiarioToggle]);
+  });
+});
+
+describe("estagiário: rascunho com Aplicar", () => {
+  beforeEach(() => { vi.useFakeTimers(); flushConfig(); resetRascunho(); onEstadoFromServer(estado()); sent.length = 0; });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("editar não manda nada; o estado do servidor (periódico, interruptor) não apaga a edição", () => {
+    editarRascunho({ reservaMana: 7 });
+    vi.advanceTimersByTime(10_000);
+    expect(sent).toHaveLength(0);
+    onEstadoFromServer(estado({ cura: true, turnoMs: 1 }));
+    expect(rascunhoStore.get()!.reservaMana).toBe(7);
+    expect(estagiarioStore.get()).toMatchObject({ cura: true, config: { reservaMana: base().reservaMana } });
+    expect(sujo()).toBe(true);
+    // Rota salva noutro lugar: a lista entra, o rascunho continua.
+    onEstadoFromServer(estado({ config: { ...base(), rotas: [] } }));
+    expect(estagiarioStore.get()!.config.rotas).toEqual([]);
+    expect(rascunhoStore.get()!.reservaMana).toBe(7);
+  });
+
+  it("sem alterações, o rascunho acompanha cada estado do servidor", () => {
+    onEstadoFromServer(estado({ config: { ...base(), reservaMana: 42 } }));
+    expect(rascunhoStore.get()!.reservaMana).toBe(42);
+    expect(sujo()).toBe(false);
+  });
+
+  it("Aplicar manda servidor + rascunho limitado às faixas; a confirmação manda no rascunho", () => {
+    editarRascunho({ reservaMana: 150, vidaAlarme: NaN });
+    aplicarRascunho();
+    expect(configs()).toEqual([{ ...base(), reservaMana: 90 }]); // vida do alarme inválida = a do servidor
+    expect(rascunhoStore.get()!.reservaMana).toBe(90); // mostra o valor limitado
+    expect(sujo()).toBe(false);
+    // O servidor sanitiza e devolve (aqui, outro valor): o rascunho segue a confirmação.
+    onEstadoFromServer(estado({ config: { ...base(), reservaMana: 85 } }));
+    expect(rascunhoStore.get()!.reservaMana).toBe(85);
+  });
+
+  it("estado atrasado (saiu antes do Aplicar chegar) não volta o aplicado; sem confirmação, a barra volta", () => {
+    editarRascunho({ reservaMana: 10 });
+    aplicarRascunho();
+    onEstadoFromServer(estado({ turnoMs: 2 })); // config de antes
+    expect(rascunhoStore.get()!.reservaMana).toBe(10);
+    expect(sujo()).toBe(false);
+    vi.advanceTimersByTime(PENDENTE_MS);
+    onEstadoFromServer(estado({ turnoMs: 3 })); // o pedido se perdeu
+    expect(rascunhoStore.get()!.reservaMana).toBe(10);
+    expect(sujo()).toBe(true);
+  });
+
+  it("Aplicar leva junto um renomear de rota que ainda esperava (uma mensagem só)", () => {
+    salvarConfig({ ...base(), rotas: [] });
+    editarRascunho({ vidaAlarme: 40 });
+    aplicarRascunho();
+    vi.advanceTimersByTime(ESTAGIARIO_SEND_DELAY_MS);
+    expect(configs()).toEqual([{ ...base(), rotas: [], vidaAlarme: 40 }]);
+  });
+
+  it("Descartar volta ao do servidor; rota apagada com rascunho sujo manda a config do servidor", () => {
+    editarRascunho({ reservaMana: 3 });
+    salvarConfig({ ...estagiarioStore.get()!.config, rotas: [] });
+    vi.advanceTimersByTime(ESTAGIARIO_SEND_DELAY_MS);
+    expect(configs()[0]!.reservaMana).toBe(base().reservaMana);
+    expect(rascunhoStore.get()!.reservaMana).toBe(3);
+    descartarRascunho();
+    expect(sujo()).toBe(false);
+    expect(rascunhoStore.get()!.reservaMana).toBe(base().reservaMana);
   });
 });

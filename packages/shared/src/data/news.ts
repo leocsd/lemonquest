@@ -19,6 +19,7 @@ export const NEWS: readonly NewsEntry[] = [
       "O Estagiário agora usa crachá (no nome, na batalha, no Online e no botão do trilho).",
       "Cura, ataque e buffs já vêm recomendados para a sua vocação: uma regra por magia de área, com o raio dela. Botão \"Usar recomendado\" em cada aba.",
       "O ataque automático sempre mira o bicho mais perto. A poção automática saiu: quem cura sozinho agora é o Estagiário.",
+      "Na janela do Estagiário, mude os números à vontade e clique em Aplicar (ou Descartar): nada muda sozinho enquanto você digita.",
     ],
   },
   {

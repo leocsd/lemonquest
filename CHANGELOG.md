@@ -15,6 +15,10 @@ perto" e "com o bot, tira o auto regen das poções".
 - **Alvo sempre o mais perto**: o ataque automático (F8) e o Estagiário procuram também com alvo e trocam para um monstro
   estritamente mais perto (empate fica; mirando jogador, não troca).
 - **Sem poção automática do cliente** (botão ⚗ e o painel saíram): a cura automática é a do Estagiário.
+- **Botão Aplicar** (dono: "preciso de um botão aplicar… o número fica voltando toda hora"): cura, ataque, buffs, reserva
+  de mana e alarmes viram um rascunho local (`ui/estagiario/rascunho.ts`) com a barra "Alterações não aplicadas" +
+  Aplicar/Descartar; os números aceitam digitação livre e só vão para a faixa no Aplicar. Causa do "voltando": cada
+  edição ia ao servidor e o `value` controlado do campo era redesenhado pelo eco e pelo estado de 10 s com a rota rodando.
 
 ## [Não lançado] — 2026-11-01 · Estagiário (bot de caça dentro do jogo)
 
