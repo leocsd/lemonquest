@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-01e",
+    date: "1º de novembro",
+    title: "Estagiário de crachá",
+    items: [
+      "O Estagiário agora usa crachá (no nome, na batalha, no Online e no botão do trilho).",
+      "Cura, ataque e buffs já vêm recomendados para a sua vocação: uma regra por magia de área, com o raio dela. Botão \"Usar recomendado\" em cada aba.",
+      "O ataque automático sempre mira o bicho mais perto. A poção automática saiu: quem cura sozinho agora é o Estagiário.",
+    ],
+  },
+  {
     id: "2026-11-01d",
     date: "1º de novembro",
     title: "Contrate o Estagiário",
