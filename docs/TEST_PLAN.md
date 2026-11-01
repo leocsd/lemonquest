@@ -17,6 +17,21 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Estagiário (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1809 passando (147 arquivos). Arquivos novos: `shared/src/estagiario.test.ts` (9: sanitização,
+turno, cura, ataque, gravação e retomada da rota), `server/src/systems/estagiario.test.ts` (61: cura, ataque, turno,
+liga/desliga, pausas, gravação com portal, ponto e alvo inalcançáveis, portal trancado, alarmes uma vez cada, e um
+cenário com os sistemas reais em que a rota mata o rato sozinha), `client/src/ui/estagiario/store.test.ts` (10) e
+`storeSync.test.ts` (3). Ganchos testados nos arquivos existentes: `summons.test.ts` (acompanhante imune, segue e
+reaparece), `movement.test.ts` (bloqueia os outros, não o dono), `m4.test.ts` (busca de alvo e chase forçado),
+`social.test.ts` (sussurro), `inventory.test.ts` e `ground.test.ts` (poção silenciosa, mochila cheia),
+`WorldRoom.test.ts` ("WorldRoom: Estagiário", 3: limites, estado/config salvos, queda desliga e reconnect),
+`battle.test.ts` (🤖 na batalha) e `attentionLogic.test.ts`. E2E novo `e2e/estagiario.spec.ts` (cavaleiro na floresta:
+grava 3 passos pelo teclado, liga a rota, 🤖 no próprio nome, acompanhante na tela e fora da battle list, o dono pisa no
+tile do acompanhante, o XP sobe sem comando em até 60 s, desligar tira o 🤖 e o acompanhante); não rodado localmente,
+roda no CI da PR. A sonda `__lq` ganhou `nameLabel(id)` (nome como aparece na tela) e `ownerId` nos monstros.
+
 ## Resultados — leitura geral de balanço aplicada (2026-11-01)
 
 Typecheck 3× tsc; suíte unitária inteira: 1700 passando. Cada mudança medida contra `vocationBalance.test.ts` e

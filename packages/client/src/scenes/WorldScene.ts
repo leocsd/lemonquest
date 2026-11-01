@@ -66,6 +66,8 @@ import { getTarget, setTarget, subscribeTarget, toggleTarget, type Target } from
 interface Known { x: number; y: number; dir: number; stepMs: number }
 interface CreatureInfo { defId: string; name: string; level: number; boss: boolean; hp: number; maxHp: number; elite?: boolean }
 
+/** Nome do acompanhante (Estagiário): azul-claro, longe das cores de dificuldade das criaturas. */
+const COMPANION_NAME_COLOR = "#bfe3ff";
 const DEPTH_ABOVE = 1_000_000;
 const DEPTH_FX_TOP = 2_000_000;
 
@@ -108,6 +110,14 @@ export class WorldScene extends Phaser.Scene {
   private creatures = new Map<string, Actor>();
   private creatureKnown = new Map<string, Known>();
   private creatureInfo = new Map<string, CreatureInfo>();
+  /** Acompanhantes (o Estagiário de alguém, MonsterDef.companion): fora da battle list, do clique e da cor por level. */
+  private companions = new Set<string>();
+  /** Dono de cada acompanhante (sessionId): o dono atravessa o próprio Estagiário, como no servidor (monsters.blocksPlayer). */
+  private companionOwner = new Map<string, string>();
+  /** Acompanhantes criados antes de o nome do dono chegar: o rótulo é refeito quando ele aparece no playersStore. */
+  private companionUnnamed = new Set<string>();
+  /** Jogadores com a rota do Estagiário rodando (🤖 no nome). */
+  private botOn = new Map<string, boolean>();
   private dying = new Set<string>();
   /** Última posição de criaturas já removidas (para números de dano que chegam depois). */
   private gone = new Map<string, { x: number; y: number; at: number }>();
@@ -204,6 +214,9 @@ export class WorldScene extends Phaser.Scene {
     // Grupo: nomes verdes + escudinho nos membros.
     const offParty = partyStore.subscribe(() => this.refreshPartyCues());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offParty);
+    // Acompanhante do Estagiário: o nome do dono pode chegar depois da criatura (lista de jogadores tardia).
+    const offCompanions = playersStore.subscribe(() => this.renameCompanions());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offCompanions);
     // Voltou para a aba: quem acumulou passos com a aba escondida vai direto ao tile (sem correr a fila acelerado).
     const offTab = onTabReturn(() => settleActors(this.actors.values(), this.creatures.values()));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offTab);
@@ -421,6 +434,7 @@ export class WorldScene extends Phaser.Scene {
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
     actor.setHp(p.hp, p.maxHp, true);
+    this.syncBotName(id, actor, p);
     this.actors.set(id, actor);
     if (isPartyMember(id)) actor.setParty(true);
     this.known.set(id, { x: p.x, y: p.y, dir: p.dir, stepMs: p.stepMs });
@@ -442,6 +456,7 @@ export class WorldScene extends Phaser.Scene {
     this.actors.delete(id);
     this.known.delete(id);
     this.lookSig.delete(id);
+    this.botOn.delete(id);
   }
 
   onPlayerChange(id: string, p: PlayerView) {
@@ -451,6 +466,7 @@ export class WorldScene extends Phaser.Scene {
     actor.setHp(p.hp, p.maxHp);
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
+    this.syncBotName(id, actor, p);
     const sig = `${p.outfit}|${p.addons}|${p.tone}|${p.sex}`;
     if (this.lookSig.get(id) !== sig) { this.lookSig.set(id, sig); actor.setLook(outfitLook(p.outfit, p.addons, p.vocation, p.tone, p.sex)); }
     const moved = p.x !== k.x || p.y !== k.y;
@@ -480,6 +496,36 @@ export class WorldScene extends Phaser.Scene {
 
     if (moved) this.moveVisual(id, actor, p.x, p.y, p.stepMs, p.dir);
     else if (turned) actor.face(p.dir);
+  }
+
+  /** Rota do Estagiário ligou/desligou: 🤖 antes do nome (o título, 2ª linha do rótulo, é reaplicado por cima). */
+  private syncBotName(id: string, actor: Actor, p: PlayerView) {
+    const bot = !!p.bot;
+    if ((this.botOn.get(id) ?? false) === bot) return;
+    this.botOn.set(id, bot);
+    actor.setName((bot ? "🤖 " : "") + p.name);
+    actor.setTitle(p.title ?? "");
+  }
+
+  /** Nome do acompanhante: "Estagiário de <dono>" (dono pelo sessionId em ownerId). */
+  private companionName(base: string, ownerId: string | undefined): string {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const owner = (ownerId && (playersStore.get().get(ownerId)?.name ?? (this.room?.state as any)?.players?.get?.(ownerId)?.name)) as string | undefined;
+    return owner ? `${base} de ${owner}` : base;
+  }
+
+  /** Dono que chegou depois do acompanhante: o rótulo vira "Estagiário de <dono>". */
+  private renameCompanions() {
+    for (const id of this.companionUnnamed) {
+      const info = this.creatureInfo.get(id), a = this.creatures.get(id);
+      if (!info || !a) { this.companionUnnamed.delete(id); continue; }
+      const base = creatureVisual(info.defId).name;
+      const name = this.companionName(base, this.companionOwner.get(id));
+      if (name === base) continue;
+      this.companionUnnamed.delete(id);
+      info.name = name;
+      a.setName(name);
+    }
   }
 
   /** Último SpellCast "charge" por conjurador (para transformar o salto do servidor em deslize). */
@@ -516,11 +562,17 @@ export class WorldScene extends Phaser.Scene {
     if (this.creatures.has(id)) return;
     const v = creatureVisual(m.defId);
     const elite = !!m.elite;
-    const name = elite ? eliteName(v.name) : v.name;
+    const companion = !!MONSTERS[m.defId]?.companion;
+    if (companion) { this.companions.add(id); if (m.ownerId) this.companionOwner.set(id, m.ownerId); }
+    const name = companion ? this.companionName(v.name, m.ownerId) : elite ? eliteName(v.name) : v.name;
+    if (companion && name === v.name) this.companionUnnamed.add(id);
     // Elite: "★" antes do nome (a cor fica com a dificuldade — ver creatureColor).
     const actor = new Actor(
       this.actorDeps(), v.look, (v.boss ? "☠ " : "") + (elite ? `${ELITE_GLYPH} ` : "") + name, false, m.x, m.y, m.dir,
-      { scale: v.scale, fontSize: v.boss ? 12 : 10, nameColor: creatureColor(v.level, this.myLevel, v.boss, elite), trim: sheetTrim(this, v.look.sheet) },
+      {
+        scale: v.scale, fontSize: v.boss ? 12 : 10, nameColor: companion ? COMPANION_NAME_COLOR : creatureColor(v.level, this.myLevel, v.boss, elite),
+        trim: sheetTrim(this, v.look.sheet), noBar: companion,
+      },
     );
     actor.setHp(m.hp, m.maxHp, true);
     this.creatures.set(id, actor);
@@ -549,12 +601,16 @@ export class WorldScene extends Phaser.Scene {
     this.creatures.delete(id);
     this.creatureKnown.delete(id);
     this.creatureInfo.delete(id);
+    this.companions.delete(id);
+    this.companionOwner.delete(id);
+    this.companionUnnamed.delete(id);
     this.dying.delete(id);
     if (this.curTarget === id) { this.curTarget = ""; setTarget(null); }
   }
 
   private recolorCreatures() {
     for (const [id, a] of this.creatures) {
+      if (this.companions.has(id)) continue;
       const i = this.creatureInfo.get(id);
       if (i) a.setName(a.label.text, creatureColor(i.level, this.myLevel, i.boss, i.elite));
     }
@@ -567,7 +623,9 @@ export class WorldScene extends Phaser.Scene {
   private isOccupiedByOther(x: number, y: number): boolean {
     for (const [id, k] of this.known) if (id !== this.myId && k.x === x && k.y === y) return true;
     // Monstros bloqueiam o movimento (posição autoritativa).
-    for (const k of this.creatureKnown.values()) if (k.x === x && k.y === y) return true;
+    for (const [id, k] of this.creatureKnown) {
+      if (k.x === x && k.y === y && this.companionOwner.get(id) !== this.myId) return true; // o próprio Estagiário não bloqueia
+    }
     return this.npcs.isNpcTile(x, y);
   }
 
@@ -596,7 +654,7 @@ export class WorldScene extends Phaser.Scene {
     const wp = this.worldPoint(ptr);
     let best: string | null = null, bestY = -Infinity;
     for (const [id, a] of this.creatures) {
-      if (a.culled || a.ghosted) continue;
+      if (a.culled || a.ghosted || this.companions.has(id)) continue; // acompanhante: o clique passa (não é alvo)
       const h = this.creatureHeight(a);
       const halfW = Math.max(TILE_SIZE / 2, (h * a.scale) / 2 * 0.6);
       const bottom = a.ry + TILE_SIZE, top = bottom - Math.max(TILE_SIZE, h * a.scale * 0.8);
@@ -999,7 +1057,9 @@ export class WorldScene extends Phaser.Scene {
       /** Reconciliações da predição do próprio jogador (diagnóstico de lag) e a espera atual pela confirmação. */
       predStats: () => ({ ...this.predictor.stats, timeoutMs: this.predictor.confirmTimeoutMs }),
       monsters: () => [...this.creatureKnown].filter(([id]) => !this.dying.has(id))
-        .map(([id, k]) => ({ id, x: k.x, y: k.y, ...this.creatureInfo.get(id) })),
+        .map(([id, k]) => ({ id, x: k.x, y: k.y, ...this.creatureInfo.get(id), ownerId: this.companionOwner.get(id) })),
+      /** Primeira linha do rótulo sobre o personagem (o nome como aparece na tela, com o 🤖 do Estagiário). */
+      nameLabel: (id: string) => this.actors.get(id)?.nameLabel() ?? null,
       ground: () => this.ground?.all() ?? [],
       /** Seta-guia do novato (null = escondida). */
       guide: () => this.guide?.shown ?? null,
@@ -1133,6 +1193,7 @@ export class WorldScene extends Phaser.Scene {
     for (const [id, i] of this.creatureInfo) {
       const k = this.creatureKnown.get(id);
       if (!k || this.dying.has(id)) continue;
+      if (MONSTERS[i.defId]?.companion) continue; // o Estagiário de alguém não é criatura de combate
       const d = chebyshev(k.x, k.y, me.tileX, me.tileY);
       if (d > BATTLE_RANGE || !inBattleView(k.x, k.y)) continue;
       const pct = hpPct(i.hp, i.maxHp);

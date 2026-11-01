@@ -79,6 +79,23 @@ describe("loot", () => {
     loot2.onKill(m2);
     expect(out2[0]).toMatchObject({ type: S2C.Feed, msg: { kind: "drop", rarity: "epic", text: "🔥 Ana dropou Colete (Épico)" } });
   });
+
+  it("onBackpackFull (Estagiário): uma vez por abate com item perdido/no chão; mochila com espaço não chama", () => {
+    const w = invWorld();
+    const p1 = w.mk("p1"), p2 = w.mk("p2");
+    const players = new Map([["p1", p1], ["p2", p2]]);
+    for (let k = 0; k < backpackCapacity(p2.level, p2.vocation) - 1; k++) w.inv.addItem(p2, makeItem("sword"));
+    const full: string[] = [];
+    const loot = new LootSystem({
+      inventory: w.inv, getPlayer: (id) => players.get(id), send: () => {}, broadcast: () => {}, rng: () => 0,
+      onBackpackFull: (p) => full.push(p.id),
+    });
+    const md = def({ loot: [{ itemId: "sword", chance: 1, min: 3, max: 3 }] });
+    loot.onKill({ s: { id: "m1", x: 4, y: 4, ownerId: "" }, def: md, damageBy: new Map([["p2", 50]]) } as unknown as Monster);
+    expect(full).toEqual(["p2"]);
+    loot.onKill({ s: { id: "m2", x: 4, y: 4, ownerId: "" }, def: md, damageBy: new Map([["p1", 50]]) } as unknown as Monster);
+    expect(full).toEqual(["p2"]);
+  });
 });
 
 function npcWorld(rng: () => number = () => 0.5) {
@@ -502,6 +519,31 @@ describe("fight modes", () => {
     c.p.x = 19;
     c.w.run(500, c.step);
     expect(c.p.targetId).toBe(c.m.s.id);
+  });
+
+  it("nearestTarget (Estagiário): acha o monstro a 12 e não a 13; sem efeito em p.targetId", () => {
+    const c = chaseWorld(1);
+    c.p.targetId = "";
+    c.p.x = 7; // 13 tiles do monstro (20,10)
+    expect(c.fight.nearestTarget(c.p, 12)).toBe("");
+    c.p.x = 8; // 12 tiles
+    expect(c.fight.nearestTarget(c.p, 12)).toBe(c.m.s.id);
+    expect(c.p.targetId).toBe("");
+  });
+
+  it("forceChase (Estagiário): persegue o alvo com p.chase desligado, sem mudar p.chase", () => {
+    const c = chaseWorld(1);
+    c.p.chase = false;
+    c.w.run(1000, c.step);
+    expect(c.p.x).toBe(10); // sem chase: parado
+    c.fight.forceChase("p", true);
+    c.w.run(6000, c.step);
+    expect(cheb(c.p.x, c.p.y, c.m.s.x, c.m.s.y)).toBe(1);
+    expect(c.p.chase).toBe(false);
+    c.fight.forceChase("p", false);
+    c.p.x = 10; c.p.y = 10;
+    c.w.run(1000, c.step);
+    expect(c.p.x).toBe(10);
   });
 
   it("seguir jogador: anda até ficar ao lado, cancela com movimento manual e ao escolher alvo", () => {

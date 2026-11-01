@@ -193,7 +193,8 @@ export class MonsterAbilitySystem {
     }
     for (const t of tiles) {
       const other = mm.monsterAt(t.x, t.y);
-      if (other?.s.ownerId && other.s.hp > 0 && mm.allowedFor(m, other.s.id)) hit.push(other.s);
+      // O acompanhante do Estagiário fica fora da área: é só visual.
+      if (other?.s.ownerId && !mm.isCompanion(other) && other.s.hp > 0 && mm.allowedFor(m, other.s.id)) hit.push(other.s);
     }
     for (const c of hit) {
       // Golpe letal não deixa condição: o jogador morto renasce no templo com a vida cheia (c.hp > 0 de novo) e, sem

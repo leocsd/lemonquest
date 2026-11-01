@@ -132,6 +132,8 @@ export interface LootOptions {
   lootSharers?: (p: PlayerState, m: Monster) => PlayerState[];
   /** Filtro do loot automático de cada jogador (shared/lootFilter.ts). Ausente = pega tudo. */
   filterOf?: (p: PlayerState) => LootFilter;
+  /** Abate em que algo não coube na mochila de `p` (caiu no chão ou se perdeu): alarme do Estagiário. */
+  onBackpackFull?: (p: PlayerState) => void;
 }
 
 /**
@@ -213,6 +215,7 @@ export class LootSystem {
     }
     if (fell > 0) this.o.send(p.id, S2C.Notice, { text: `Mochila cheia: ${fell === 1 ? "1 item caiu" : `${fell} itens caíram`} no chão.`, kind: "warn" } satisfies NoticeMsg);
     if (lost > 0) this.o.send(p.id, S2C.Notice, { text: `Mochila cheia: ${lost === 1 ? "1 item perdido" : `${lost} itens perdidos`}.`, kind: "warn" } satisfies NoticeMsg);
+    if (fell + lost > 0) this.o.onBackpackFull?.(p);
     if (got.length || roll.gold > 0 || lost > 0 || fell > 0 || skipped.length) {
       const msg: LootMsg = { x, y, monsterName, items: got, gold: roll.gold };
       if (lost > 0) msg.lostFull = lost;
@@ -245,6 +248,8 @@ export class LootSystem {
     const monsterName = m.elite ? eliteName(m.def.name) : m.def.name;
     const sharers = this.o.lootSharers?.(p, m) ?? [];
     const toGround: ItemInstance[] = [];
+    // Quem estava sem espaço para um item que acabou no chão: o alarme do Estagiário (a mochila cheia não passa por aqui no solo).
+    const semEspaco = new Set<string>();
     const parts = new Map<string, LootMsg>();
     const partOf = (to: PlayerState): LootMsg => {
       let msg = parts.get(to.id);
@@ -253,7 +258,11 @@ export class LootSystem {
     };
     for (const it of items) {
       const to = PARTY_GROUND_RARITIES.includes(it.rarity) ? undefined : this.nextSharer(partyId, sharers, it);
-      if (!to) { toGround.push(it); continue; }
+      if (!to) {
+        toGround.push(it);
+        if (!PARTY_GROUND_RARITIES.includes(it.rarity)) for (const s of sharers) if (this.o.inventory.roomFor(s.id, it.defId) < it.count) semEspaco.add(s.id);
+        continue;
+      }
       this.o.inventory.addItem(to, it);
       partOf(to).items.push(it);
     }
@@ -285,8 +294,12 @@ export class LootSystem {
       }
       // Chão cheio em volta: vai para quem matou (ou se perde, com a mochila cheia).
       if (it.defId === GOLD_ID) this.o.inventory.addGold(p, it.count);
-      else if (this.o.inventory.addItem(p, it) > 0) this.o.send(p.id, S2C.Notice, { text: "Mochila cheia: um item do loot se perdeu.", kind: "warn" } satisfies NoticeMsg);
+      else if (this.o.inventory.addItem(p, it) > 0) {
+        this.o.send(p.id, S2C.Notice, { text: "Mochila cheia: um item do loot se perdeu.", kind: "warn" } satisfies NoticeMsg);
+        semEspaco.add(p.id);
+      }
     }
+    for (const id of semEspaco) { const s = sharers.find((q) => q.id === id) ?? (id === p.id ? p : undefined); if (s) this.o.onBackpackFull?.(s); }
     for (const it of items) {
       const d = this.o.inventory.defs(it.defId);
       if (d && FEED_RARITIES.includes(it.rarity)) this.feed(`🔥 ${p.name} dropou ${d.name} (${RARITY_LABEL[it.rarity]})`, "drop", it.rarity);

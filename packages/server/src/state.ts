@@ -32,6 +32,7 @@ export class PlayerState extends Schema implements PlayerView {
   @type("string") stance: FightStance = "balanced";
   @type("boolean") chase = false;
   @type("boolean") auto = false;
+  @type("boolean") bot = false;
   @type("string") followId = "";
   @type("string") skull: Skull = "";
   @type("string") outfit = "cavaleiro";

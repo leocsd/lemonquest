@@ -13,6 +13,24 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Estagiário (2026-11-01)
+
+Bot de caça dentro do jogo, executado pelo servidor. Spec:
+[superpowers/specs/2026-11-01-estagiario-design.md](superpowers/specs/2026-11-01-estagiario-design.md); plano:
+[superpowers/plans/2026-11-01-estagiario.md](superpowers/plans/2026-11-01-estagiario.md). Decisões do dono: só com o
+cliente conectado, rendimento igual a jogar, visível para todos (🤖 e acompanhante), cura + ataque + rota + alarmes,
+turno de ~2 h por dia, qualquer lugar.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| ES-1 | Regras puras no `shared` (`estagiario.ts`): configuração e sanitização, turno, `escolherCura`, `escolherAtaque`, gravação e retomada da rota; mensagens, `PlayerState.bot`, campo salvo e o def do acompanhante | ✅ (2026-11-01) | `shared/estagiario.test.ts` |
+| ES-2 | `EstagiarioSystem` no servidor: cura, ataque (nunca jogador), turno, liga/desliga (morte, PZ, turno, queda), acompanhante imune que segue o dono e bloqueia os outros | ✅ (2026-11-01) | `server/systems/estagiario.test.ts`, `summons`, `movement`, `m4`, `WorldRoom.test.ts` |
+| ES-3 | Rota de caça: gravação andando (portais), circuito, ponto/alvo inalcançável pulado, portal trancado, pausas (manual 10 s, NPC) | ✅ (2026-11-01) | `server/systems/estagiario.test.ts` (cenário com os sistemas reais) |
+| ES-4 | Alarmes: poção, vida baixa, jogador perto, atacado, mensagem privada, turno, mochila cheia, morte | ✅ (2026-11-01) | `server/systems/estagiario.test.ts`, `social`, `inventory`, `ground` |
+| ES-5 | Cliente: janela "Estagiário" (Cura, Ataque, Rota, Alarmes), botão 🤖 no trilho, 🤖 no nome, acompanhante na tela (fora da batalha, o dono atravessa), alarmes com som/toast/título | ✅ (2026-11-01) | `ui/estagiario/store.test.ts`, `storeSync.test.ts`, `battle.test.ts`, `attentionLogic.test.ts` |
+| ES-6 | E2E: gravar, ligar, 🤖, acompanhante fora da batalha e atravessável, rato morto sem comando, desligar | ✅ (2026-11-01) | `e2e/estagiario.spec.ts` (CI da PR) |
+| ES-7 | Arte própria do acompanhante; reabastecer/vender/depositar sozinho ("refill"); rendimento menor para o bot | 🧭 | — |
+
 ## Combate e cavaleiro (2026-11-01)
 
 Pedidos do dono: "sinto falta do exori gran e exori mas do knight" (escolheu "áreas, como no Tibia"), magias mais longe,

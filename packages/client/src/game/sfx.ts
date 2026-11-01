@@ -37,6 +37,9 @@ const SOUNDS = {
   lootEpic: ["Jingles/Secret2.wav"],
   lootLegend: ["Jingles/Success3.wav"],
   fail: [S + "Menu/Cancel.wav"],
+  // Alarme do Estagiário: o mesmo arquivo do "fail" (sem asset novo), tocado mais agudo; nome próprio para o intervalo
+  // mínimo entre toques não engolir um "fail" logo depois.
+  alarme: [S + "Menu/Cancel.wav"],
 } as const;
 
 export type SfxName = keyof typeof SOUNDS;

@@ -42,3 +42,4 @@ export * from "./workFilter.ts";
 export * from "./worldIndex.ts";
 export * from "./data/excursions.ts";
 export * from "./online.ts";
+export * from "./estagiario.ts";

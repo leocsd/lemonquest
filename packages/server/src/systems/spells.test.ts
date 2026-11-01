@@ -179,6 +179,41 @@ describe("cast validation", () => {
   });
 });
 
+describe("ready e cast silencioso (Estagiário)", () => {
+  it("ready: falso em recarga própria e global, sem mana, de outra vocação, abaixo do level, morto; verdadeiro pronto", () => {
+    const w = setup();
+    const p = w.addP("p", 11, 10);
+    expect(w.spells.ready(p, "heal")).toBe(true);
+    expect(w.spells.ready(p, "bolt")).toBe(true); // não olha alvo nem alcance
+    expect(w.spells.ready(p, "taunt")).toBe(false); // vocação
+    expect(w.spells.ready(p, "big")).toBe(false); // level
+    expect(w.spells.ready(p, "nope")).toBe(false);
+    expect(w.spells.cast(p, "heal")).toMatchObject({ ok: true });
+    expect(w.spells.ready(p, "heal")).toBe(false); // recarga própria
+    expect(w.spells.ready(p, "bolt")).toBe(false); // recarga global
+    expect(w.spells.ready(p, "free")).toBe(true); // global:false ignora o global
+    w.run(GLOBAL_SPELL_COOLDOWN_MS);
+    expect(w.spells.ready(p, "bolt")).toBe(true);
+    p.mana = 5;
+    expect(w.spells.ready(p, "bolt")).toBe(false); // mana
+    p.mana = 500; p.hp = 0;
+    expect(w.spells.ready(p, "bolt")).toBe(false); // morto
+  });
+
+  it("cast silencioso: falha não envia CastResult; sem silent envia; sucesso envia sempre", () => {
+    const w = setup();
+    const p = w.addP("p", 11, 10, { mana: 0 });
+    const before = w.sent.length;
+    expect(w.spells.cast(p, "heal", undefined, { silent: true })).toMatchObject({ ok: false, reason: "mana" });
+    expect(w.sent.length).toBe(before);
+    w.spells.cast(p, "heal");
+    expect(w.results("p")).toHaveLength(1);
+    p.mana = 500;
+    expect(w.spells.cast(p, "heal", undefined, { silent: true })).toMatchObject({ ok: true });
+    expect(w.results("p")).toHaveLength(2);
+  });
+});
+
 describe("areas", () => {
   it("circle tiles: r1 = 3x3, r2 = 5x5 without corners, walls excluded", () => {
     expect(circleTiles(5, 5, 1)).toHaveLength(9);

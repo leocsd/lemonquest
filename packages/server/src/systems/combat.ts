@@ -356,6 +356,7 @@ export class CombatSystem {
   damageMonster(m: Monster, sourceId: string, amount: number, kind: DamageKind, now: number,
     o: { creditId?: string; crit?: boolean; ranged?: boolean } = {}): number {
     if (m.s.hp <= 0 || this.o.monsters.get(m.s.id) !== m) return 0;
+    if (m.def.companion) return 0; // acompanhante do Estagiário: só visual, nada o fere
     // Voltando ao spawn pela coleira (m.evading) o dano entra normalmente: ele só não revida (MonsterManager.onDamaged).
     // Resistência elemental: o próprio elemento entra pela metade (shared damageTakenMult). Ponto único: magia,
     // ataque automático, habilidade e invocação passam por aqui.
@@ -468,7 +469,7 @@ export class CombatSystem {
     const ranged = m.def.attackRange > 1;
     if (isMonsterState(target)) {
       const sm = this.o.monsters.get(target.id);
-      if (!sm || sm.s.hp <= 0) return;
+      if (!sm || sm.s.hp <= 0 || sm.def.companion) return; // o acompanhante do Estagiário não é atacável
       const raw = Math.round(rollInt(m.def.damage[0], m.def.damage[1], this.rng) * (m.dmgMult ?? 1));
       // Invocação morta não dá XP a ninguém (creditId "").
       this.damageMonster(sm, m.s.id, mitigate(raw, sm.def.armor), m.def.damageKind, now, { creditId: "", ranged });

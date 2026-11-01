@@ -17,6 +17,7 @@ import { ChallengesWindow } from "./challenges/ChallengesWindow.tsx";
 import { AgendaWindow } from "./agenda/AgendaWindow.tsx";
 import { BestiaryWindow } from "./bestiary/Bestiary.tsx";
 import { LootFilterWindow } from "./items/LootFilterWindow.tsx";
+import { EstagiarioWindow } from "./estagiario/EstagiarioWindow.tsx";
 import { Hud } from "./hud/Hud.tsx";
 import { TeleportFade } from "./fx/TeleportFade.tsx";
 import { CombatOverlays } from "./combat/CombatOverlays.tsx";
@@ -57,6 +58,7 @@ export function App() {
       <AgendaWindow />
       <BestiaryWindow />
       <LootFilterWindow />
+      <EstagiarioWindow />
       <Chat />
       <WorldMapOverlay />
       <ZoneBanner />
