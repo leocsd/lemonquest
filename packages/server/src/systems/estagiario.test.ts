@@ -77,7 +77,10 @@ function setup(o: SetupOpts = {}) {
   const mv = new MovementSystem(gradeAndar, { now: () => clock });
   mv.setExtraBlocker((x, y) => w.mm.isMonsterAt(x, y));
   mv.addPlayer(p);
-  const real = o.lutaReal ? new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => clock }) : null;
+  // Como no WorldRoom: o ataque automático do jogador (F8) consulta os monstros que o Estagiário largou.
+  const real: FightModeSystem | null = o.lutaReal
+    ? new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => clock, ignorado: (pid, mid): boolean => sys.ignorado(pid, mid) })
+    : null;
   const sys = new EstagiarioSystem({
     spells, potions, fight: real ?? fight, monsters: w.mm,
     movement: o.andar ? mv : { isIdle: () => true, pathFor: () => null, follow: () => "ok" },
@@ -657,6 +660,23 @@ describe("Estagiário: rodar a rota", () => {
     expect(w.indice()).toBe(2);
     w.tick(PONTO_TRAVADO_MS + 500);
     expect(w.indice()).toBe(0);
+  });
+
+  it("com o ataque automático (F8) ligado, o monstro largado também não é mirado de novo: a rota segue", () => {
+    const cerca = [];
+    for (let x = 13; x <= 15; x++) for (let y = 9; y <= 11; y++) if (x !== 14 || y !== 10) cerca.push({ x, y });
+    const w = setup({
+      andar: true, lutaReal: true, ratos: [{ x: 14, y: 10 }], paredes: cerca, over: { auto: true, chase: true },
+      saved: { config: rota([{ x: 10, y: 10 }, { x: 10, y: 20 }]) },
+    });
+    w.sys.onToggle(w.p, { rota: "R" });
+    w.tick(PONTO_TRAVADO_MS + 500);
+    expect(w.p.targetId).toBe("");
+    w.tick(3000);
+    expect(w.visitados.has("10,20")).toBe(true);
+    expect(w.p.targetId).toBe("");
+    expect(w.sys.ignorado("p", [...w.mm.all()][0]!.s.id)).toBe(true);
+    expect(w.sys.ignorado("outro", [...w.mm.all()][0]!.s.id)).toBe(false); // sem rota/estado: nada ignorado
   });
 
   it("alvo à vista mas inalcançável (atrás de água/cerca): larga o alvo em PONTO_TRAVADO_MS e a rota segue", () => {

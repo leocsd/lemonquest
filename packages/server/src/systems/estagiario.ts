@@ -284,7 +284,7 @@ export class EstagiarioSystem {
       if (p.targetId && this.ehJogador(p.targetId)) return;
       if (now - s.buscaEm < BUSCA_MS) return;
       s.buscaEm = now;
-      const id = this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignorado(s, m, now));
+      const id = this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignoradoEm(s, m, now));
       if (!id) return;
       p.targetId = id;
       // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador está
@@ -386,7 +386,13 @@ export class EstagiarioSystem {
     return true;
   }
 
-  private ignorado(s: Estado, id: string, now: number): boolean {
+  /** O Estagiário do jogador largou este monstro (inalcançável) há pouco: o ataque automático (F8) também o ignora. */
+  ignorado(playerId: string, monsterId: string): boolean {
+    const s = this.st.get(playerId);
+    return !!s && this.ignoradoEm(s, monsterId, this.now());
+  }
+
+  private ignoradoEm(s: Estado, id: string, now: number): boolean {
     const ate = s.ignorados.get(id);
     if (ate === undefined) return false;
     if (now < ate) return true;

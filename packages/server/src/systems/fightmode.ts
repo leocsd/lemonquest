@@ -36,6 +36,11 @@ export interface FightModeOptions {
   getPlayer?: (id: string) => PlayerState | undefined;
   send?: (sessionId: string, type: string, msg: unknown) => void;
   now?: () => number;
+  /**
+   * Monstro que o Estagiário do jogador largou por não conseguir chegar: o ataque automático também não o mira (senão
+   * miraria de novo no tick seguinte e a rota ficaria parada). Ausente ou sem rota: nada é ignorado.
+   */
+  ignorado?: (playerId: string, monsterId: string) => boolean;
 }
 
 interface ChaseState {
@@ -208,7 +213,8 @@ export class FightModeSystem {
     const range = Math.max(1, this.o.attackRange(p));
     // Parado (ou seguindo um jogador) só pega o que já dá para atacar; perseguindo, procura um pouco além.
     const reach = p.chase && !p.followId ? Math.max(range, AUTO_SEEK_DIST) : range;
-    const id = this.nearestTarget(p, reach);
+    const ign = this.o.ignorado;
+    const id = this.nearestTarget(p, reach, ign && ((m) => ign(p.id, m)));
     if (id) p.targetId = id;
   }
 
