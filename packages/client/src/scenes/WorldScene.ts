@@ -112,6 +112,10 @@ export class WorldScene extends Phaser.Scene {
   private creatureInfo = new Map<string, CreatureInfo>();
   /** Acompanhantes (o Estagiário de alguém, MonsterDef.companion): fora da battle list, do clique e da cor por level. */
   private companions = new Set<string>();
+  /** Dono de cada acompanhante (sessionId): o dono atravessa o próprio Estagiário, como no servidor (monsters.blocksPlayer). */
+  private companionOwner = new Map<string, string>();
+  /** Acompanhantes criados antes de o nome do dono chegar: o rótulo é refeito quando ele aparece no playersStore. */
+  private companionUnnamed = new Set<string>();
   /** Jogadores com a rota do Estagiário rodando (🤖 no nome). */
   private botOn = new Map<string, boolean>();
   private dying = new Set<string>();
@@ -211,6 +215,8 @@ export class WorldScene extends Phaser.Scene {
     const offParty = partyStore.subscribe(() => this.refreshPartyCues());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offParty);
     // Voltou para a aba: quem acumulou passos com a aba escondida vai direto ao tile (sem correr a fila acelerado).
+    const offCompanions = playersStore.subscribe(() => this.renameCompanions());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offCompanions);
     const offTab = onTabReturn(() => settleActors(this.actors.values(), this.creatures.values()));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offTab);
 
@@ -507,6 +513,20 @@ export class WorldScene extends Phaser.Scene {
     return owner ? `${base} de ${owner}` : base;
   }
 
+  /** Dono que chegou depois do acompanhante: o rótulo vira "Estagiário de <dono>". */
+  private renameCompanions() {
+    for (const id of this.companionUnnamed) {
+      const info = this.creatureInfo.get(id), a = this.creatures.get(id);
+      if (!info || !a) { this.companionUnnamed.delete(id); continue; }
+      const base = creatureVisual(info.defId).name;
+      const name = this.companionName(base, this.companionOwner.get(id));
+      if (name === base) continue;
+      this.companionUnnamed.delete(id);
+      info.name = name;
+      a.setName(name);
+    }
+  }
+
   /** Último SpellCast "charge" por conjurador (para transformar o salto do servidor em deslize). */
   private chargeAt = new Map<string, number>();
   private recentCharge(id: string) { return performance.now() - (this.chargeAt.get(id) ?? -1e9) < 500; }
@@ -542,8 +562,9 @@ export class WorldScene extends Phaser.Scene {
     const v = creatureVisual(m.defId);
     const elite = !!m.elite;
     const companion = !!MONSTERS[m.defId]?.companion;
-    if (companion) this.companions.add(id);
+    if (companion) { this.companions.add(id); if (m.ownerId) this.companionOwner.set(id, m.ownerId); }
     const name = companion ? this.companionName(v.name, m.ownerId) : elite ? eliteName(v.name) : v.name;
+    if (companion && name === v.name) this.companionUnnamed.add(id);
     // Elite: "★" antes do nome (a cor fica com a dificuldade — ver creatureColor).
     const actor = new Actor(
       this.actorDeps(), v.look, (v.boss ? "☠ " : "") + (elite ? `${ELITE_GLYPH} ` : "") + name, false, m.x, m.y, m.dir,
@@ -580,6 +601,8 @@ export class WorldScene extends Phaser.Scene {
     this.creatureKnown.delete(id);
     this.creatureInfo.delete(id);
     this.companions.delete(id);
+    this.companionOwner.delete(id);
+    this.companionUnnamed.delete(id);
     this.dying.delete(id);
     if (this.curTarget === id) { this.curTarget = ""; setTarget(null); }
   }
@@ -599,7 +622,9 @@ export class WorldScene extends Phaser.Scene {
   private isOccupiedByOther(x: number, y: number): boolean {
     for (const [id, k] of this.known) if (id !== this.myId && k.x === x && k.y === y) return true;
     // Monstros bloqueiam o movimento (posição autoritativa).
-    for (const k of this.creatureKnown.values()) if (k.x === x && k.y === y) return true;
+    for (const [id, k] of this.creatureKnown) {
+      if (k.x === x && k.y === y && this.companionOwner.get(id) !== this.myId) return true; // o próprio Estagiário não bloqueia
+    }
     return this.npcs.isNpcTile(x, y);
   }
 

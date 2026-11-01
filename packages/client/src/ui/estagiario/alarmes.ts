@@ -11,6 +11,7 @@ const DEDUPE_MS = 2000;
 export function alarme(m: EstagiarioAlarmeMsg): void {
   if (!m || typeof m.texto !== "string" || !m.texto) return;
   pushToast({ text: `🤖 ${m.texto}`, kind: "warn" }, DEDUPE_MS);
-  sfx.play("alarme", { rate: 1.35 });
-  notifyAttention("estagiario");
+  // Morte: o som de "died" (S2C.Died) já toca. Sussurro: o título já conta pelo S2C.Chat ("whisper").
+  if (m.tipo !== "morte") sfx.play("alarme", { rate: 1.35 });
+  if (m.tipo !== "privada") notifyAttention("estagiario");
 }

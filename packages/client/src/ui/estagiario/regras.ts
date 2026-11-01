@@ -62,12 +62,13 @@ export function fmtTurno(ms: number): string {
 
 /**
  * Turno que a janela mostra agora: o servidor manda a cada mudança e a cada 10 s com a rota rodando; entre um envio e
- * outro a conta segue a mesma regra (gasta rodando sem pausa, recarrega 1/12 com a rota desligada, até o teto).
+ * outro a conta segue a mesma regra (gasta rodando sem pausa, recarrega 1/12 desligada ou pausada, até o teto).
  */
 export function turnoMostrado(
   e: { turnoMs: number; rota: string | null; pausa: string }, recebidoEm: number, now: number, max: number, recarga: number,
 ): number {
   const dt = Math.max(0, now - recebidoEm);
-  if (e.rota !== null) return e.pausa === "" ? Math.max(0, e.turnoMs - dt) : e.turnoMs;
+  // Pausada conta como parada no servidor (avancarTurno com rodando = false): recarrega.
+  if (e.rota !== null && e.pausa === "") return Math.max(0, e.turnoMs - dt);
   return Math.min(max, e.turnoMs + dt * recarga);
 }
