@@ -73,7 +73,8 @@ export interface SpellDef {
 
 export const GLOBAL_SPELL_COOLDOWN_MS = 1000;
 
-/** Alcance (tiles) de magia no alvo sem `range` próprio. */
+/** Alcance (tiles) de magia no alvo sem `range` próprio. Pedido do dono (2026-11-01): as magias à distância ganharam +2
+ * tiles (4→6, 5→7, 6→8; a tela mostra ~15–19 tiles na vertical); golpes corpo a corpo e a Investida (4) ficaram iguais. */
 export const DEFAULT_SPELL_RANGE = 7;
 
 /** A magia precisa de um alvo (e de alcance até ele). */
@@ -155,17 +156,17 @@ export const SPELLS: Record<string, SpellDef> = {
   // ------------------------------------------------------------------ PALADINO (à distância)
   piercing_arrow: {
     id: "piercing_arrow", name: "Flecha Perfurante", words: "exori con", vocations: ["paladin"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 6, damage: { kind: "physical", base: 13, perLevel: 1, perMagic: 2, variance: 0.2 }, fx: "arrow",
+    target: "target", range: 8, damage: { kind: "physical", base: 13, perLevel: 1, perMagic: 2, variance: 0.2 }, fx: "arrow",
     description: "Dispara uma flecha certeira contra o alvo.",
   },
   arrow_rain: {
     id: "arrow_rain", name: "Chuva de Flechas", words: "exevo mas con", vocations: ["paladin"], level: 15, mana: 35, cooldownMs: 6000,
-    target: "area_target", range: 6, radius: 2, damage: { kind: "physical", base: 12, perLevel: 1.8, perMagic: 2.5, variance: 0.2 }, fx: "arrow",
+    target: "area_target", range: 8, radius: 2, damage: { kind: "physical", base: 12, perLevel: 1.8, perMagic: 2.5, variance: 0.2 }, fx: "arrow",
     description: "Uma saraivada de flechas cai sobre a área ao redor do alvo.",
   },
   holy_arrow: {
     id: "holy_arrow", name: "Flecha Sagrada", words: "exori san", vocations: ["paladin"], level: 20, mana: 30, cooldownMs: 4000,
-    target: "target", range: 6, damage: { kind: "holy", base: 25, perLevel: 3, perMagic: 3.5, variance: 0.2 }, fx: "holy",
+    target: "target", range: 8, damage: { kind: "holy", base: 25, perLevel: 3, perMagic: 3.5, variance: 0.2 }, fx: "holy",
     description: "Uma flecha banhada em luz sagrada.",
   },
   holy_wave: {
@@ -177,7 +178,7 @@ export const SPELLS: Record<string, SpellDef> = {
   // ------------------------------------------------------------------ FEITICEIRO (AoE mágico)
   fireball: {
     id: "fireball", name: "Bola de Fogo", words: "exori flam", vocations: ["sorcerer"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 5, damage: { kind: "fire", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "fire",
+    target: "target", range: 7, damage: { kind: "fire", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "fire",
     description: "Lança uma bola de fogo contra o alvo.",
   },
   energy_wave: {
@@ -187,7 +188,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   fire_burst: {
     id: "fire_burst", name: "Explosão de Fogo", words: "exevo mas flam", vocations: ["sorcerer"], level: 10, mana: 40, cooldownMs: 6000,
-    target: "area_target", range: 5, radius: 2, damage: { kind: "fire", base: 10, perLevel: 1.5, perMagic: 2.5, variance: 0.2 },
+    target: "area_target", range: 7, radius: 2, damage: { kind: "fire", base: 10, perLevel: 1.5, perMagic: 2.5, variance: 0.2 },
     condition: { id: "burn", durationMs: 4000, value: 4 }, fx: "fire",
     description: "Explode o alvo e a área ao redor, deixando os atingidos em chamas.",
   },
@@ -199,7 +200,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   energy_beam: {
     id: "energy_beam", name: "Raio de Energia", words: "exori vis", vocations: ["sorcerer"], level: 20, mana: 45, cooldownMs: 4000,
-    target: "target", range: 5, damage: { kind: "energy", base: 15, perLevel: 2, perMagic: 3, variance: 0.2 }, fx: "energy",
+    target: "target", range: 7, damage: { kind: "energy", base: 15, perLevel: 2, perMagic: 3, variance: 0.2 }, fx: "energy",
     description: "Um raio concentrado de energia contra um único alvo.",
   },
   inferno: {
@@ -213,19 +214,19 @@ export const SPELLS: Record<string, SpellDef> = {
   // Espelho da Bola de Fogo: sem ela o druida não tinha dano barato até o level 5 (só a Cura e o auto-ataque).
   ice_shard: {
     id: "ice_shard", name: "Lasca de Gelo", words: "exori frigo", vocations: ["druid"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 5, damage: { kind: "ice", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "ice",
+    target: "target", range: 7, damage: { kind: "ice", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "ice",
     description: "Dispara uma lasca de gelo contra o alvo.",
   },
   roots: {
     id: "roots", name: "Raiz", words: "exori tera", vocations: ["druid"], level: 5, mana: 20, cooldownMs: 15_000,
-    target: "target", range: 4, damage: { kind: "earth", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
+    target: "target", range: 6, damage: { kind: "earth", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
     condition: { id: "rooted", durationMs: 3000 }, fx: "root",
     description: "Raízes prendem o alvo no lugar por 3 segundos.",
   },
   ice_rain: {
     // Ciclo 15-13: recarga 6 s → 4 s (o druida lv 30 rendia 0,63 do feiticeiro em dano × sobrevivência; agora 0,74).
     id: "ice_rain", name: "Chuva de Gelo", words: "exevo mas frigo", vocations: ["druid"], level: 10, mana: 40, cooldownMs: 4000,
-    target: "area_target", range: 5, radius: 2, damage: { kind: "ice", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
+    target: "area_target", range: 7, radius: 2, damage: { kind: "ice", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 40 }, fx: "ice",
     description: "Estilhaços de gelo caem na área e deixam os inimigos mais lentos.",
   },
@@ -278,23 +279,23 @@ export const SPELLS: Record<string, SpellDef> = {
 
   explosive_arrow: {
     id: "explosive_arrow", name: "Flecha Explosiva", words: "exevo con flam", vocations: ["paladin"], level: 35, mana: 50, cooldownMs: 6000,
-    target: "area_target", range: 6, radius: 1, damage: { kind: "fire", base: 30, perLevel: 2.8, perMagic: 3, variance: 0.2 }, fx: "fire",
+    target: "area_target", range: 8, radius: 1, damage: { kind: "fire", base: 30, perLevel: 2.8, perMagic: 3, variance: 0.2 }, fx: "fire",
     description: "Uma flecha que explode no alvo e queima tudo ao redor dele.",
   },
   crippling_arrow: {
     id: "crippling_arrow", name: "Flecha Paralisante", words: "exori con hur", vocations: ["paladin"], level: 50, mana: 60, cooldownMs: 8000,
-    target: "target", range: 6, damage: { kind: "physical", base: 40, perLevel: 3, perMagic: 3.5, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "physical", base: 40, perLevel: 3, perMagic: 3.5, variance: 0.2 },
     condition: { id: "slow", durationMs: 3000, value: 50 }, fx: "arrow",
     description: "Acerta o alvo na perna: dano e 50% de lentidão por 3 segundos.",
   },
   divine_judgment: {
     id: "divine_judgment", name: "Julgamento Divino", words: "exori gran san", vocations: ["paladin"], level: 70, mana: 120, cooldownMs: 8000,
-    target: "area_target", range: 6, radius: 2, damage: { kind: "holy", base: 50, perLevel: 3.2, perMagic: 4, variance: 0.2 }, fx: "holy",
+    target: "area_target", range: 8, radius: 2, damage: { kind: "holy", base: 50, perLevel: 3.2, perMagic: 4, variance: 0.2 }, fx: "holy",
     description: "Luz sagrada cai sobre o alvo e os inimigos num raio de 2 tiles dele.",
   },
   star_rain: {
     id: "star_rain", name: "Chuva de Estrelas", words: "exevo gran mas con", vocations: ["paladin"], level: 90, mana: 160, cooldownMs: 8000,
-    target: "area_target", range: 6, radius: 3, damage: { kind: "physical", base: 60, perLevel: 3.4, perMagic: 4, variance: 0.2 }, fx: "arrow",
+    target: "area_target", range: 8, radius: 3, damage: { kind: "physical", base: 60, perLevel: 3.4, perMagic: 4, variance: 0.2 }, fx: "arrow",
     description: "Uma chuva de flechas cobre o alvo e tudo num raio de 3 tiles.",
   },
 
@@ -306,7 +307,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   sudden_death: {
     id: "sudden_death", name: "Morte Súbita", words: "exori mort", vocations: ["sorcerer"], level: 50, mana: 100, cooldownMs: 6000,
-    target: "target", range: 6, damage: { kind: "death", base: 50, perLevel: 3, perMagic: 3.4, variance: 0.2 }, fx: "death",
+    target: "target", range: 8, damage: { kind: "death", base: 50, perLevel: 3, perMagic: 3.4, variance: 0.2 }, fx: "death",
     description: "Energia da morte concentrada num único alvo.",
   },
   electric_storm: {
@@ -316,7 +317,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   eternal_flame: {
     id: "eternal_flame", name: "Chama Eterna", words: "exori gran flam", vocations: ["sorcerer"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 6, damage: { kind: "fire", base: 80, perLevel: 4.2, perMagic: 4.8, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "fire", base: 80, perLevel: 4.2, perMagic: 4.8, variance: 0.2 },
     condition: { id: "burn", durationMs: 8000, value: 30 }, fx: "fire",
     description: "O fogo mais forte do feiticeiro: dano enorme no alvo, que continua queimando.",
   },
@@ -329,7 +330,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   earth_crush: {
     id: "earth_crush", name: "Esmagar Terra", words: "exori gran tera", vocations: ["druid"], level: 50, mana: 100, cooldownMs: 6000,
-    target: "target", range: 6, damage: { kind: "earth", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "earth", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
     condition: { id: "poison", durationMs: 10_000, value: 15 }, fx: "earth",
     description: "Pedras esmagam o alvo e o deixam envenenado.",
   },
@@ -341,7 +342,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   nature_fury: {
     id: "nature_fury", name: "Fúria da Natureza", words: "exori gran frigo", vocations: ["druid"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 6, damage: { kind: "ice", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "ice", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "ice",
     description: "O gelo mais forte do druida: dano enorme no alvo e 50% de lentidão.",
   },
@@ -364,7 +365,7 @@ export const SPELLS: Record<string, SpellDef> = {
     id: "elemental_rupture", name: "Ruptura Elemental", words: "exori mas vis", vocations: ["sorcerer"], level: 100, mana: 120, cooldownMs: 20_000,
     // Responde à resistência elemental (monstro toma metade do próprio elemento): por 12 s o alvo perde a resistência e
     // toma +15% de todo dano elemental, de qualquer um do grupo.
-    target: "target", range: 5, condition: { id: "exposed", durationMs: 12_000, value: 15 }, fx: "energy",
+    target: "target", range: 7, condition: { id: "exposed", durationMs: 12_000, value: 15 }, fx: "energy",
     description: "Rompe as defesas do alvo por 12 segundos: ele perde a resistência elemental e toma 15% a mais de dano mágico.",
   },
   earth_roots: {
@@ -380,7 +381,7 @@ export const SPELLS: Record<string, SpellDef> = {
   // Palavras mágicas na "língua das fadas": todas começam com "plim". spells.test.ts confere o espelho magia a magia.
   pixie_dust: {
     id: "pixie_dust", name: "Pó de Pirlimpimpim", words: "plim", vocations: ["fairy"], level: 1, mana: 8, cooldownMs: 2000,
-    target: "target", range: 5, damage: { kind: "holy", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "sparkle",
+    target: "target", range: 7, damage: { kind: "holy", base: 11, perLevel: 0.6, perMagic: 2.5, variance: 0.2 }, fx: "sparkle",
     description: "Sopra um punhado de pó brilhante no alvo. Faz cócegas — das que doem.",
   },
   fairy_kiss: {
@@ -390,7 +391,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   soap_bubble: {
     id: "soap_bubble", name: "Bolha de Sabão", words: "plim bolha", vocations: ["fairy"], level: 5, mana: 20, cooldownMs: 15_000,
-    target: "target", range: 4, damage: { kind: "holy", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
+    target: "target", range: 6, damage: { kind: "holy", base: 6, perLevel: 1, perMagic: 2, variance: 0.2 },
     condition: { id: "rooted", durationMs: 3000 }, fx: "sparkle",
     description: "Prende o alvo dentro de uma bolha de sabão por 3 segundos. Ele fica bravo, mas fica fofo.",
   },
@@ -402,7 +403,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   confetti_rain: {
     id: "confetti_rain", name: "Chuva de Confete", words: "plim festa", vocations: ["fairy"], level: 10, mana: 40, cooldownMs: 4000,
-    target: "area_target", range: 5, radius: 2, damage: { kind: "holy", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
+    target: "area_target", range: 7, radius: 2, damage: { kind: "holy", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 40 }, fx: "sparkle",
     description: "Confete cai na área ao redor do alvo: dano e os monstros ficam lentos (param para olhar).",
   },
@@ -435,7 +436,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   rainbow_beam: {
     id: "rainbow_beam", name: "Raio Arco-Íris", words: "plim arco iris", vocations: ["fairy"], level: 50, mana: 100, cooldownMs: 6000,
-    target: "target", range: 6, damage: { kind: "energy", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "energy", base: 40, perLevel: 2.4, perMagic: 2.6, variance: 0.2 },
     condition: { id: "energy", durationMs: 10_000, value: 15 }, fx: "sparkle",
     description: "Um arco-íris inteiro na cara do alvo: dano e choque colorido por 10 segundos.",
   },
@@ -447,7 +448,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   goodnight_kiss: {
     id: "goodnight_kiss", name: "Beijo de Boa Noite", words: "plim boa noite", vocations: ["fairy"], level: 90, mana: 180, cooldownMs: 10_000,
-    target: "target", range: 6, damage: { kind: "holy", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
+    target: "target", range: 8, damage: { kind: "holy", base: 70, perLevel: 3.8, perMagic: 4.2, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 50 }, fx: "sparkle",
     description: "O beijo mais forte da Fada: dano enorme no alvo, que fica com tanto sono que anda pela metade por 4 segundos.",
   },
