@@ -1,21 +1,48 @@
 import { describe, expect, it } from "vitest";
 import {
   ALARMES, BUSCA_TILES, NOME_ROTA_MAX, PONTOS_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS,
-  alarmeLigado, avancarTurno, escolherAtaque, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso,
+  alarmeLigado, ataqueRecomendado, avancarTurno, escolherAtaque, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso,
   indiceMaisProximo, novaGravacao, sanitizeEstagiario, type RegraCura,
 } from "./estagiario.ts";
 
 describe("estagiário: configuração", () => {
-  it("padrão: poção de vida < 35%, cura da vocação < 70%, poção de mana < 40%; sem ataque e sem rotas", () => {
+  it("padrão = recomendado da vocação: cura com a poção, a cura própria, a Cura e a poção de mana; sem rotas", () => {
     const c = estagiarioPadrao("knight");
     expect(c.cura).toEqual([
       { quando: "vida", abaixoDe: 35, acao: { pocao: "hp" } },
+      { quando: "vida", abaixoDe: 55, acao: { magia: "wound_cleansing" } },
       { quando: "vida", abaixoDe: 70, acao: { magia: "light_heal" } },
-      { quando: "mana", abaixoDe: 40, acao: { pocao: "mana" } },
+      { quando: "mana", abaixoDe: 25, acao: { pocao: "mana" } },
     ]);
+    expect(estagiarioPadrao("paladin").cura.map((r) => r.acao)).toContainEqual({ magia: "divine_healing" });
     expect(estagiarioPadrao("fairy").cura[1]!.acao).toEqual({ magia: "fairy_kiss" });
-    expect([c.ataque, c.rotas, c.reservaMana, c.vidaAlarme]).toEqual([[], [], 30, 25]);
+    expect([c.rotas, c.reservaMana, c.vidaAlarme]).toEqual([[], 20, 25]);
     for (const a of ALARMES) expect(alarmeLigado(c, a), a).toBe(true);
+    // Recomendação válida para a própria vocação (sobrevive à sanitização, nada some).
+    for (const v of ["knight", "paladin", "sorcerer", "druid", "fairy"] as const) {
+      expect(sanitizeEstagiario(estagiarioPadrao(v), v), v).toEqual(estagiarioPadrao(v));
+    }
+  });
+
+  it("ataque recomendado: uma regra por magia de área (raio dela, 3 bichos nas de raio 3+, 2 nas menores), da mais forte para a mais fraca, e por último a tecla de alvo da vocação", () => {
+    expect(ataqueRecomendado("knight")).toEqual([
+      { minBichos: 3, raio: 3, magia: "earthquake" },
+      { minBichos: 2, raio: 2, magia: "whirlwind" },
+      { minBichos: 2, raio: 1, magia: "front_sweep" },
+      { minBichos: 2, raio: 1, magia: "spin_strike" },
+      { minBichos: 1, raio: 1, magia: "fam:knight:target" },
+    ]);
+    for (const v of ["knight", "paladin", "sorcerer", "druid", "fairy"] as const) {
+      const r = ataqueRecomendado(v);
+      expect(r.length, v).toBeLessThanOrEqual(REGRAS_MAX);
+      expect(r[r.length - 1]!.magia, v).toBe(`fam:${v}:target`);
+      for (const x of r) { expect(x.raio).toBeGreaterThanOrEqual(1); expect(x.raio).toBeLessThanOrEqual(4); }
+    }
+    // A onda conta pelo comprimento (até 4).
+    expect(ataqueRecomendado("sorcerer")).toContainEqual({ minBichos: 2, raio: 4, magia: "fire_wave" });
+    // Sem a lista de ataque no que veio salvo: vale o recomendado (configuração antiga não fica sem ataque).
+    expect(sanitizeEstagiario({ cura: [] }, "knight").ataque).toEqual(ataqueRecomendado("knight"));
+    expect(sanitizeEstagiario({ ataque: [] }, "knight").ataque).toEqual([]);
   });
 
   it("sanitiza: limites, magias de outra vocação, curas que não curam, ataques que curam, lixo", () => {

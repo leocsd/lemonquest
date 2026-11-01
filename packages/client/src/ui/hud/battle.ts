@@ -33,10 +33,12 @@ export interface BattleEntry {
   elite?: boolean;
   /** Criatura que chama o bando quando atacada (MonsterDef.pack): glifo ao lado do nome. */
   pack?: boolean;
+  /** Jogador com a rota do Estagiário rodando: crachá antes do nome. */
+  bot?: boolean;
 }
 
 /** Posição genérica de algo no mapa, para quem publica entradas a partir do estado. */
-export interface Positioned { id: string; name: string; x: number; y: number; hp: number; maxHp: number }
+export interface Positioned { id: string; name: string; x: number; y: number; hp: number; maxHp: number; bot?: boolean }
 
 export const chebyshev = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 
@@ -63,7 +65,7 @@ export function toBattleEntries(items: Iterable<Positioned>, kind: BattleEntry["
   const out: BattleEntry[] = [];
   for (const it of items) {
     const d = chebyshev(it.x, it.y, me.x, me.y);
-    if (d <= range && inBattleView(it.x, it.y)) out.push({ id: it.id, name: it.name, hpPct: hpPct(it.hp, it.maxHp), kind, distance: d });
+    if (d <= range && inBattleView(it.x, it.y)) out.push({ id: it.id, name: it.name, hpPct: hpPct(it.hp, it.maxHp), kind, distance: d, ...(it.bot ? { bot: true } : {}) });
   }
   return out;
 }
@@ -73,8 +75,8 @@ export function buildBattleList(players: ReadonlyMap<string, PlayerSnap>, myId: 
   const me = players.get(myId);
   if (!me) return [];
   const others = [...players.values()].filter((p) => p.id !== myId);
-  // Rota do Estagiário rodando: 🤖 antes do nome (todos veem quem está no bot).
-  const list = toBattleEntries(others.map((p) => (p.bot ? { ...p, name: `🤖 ${p.name}` } : p)), "player", me, range);
+  // Rota do Estagiário rodando: a entrada leva `bot` e a lista mostra o crachá antes do nome (todos veem quem está no bot).
+  const list = toBattleEntries(others, "player", me, range);
   for (const src of Object.values(extra)) list.push(...src.filter((e) => e.distance <= range));
   return list.sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name));
 }

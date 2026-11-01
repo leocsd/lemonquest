@@ -373,18 +373,22 @@ export class EstagiarioSystem {
 
   private atacar(p: PlayerState, s: Estado, now: number): void {
     const mm = this.o.monsters;
-    if (!mm.wild(p.targetId)) {
-      // Alvo jogador (mirado à mão): o Estagiário nunca troca nem ataca jogador; a rotação fica parada.
-      if (p.targetId && this.ehJogador(p.targetId)) return;
-      if (now - s.buscaEm < BUSCA_MS) return;
+    // Alvo jogador (mirado à mão): o Estagiário nunca troca nem ataca jogador; a rotação fica parada.
+    if (p.targetId && !mm.wild(p.targetId) && this.ehJogador(p.targetId)) return;
+    // Sempre o bicho mais perto (2026-11-01, dono): procura também com alvo vivo e troca se achar um estritamente mais
+    // perto (empate fica no atual, para não pular de um para outro).
+    if (now - s.buscaEm >= BUSCA_MS) {
       s.buscaEm = now;
       const id = this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignoradoEm(s, m, now));
-      if (!id) return;
-      p.targetId = id;
-      // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador está
-      // jogando à mão: retomar cancelaria a pausa de 1,5 s que o Move/WalkTo acabou de pôr na perseguição.
-      if (this.rodando(s)) this.o.fight.resume(p.id);
+      const cur = mm.wild(p.targetId), nxt = id ? mm.wild(id) : undefined;
+      if (id && id !== p.targetId && (!cur || (nxt && cheb(p.x, p.y, nxt.s.x, nxt.s.y) < cheb(p.x, p.y, cur.s.x, cur.s.y)))) {
+        p.targetId = id;
+        // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador está
+        // jogando à mão: retomar cancelaria a pausa de 1,5 s que o Move/WalkTo acabou de pôr na perseguição.
+        if (this.rodando(s)) this.o.fight.resume(p.id);
+      }
     }
+    if (!mm.wild(p.targetId)) return;
     if (!s.config.ataque.length) return;
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
     if (manaPct < s.config.reservaMana) return;
@@ -409,6 +413,8 @@ export class EstagiarioSystem {
       if (n !== undefined) return n;
       n = 0;
       for (const m of mm.all()) if (!m.s.ownerId && m.s.hp > 0 && cheb(p.x, p.y, m.s.x, m.s.y) <= raio) n++;
+      // Aqui já há alvo vivo: "1 bicho" vale mesmo com ele longe (magia de alvo à distância, regra recomendada no fim).
+      n = Math.max(n, 1);
       contagem.set(raio, n);
       return n;
     };

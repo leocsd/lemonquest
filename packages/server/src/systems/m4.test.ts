@@ -510,6 +510,32 @@ describe("fight modes", () => {
     expect(AUTO_SEEK_DIST).toBe(12);
   });
 
+  it("ataque automático troca para o bicho mais perto (estritamente); empate fica; mirando jogador não troca", () => {
+    const w = world({ grid: openGrid(40, 20), spawns: [{ defId: "dummy", x: 20, y: 10, count: 1, radius: 0 }, { defId: "dummy", x: 14, y: 10, count: 1, radius: 0 }], defs: () => def({ hp: 10_000, aggroRange: 0 }) });
+    w.mm.spawnAll();
+    const [longe, perto] = [...w.mm.all()].sort((a, b) => b.s.x - a.s.x);
+    const mv = new MovementSystem(openGrid(40, 20), { now: () => w.now() });
+    const fight = new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => w.now(), getPlayer: (id) => w.players.get(id) });
+    const p = w.add(player("p", 10, 10, { chase: false, stance: "balanced" }));
+    mv.addPlayer(p);
+    fight.onFightMode(p, { stance: "balanced", chase: true, auto: true });
+    p.targetId = longe!.s.id; // mirado à mão, 10 tiles
+    fight.tick(w.now(), w.players.values());
+    expect(p.targetId).toBe(perto!.s.id); // 4 tiles: troca
+    // Empate: não pula para o outro.
+    p.x = 17; // 3 de cada
+    p.targetId = longe!.s.id;
+    w.setClock(w.now() + 1000);
+    fight.tick(w.now(), w.players.values());
+    expect(p.targetId).toBe(longe!.s.id);
+    // Mirando um jogador (PvP): o automático não troca.
+    const q = w.add(player("q", 18, 11));
+    p.targetId = q.id;
+    w.setClock(w.now() + 1000);
+    fight.tick(w.now(), w.players.values());
+    expect(p.targetId).toBe("q");
+  });
+
   it("ataque automático parado (seguir desligado) só pega o que já está ao alcance", () => {
     const c = chaseWorld(1);
     c.p.targetId = "";

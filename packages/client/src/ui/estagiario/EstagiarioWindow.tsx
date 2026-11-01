@@ -2,8 +2,9 @@
 // interruptores de Cura e Ataque, a rota rodando e o turno restante; quatro abas: Cura, Ataque, Rota e Alarmes. Toda
 // edição vai por salvarConfig (junta os cliques numa mensagem só); ligar/desligar e gravar vão na hora. Abre pelo 🤖 do
 // trilho. Molde: items/LootFilterWindow.tsx.
+import { PixelIcon } from "../hud/icons.tsx";
 import {
-  ALARMES, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, spellDef, spellsFor,
+  ALARMES, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, curaRecomendada, spellDef, spellsFor,
   type AlarmeTipo, type CuraAcao, type EstagiarioConfig, type EstagiarioEstadoMsg, type RegraAtaque, type RegraCura, type Vocation,
 } from "@lemonquest/shared";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
@@ -64,7 +65,7 @@ function EstagiarioDialog() {
     <div ref={drag.ref} class={`hud-card hud-window est-win${drag.dragging ? " dragging" : ""}`} style={drag.style} role="dialog" aria-label="Estagiário">
       <div class="win-title" onPointerDown={drag.onTitleDown}>
         <span class="win-grip" aria-hidden="true" />
-        <span>🤖 Estagiário</span>
+        <span class="est-title"><PixelIcon name="cracha" size={12} /> Estagiário</span>
         <button class="win-close" onClick={closeEstagiario} data-tip="Fechar" data-tip-sub="Esc" aria-label="Fechar">×</button>
       </div>
       {!e || !me ? <div class="est-empty">Esperando o servidor…</div> : (
@@ -167,6 +168,8 @@ function AbaCura({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
         ))}
       </ol>
       <button class="est-btn" onClick={() => set(addRegraCura(c.cura))} disabled={c.cura.length >= REGRAS_MAX}>+ Regra</button>
+      {" "}
+      <button class="est-btn" onClick={() => set(curaRecomendada(voc))} data-tip="Recomendado" data-tip-sub="Troca as regras pelas recomendadas da vocação" data-testid="est-cura-recomendada">Usar recomendado</button>
       {c.cura.length >= REGRAS_MAX && <span class="est-note"> Máximo de {REGRAS_MAX} regras.</span>}
     </div>
   );
@@ -243,6 +246,7 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
         </select>
         <button class="est-btn" onClick={() => set(addRegraAtaque(c.ataque, escolhida))} disabled={c.ataque.length >= REGRAS_MAX || !escolhida}>+ Regra</button>
       </div>
+      <button class="est-btn" onClick={() => set(ataqueRecomendado(voc))} data-tip="Recomendado" data-tip-sub="Uma regra por magia de área (com o raio dela) e a tecla de alvo da vocação no fim" data-testid="est-ataque-recomendado">Usar recomendado</button>
       <label class="est-row">
         <span>Reserva de mana: não conjura ataque abaixo de</span>
         <input class="est-num" type="number" min={0} max={90} step={5} aria-label="Reserva de mana" value={c.reservaMana} onChange={(e) => salvarConfig({ ...c, reservaMana: num(e, 0, 90, c.reservaMana) })} />

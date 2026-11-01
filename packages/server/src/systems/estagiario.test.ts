@@ -247,7 +247,7 @@ describe("Estagiário: cura", () => {
   });
 
   it("vida boa e mana baixa: poção de mana; desligada, morto ou nada pronto: nada", () => {
-    const w = setup({ over: { mana: 30 } });
+    const w = setup({ over: { mana: 20 } }); // 20% < 25% (poção de mana recomendada do cavaleiro)
     w.sys.onToggle(w.p, { cura: true });
     w.tick();
     expect(w.calls).toEqual([["pocao", "mana", { silent: true }]]);
@@ -431,7 +431,7 @@ describe("Estagiário: zona de proteção, morte e desconexão", () => {
 
 describe("Estagiário: pausas", () => {
   it("movimento manual pausa a rota por PAUSA_MANUAL_MS (renovada); pausado não gasta turno; cura segue", () => {
-    const w = setup({ saved: { config: comRota() }, over: { mana: 30 } });
+    const w = setup({ saved: { config: comRota() }, over: { mana: 20 } });
     w.sys.onToggle(w.p, { cura: true, rota: "Ratos" });
     w.sys.manual("p");
     expect(w.estados().at(-1)!.pausa).toBe("manual");

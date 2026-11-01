@@ -56,9 +56,9 @@ describe("battle list: o que aparece na tela (2026-11-01)", () => {
 });
 
 describe("battle list: Estagiário (2026-11-01)", () => {
-  it("jogador com a rota do Estagiário rodando aparece com 🤖 antes do nome; os outros, como estão", () => {
+  it("jogador com a rota do Estagiário rodando vem marcado (crachá na lista); os outros, sem marca", () => {
     const p = (id: string, x: number, bot = false) => ({ id, name: id, x, y: 10, hp: 10, maxHp: 10, bot }) as unknown as PlayerSnap;
     const players = new Map([["me", p("me", 10, true)], ["ana", p("ana", 11, true)], ["bia", p("bia", 12)]]);
-    expect(buildBattleList(players, "me", {}).map((e) => e.name)).toEqual(["🤖 ana", "bia"]);
+    expect(buildBattleList(players, "me", {}).map((e) => [e.name, !!e.bot])).toEqual([["ana", true], ["bia", false]]);
   });
 });

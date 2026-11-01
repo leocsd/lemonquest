@@ -18,7 +18,7 @@ export interface OnlineEntry {
   zone?: string;
   /** No mundo sem ninguém no controle (caiu ou saiu em combate). */
   away?: boolean;
-  /** Rota do Estagiário rodando (🤖 no nome). */
+  /** Rota do Estagiário rodando (crachá ao lado do nome). */
   bot?: boolean;
 }
 

@@ -1,7 +1,7 @@
 // Estagiário (2026-11-01, spec docs/superpowers/specs/2026-11-01-estagiario-design.md): bot de caça do próprio jogo.
 // Aqui só as regras puras (o servidor decide e age em server/systems/estagiario.ts; o cliente só configura).
-import { castableBy, type SpellGroup } from "./data/spellFamilies.ts";
-import { spellDef } from "./data/spells.ts";
+import { castableBy, familiesFor, type SpellGroup } from "./data/spellFamilies.ts";
+import { spellDef, spellsFor, type SpellDef } from "./data/spells.ts";
 import type { QuickPotionKind } from "./itemRules.ts";
 import type { Vocation } from "./types.ts";
 
@@ -52,15 +52,48 @@ const cleanNome = (raw: unknown): string =>
 
 const curaDaVocacao = (v: Vocation): string => (v === "fairy" ? "fairy_kiss" : "light_heal");
 
+/**
+ * Cura recomendada por vocação (2026-11-01, pedido do dono): poção forte primeiro na vida baixa; depois a cura própria
+ * da vocação (Limpar Feridas do cavaleiro, Cura Divina do paladino — só saem quando o level libera; antes disso a regra
+ * é pulada e vale a seguinte); a Cura comum; e a poção de mana. Magos curam mais com a Cura (magic level alto).
+ */
+export function curaRecomendada(v: Vocation): RegraCura[] {
+  const hp = (abaixoDe: number): RegraCura => ({ quando: "vida", abaixoDe, acao: { pocao: "hp" } });
+  const mp = (abaixoDe: number): RegraCura => ({ quando: "mana", abaixoDe, acao: { pocao: "mana" } });
+  const magia = (abaixoDe: number, id: string): RegraCura => ({ quando: "vida", abaixoDe, acao: { magia: id } });
+  if (v === "knight") return [hp(35), magia(55, "wound_cleansing"), magia(70, "light_heal"), mp(25)];
+  if (v === "paladin") return [hp(35), magia(60, "divine_healing"), magia(70, "light_heal"), mp(35)];
+  return [hp(35), magia(65, curaDaVocacao(v)), mp(35)];
+}
+
+/** Quantos bichos a até `raio` tiles pedem a magia de área: as de raio 3+ pedem 3; as menores, 2. */
+const minBichosArea = (s: SpellDef): number => (s.target === "area_self" && (s.radius ?? 1) >= 3 ? 3 : 2);
+/** Raio (tiles) em volta do personagem que conta os bichos para a magia: o raio dela, ou o comprimento da onda. */
+const raioDaMagia = (s: SpellDef): number => Math.max(1, Math.min(4, s.target === "wave" ? s.length ?? 1 : s.radius ?? 1));
+
+/**
+ * Ataque recomendado por vocação, magia por magia (2026-11-01, pedido do dono: "por skill, área e alvo, e a quantidade
+ * de tiles que cada uma pega"): cada magia de dano em área (em volta, no alvo ou onda) vira uma regra com o raio dela e
+ * 2–3 bichos, da mais forte (level maior) para a mais fraca; a última regra é a tecla inteligente "no alvo" da vocação,
+ * que solta o golpe de alvo único mais forte pronto (do level 1 em diante). Magias acima do level são puladas sozinhas.
+ */
+export function ataqueRecomendado(v: Vocation): RegraAtaque[] {
+  const alvo = familiesFor(v).find((f) => f.id.endsWith(":target"));
+  const area = spellsFor(v)
+    .filter((s) => s.damage && !s.heal && (s.target === "area_self" || s.target === "area_target" || s.target === "wave"))
+    .sort((a, b) => b.level - a.level)
+    .slice(0, REGRAS_MAX - (alvo ? 1 : 0))
+    .map((s): RegraAtaque => ({ minBichos: minBichosArea(s), raio: raioDaMagia(s), magia: s.id }));
+  return alvo ? [...area, { minBichos: 1, raio: 1, magia: alvo.id }] : area;
+}
+
+const RESERVA_MANA: Partial<Record<Vocation, number>> = { knight: 20, paladin: 25 };
+
 export function estagiarioPadrao(v: Vocation): EstagiarioConfig {
   return {
-    cura: [
-      { quando: "vida", abaixoDe: 35, acao: { pocao: "hp" } },
-      { quando: "vida", abaixoDe: 70, acao: { magia: curaDaVocacao(v) } },
-      { quando: "mana", abaixoDe: 40, acao: { pocao: "mana" } },
-    ],
-    ataque: [],
-    reservaMana: 30,
+    cura: curaRecomendada(v),
+    ataque: ataqueRecomendado(v),
+    reservaMana: RESERVA_MANA[v] ?? 30,
     rotas: [],
     alarmes: {},
     vidaAlarme: 25,
@@ -123,8 +156,8 @@ export function sanitizeEstagiario(raw: unknown, v: Vocation, groups: readonly S
   if (a) for (const t of ALARMES) if (t !== "morte" && a[t] === false) alarmes[t] = false;
   return {
     cura: Array.isArray(r.cura) ? list(r.cura, (e) => regraCura(e, v), REGRAS_MAX) : estagiarioPadrao(v).cura,
-    ataque: list(r.ataque, (e) => regraAtaque(e, v, groups), REGRAS_MAX),
-    reservaMana: int(r.reservaMana, 0, 90, 30),
+    ataque: Array.isArray(r.ataque) ? list(r.ataque, (e) => regraAtaque(e, v, groups), REGRAS_MAX) : ataqueRecomendado(v),
+    reservaMana: int(r.reservaMana, 0, 90, RESERVA_MANA[v] ?? 30),
     rotas,
     alarmes,
     vidaAlarme: int(r.vidaAlarme, 1, 99, 25),

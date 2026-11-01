@@ -539,7 +539,6 @@ kbd {
 .sound-row + .sound-row { margin-top: 8px; }
 .sound-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--hud-gold); }
 .sound-row b { width: 34px; text-align: right; font-weight: 600; color: var(--hud-text); font-variant-numeric: tabular-nums; }
-.auto-potion-note { font-size: 11px; line-height: 1.35; color: var(--hud-muted, #8b93ad); max-width: 260px; }
 
 /* ---------- Loot automático (funil no cabeçalho da Mochila: aceso quando há item de fora ou a janela aberta) ---------- */
 .hud-section .bag-filter { width: 16px; height: 16px; }
