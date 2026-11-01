@@ -9,6 +9,7 @@ import {
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
   npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg, type ExcursionActionMsg, type SocialActionMsg, buildWorldIndex, excursionDestinations, type WorldIndex,
   DEFAULT_LOOT_FILTER, isDefaultLootFilter, sanitizeLootFilter, type LootFilter, type LootFilterMsg, type SetLootFilterMsg,
+  type EstagiarioConfigMsg, type EstagiarioToggleMsg, type EstagiarioGravarMsg,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -51,6 +52,7 @@ import { QuestSystem, type ZoneRect } from "../systems/quests.ts";
 import { QuestWorldSystem, leverDayOf, setLeverDayOf } from "../systems/questWorld.ts";
 import { killCredit, type Monster } from "../systems/monsters.ts";
 import { FightModeSystem, stanceDealt, stanceTaken } from "../systems/fightmode.ts";
+import { EstagiarioSystem } from "../systems/estagiario.ts";
 import { handleDevCommand, isDevAdmin } from "../systems/devcommands.ts";
 import { HELP_COMMANDS, handleAdminCommand, helpLines, muteRemaining } from "../systems/admin.ts";
 import { addWorkTasks, grantUnlock } from "../systems/achievements.ts";
@@ -93,6 +95,8 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
   // valia o teto global (60/s). MoveGroundItem já era limitado por dentro (GroundSystem, 10/s); aqui fica explícito (#48).
   [C2S.NpcTrade]: 10, [C2S.UseItem]: 10, [C2S.QuickPotion]: 5, [C2S.DropItem]: 5, [C2S.PickupItem]: 5, [C2S.DiscardItem]: 5,
   [C2S.MoveGroundItem]: 10, [C2S.FightMode]: 5, [C2S.SetLootFilter]: 5,
+  // Estagiário: config e gravação são raras (salvar a janela, gravar/parar); liga/desliga pode vir em sequência.
+  [C2S.EstagiarioConfig]: 2, [C2S.EstagiarioToggle]: 5, [C2S.EstagiarioGravar]: 2,
   // Vínculo do ClickUp: cada pedido é uma ida ao ClickUp (e há limite próprio de tentativas no ClickUpSystem).
   [C2S.WorkLink]: 1, [C2S.WorkUnlink]: 1,
 };
@@ -134,6 +138,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private ground!: GroundSystem;
   private npcs!: NpcSystem;
   private fight!: FightModeSystem;
+  private estagiario!: EstagiarioSystem;
   private pvp!: PvpSystem;
   private arena!: ArenaSystem;
   private training!: TrainingSystem;
@@ -399,6 +404,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       attackRange: (p) => this.combat.attackOf(p).range,
       getPlayer, send,
     });
+    this.estagiario = new EstagiarioSystem({
+      spells: this.spells, potions: this.inventory, fight: this.fight, monsters: this.monsters, movement: this.movement,
+      companions: this.summons, npcOpen: (id) => this.npcs.openFor(id) !== "",
+      spellGroups: (p) => sanitizeSpellGroups(this.records.get(p.id)?.data.spellGroups, p.vocation),
+      players: () => this.state.players.values(), send,
+    });
     this.combat.hooks = {
       xpMult: () => this.events?.xpMult() ?? 1,
       damageTakenPct: (id) => this.conditions.damageTakenPct(id),
@@ -413,6 +424,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         this.telemetry.onDeath(p.id, killerKey);
         this.conditions.clear(p.id);
         this.summons.despawnOwner(p.id);
+        this.estagiario.onDied(p);
         this.loot.feed(`💀 ${p.name} foi derrotado por ${killer}`, "death");
         this.ach?.event(p.id, "death");
       },
@@ -616,13 +628,13 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     };
     this.on<MoveMsg>(C2S.Move, (p, m) => {
       // Andar não troca o modo de luta (dono, 2026-11-01: "pode deixar seguindo direto"): só pausa a perseguição.
-      if (m?.dir != null) this.fight.cancelFollow(p);
+      if (m?.dir != null) { this.fight.cancelFollow(p); this.estagiario.manual(p.id); }
       this.fight.pause(p.id);
       this.movement.onMove(p, m);
     });
     this.on<WalkToMsg>(C2S.WalkTo, (p, m) => {
       // `stop` (clique que virou "olhar") só larga o caminho: não pausa a luta nem cancela o seguir.
-      if (m?.stop !== true) { this.fight.pause(p.id); this.fight.cancelFollow(p); }
+      if (m?.stop !== true) { this.fight.pause(p.id); this.fight.cancelFollow(p); this.estagiario.manual(p.id); }
       this.movement.onWalkTo(p, m);
     });
     this.on<TurnMsg>(C2S.Turn, (p, m) => this.movement.onTurn(p, m));
@@ -636,6 +648,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<CastMsg>(C2S.Cast, (p, m) => this.spells.onCast(p, m));
     this.on<SetHotkeysMsg>(C2S.SetHotkeys, (p, m) => this.setHotkeys(p, m));
     this.on<SetLootFilterMsg>(C2S.SetLootFilter, (p, m) => this.setLootFilter(p, m));
+    this.on<EstagiarioConfigMsg>(C2S.EstagiarioConfig, (p, m) => { this.estagiario.onConfig(p, m); this.saveEstagiario(p); });
+    this.on<EstagiarioToggleMsg>(C2S.EstagiarioToggle, (p, m) => { this.estagiario.onToggle(p, m); this.saveEstagiario(p); });
+    this.on<EstagiarioGravarMsg>(C2S.EstagiarioGravar, (p, m) => { this.estagiario.onGravar(p, m); this.saveEstagiario(p); });
     this.on<MoveItemMsg>(C2S.MoveItem, (p, m) => this.inventory.onMoveItem(p, m));
     this.on<UseItemMsg>(C2S.UseItem, (p, m) => this.inventory.onUseItem(p, m));
     this.on<QuickPotionMsg>(C2S.QuickPotion, (p, m) => this.inventory.onQuickPotion(p, m));
@@ -694,6 +709,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const players = () => this.state.players.values();
     this.steps = [
       ["pvp", () => this.pvp.tick(this.tickNow, players())],
+      // Antes da luta: o alvo que o Estagiário escolhe já é perseguido neste mesmo tick.
+      ["estagiario", () => this.estagiario.tick(this.tickNow)],
       ["fight", () => this.fight.tick(this.tickNow, [...players()].filter((p) => !this.lingering.has(p.id)))],
       ["movement", () => this.movement.tick(this.tickNow, players())],
       ["portals", () => { for (const p of players()) this.portals.check(p); }],
@@ -952,6 +969,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const barRebuilt = this.upgradeHotkeys(rec, p.vocation);
     client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
     client.send(S2C.LootFilter, { filter: this.lootFilterOf(sid) } satisfies LootFilterMsg);
+    this.estagiario.load(p, rec.data.estagiario);
+    client.send(S2C.EstagiarioEstado, this.estagiario.estado(p));
     if (auth.weakPassword) {
       client.send(S2C.Notice, {
         text: "Sua senha é curta (menos de 6 caracteres). Considere uma senha mais forte.", kind: "warn",
@@ -1127,6 +1146,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     return saved ? sanitizeLootFilter(saved) : DEFAULT_LOOT_FILTER;
   }
 
+  /** Estagiário no personagem (salvo no próximo save); o que é todo padrão sai do personagem. */
+  private saveEstagiario(p: PlayerState) {
+    const rec = this.records.get(p.id);
+    if (!rec || !this.estagiario.carregado(p.id)) return; // ainda não carregou: não apaga o que está gravado
+    const est = this.estagiario.saved(p);
+    if (est) rec.data.estagiario = est; else delete rec.data.estagiario;
+  }
+
   /**
    * C2S.SetLootFilter: guarda o filtro válido no personagem (salvo no próximo save; o padrão não é gravado) e devolve o
    * que ficou, para o cliente mostrar o mesmo que o servidor aplica.
@@ -1185,6 +1212,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (this.shuttingDown || !this.records.has(sid) || code === CloseCode.WITH_ERROR || code === CLOSE_REPLACED || code === CLOSE_TRAINING || code === CLOSE_KICKED) return; // → onLeave
     const p = this.state.players.get(sid);
     if (p) { this.movement.teleport(p, p.x, p.y); this.pauseAuto(p); } // para de andar e de escolher alvos sozinho
+    if (p) this.estagiario.desligarTudo(p); // queda (até a espera de reconexão) desliga o Estagiário; voltar não religa
     console.log(`[world] ${p?.name ?? sid} caiu (código ${code}); aguardando reconexão por ${RECONNECT_S} s`);
     const r = this.allowReconnection(client, RECONNECT_S);
     this.reconnecting.set(sid, r);
@@ -1205,6 +1233,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.quests.resend(sid);
     { const rec = this.records.get(sid), p = this.state.players.get(sid); if (rec && p) client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation)); }
     client.send(S2C.LootFilter, { filter: this.lootFilterOf(sid) } satisfies LootFilterMsg);
+    { const p = this.state.players.get(sid); if (p) client.send(S2C.EstagiarioEstado, this.estagiario.estado(p)); }
     this.ach.sendState(sid);
     this.party.resend(sid);
     this.trade.resend(sid);
@@ -1221,6 +1250,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const name = this.names.get(sid);
     const kicked = this.kicked.delete(sid) || code === CLOSE_KICKED || code === CLOSE_TRAINING;
     const ms = kicked ? 0 : this.lingerMs(sid, code === CloseCode.CONSENTED);
+    { const p = this.state.players.get(sid); if (p) this.estagiario.desligarTudo(p); } // fechou o cliente: desliga (também na permanência)
     if (ms > 0) {
       const p = this.state.players.get(sid);
       if (p) {
@@ -1318,6 +1348,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["npcs", () => this.npcs.removePlayer(sid)],
         ["quests", () => this.quests.removePlayer(sid)],
         ["fight", () => this.fight.removePlayer(sid)],
+        ["estagiario", () => this.estagiario.removePlayer(sid)],
         ["pvp", () => this.pvp.removePlayer(sid)],
         ["chat", () => clearChatState(sid)],
         ["achievements", () => this.ach.removePlayer(sid)],
@@ -1391,6 +1422,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const lock = this.pvp.savedPzLockUntil(p.id);
     if (lock) rec.data.pvpPzLockUntil = lock; else delete rec.data.pvpPzLockUntil;
     rec.data.blessed = p.blessed;
+    this.saveEstagiario(p);
     this.imbue.saveTo(sessionId, rec.data);
     const limitedBuyWeek = this.npcs.savedLimitedBuy(p.id);
     if (limitedBuyWeek) rec.data.limitedBuyWeek = limitedBuyWeek; else delete rec.data.limitedBuyWeek;

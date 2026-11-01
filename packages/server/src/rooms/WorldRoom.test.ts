@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CLOSE_REPLACED, DEFAULT_LOOT_FILTER, HOTKEYS_VERSION, OUT_OF_COMBAT_MS, defaultHotkeys, PARTY_SHARE_RANGE, PZ_LOCK_MS, RED_SKULL_KILLS, S2C, backpackCapacity, findObjects, objectTile, questChestDef } from "@lemonquest/shared";
-import { RECONNECT_S, REPLACED_REASON, TRANSFER_SAVE_MS, WorldRoom, currentWorld } from "./WorldRoom.ts";
+import { C2S, CLOSE_REPLACED, DEFAULT_LOOT_FILTER, TURNO_MAX_MS, estagiarioPadrao, HOTKEYS_VERSION, OUT_OF_COMBAT_MS, defaultHotkeys, PARTY_SHARE_RANGE, PZ_LOCK_MS, RED_SKULL_KILLS, S2C, backpackCapacity, findObjects, objectTile, questChestDef } from "@lemonquest/shared";
+import { MESSAGE_LIMITS, RECONNECT_S, REPLACED_REASON, TRANSFER_SAVE_MS, WorldRoom, currentWorld } from "./WorldRoom.ts";
 import { createAccountWithCharacter as createAccount, getCharacterByName, initDb, loadGroundRows, saveCharacter } from "../persistence/db.ts";
 import { GOLD_ID, makeItem } from "../systems/inventory.ts";
 import { MAX_PER_TILE } from "../systems/ground.ts";
@@ -412,6 +412,70 @@ describe("WorldRoom: filtro do loot automático", () => {
     r.setLootFilter(p2, { filter: { ...DEFAULT_LOOT_FILTER } }); // voltou ao padrão: o campo sai do personagem
     expect(r.records.get("h2").data.lootFilter).toBeUndefined();
     expect(sent(c2).at(-1)).toEqual(DEFAULT_LOOT_FILTER);
+  });
+});
+
+describe("WorldRoom: Estagiário", () => {
+  /** Entrega a mensagem pelo mesmo caminho do Colyseus (handler registrado com `this.on`, com o limite por tipo). */
+  const msg = (r: any, c: any, type: string, m: unknown) => r.onMessageEvents.emit(type, c, m);
+  const estados = (c: any) => c.send.mock.calls.filter(([t]: any[]) => t === S2C.EstagiarioEstado).map(([, m]: any[]) => m);
+
+  it("limites das três mensagens em MESSAGE_LIMITS", () => {
+    expect(MESSAGE_LIMITS[C2S.EstagiarioConfig]).toBe(2);
+    expect(MESSAGE_LIMITS[C2S.EstagiarioToggle]).toBe(5);
+    expect(MESSAGE_LIMITS[C2S.EstagiarioGravar]).toBe(2);
+  });
+
+  it("entra com o estado; config sanitizada volta no estado e fica salva; lixo não quebra; rota inexistente não liga; limite por segundo", () => {
+    const r = makeRoom();
+    const report = vi.spyOn(r.errors, "report");
+    createAccount("Estela", "h", "s", "knight");
+    const c = fakeClient(r, "e1");
+    r.onJoin(c, {}, auth("Estela"));
+    expect(estados(c)).toEqual([expect.objectContaining({ config: estagiarioPadrao("knight"), cura: false, rota: null, turnoMs: TURNO_MAX_MS })]);
+    const p = r.state.players.get("e1");
+
+    const config = { ...estagiarioPadrao("knight"), reservaMana: 50, ataque: [{ minBichos: 1, raio: 1, magia: "fireball" }, { minBichos: 2, raio: 2, magia: "spin_strike" }] };
+    msg(r, c, C2S.EstagiarioConfig, { config });
+    expect(estados(c).at(-1).config).toMatchObject({ reservaMana: 50, ataque: [{ minBichos: 2, raio: 2, magia: "spin_strike" }] });
+    msg(r, c, C2S.EstagiarioConfig, "lixo"); // 2ª no segundo: ignorada sem apagar nada
+    msg(r, c, C2S.EstagiarioConfig, { config: { ...config, reservaMana: 10 } }); // 3ª no segundo: descartada pelo limite
+    expect(r.estagiario.estado(p).config.reservaMana).toBe(50);
+    expect(r.records.get("e1").data.estagiario.config.reservaMana).toBe(50);
+
+    msg(r, c, C2S.EstagiarioToggle, { rota: "Não existe" });
+    msg(r, c, C2S.EstagiarioToggle, 5);
+    msg(r, c, C2S.EstagiarioToggle, { cura: "sim", ataque: 1, rota: { a: 1 } });
+    msg(r, c, C2S.EstagiarioGravar, null);
+    msg(r, c, C2S.EstagiarioGravar, { acao: "voar", nome: 7 });
+    expect(p.bot).toBe(false);
+    expect(r.estagiario.estado(p)).toMatchObject({ rota: null, cura: false, ataque: false, gravando: false });
+    expect(report).not.toHaveBeenCalled();
+
+    r.onLeave(c, 4000);
+    expect(getCharacterByName("Estela")!.data.estagiario).toEqual({ config: expect.objectContaining({ reservaMana: 50 }) });
+    const c2 = fakeClient(r, "e2");
+    r.onJoin(c2, {}, auth("Estela"));
+    expect(estados(c2)[0].config.reservaMana).toBe(50);
+  });
+
+  it("queda desliga tudo (sem religar na volta); o reconnect reenvia o estado; o turno gasto é salvo", () => {
+    const r = makeRoom();
+    createAccount("Rita", "h", "s", "knight");
+    const c = fakeClient(r, "r1");
+    r.onJoin(c, {}, auth("Rita"));
+    const p = r.state.players.get("r1");
+    r.estagiario.onToggle(p, { cura: true, ataque: true });
+    vi.spyOn(r, "allowReconnection").mockImplementation(() => Object.assign(new Promise(() => {}), { reject: vi.fn() }) as any);
+    r.onDrop(c, 1006);
+    expect(r.estagiario.estado(p)).toMatchObject({ cura: false, ataque: false, rota: null });
+    c.send.mockClear();
+    r.onReconnect(c);
+    expect(estados(c)).toEqual([expect.objectContaining({ cura: false, ataque: false })]);
+
+    r.estagiario.st.get("r1").turno = { ms: 1000, em: Date.now() };
+    r.saveAll();
+    expect(getCharacterByName("Rita")!.data.estagiario?.turno?.ms).toBeLessThan(TURNO_MAX_MS);
   });
 });
 
