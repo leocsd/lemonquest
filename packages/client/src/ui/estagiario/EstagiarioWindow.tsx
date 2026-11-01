@@ -18,8 +18,8 @@ import { meStore } from "../hud/world.ts";
 import { bindOverlay } from "../overlays.ts";
 import {
   addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, editarRascunho,
-  estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, rascunhoStore, rascunhoSujo,
-  removerRegra, renomearRota, salvarConfig, setRegra, turnoMostrado,
+  estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, ondeConta, rascunhoStore,
+  rascunhoSujo, removerRegra, renomearRota, salvarConfig, setRegra, turnoMostrado,
 } from "./store.ts";
 import "./estagiario.css";
 
@@ -119,7 +119,10 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
       <div class="est-status">
         <span class={`est-rota-now${pelaRota ? " on" : ""}`}>
           {pelaRota ? <>Rota <b>{e.rota}</b>{e.pausa ? ` · ${PAUSA_LABEL[e.pausa] ?? "pausada"}` : " · rodando"}</> : e.gravando ? "Gravando rota…" : "Sem rota"}
+          {pelaRota && e.ponto && <span class="est-ponto" data-testid="est-ponto"> · {fmtPonto(e.ponto)}</span>}
         </span>
+        {/* Por que não está agindo agora (o pausado já aparece ao lado da rota). */}
+        {e.motivo && !e.motivo.startsWith("pausado") && <span class="est-motivo" role="status" data-testid="est-motivo">{e.motivo}</span>}
         <span class="est-turno" data-tip="Turno de rota de caça" data-tip-sub="Gasta só com a rota rodando; recarrega 5 min por hora (máx. 2 h)">
           Turno {fmtTurno(turno)}
         </span>
@@ -250,8 +253,9 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
   return (
     <div class="est-pane">
       <p class="est-note">
-        Alvo: o monstro mais próximo à vista (nunca jogador). Regras de cima para baixo: conta os monstros perto de você e conjura a
-        primeira que bate e está pronta. Família e grupo escolhem a magia pronta como as teclas inteligentes.
+        Alvo: o monstro mais próximo à vista (nunca jogador). Regras de cima para baixo: conta os monstros em volta de você (em volta
+        do alvo nas magias de área no alvo; nos tiles da onda virada para o alvo nas ondas) e conjura a primeira que bate e está pronta.
+        Família e grupo escolhem a magia pronta como as teclas inteligentes.
       </p>
       {c.ataque.length === 0 && <div class="est-empty">Nenhuma regra: só o ataque básico.</div>}
       <ol class="est-rules">
@@ -262,7 +266,7 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
             <CampoNumero label="Monstros" lim={LIMITES.minBichos} value={r.minBichos} onValor={(v) => set(setRegra(c.ataque, i, { minBichos: v }))} />
             <span>bichos a até</span>
             <CampoNumero label="Raio em tiles" lim={LIMITES.raio} value={r.raio} onValor={(v) => set(setRegra(c.ataque, i, { raio: v }))} />
-            <span>tiles →</span>
+            <span>tiles {ondeConta(r.magia)} →</span>
             <select class="est-sel est-grow" aria-label="Magia" value={r.magia} onChange={(e) => set(setRegra(c.ataque, i, { magia: val(e) }))}>
               {opts(r.magia)}
             </select>
@@ -394,6 +398,7 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
         <div class="est-rec">
           <span class="est-rec-dot" aria-hidden="true" />
           <span>Gravando… {e.pontosGravados} {e.pontosGravados === 1 ? "ponto" : "pontos"}</span>
+          <span class="est-note">termine perto de onde começou (a rota é um circuito)</span>
           {nome === null ? (
             <button class="est-btn" onClick={() => { setNome(""); setErro(""); }} data-testid="est-parar">Parar e salvar</button>
           ) : (

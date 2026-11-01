@@ -562,10 +562,26 @@ export class InventorySystem {
     return now >= (this.potionCdUntil.get(p.id) ?? 0);
   }
 
-  /** Quantas poções do tipo há na mochila (todas as pilhas, de qualquer level) — o alarme de poção acabando. */
+  /**
+   * Há uma poção do tipo que o jogador pode beber agora (level e vocação; a mesma escolha de Q/E)? O Estagiário só
+   * escolhe a regra de poção com isto: com só poções de level alto na mochila, `usePotion` recusa em silêncio e a regra
+   * de poção travava a cura inteira (a magia da regra seguinte nunca saía).
+   */
+  canDrink(p: PlayerState, kind: QuickPotionKind): boolean {
+    const inv = this.inv.get(p.id);
+    return !!inv && pickQuickPotion(inv.backpack, kind, p.level, this.defs, p.vocation).index >= 0;
+  }
+
+  /**
+   * Quantas poções do tipo o jogador pode beber (todas as pilhas que o level e a vocação permitem) — o alarme de poção
+   * acabando: as que ele não bebe não seguram a caça.
+   */
   countPotions(p: PlayerState, kind: QuickPotionKind): number {
     let n = 0;
-    for (const it of this.inv.get(p.id)?.backpack ?? []) if (it && potionAmount(this.defs(it.defId), kind) > 0) n += it.count;
+    for (const it of this.inv.get(p.id)?.backpack ?? []) {
+      const d = it ? this.defs(it.defId) : undefined;
+      if (it && potionAmount(d, kind) > 0 && vocationFits(d?.vocations, p.vocation) && levelNeeded(d, p.level) === 0) n += it.count;
+    }
     return n;
   }
 

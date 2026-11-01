@@ -20,6 +20,8 @@ export const NEWS: readonly NewsEntry[] = [
       "Cura, ataque e buffs já vêm recomendados para a sua vocação: uma regra por magia de área, com o raio dela. Botão \"Usar recomendado\" em cada aba.",
       "O ataque automático sempre mira o bicho mais perto. A poção automática saiu: quem cura sozinho agora é o Estagiário.",
       "Na janela do Estagiário, mude os números à vontade e clique em Aplicar (ou Descartar): nada muda sozinho enquanto você digita.",
+      "O Estagiário não trava mais a cura com poção que você ainda não pode beber, mira as ondas no alvo e anda colado em você, na sua velocidade.",
+      "A janela do Estagiário mostra em que ponto da rota ele está e por que parou (sem alvo, reserva de mana, ponto travado...).",
     ],
   },
   {

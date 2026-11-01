@@ -14,7 +14,7 @@ const {
 const ROTA = { nome: "Ratos", pontos: [{ x: 1, y: 1 }] };
 const base = (): EstagiarioConfig => ({ ...estagiarioPadrao("knight"), rotas: [ROTA] });
 const estado = (over: Partial<EstagiarioEstadoMsg> = {}): EstagiarioEstadoMsg => ({
-  config: base(), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 1000, ...over,
+  config: base(), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 1000, motivo: "", ponto: null, ...over,
 });
 const configs = () => sent.filter((s) => s.type === C2S.EstagiarioConfig).map((s) => (s.msg as { config: EstagiarioConfig }).config);
 const sujo = () => rascunhoSujo(rascunhoStore.get()!, estagiarioStore.get()!.config);

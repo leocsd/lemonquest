@@ -83,3 +83,7 @@
 /* color com !important: o "#ui button { color: inherit }" (hud.css) vence a classe. */
 .est-pend .est-aplicar { color: #1b2030 !important; font-weight: 600; background: var(--hud-gold); border-color: var(--hud-gold); }
 .est-pend .est-aplicar:hover:not(:disabled) { background: #ffe27a; }
+
+/* Cabeçalho: ponto atual da rota e o motivo de não estar agindo (servidor: EstagiarioEstadoMsg.motivo/ponto). */
+.est-ponto { color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; }
+.est-motivo { font-size: 11px; color: #ffcf7a; font-style: italic; }
