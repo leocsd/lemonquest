@@ -59,6 +59,23 @@ export class PixelCamera {
   /** O centro suavizado já chegou ao ponto (x,y) do mundo (follow convergiu). Usado pela sonda E2E. */
   isCenteredOn(x: number, y: number) { return Math.abs(this.cx - x) < 0.5 && Math.abs(this.cy - y) < 0.5; }
 
+  /**
+   * Tiles visíveis (inclusive) na área NÃO coberta pelo HUD (barra lateral à direita, barra de baixo), presos ao mapa.
+   * Usado pela battle list ("no máximo o que aparece na tela").
+   */
+  visibleTiles(tile: number): { x0: number; y0: number; x1: number; y1: number } {
+    const ins = getHudInsets();
+    const halfW = this.cam.width / 2 / this.zoom, halfH = this.cam.height / 2 / this.zoom;
+    const cx = this.cam.scrollX + this.cam.width / 2, cy = this.cam.scrollY + this.cam.height / 2;
+    const left = cx - halfW, top = cy - halfH;
+    const right = cx + halfW - ins.right / this.zoom, bottom = cy + halfH - ins.bottom / this.zoom;
+    const maxX = Math.floor(this.mapW / tile) - 1, maxY = Math.floor(this.mapH / tile) - 1;
+    return {
+      x0: Math.max(0, Math.floor(left / tile)), y0: Math.max(0, Math.floor(top / tile)),
+      x1: Math.min(maxX, Math.floor((right - 1) / tile)), y1: Math.min(maxY, Math.floor((bottom - 1) / tile)),
+    };
+  }
+
   /** Mundo → tela (px CSS do canvas). Válido depois de follow/jumpTo neste frame. */
   toScreenX(wx: number) { return (wx - this.cam.scrollX - this.cam.width / 2) * this.zoom + this.cam.width / 2; }
   toScreenY(wy: number) { return (wy - this.cam.scrollY - this.cam.height / 2) * this.zoom + this.cam.height / 2; }

@@ -1,5 +1,13 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · lista de batalha até a borda da tela; ataque automático procura mais longe
+
+Dono: "a lista de batalha tenha os bichos com mais distância, no máximo o que aparece na tela" e "o modo de atacar
+sozinho também tenha a distância alta". A battle list mostra as criaturas e os jogadores dentro da área do mapa visível
+(fora do HUD; `PixelCamera.visibleTiles` → `setBattleView`), com teto de 20 tiles (era um quadrado fixo de 10 tiles em
+volta). O Espaço (próximo alvo) usa a mesma lista. O ataque automático no modo Seguir procura monstros a até 8 tiles
+(era 6), o alcance das magias à distância; parado continua só no alcance do ataque.
+
 ## [Não lançado] — 2026-11-01 · leitura geral de balanço aplicada
 
 Dono: "atualize tudo" (sobre os achados da leitura de magias, vocações, progressão, monstros, itens e economia).

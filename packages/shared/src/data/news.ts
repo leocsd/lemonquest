@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-01c",
+    date: "1º de novembro",
+    title: "Lista de batalha do tamanho da tela",
+    items: [
+      "A lista de batalha mostra todos os bichos que aparecem na tela (antes, só até 10 tiles). O Espaço percorre essa lista.",
+      "Ataque automático no modo Seguir procura bichos a até 8 tiles (antes 6).",
+    ],
+  },
+  {
     id: "2026-11-01b",
     date: "1º de novembro",
     title: "Balanço: druida, paladino, bênção e armas novas",

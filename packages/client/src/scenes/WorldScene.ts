@@ -59,7 +59,7 @@ import { FishBobbers } from "../game/fishing.ts";
 import { reducedMotion } from "../ui/a11y/a11y.ts";
 import { questStore } from "../ui/quests/quests.ts";
 import { spellCooldownLeft } from "../ui/hud/castbar.ts";
-import { BATTLE_RANGE, chebyshev, hpPct, setBattleEntries, clearBattleEntries, type BattleEntry } from "../ui/hud/battle.ts";
+import { BATTLE_RANGE, chebyshev, hpPct, inBattleView, setBattleEntries, setBattleView, clearBattleEntries, type BattleEntry } from "../ui/hud/battle.ts";
 import { getTarget, setTarget, subscribeTarget, toggleTarget, type Target } from "../ui/hud/target.ts";
 
 /** Último estado autoritativo conhecido de cada jogador/criatura (para detectar mudanças e checar ocupação). */
@@ -1122,17 +1122,19 @@ export class WorldScene extends Phaser.Scene {
     if (this.predictor.checkStale(k.x, k.y, now)) me.correctTo(k.x, k.y);
   }
 
-  /** Criaturas a até 10 tiles → battle list (só republica se mudou). */
+  /** Criaturas visíveis na tela (fora do HUD) → battle list (só republica se mudou). */
   private publishBattle() {
     const me = this.actors.get(this.myId);
     if (!me) return;
+    const view = this.pcam.visibleTiles(TILE_SIZE);
+    setBattleView(view);
     const list: BattleEntry[] = [];
     let sig = `${this.myLevel};`; // level do jogador muda a cor/dificuldade das criaturas
     for (const [id, i] of this.creatureInfo) {
       const k = this.creatureKnown.get(id);
       if (!k || this.dying.has(id)) continue;
       const d = chebyshev(k.x, k.y, me.tileX, me.tileY);
-      if (d > BATTLE_RANGE) continue;
+      if (d > BATTLE_RANGE || !inBattleView(k.x, k.y)) continue;
       const pct = hpPct(i.hp, i.maxHp);
       list.push({
         id, name: i.name, hpPct: pct, kind: "monster", distance: d,
