@@ -1,5 +1,11 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · acompanhante do Estagiário a 1–2 tiles
+
+Dono: "o estagiário está colando no boneco quando ele anda, pode ficar 1 ou 2 tiles distante". O acompanhante para a 2
+tiles do dono (era 1) e anda 15% mais rápido que ele (`COMPANION_STEP_FACTOR`), para não largar para trás: parado fica a
+2 tiles, andando a 2–3, sem teleportar. O caminho dele é recalculado assim que o dono muda de tile.
+
 ## [Não lançado] — 2026-11-01 · Estagiário: crachá, recomendações por magia, alvo mais perto, sem poção automática
 
 Dono: "quero um ícone mais a cara do jogo ao invés de 🤖", "uma recomendação default nas curas e ataques para cada
