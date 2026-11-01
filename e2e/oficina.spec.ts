@@ -2,7 +2,7 @@
 // (63,321) traz de volta; a Geladeira da Copa vende o Ensopado do Viajante; a carroça do Bastião tem o destino
 // "Oficina dos Engenhos" (100 de ouro); o Rato Cinzento nasce na floresta antiga perto de (47,42).
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitSettled, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitSettled, walkableNear, npcTab } from "./helpers.ts";
 
 /** Coordenadas de tools/mapgen/expansion3.mjs (VILLAGE_DOOR, WORKSHOP_ARRIVAL, WORKSHOP_EXIT, VILLAGE_RETURN, WORKSHOP_COACH). */
 const VILLAGE_DOOR = { x: 99, y: 79 };
@@ -71,7 +71,7 @@ test("Geladeira da Copa abre a loja com o Ensopado do Viajante", async ({ page }
   const win = await openNpc(page, "geladeira", "Geladeira da Copa");
   // A fala sai letra a letra (Typewriter), mas o texto inteiro já está no DOM em dois spans.
   await expect(win).toContainText("Marmita sem nome é marmita de todos.");
-  await win.getByRole("tab", { name: "Comprar" }).click();
+  await npcTab(win, "Comprar");
   const row = win.locator(".shop-row", { hasText: "Ensopado do Viajante" });
   await expect(row).toBeVisible();
   await expect(row.getByRole("button", { name: "Comprar" })).toBeVisible();
@@ -86,7 +86,7 @@ test("carroça do Bastião leva à Oficina por 100 de ouro", async ({ page }) =>
   await recordZones(page);
 
   const win = await openNpc(page, "coach_village", "Cocheiro Bastião");
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   const row = win.locator(".shop-row", { hasText: ZONE });
   await expect(row).toContainText("100");
   await row.getByRole("button", { name: "Viajar" }).click();

@@ -1,7 +1,7 @@
 // Sumidouros de ouro: encantamento na Dona Marta (ouro + material), tingimento na janela de roupas (8 000 por tom,
 // vale pra conta) e ficha de cassino na Hanna (1 000; prêmio aleatório sempre avisado com "Ficha:").
 import { expect, test, type Page } from "@playwright/test";
-import { countOf, enterGame, inventory, openNpc, recordToasts, say, seenToast, snap } from "./helpers.ts";
+import { countOf, enterGame, inventory, openNpc, recordToasts, say, seenToast, snap, npcTab } from "./helpers.ts";
 
 const gold = async (p: Page) => (await inventory(p))!.gold;
 
@@ -18,7 +18,7 @@ test("sinks: encantamento (Dona Marta), tingimento (janela de roupas) e ficha de
   // célula vira "Renovar" (o servidor reabre a janela) e a faixa de condições mostra o ícone com "10h" (sem combate,
   // o tempo não anda).
   const marta = await openNpc(page, "herbalist", "Dona Marta, Ervanária");
-  await marta.getByRole("tab", { name: "Encantar" }).click();
+  await npcTab(marta, "Encantar");
   await expect(marta.locator(".imbue-status")).toContainText("Nenhum encantamento ativo.");
   const lifesteal = marta.locator('[data-imbue="lifesteal:1"]');
   await expect(lifesteal).toContainText("5/5");

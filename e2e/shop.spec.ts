@@ -1,6 +1,6 @@
 // Loja em lote: digitar a quantidade, comprar de uma vez e o "Máx" (o maior lote que cabe no ouro e na mochila).
 import { expect, test } from "@playwright/test";
-import { countOf, enterGame, inventory, openNpc, say, snap } from "./helpers.ts";
+import { countOf, enterGame, inventory, openNpc, say, snap, npcTab } from "./helpers.ts";
 
 test("loja do Bento: compra 25 poções de uma vez e o Máx respeita o ouro", async ({ page }) => {
   await enterGame(page, "knight");
@@ -10,7 +10,7 @@ test("loja do Bento: compra 25 poções de uma vez e o Máx respeita o ouro", as
   const potions0 = await countOf(page, "health_potion");
 
   const win = await openNpc(page, "shop", "Bento, o Mercador");
-  await win.getByRole("tab", { name: "Comprar" }).click();
+  await npcTab(win, "Comprar");
   const row = win.locator(".shop-row", { hasText: "Poção de Vida" }).first();
   const qty = row.getByRole("spinbutton");
   await qty.fill("25");

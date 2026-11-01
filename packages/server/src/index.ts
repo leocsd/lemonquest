@@ -20,7 +20,9 @@ const PORT = Number(process.env.PORT ?? 2567);
 const PROD = process.env.NODE_ENV === "production";
 /** Modo E2E (Playwright): serve o cliente buildado fora de produção, para os comandos de dev funcionarem (ver e2e.ts). */
 const E2E = e2eMode();
-const SERVE_CLIENT = PROD || E2E;
+// LEMONQUEST_SERVE_CLIENT=1: o container de dev do servidor (deploy/docker/docker-compose.dev-server.yml) roda fora de
+// produção, para os comandos de dev funcionarem, mas entrega o cliente buildado numa porta só, como a produção.
+const SERVE_CLIENT = PROD || E2E || process.env.LEMONQUEST_SERVE_CLIENT === "1";
 const root = ROOT_DIR;
 const CHECKPOINT_MS = 5 * 60_000;
 

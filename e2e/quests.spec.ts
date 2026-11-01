@@ -3,7 +3,7 @@
 // Ciclo 17: o cartão de concluída diz o que abriu, o diário tem "Disponíveis" e "Em breve", o NPC explica a trava e a
 // recompensa aceita aparece no rastreador com onde caçar.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, say, setChase, setLevel, snap, targetNearest, teleport, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, inventory, me, monsters, say, setChase, setLevel, snap, targetNearest, teleport, walkableNear, npcTab } from "./helpers.ts";
 
 const RAT_SPAWNS = [{ x: 70, y: 62 }, { x: 26, y: 72 }];
 
@@ -34,7 +34,7 @@ test("missão de matar: aceitar no NPC, matar, entregar e receber a recompensa",
   await expect.poll(() => marker(page, "guard_captain")).toBe("available");
 
   let win = await talkTo(page, "guard_captain", "Capitão Rodrigo");
-  await win.getByRole("tab", { name: "Missões" }).click();
+  await npcTab(win, "Missões");
   const card = win.locator('.quest-card[data-quest="rats_barn"]');
   await expect(card).toContainText("Ratos no Celeiro");
   await card.getByRole("button", { name: "Aceitar" }).click();
@@ -112,7 +112,7 @@ test("missão de matar: aceitar no NPC, matar, entregar e receber a recompensa",
 test("NPC explica a missão travada: level e missão que faltam", async ({ page }) => {
   await enterGame(page, "druid");
   const win = await talkTo(page, "guard_captain", "Capitão Rodrigo");
-  await win.getByRole("tab", { name: "Missões" }).click();
+  await npcTab(win, "Missões");
   await expect(win.locator('.quest-card[data-quest="rats_barn"]')).toContainText("Nova");
   const locked = win.locator(".quest-locked");
   await expect(locked.locator('[data-quest="pesquisa_de_clima"]')).toContainText("Requer level 3.");
@@ -123,7 +123,7 @@ test("quadro de recompensas: 3 recompensas do dia e aceitar uma", async ({ page 
   await enterGame(page, "paladin");
   await expect.poll(() => marker(page, "bounty_board")).toBe("available");
   const win = await talkTo(page, "bounty_board", "Quadro de Recompensas");
-  await win.getByRole("tab", { name: "Recompensas" }).click();
+  await npcTab(win, "Recompensas");
   const cards = win.locator(".quest-card.bounty");
   await expect(cards).toHaveCount(3);
   await expect(cards.first()).toContainText(/Mate \d+ /);

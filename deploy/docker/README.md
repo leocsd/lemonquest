@@ -130,7 +130,8 @@ Edite `docker-compose.yml` (seção `environment`) e rode `docker compose up -d`
 | `LEMONQUEST_ADMINS` | vazio | Personagens administradores (ex.: `"Leonardo, Ana"`) — comandos de admin, veja o passo 9. |
 | `LEMONQUEST_ADMIN_ACCOUNTS` | vazio | Contas (login) que podem criar personagens com nome de admin. Sem ela, nomes de admin ainda não criados ficam reservados. |
 | `LEMONQUEST_TRUST_PROXY` | vazio | Só atrás do Caddy **com a 2567 fechada** (`"uniquelocal"`): o limite de login por IP usa o IP real do jogador. |
-| `LEMONQUEST_DEV_COMMANDS` | desligado | `"1"` liga /level, /item etc. para os admins — só fora de produção (no container, que roda em produção, nunca liga). |
+| `LEMONQUEST_DEV_COMMANDS` | desligado | `"1"` liga /level, /item etc. para os admins — só fora de produção (no container, que roda em produção, nunca liga).; o ambiente de dev do servidor (passo 11) liga. |
+| `LEMONQUEST_SERVE_CLIENT` | desligado | `"1"` faz o servidor entregar o cliente buildado fora de produção (usado pelo ambiente de dev do passo 11). |
 | `LEMONQUEST_BACKUP_COPY_DIR` | vazio | Pasta para uma **cópia extra** de cada backup (outro disco/NAS). Veja o passo 5. |
 | `LEMONQUEST_CLICKUP_TOKEN` | vazio | Token pessoal do ClickUp (só leitura) que liga o "Chegou!", as barras de sprint, a aba "Na obra" e as conquistas de tarefas ([README](../../README.md#clickup-no-jogo-opcional)). O `docker-compose.yml` já repassa a variável: só crie um `.env` ao lado dele com `LEMONQUEST_CLICKUP_TOKEN=pk_...` e rode `docker compose up -d` (**nunca** escreva o token no compose; o `.env` não vai para o git). O container precisa de saída para `api.clickup.com` (HTTPS). |
 | `LEMONQUEST_CLICKUP_POLL_MIN` | `5` | Minutos entre leituras do ClickUp (1 a 60). |
@@ -250,6 +251,43 @@ CADDYFILE=Caddyfile.domain SITE_ADDRESS=jogo.empresa.com.br ACME_EMAIL=ti@empres
 **Fechar a 2567:** com o HTTPS validado, os jogadores usam só `https://...`. Para não expor mais o HTTP direto,
 acrescente no `docker-compose.https.yml`, no serviço `lemonquest`, `ports: !override []` (e feche a 2567 no firewall).
 O Caddy alcança o jogo pela rede interna do compose.
+
+## 11. Ambiente de desenvolvimento no servidor
+
+A branch `dev` roda no mesmo servidor da produção, sem encostar nela: outra pasta (`~/lemonquest-dev`), outro projeto
+compose (`lemonquest-dev`), outro container (`lemonquest-dev`), outra imagem (`lemonquest-dev:latest`), outra porta
+(**2568**) e outro banco (`~/lemonquest-dev/docker-data`). Os comandos de dev (`/level /item /gold /heal /tp /ml /quest`)
+ficam ligados para os nomes de `LEMONQUEST_ADMINS`; o ClickUp fica desligado. A configuração está no override
+`deploy/docker/docker-compose.dev-server.yml`.
+
+**Fluxo:** PR → `dev` (merge) → atualizar o dev e testar em `http://<servidor>:2568` → PR `dev` → `main` → deploy da
+produção como sempre. O CI roda nos dois.
+
+**Montar (uma vez):**
+
+```bash
+git clone https://github.com/leocsd/lemonquest.git ~/lemonquest-dev
+cd ~/lemonquest-dev && git checkout dev
+echo "COMPOSE_FILE=docker-compose.yml:deploy/docker/docker-compose.dev-server.yml" > .env
+sudo docker compose up -d --build
+bash deploy/docker/copiar-prod-para-dev.sh     # banco de dev = backup mais recente da produção
+```
+
+Com o `.env`, todo `docker compose` dentro de `~/lemonquest-dev` já fala com o dev (nunca com a produção).
+
+| Ação | Comando (em `~/lemonquest-dev`) |
+| --- | --- |
+| **Atualizar o dev** | `git pull && sudo docker compose up -d --build` |
+| Recopiar os dados da produção (apaga o que foi feito no dev) | `bash deploy/docker/copiar-prod-para-dev.sh` |
+| Logs | `sudo docker compose logs -f` |
+| Parar / iniciar | `sudo docker compose stop` / `sudo docker compose start` |
+| Admin CLI | `sudo docker compose exec -u node lemonquest node packages/server/dist/admin.mjs <comando>` |
+
+O script de cópia só lê `~/lemonquest/docker-data/backups/` (o backup de hora em hora mais recente, já consistente) e
+substitui o banco do dev; a produção não para. Senhas e personagens são os da produção na hora da cópia.
+
+> O dev usa o mesmo `Dockerfile` da produção, só que com `NODE_ENV=development` (para os comandos de dev funcionarem) e
+> `LEMONQUEST_SERVE_CLIENT=1` (o servidor entrega o cliente buildado na mesma porta, como em produção).
 
 ## Problemas comuns
 

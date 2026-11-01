@@ -4,7 +4,7 @@
 // monstro do Pátio; o Crash Test (alavanca, sala, porta dos troféus e baú); o Caminhão de Bobinas entre a Portaria e a
 // Estação do Minério; o posto avançado da Sala de Descanso; e as capturas de cada setor.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
 
 /** Coordenadas globais de expansion7.mjs e shared/data/npcs.ts (o servidor usa o tile ou o livre mais perto). */
 const PORTARIA_ARRIVAL = { x: 232, y: 758 };
@@ -34,7 +34,7 @@ const zoneFooter = (page: Page) => page.locator(".minimap-zone-name").textConten
 
 async function travel(page: Page, npcId: string, npcName: string, dest: string, price: number) {
   const win = await openNpc(page, npcId, npcName);
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   const row = win.locator(".shop-row", { hasText: dest });
   await expect(row).toContainText(String(price));
   await row.getByRole("button", { name: "Viajar" }).click();
@@ -206,10 +206,10 @@ test("posto avançado: a Supervisora da Sala de Descanso tem depot e só viagem 
   await teleport(page, 228, 826);
   await expect.poll(() => zoneFooter(page)).toBe("Sala de Descanso");
   const win = await openNpc(page, "mt_supervisora", "Supervisora de Linha");
-  await win.getByRole("tab", { name: "Viagem" }).click();
+  await npcTab(win, "Viagem");
   await expect(win.locator(".shop-row")).toHaveCount(2);
   for (const dest of ["Vila de Pedra Clara", "Portaria da Montadora"]) await expect(win.locator(".shop-row", { hasText: dest })).toHaveCount(1);
-  await win.getByRole("tab", { name: "Depot" }).click();
+  await npcTab(win, "Depot");
   await expect(win.getByTestId("depot-search")).toBeVisible();
 });
 

@@ -12,6 +12,7 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
   em `persistence/`. Roda com `tsx` sem build (dev e serviço Windows); só o Docker usa o bundle esbuild.
 - `packages/client`: Vite + Phaser 3 (mundo: `scenes/WorldScene.ts`, `game/*`) + Preact (HUD: `ui/**`, stores em
   `ui/hud/store.ts`). O cliente nunca decide regra de jogo, só mostra. Assets curados vão para `.public/` no build.
+- `packages/desktop`: app de desktop (Tauri 2, Rust mínimo em `src-tauri/`) que abre o jogo do servidor numa janela própria; a página do jogo não recebe IPC (só `window.__lemonApp`); updater pelo GitHub Releases (tag `app-vX.Y.Z`, versão em `packages/desktop/package.json`). Spec em `docs/superpowers/specs/2026-10-31-app-desktop-tauri-design.md`.
 - Mapa: `tools/mapgen/generate.mjs` (+ `expansion*.mjs`) gera `assets/maps/world.json`, lido pelo servidor e pelo
   cliente. Expansão nunca altera tiles antigos (meta "0 tiles alterados"); spawn/NPC novo entra como objeto no fim.
   Área nova cresce para baixo (`expansion3.mjs` … `expansion6.mjs` Siderúrgica, `expansion7.mjs` Montadora, mapa 400×888) e nunca acrescenta tileset; provar com `node tools/mapgen/diff-world.mjs <world-antigo.json>` (e o atlas Lemon com
@@ -30,9 +31,13 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
     npm run newbie                                 # robô novato: as 4 vocações fazem a 1ª missão
     npm run smoke -- http://127.0.0.1:PORTA [--drop] # fumaça contra um servidor já no ar
     npm run admin -- reset-password <conta> | deleted
+    npm run app:dev -- --url http://localhost:3000   # app de desktop em dev (padrão: servidor do escritório); app:build gera o instalador
+    cargo test   (em packages/desktop/src-tauri)   # unitários do app de desktop (Rust)
 Servidor isolado para teste manual ou smoke (não toca em `data/`):
 `E2E_PORT=2870 E2E_SKIP_BUILD=1 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`
 (comandos de dev `/level /item /gold /heal /tp /ml /quest` valem para os nomes em `E2E_ADMINS`).
+Ambiente de dev no servidor: branch `dev` em `~/lemonquest-dev`, porta 2568, override
+`deploy/docker/docker-compose.dev-server.yml` (PRs entram na `dev`; `dev` → `main` vai para a produção).
 
 ## Convenções
 - Tudo em português: código, comentários (explicam o porquê), UI, docs e commits (uma linha descritiva, sem prefixo).
