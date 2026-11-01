@@ -16,6 +16,13 @@ Dono: "atualize tudo" (sobre os achados da leitura de magias, vocações, progre
 - **Poção de Mana Forte**: 800 → 1.000 de mana (360 de ouro); recuperava menos que a Grande do lv 30.
 - **Missões do lv 80+** trocam as poções de lv 30 por ouro do mesmo valor. **Galho Seco** cai do lobo (não tinha fonte).
 - Comentários com números velhos atualizados; testes de balanço com teto de 30 s.
+- **Pendências da leitura (CB-5)**: `spells.test.ts` passa a medir o dano de cavaleiro e paladino pela potência real
+  (`spellPower`), não pelo ML (a meta "o Golpe Giratório não substitui o auto-ataque" virou por segundo) e a tabela no fim
+  de `spells.ts` foi regerada; os testes das peças da Siderúrgica e da Montadora também exigem que a peça não supere a
+  referência do slot em todos os atributos (Calças Antichama armadura 4 → 3, Boné de Visitante sem armadura, Calça
+  Impermeável 45 de vida sem armadura); Amuleto de Rubi armadura 4 → 3 (dominava o de Escamas); Kappa do Lodo XP 760 →
+  830 e Poção de Vida Grande no loot (era dominado pela Carniphila); Protótipo e Fornalha ganham peças do tier 7, como o
+  Orshabaal (loot por vida 0,95 → 1,49 e 1,40 → 1,79; Orshabaal 2,37).
 Medido: pior/melhor das vocações 0,73 / 0,76 / 0,82 (lv 30/60/100); todas as metas de `vocationBalance.test.ts`,
 `arena.test.ts` e `spells.test.ts` mantidas.
 

@@ -18,6 +18,24 @@ const mats = JSON.parse(readFileSync(root + "assets/icons/materials.json", "utf8
 const all = Object.values(ITEMS);
 const weapons = all.filter((d) => d.kind === "weapon");
 
+
+/**
+ * `a` domina `b`: cada atributo de `a` (armadura, ataque, vida, mana, skills…) ≥ o de `b` e pelo menos um maior. Uma
+ * peça regional mais barata que a referência do slot não pode dominá-la (2026-11-01: o Amuleto de Rubi dominava o de
+ * Escamas e a regra só comparava o valor).
+ */
+const dominates = (a: ItemDef, b: ItemDef): boolean => {
+  const sa = (a.stats ?? {}) as Record<string, number>, sb = (b.stats ?? {}) as Record<string, number>;
+  const keys = new Set([...Object.keys(sa), ...Object.keys(sb)]);
+  let more = false;
+  for (const k of keys) {
+    const x = sa[k] ?? 0, y = sb[k] ?? 0;
+    if (x < y) return false;
+    if (x > y) more = true;
+  }
+  return more;
+};
+
 describe("ITEMS", () => {
   it("ids batem com as chaves", () => {
     for (const [k, d] of Object.entries(ITEMS)) expect(d.id).toBe(k);
@@ -467,6 +485,8 @@ describe("ciclo 19: Siderúrgica", () => {
           .reduce<ItemDef | undefined>((b, x) => (!b || x.value > b.value ? x : b), undefined)!;
         expect(ref, `${id} ${v}`).toBeDefined();
         expect(d.value, `${id} ${v}: referência ${ref.id} (${ref.value})`).toBeLessThan(ref.value);
+        // E não a supera em todos os atributos: senão seria a melhor peça do slot, só que mais barata.
+        expect(dominates(d, ref), `${id} ${v}: domina ${ref.id} em todos os atributos`).toBe(false);
       }
     }
   });
@@ -555,6 +575,8 @@ describe("ciclo 20: Montadora", () => {
           .reduce<ItemDef | undefined>((b, x) => (!b || x.value > b.value ? x : b), undefined)!;
         expect(ref, `${id} ${v}`).toBeDefined();
         expect(d.value, `${id} ${v}: referência ${ref.id} (${ref.value})`).toBeLessThan(ref.value);
+        // E não a supera em todos os atributos: senão seria a melhor peça do slot, só que mais barata.
+        expect(dominates(d, ref), `${id} ${v}: domina ${ref.id} em todos os atributos`).toBe(false);
       }
     }
   });

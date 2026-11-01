@@ -26,6 +26,10 @@ Natureza −10 de base. Testes atualizados: preço da bênção (`combatFormulas
 da Montadora (`items.test.ts`, peças Abissais 6% → 8%, no teto da regra 5–8%), contagem de exclusivos do baú
 (`quests.test.ts`, + armas Carmesim), barra recomendada do paladino 7 → 8 (`hotkeys.test.ts`). Pior/melhor das vocações:
 0,73 / 0,76 / 0,82. Valor de loot dos chefes por script (chance × quantidade × preço de venda; ouro travado).
+CB-5 (mesmo dia): `spells.test.ts` com `powerEstimate` (dano de cavaleiro/paladino pelo `spellPower`; cura pelo ML) —
+só a meta do Golpe Giratório mudou de forma (por segundo, ≤ 1,2× o auto-ataque); `items.test.ts` ganhou `dominates`
+(peça regional não supera a referência do slot em todos os atributos), que achou as Calças Antichama, o Boné de
+Visitante e a Calça Impermeável. Suíte inteira: 1700 passando.
 
 ## Resultados — cavaleiro com exori gran/exori mas, alcance das magias e modo Seguir (2026-11-01)
 

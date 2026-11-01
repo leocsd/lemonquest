@@ -688,7 +688,8 @@ add({ id: "capacete_fundidor", name: "Capacete de Fundidor", kind: "helmet", slo
   description: "Aba larga e viseira contra respingo. Gusa no capacete é sinal de experiência." });
 add({ id: "botas_fundidor", name: "Botas de Fundidor", kind: "boots", slot: "boots", icon: { ...gear("boots", "steel"), tint: 0xff9a50 }, level: 50, stats: { armor: 2, hpMax: 50, speed: 8 }, value: 22000,
   description: "Biqueira de aço e sola que não derrete. Golem nenhum pisa no seu pé." });
-add({ id: "calca_antichama", name: "Calças Antichama", kind: "legs", slot: "legs", icon: { ...gear("legs_pants", "steel"), tint: 0xffc080 }, level: 60, stats: { armor: 4, hpMax: 90 }, value: 26000,
+// armadura 4 → 3 (2026-11-01): dominava as Calças da Coroa (4) do cavaleiro
+add({ id: "calca_antichama", name: "Calças Antichama", kind: "legs", slot: "legs", icon: { ...gear("legs_pants", "steel"), tint: 0xffc080 }, level: 60, stats: { armor: 3, hpMax: 90 }, value: 26000,
   description: "Tecido grosso que não pega fogo. Pega fuligem, mas fogo, não." });
 add({ id: "botas_termicas", name: "Botas Térmicas", kind: "boots", slot: "boots", icon: { ...gear("boots", "steel"), tint: 0xff7050 }, level: 70, stats: { armor: 2, hpMax: 80, manaMax: 40, speed: 9 }, value: 45000,
   description: "Quentes no pé e frias na sola. Ninguém na usina entende como." });
@@ -697,7 +698,8 @@ add({ id: "avental_forjador", name: "Avental do Forjador", kind: "armor", slot: 
 add({ id: "elmo_laminador", name: "Elmo do Laminador", kind: "helmet", slot: "helmet", icon: { ...gear("helmet_horned", "steel"), tint: 0xffa070 }, level: 85, stats: { armor: 4, hpMax: 120 }, value: 48000,
   description: "Saiu inteiro do laminador novo. A chapa era fina; o elmo, nem tanto." });
 trinket("anel_alto_forno", "Anel do Alto-Forno", "ring", "gold", 60, { crit: 3, hpRegen: 4, manaRegen: 2, speed: 2 }, 48000, "Forjado na boca do Alto-Forno. Segura o calor por você.");
-trinket("amuleto_rubi", "Amuleto de Rubi", "amulet", "dragon", 70, { armor: 4, hpMax: 240, manaMax: 60 }, 42000, "Um rubi do fundo da panela de aço, preso numa corrente que nunca esfria.");
+// Armadura 4 → 3 (2026-11-01): com 4 dominava o Amuleto de Escamas (lv 55, 45 mil) em todos os atributos.
+trinket("amuleto_rubi", "Amuleto de Rubi", "amulet", "dragon", 70, { armor: 3, hpMax: 240, manaMax: 60 }, 42000, "Um rubi do fundo da panela de aço, preso numa corrente que nunca esfria.");
 
 // ---------------------------------------------------------------------------
 // Montadora (ciclo 20, lv 10–120): materiais da linha (o Cromo Puro entra no refino +4/+5 do tier 8 e no encantamento
@@ -723,9 +725,11 @@ add({ id: "mt_brasa_estufa", name: "Brasa da Estufa", kind: "quest", value: 0, i
 add({ id: "mt_chave_prototipo", name: "Chave do Protótipo", kind: "quest", value: 0, icon: img("Treasure/GoldKey.png", 0xf2e14a), description: "Não liga nenhum carro conhecido. Prova de que O Protótipo caiu." });
 // Equipamento de todas as vocações (o escudo, só do cavaleiro: o paladino só tem o Escudo de Madeira, e um escudo geral
 // de 2.900 viraria o "melhor" dele no modelo). Recompensa de missão e loot raro de comum: entram no Baú de Recompensa.
-add({ id: "mt_bone_visitante", name: "Boné de Visitante", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 12, stats: { armor: 1, speed: 2 }, value: 95,
+// sem armadura (2026-11-01): dominava o Elmo de Bronze
+add({ id: "mt_bone_visitante", name: "Boné de Visitante", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 12, stats: { speed: 2 }, value: 95,
   description: "Amarelo, com a aba torta. Com ele ninguém pergunta quem você é." });
-add({ id: "mt_calca_impermeavel", name: "Calça Impermeável", kind: "legs", slot: "legs", icon: gear("legs_pants", "bronze"), level: 20, stats: { armor: 2, hpMax: 25 }, value: 850,
+// Sem armadura e com mais vida (2026-11-01): com armadura 2 e 25 de vida dominava as Grevas de Ferro do cavaleiro (1).
+add({ id: "mt_calca_impermeavel", name: "Calça Impermeável", kind: "legs", slot: "legs", icon: gear("legs_pants", "bronze"), level: 20, stats: { hpMax: 45 }, value: 850,
   description: "Espuma não passa, água também não. O suor, infelizmente, também não." });
 add({ id: "mt_escudo_porta", name: "Escudo de Porta", kind: "shield", slot: "shield", icon: gear("shield_kite", "steel"), vocations: ["knight"], level: 30, stats: { armor: 2, shield: 3, hpMax: 30 }, value: 2900,
   description: "Já foi a porta de um carro. A maçaneta ainda funciona." });

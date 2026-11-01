@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SPELLS, spellsFor, spellByWords, spellMana, type ConditionId, type SpellDef, type SpellFormula } from "./spells.ts";
 import { MONSTERS } from "./monsters.ts";
-import { MANA_SHIELD_ABSORB, baseStats, playerDamageRange, weaponDamageRange } from "../formulas.ts";
+import { MANA_SHIELD_ABSORB, PLAYER_ATTACK_MS, baseStats, playerDamageRange, spellPower, weaponDamageRange } from "../formulas.ts";
 import { HOTKEY_MAX } from "../hotkeys.ts";
 import { skillEstimate } from "../skills.ts";
 import { ITEMS } from "./items.ts";
@@ -17,11 +17,21 @@ const CONDITIONS: ConditionId[] = [
 /** Magic level estimado (shared/skills.ts; ciclo 15, pela produção: mago 20/29/37 nos lv 30/60/100 — era 0,75 × level). */
 const mlEstimate = (voc: Vocation, level: number): number => skillEstimate(voc, level).magic;
 
-const avg = (f: SpellFormula, voc: Vocation, level: number) => f.base + level * f.perLevel + mlEstimate(voc, level) * f.perMagic;
+/**
+ * Potência estimada das magias de DANO, como no servidor (`spellPower`): cavaleiro e paladino usam a skill da arma e o
+ * level quando rendem mais que o ML (sem o bônus do equipamento). Cura usa só o ML. Até 2026-11-01 a tabela usava o ML
+ * para tudo e subestimava o dano do cavaleiro e do paladino (Golpe Frontal lv 35: 146 na tabela, ~213 no jogo).
+ */
+const powerEstimate = (voc: Vocation, level: number): number => {
+  const sk = skillEstimate(voc, level);
+  return spellPower(voc, sk.magic, voc === "paladin" ? sk.distance : sk.melee, 0, level);
+};
+const avg = (f: SpellFormula, voc: Vocation, level: number, heal = false) =>
+  f.base + level * f.perLevel + (heal ? mlEstimate(voc, level) : powerEstimate(voc, level)) * f.perMagic;
 /** Valor esperado da magia para uma vocação (padrão: a primeira que a conjura). */
 const value = (s: SpellDef, level = s.level, voc: Vocation = s.vocations[0]!) => {
-  const f = s.damage ?? s.heal;
-  return f ? avg(f, voc, level) : 0;
+  if (s.damage) return avg(s.damage, voc, level);
+  return s.heal ? avg(s.heal, voc, level, true) : 0;
 };
 /** Auto-ataque médio de quem usa a melhor arma da vocação liberada no level (o punho fica bem abaixo de propósito). */
 const autoAvg = (voc: Vocation, level: number) => {
@@ -183,8 +193,8 @@ describe("SPELLS", () => {
           voc: v, lvl: s.level, spell: s.name, words: s.words, ML: mlEstimate(v, s.level),
           mana: s.mana, "mana%": Math.round((s.mana / maxMana) * 100), cd: s.cooldownMs / 1000,
           dmg: s.damage ? Math.round(avg(s.damage, v, s.level)) : "",
-          heal: s.heal ? Math.round(avg(s.heal, v, s.level)) : "",
-          "heal%hp": s.heal ? Math.round((avg(s.heal, v, s.level) / maxHp) * 100) : "",
+          heal: s.heal ? Math.round(avg(s.heal, v, s.level, true)) : "",
+          "heal%hp": s.heal ? Math.round((avg(s.heal, v, s.level, true) / maxHp) * 100) : "",
           "x auto": s.damage ? +(avg(s.damage, v, s.level) / autoAvg(v, s.level)).toFixed(1) : "",
         };
       });
@@ -281,7 +291,10 @@ describe("SPELLS", () => {
     it("AoE de mago no level 30 supera a do paladino; Golpe Giratório não substitui o auto-ataque", () => {
       expect(value(SPELLS.inferno)).toBeGreaterThan(value(SPELLS.holy_wave));
       expect(value(SPELLS.blizzard)).toBeGreaterThan(value(SPELLS.holy_wave));
-      expect(value(SPELLS.spin_strike, 20)).toBeLessThan(autoAvg("knight", 20) * 1.6);
+      // Por segundo (2026-11-01, com a potência real do cavaleiro): o giro a cada 4 s rende no máximo 1,2× o auto-ataque
+      // a cada 2 s (PLAYER_ATTACK_MS). Era "por golpe < 1,6× o auto", que só passava porque a tabela usava o ML.
+      const spinPerSec = value(SPELLS.spin_strike, 20) / (SPELLS.spin_strike!.cooldownMs / 1000);
+      expect(spinPerSec).toBeLessThan((autoAvg("knight", 20) / (PLAYER_ATTACK_MS / 1000)) * 1.2);
     });
 
     it("mana limita os magos, mas nenhuma magia custa mais de 35% da mana máxima", () => {

@@ -1306,7 +1306,9 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
   // Grutas Alagadas (lv 35–55)
   kappa: {
-    id: "kappa", name: "Kappa do Lodo", level: 40, hp: 640, xp: 760, damage: [34, 70], damageKind: "ice", armor: 12,
+    // 2026-11-01: XP 760 → 830 e Poção de Vida Grande no loot: com mais vida e armadura que a Carniphila (mesmo level),
+    // dava a mesma XP e metade do loot — ninguém tinha motivo para caçá-lo.
+    id: "kappa", name: "Kappa do Lodo", level: 40, hp: 640, xp: 830, damage: [34, 70], damageKind: "ice", armor: 12,
     abilities: [
       ability.bolt({ name: "Jato de Água", range: 4, min: 40, max: 75, kind: "ice", fx: "ice", cooldownMs: 9000, condition: { id: "slow", durationMs: 3000, value: 30 } }),
     ],
@@ -1318,6 +1320,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "gem_green", chance: 0.03 },
       { itemId: "health_potion_medium", chance: 0.15 },
       { itemId: "mana_potion_medium", chance: 0.1 },
+      { itemId: "health_potion_large", chance: 0.08 },
     ],
     sprite: grid4(M + "KappaGreen/SpriteSheet.png"),
   },
@@ -1834,6 +1837,10 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "elmo_laminador", chance: 0.3 },
       { itemId: "boots_haste", chance: 0.24 },
       { itemId: "amulet_orshabaal", chance: 0.1 },
+      // Armas do tier 7 como as do Orshabaal (2026-11-01), pelo mesmo motivo do Protótipo.
+      { itemId: "demon_axe", chance: 0.12 },
+      { itemId: "destruction_wand", chance: 0.12 },
+      { itemId: "ancient_root_rod", chance: 0.12 },
     ],
     // Walk.png 744x62 = 12 frames de 62x62: a "chaminé viva" laranja do pack, sem recolorir.
     sprite: strip(B + "GiantBamboo2/Walk.png", 62, 12, { scale: 2 }),
@@ -2092,13 +2099,19 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "mt_chave_prototipo", chance: 1 },
       { itemId: "abyss_shard", chance: 1, min: 1, max: 3 },
       { itemId: "mt_cromo", chance: 1, min: 3, max: 6 },
-      { itemId: "mt_amuleto_cromado", chance: 0.25 },
+      { itemId: "mt_amuleto_cromado", chance: 0.4 },
       { itemId: "abyss_helmet", chance: 0.08 },
       { itemId: "abyss_archer_helmet", chance: 0.08 },
       { itemId: "abyss_mage_helmet", chance: 0.08 },
       { itemId: "spellbook_abyss", chance: 0.08 },
-      { itemId: "boots_haste", chance: 0.2 },
-      { itemId: "amulet_orshabaal", chance: 0.08 },
+      { itemId: "boots_haste", chance: 0.3 },
+      { itemId: "amulet_orshabaal", chance: 0.15 },
+      // Peças do tier 7 como as do Orshabaal (2026-11-01): com as Abissais no teto de 8%, o Protótipo rendia menos da
+      // metade do loot por vida do Orshabaal, chefe do mesmo level.
+      { itemId: "demon_armor", chance: 0.15 },
+      { itemId: "ferumbras_armor", chance: 0.15 },
+      { itemId: "dragon_scale_legs", chance: 0.15 },
+      { itemId: "celestial_bow", chance: 0.12 },
     ],
     // Walk.png 576x48 = 6 frames de 96x48 (Samurai Rubro gigante recolorido em limão e cromo: tools/monsters/recolor.mjs).
     sprite: strip("monsters/MtPrototype.png", 48, 6, { frameWidth: 96, scale: 1.6 }),

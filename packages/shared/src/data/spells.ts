@@ -495,61 +495,64 @@ export function spellByWords(text: string): SpellDef | undefined {
 }
 
 /*
- * Tabela de balanceamento (valor esperado no level de desbloqueio; ML estimado antigo: mago 0.75*lvl, paladino lvl/4,
- * cavaleiro lvl/7; sem o spellPower de cavaleiro/paladino, que no jogo rende bem mais).
- * Gerada pelo console.table do spells.test.ts. dmg/heal = média por alvo, sem variância.
+ * Tabela de balanceamento, gerada pelo console.table do spells.test.ts (2026-11-01): valor esperado no level de
+ * desbloqueio, média por alvo, sem variância nem armadura. Dano com a potência das magias (`spellPower`: cavaleiro e
+ * paladino pela skill da arma e o level; magos pelo ML de `skillEstimate`); cura pelo ML. Regerar ao mexer em números.
  *
- * magia                voc       lvl  mana  cd(s)  esperado
- * CURA (todas as vocações; mana = 20 + 1.5*level, máx. 70; cd 1 s; fórmula 20 + 1.23*level + 3*ML, ±15% desde 2026-10-27;
- *   as linhas abaixo ainda trazem os números da fórmula antiga — a tabela atual sai no console.table do spells.test.ts)
- * Cura (exura)          todas    1   ~22     1    lv1 ~24 (16% HP); lv10 mago ~47 (24%) pal ~45 (19%) cav ~44 (16%)
- *                                 lv20 (mana 50): mago ~73 (30%), pal ~68 (20%), cav ~67 (15%)
- *                                 lv30 (mana 65): mago ~98 (33%), pal ~91 (21%), cav ~90 (15%)
- *                                 (antes: 22 + 2*level + 1.8*ML → mago 36% no lv20 e 41% no lv30)
- * Cura em Grupo        druid     15    80     5    cura 72,5/alvo (r4); lv 90 (ML 67): ~363 a cada 5 s  [antes 50 mana, cd 8, 52/alvo]
- * Pés Ligeiros (utani hur)  todas  5  20  15    haste +30%, 30 s (correr; fora do cooldown global)
- * Removidas: Cura Intensa (exura gran), Cura Vital (exura vita), Cura Sagrada Leve (exura san) e Tratar Ferimentos (exura ico):
- * cada vocação tem exatamente UMA cura própria.
- *
- * Golpe Giratório      knight     1     8     4    dmg 24 (área r1, 2.2x auto)  [ciclo 15-13: magias de dano do cavaleiro +40%]
- * Provocar             knight     5    15    20    taunt r3, 5 s
- * Investida            knight    10    20     8    dmg 60 (dash 4)
- * Pele de Ferro        knight    15    20    30    -30% dano, 10 s
- * Giro Feroz (exori gran) knight 20   25     8    dmg 71 (área r1, 1,05x o exori por golpe; 2026-11-01)
- * Golpe Brutal (exori ico) knight 30  45     8    dmg 246 (4,6x auto; era exori gran até 2026-11-01)
- * Flecha Perfurante    paladin    1     8     2    dmg 14 (2.3x auto)
- * Chuva de Flechas     paladin   15    35     6    dmg 47 (área r2)
- * Flecha Sagrada       paladin   20    30     4    dmg 103 (holy)
- * Onda Sagrada         paladin   30    90     8    dmg 131 (área r3)
- * Bola de Fogo         sorcerer   1     8     2    dmg 12 (2.3x auto)
- * Onda de Energia      sorcerer   5    20     4    dmg 29 (onda 4x3)
- * Explosão de Fogo     sorcerer  10    40     6    dmg 43 (área r2 + burn); lvl 15: 60, lvl 20: 78
- * Escudo de Mana       sorc/druid 15   30    30    manashield 20 s (druida desde o ciclo 15)
- * Raio de Energia      sorcerer  20    45     4    dmg 100 (alvo único)
- * Inferno              sorcerer  30   160     8    dmg 208 (área r3 + burn)
- * Raiz                 druid      5    20    15    dmg 17 + root 3 s
- * Chuva de Gelo        druid     10    40     4    dmg 39 (área r2 + slow); lvl 15: 55, lvl 20: 72  [recarga 6 s até o ciclo 15]
- * Invocar Lobo         druid     20    90    60    1 lobo espiritual, 60 s
- * Nevasca              druid     30   150     8    dmg 199 (área r3 + slow)
- *
- * FIM DE JOGO (lv 35-90) — magia               voc       lvl  mana (% da máx.)  cd(s)  esperado
- * Fúria Giratória      knight     35    40 (18%)    8    dmg 112 (área r2, 1,1x o exori; era lv 70 até 2026-11-01)
- * Fúria                knight     50    60 (20%)   30    buff + berserk 25
- * Terremoto            knight     70   110 (28%)    8    dmg 265 (área r3, 1,5x o exori; exori gran mas)
-   (cavaleiro: estes valores usam o ML estimado; no jogo o spellPower pelo skill rende bem mais)
- * Golpe Aniquilador    knight     90   100 (20%)   12    dmg 889 (alvo)
- * Flecha Explosiva     paladin    35    50 (9%)    6    dmg 152 (área no alvo r1)
- * Flecha Paralisante   paladin    50    60 (8%)    8    dmg 232 (alvo + slow)
- * Julgamento Divino    paladin    70   120 (11%)    8    dmg 342 (área no alvo r2)
- * Chuva de Estrelas    paladin    90   160 (12%)    8    dmg 454 (área no alvo r3)
- * Onda de Fogo         sorcerer   35    70 (7%)    6    dmg 243 (onda 5x3 + burn)
- * Morte Súbita         sorcerer   50   100 (7%)    6    dmg 326 (alvo)
- * Tempestade Elétrica  sorcerer   70   260 (12%)    8    dmg 530 (área r4)
- * Chama Eterna         sorcerer   90   180 (7%)   10    dmg 780 (alvo + burn)
- * Onda de Gelo         druid      35    70 (7%)    6    dmg 243 (onda 5x3 + slow)
- * Esmagar Terra        druid      50   100 (7%)    6    dmg 256 (alvo + poison)
- * Tempestade de Terra  druid      70   260 (12%)    8    dmg 508 (área r4 + poison)
- * Fúria da Natureza    druid      90   180 (7%)   10    dmg 693 (alvo + slow)
+ * magia                 palavras              voc       lvl  mana   cd   valor
+ * Cura                  exura                 knight      1    20    1   cura 21 (14% da vida)
+ * Golpe Giratório       exori                 knight      1     8    4   dano 24 (2.2x auto)
+ * Provocar              exeta res             knight      5    15   20   utilidade
+ * Pés Ligeiros          utani hur             knight      5    20   15   utilidade
+ * Investida             exori hur             knight     10    20    8   dano 90 (3.3x auto)
+ * Limpar Feridas        exura ico             knight     15    40    1   cura 55 (15% da vida)
+ * Pele de Ferro         utamo tempo           knight     15    20   30   utilidade
+ * Giro Feroz            exori gran            knight     20    25    8   dano 112 (2.2x auto)
+ * Golpe Brutal          exori ico             knight     30    45    8   dano 364 (5.1x auto)
+ * Fúria Giratória       exori mas             knight     35    40    8   dano 183 (1.9x auto)
+ * Fúria                 utito tempo           knight     50    60   30   utilidade
+ * Terremoto             exori gran mas        knight     70   110    8   dano 433 (2.5x auto)
+ * Golpe Aniquilador     exori gran ico        knight     90   100   12   dano 1204 (6.8x auto)
+ * Muralha de Escudos    utamo mas res         knight    100   120   40   utilidade
+ * Cura                  exura                 paladin     1    20    1   cura 21 (14% da vida)
+ * Flecha Perfurante     exori con             paladin     1     8    2   dano 14 (1.6x auto)
+ * Pés Ligeiros          utani hur             paladin     5    20   15   utilidade
+ * Chuva de Flechas      exevo mas con         paladin    15    35    6   dano 69 (1.7x auto)
+ * Flecha Sagrada        exori san             paladin    20    30    4   dano 141 (3.3x auto)
+ * Onda Sagrada          exevo mas san         paladin    30    90    8   dano 185 (3x auto)
+ * Cura Divina           exura san             paladin    35    60    1   cura 112 (19% da vida)
+ * Flecha Explosiva      exevo con flam        paladin    35    50    6   dano 209 (2.4x auto)
+ * Flecha Paralisante    exori con hur         paladin    50    40    8   dano 316 (3x auto)
+ * Julgamento Divino     exori gran san        paladin    70   120    8   dano 458 (3.4x auto)
+ * Chuva de Estrelas     exevo gran mas con    paladin    90   160    8   dano 594 (3.8x auto)
+ * Luz Restauradora      exura mas san         paladin   100   150   20   utilidade
+ * Cura                  exura                 sorcerer    1    20    1   cura 21 (14% da vida)
+ * Bola de Fogo          exori flam            sorcerer    1     8    2   dano 12 (1.5x auto)
+ * Pés Ligeiros          utani hur             sorcerer    5    20   15   utilidade
+ * Onda de Energia       exevo vis lux         sorcerer    5    20    4   dano 27 (3.1x auto)
+ * Explosão de Fogo      exevo mas flam        sorcerer   10    40    6   dano 40 (2.2x auto)
+ * Escudo de Mana        utamo vita            sorcerer   15    30   30   utilidade
+ * Raio de Energia       exori vis             sorcerer   20    45    4   dano 94 (3x auto)
+ * Inferno               exevo gran mas flam   sorcerer   30   160    8   dano 200 (4.3x auto)
+ * Onda de Fogo          exevo flam hur        sorcerer   35    70    6   dano 226 (3.5x auto)
+ * Morte Súbita          exori mort            sorcerer   50   100    6   dano 288 (3.5x auto)
+ * Tempestade Elétrica   exevo gran mas vis    sorcerer   70   260    8   dano 442 (4.1x auto)
+ * Chama Eterna          exori gran flam       sorcerer   90   180   10   dano 626 (5.1x auto)
+ * Ruptura Elemental     exori mas vis         sorcerer  100   120   20   utilidade
+ * Cura                  exura                 druid       1    20    1   cura 21 (14% da vida)
+ * Lasca de Gelo         exori frigo           druid       1     8    2   dano 13 (1.7x auto)
+ * Pés Ligeiros          utani hur             druid       5    20   15   utilidade
+ * Raiz                  exori tera            druid       5    20   15   dano 15 (1.8x auto)
+ * Chuva de Gelo         exevo mas frigo       druid      10    40    4   dano 36 (2x auto)
+ * Escudo de Mana        utamo vita            druid      15    30   30   utilidade
+ * Cura em Grupo         exura mas sio         druid      15    80    5   cura 72 (31% da vida)
+ * Invocar Lobo          utevo res lupo        druid      20    90   60   utilidade
+ * Nevasca               exevo gran mas frigo  druid      30   150    8   dano 191 (4.1x auto)
+ * Onda de Gelo          exevo frigo hur       druid      35    70    6   dano 226 (3.5x auto)
+ * Esmagar Terra         exori gran tera       druid      50   100    6   dano 228 (2.7x auto)
+ * Tempestade de Terra   exevo gran mas tera   druid      70   260    8   dano 424 (4x auto)
+ * Fúria da Natureza     exori gran frigo      druid      90   180   10   dano 549 (4.5x auto)
+ * Raízes da Terra       exevo mas tera        druid     100   160   25   utilidade
  *
  * FADA (oculta) — espelho do druida, magia a magia (spells.test.ts "Fada"):
  * Pó de Pirlimpimpim = Lasca de Gelo · Beijinho Curativo = Cura · Bolha de Sabão = Raiz · Asinhas Ligeiras = Pés Ligeiros

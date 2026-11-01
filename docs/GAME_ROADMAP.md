@@ -24,7 +24,7 @@ modo Seguir na hora e andar saindo do modo Seguir.
 | CB-2 | Modo Seguir: escolher alvo zera a pausa de 1,5 s do passo manual; andar pelo teclado atacando vira Parado (aviso, F8 volta) | ✅ (2026-11-01) | `m4.test.ts` (2 testes novos) |
 | CB-3 | Cavaleiro: `exori gran` Giro Feroz (r1, lv 20), Golpe Brutal → `exori ico`, `exori mas` lv 70 → 35, Terremoto `exori gran mas` (r3, lv 70); sai o Golpe Frontal | ✅ (2026-11-01) | `vocationBalance.test.ts` e `arena.test.ts` sem mudar metas; E2E `spells.spec` (cavaleiro lv 50) |
 | CB-4 | Leitura de balanço aplicada ("atualize tudo"): Lasca de Gelo do druida, Flecha Paralisante de controle, bênção pelo estágio da morte, armas Carmesim lv 85, loot dos chefes regionais, Espírito de Chama, Poção de Mana Forte, poções das missões lv 80+, Galho Seco | ✅ (2026-11-01) | `vocationBalance`, `arena`, `spells`, `items`, `quests`, `combatFormulas` |
-| CB-5 | Ainda abertos da leitura: `spells.test.ts` mede cavaleiro/paladino pelo ML e não pelo spellPower (subestima a tabela); teste "abaixo do melhor item do slot" compara só valor (Amuleto de Rubi domina o do Dragão); Kappa dominado pela Carniphila; Protótipo segue abaixo do Orshabaal em loot (teto de 8% das peças Abissais) | ⏳ | — |
+| CB-5 | Resto da leitura: `spells.test.ts` pela potência real (tabela regerada), peças regionais não dominam a referência do slot (Calças Antichama, Boné de Visitante, Calça Impermeável, Amuleto de Rubi), Kappa do Lodo com mais XP e loot, Protótipo e Fornalha com peças do tier 7 | ✅ (2026-11-01) | `spells.test.ts`, `items.test.ts`; script de loot por vida |
 
 ## App de desktop (2026-10-31)
 
