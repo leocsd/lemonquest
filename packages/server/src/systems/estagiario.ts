@@ -41,7 +41,7 @@ export interface EstagiarioOptions {
   monsters: Pick<MonsterManager, "wild" | "all" | "inPz">;
   /** Caminhada da rota (Task 5). */
   movement: Pick<MovementSystem, "isIdle" | "pathFor" | "follow">;
-  companions: { spawnCompanion(p: PlayerState, now?: number): unknown; despawnCompanion(ownerId: string): void };
+  companions: { spawnCompanion(p: PlayerState, now?: number): unknown; despawnCompanion(ownerId: string): void; companionOf(ownerId: string): unknown };
   npcOpen: (id: string) => boolean;
   spellGroups: (p: PlayerState) => readonly SpellGroup[];
   players: () => Iterable<PlayerState>;
@@ -142,7 +142,7 @@ export class EstagiarioSystem {
     if (!s || !obj(m) || !obj(m.config)) return;
     s.config = sanitizeEstagiario(m.config, p.vocation, this.o.spellGroups(p));
     const rota = s.rota && this.rotaDe(s, s.rota);
-    if (s.rota && !rota) this.desligarRota(p, s);
+    if (s.rota && !rota) this.pararRota(p, s);
     else if (rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), this.now()); // os pontos podem ter mudado
     this.enviarEstado(p);
   }
@@ -152,7 +152,7 @@ export class EstagiarioSystem {
     if (!s || !obj(m)) return;
     if (typeof m.cura === "boolean") s.cura = m.cura;
     if (typeof m.ataque === "boolean") s.ataque = m.ataque;
-    if (m.rota === null) this.desligarRota(p, s);
+    if (m.rota === null) this.pararRota(p, s);
     else if (typeof m.rota === "string") this.ligarRota(p, s, m.rota);
     this.enviarEstado(p);
   }
@@ -196,7 +196,7 @@ export class EstagiarioSystem {
     s.grav = null;
     // Antes de desligar: o alarme só vale se a rota estava ligada (sem ela o jogador não estava fora do teclado).
     if (s.rota) this.alarme(p, "morte", "Estagiário: você morreu. A rota foi desligada.");
-    this.desligarRota(p, s);
+    this.pararRota(p, s);
     this.enviarEstado(p);
   }
 
@@ -227,6 +227,18 @@ export class EstagiarioSystem {
     this.alarme(p, "mochila", "Estagiário: mochila cheia — o loot está ficando no chão.");
   }
 
+  /**
+   * Desliga só a rota (cura e ataque ficam), com aviso opcional e o estado. Usado pelo Coliseu ao entrar e ao sair da
+   * partida: a saída tira o acompanhante (despawnOwner) e a rota dentro da arena caçaria as ondas sozinha.
+   */
+  desligarRota(p: PlayerState, aviso?: string): void {
+    const s = this.st.get(p.id);
+    if (!s?.rota) return;
+    this.pararRota(p, s);
+    if (aviso) this.notice(p, aviso);
+    this.enviarEstado(p);
+  }
+
   /** Caiu a conexão ou saiu: tudo desliga (sem ninguém no cliente o Estagiário não trabalha). Ao voltar, nada religa. */
   desligarTudo(p: PlayerState): void {
     const s = this.st.get(p.id);
@@ -234,7 +246,7 @@ export class EstagiarioSystem {
     s.cura = false;
     s.ataque = false;
     s.grav = null;
-    this.desligarRota(p, s);
+    this.pararRota(p, s);
   }
 
   alarme(p: PlayerState, tipo: AlarmeTipo, texto: string): void {
@@ -326,18 +338,22 @@ export class EstagiarioSystem {
     const pz = this.o.monsters.inPz(p.x, p.y);
     const entrou = pz && !s.emPz;
     s.emPz = pz;
-    if (entrou) { this.desligarRota(p, s, now); this.enviarEstado(p); return; }
+    if (entrou) { this.pararRota(p, s, now); this.enviarEstado(p); return; }
+    // O acompanhante saiu do mundo com a rota ligada (o Coliseu tira tudo do dono, por exemplo): volta ao lado do dono.
+    if (p.hp > 0 && !pz && !this.o.companions.companionOf(p.id)) this.o.companions.spawnCompanion(p, now);
     const pausa: EstagiarioPausa = this.o.npcOpen(p.id) ? "npc" : now < s.pausaAte ? "manual" : "";
     if (pausa !== s.pausa) {
       this.mudarPausa(p.id, s, pausa, now);
       // Na pausa o jogador andou à mão (ou foi ao NPC): ao voltar, segue do ponto mais perto de onde ele está.
       const rota = this.rotaDe(s, s.rota!);
       if (pausa === "" && rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
+      // O alvo não foi acompanhado durante a pausa: sem isto, o relógio parado o daria por travado no primeiro tick.
+      if (pausa === "") s.alvoId = "";
     }
     if (!this.rodando(s)) return;
     this.acertar(s, now);
     if (s.turno.ms <= 0) {
-      this.desligarRota(p, s, now);
+      this.pararRota(p, s, now);
       this.notice(p, AVISO_TURNO);
       this.enviarEstado(p);
       return;
@@ -370,16 +386,31 @@ export class EstagiarioSystem {
       if (this.rodando(s)) this.o.fight.resume(p.id);
     }
     if (!s.config.ataque.length) return;
-    const bichosEm = (r: number) => {
-      let n = 0;
-      for (const m of mm.all()) if (!m.s.ownerId && m.s.hp > 0 && cheb(p.x, p.y, m.s.x, m.s.y) <= r) n++;
-      return n;
-    };
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
+    if (manaPct < s.config.reservaMana) return;
+    // Varrer os monstros a cada tick por regra pesa: magia resolvida uma vez por tick, e só conta os bichos (uma
+    // varredura por raio) se alguma regra tem magia pronta. O resultado é o mesmo de escolherAtaque sem o cache.
+    const resolvidas = new Map<string, string | null>();
     const resolver = (id: string): string | null => {
-      if (!isFamilyId(id)) return this.o.spells.ready(p, id, now) ? id : null;
-      const f = resolveFamily(id, this.o.spellGroups(p), p.vocation);
-      return f ? pickFromFamily(f, p.level, (sp) => this.o.spells.ready(p, sp.id, now))?.id ?? null : null;
+      let r = resolvidas.get(id);
+      if (r !== undefined) return r;
+      if (!isFamilyId(id)) r = this.o.spells.ready(p, id, now) ? id : null;
+      else {
+        const f = resolveFamily(id, this.o.spellGroups(p), p.vocation);
+        r = f ? pickFromFamily(f, p.level, (sp) => this.o.spells.ready(p, sp.id, now))?.id ?? null : null;
+      }
+      resolvidas.set(id, r);
+      return r;
+    };
+    if (!s.config.ataque.some((r) => resolver(r.magia))) return;
+    const contagem = new Map<number, number>();
+    const bichosEm = (raio: number) => {
+      let n = contagem.get(raio);
+      if (n !== undefined) return n;
+      n = 0;
+      for (const m of mm.all()) if (!m.s.ownerId && m.s.hp > 0 && cheb(p.x, p.y, m.s.x, m.s.y) <= raio) n++;
+      contagem.set(raio, n);
+      return n;
     };
     const magia = escolherAtaque(s.config.ataque, bichosEm, manaPct, s.config.reservaMana, resolver);
     if (magia) this.o.spells.cast(p, magia, p.targetId, { silent: true });
@@ -522,6 +553,8 @@ export class EstagiarioSystem {
     this.acertar(s, now);
     if (s.turno.ms <= 0) { this.notice(p, AVISO_TURNO); return; }
     const ja = !!s.rota;
+    // Trocou de rota durante a pausa: a pausa acaba aqui, então a perseguição forçada volta.
+    if (ja && s.pausa !== "") this.o.fight.forceChase(p.id, true);
     s.rota = rota.nome;
     this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
     s.lutando = false;
@@ -529,14 +562,14 @@ export class EstagiarioSystem {
     s.pausaAte = 0;
     s.emPz = false;
     s.estadoEm = now;
-    if (ja) return;
-    s.avisos = avisosNovos(); // rota nova: o que já estava no limite avisa de novo // trocou de rota: o resto já está ligado
+    if (ja) return; // trocou de rota: o resto já está ligado
+    s.avisos = avisosNovos(); // rota nova: o que já estava no limite avisa de novo
     p.bot = true;
     this.o.fight.forceChase(p.id, true);
     this.o.companions.spawnCompanion(p, now);
   }
 
-  private desligarRota(p: PlayerState, s: Estado, now = this.now()): void {
+  private pararRota(p: PlayerState, s: Estado, now = this.now()): void {
     if (!s.rota) return;
     this.acertar(s, now); // fecha a conta do turno no estado em que estava (rodando ou pausada)
     s.rota = null;
@@ -551,6 +584,8 @@ export class EstagiarioSystem {
 
   private mudarPausa(id: string, s: Estado, pausa: EstagiarioPausa, now: number): void {
     this.acertar(s, now);
+    // Na pausa o jogador está no controle: a perseguição forçada o arrastaria de volta ao alvo durante os 10 s.
+    if ((s.pausa === "") !== (pausa === "")) this.o.fight.forceChase(id, pausa === "");
     s.pausa = pausa;
     const p = this.jogador(id);
     if (p) this.enviarEstado(p, now);

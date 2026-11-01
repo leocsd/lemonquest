@@ -61,7 +61,8 @@ grupos de magia (`spellFamilies.ts`), pathfinding e a estrutura das invocações
   `{ quando: "vida" | "mana"; abaixoDe: 1..99 (%); acao: { magia: spellId } | { pocao: "vida" | "mana" } }`.
 - Magia: só curas que a vocação conjura (`light_heal`, `wound_cleansing`, `divine_healing`, `group_heal`/espelhos).
 - Poção: a melhor que o personagem tem e pode usar, pela mesma regra do atalho de poção (`pickQuickPotion`).
-- Respeita as recargas existentes (magia 1 s; poção de vida 2 s, de mana 1 s; recarga global de magia).
+- Respeita as recargas existentes (magia 1 s; recarga global de magia; poção: um único relógio para vida e mana, 2 s
+  depois de uma poção de vida e 1 s depois de uma de mana).
 - Padrão sugerido ao abrir a janela pela primeira vez: vida < 35% → poção de vida; vida < 70% → a cura da vocação;
   mana < 40% → poção de mana.
 
@@ -85,7 +86,9 @@ grupos de magia (`spellFamilies.ts`), pathfinding e a estrutura das invocações
   ele retoma do ponto mais próximo. No fim da rota, volta ao primeiro ponto (circuito).
 - Ponto inalcançável por **10 s**: pula para o próximo.
 - **Pausa** (o turno não gasta enquanto pausado): o jogador andou pelas setas ou clicou no chão — volta sozinho depois
-  de **10 s** sem comando manual; janela de NPC aberta — volta quando fecha.
+  de **10 s** sem comando manual; janela de NPC aberta — volta quando fecha. Na pausa a perseguição forçada desliga (o
+  jogador está no controle) e volta junto com a rota; o alvo é reavaliado do zero ao voltar.
+- Com a rota ligada, se o acompanhante sumir do mundo, ele volta ao lado do dono no tick seguinte.
 
 ### Alarmes (só avisam; a caça continua)
 
@@ -107,7 +110,7 @@ Aviso no cliente: som curto, toast e o título da janela/ícone do app piscando 
 ### Turno
 
 - Máximo **2 h** (7.200.000 ms). Gasta em tempo real só com a rota **rodando** (não pausada).
-- Recarrega com a rota desligada: **5 min por hora** (1/12 do tempo), até o máximo — de vazio a cheio em 24 h.
+- Recarrega com a rota desligada ou pausada: **5 min por hora** (1/12 do tempo), até o máximo — de vazio a cheio em 24 h.
 - Guardado como `{ ms, em }` (restante e o instante da última conta); a recarga é calculada na hora de ler.
 - Acabou: a rota desliga, o personagem do Estagiário vai embora, cura e ataque continuam como estavam.
 
@@ -118,6 +121,7 @@ Aviso no cliente: som curto, toast e o título da janela/ícone do app piscando 
 | Morte | desliga (alarme "Você morreu") | continuam ligados para a próxima vida |
 | Turno acabou | desliga | continuam |
 | Entrou na zona de proteção (templo, depot) | desliga | continuam |
+| Entrou ou saiu de uma partida do Coliseu | desliga (com aviso) | continuam |
 | Desconectou / fechou o cliente | desliga | desligam |
 | Moveu manualmente | pausa 10 s | continuam |
 | Janela de NPC aberta | pausa | continuam |

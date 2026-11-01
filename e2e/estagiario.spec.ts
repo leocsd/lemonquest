@@ -88,19 +88,35 @@ test("Estagiário: grava a rota, liga, 🤖 no nome, acompanhante fora da batalh
   await expect.poll(async () => (await meState(page))?.xp as number, { timeout: 60_000, intervals: [1000], message: "XP subir pela rota" })
     .toBeGreaterThan(xp0);
 
-  // O dono passa por cima do próprio acompanhante: seta na direção dele (vizinho ortogonal) e o jogador chega ao tile.
-  // A seta pausa a rota (10 s) e o acompanhante segue o dono: reclica até pegar ele ao lado.
-  await expect.poll(async () => {
-    const m = (await me(page))!, c = await companionOf(page);
-    if (!c) return "sem acompanhante";
-    const key = Object.entries(DIRS).find(([, [dx, dy]]) => m.x + dx === c.x && m.y + dy === c.y)?.[0];
-    if (!key) { await page.waitForTimeout(400); return `não está ao lado (${m.x},${m.y} × ${c.x},${c.y})`; }
+  // O dono passa por cima do próprio acompanhante: teleporta para um vizinho ortogonal livre dele (o acompanhante só
+  // anda com o dono a mais de 2 tiles, então fica onde está) e aperta a seta na direção dele. A rota ainda roda até a
+  // seta (que a pausa) e pode dar um passo antes: tenta de novo com o tile relido.
+  let pisou = "";
+  for (let tentativa = 0; tentativa < 5 && pisou !== "pisou"; tentativa++) {
+    const c = await companionOf(page);
+    expect(c, "acompanhante na tela").not.toBeNull();
+    const busy = new Set((await monsters(page)).map((k) => `${k.x},${k.y}`));
+    let lado: { key: string; x: number; y: number } | null = null;
+    for (const [key, [dx, dy]] of Object.entries(DIRS)) {
+      const x = c!.x - dx, y = c!.y - dy; // de (x,y), a seta `key` leva ao tile do acompanhante
+      if (!busy.has(`${x},${y}`) && (await walkable(page, x, y))) { lado = { key, x, y }; break; }
+    }
+    if (!lado) { pisou = `sem vizinho livre do acompanhante em ${c!.x},${c!.y}`; await page.waitForTimeout(1000); continue; }
+    await teleport(page, lado.x, lado.y);
+    const m = (await me(page))!, alvo = await companionOf(page); // tile do acompanhante na hora da seta
+    const key = alvo && Object.entries(DIRS).find(([, [dx, dy]]) => m.x + dx === alvo.x && m.y + dy === alvo.y)?.[0];
+    if (!alvo || !key) { pisou = `não ficou ao lado (${m.x},${m.y} × ${alvo?.x},${alvo?.y})`; continue; }
     await page.keyboard.down(key);
-    await page.waitForTimeout(600);
+    await expect.poll(async () => { const n = (await me(page))!; return `${n.x},${n.y}`; }, { timeout: 10_000 }).not.toBe(`${m.x},${m.y}`)
+      .catch(() => undefined);
     await page.keyboard.up(key);
-    const n = (await me(page))!;
-    return n.x === c.x && n.y === c.y ? "pisou" : `não pisou (${n.x},${n.y} × ${c.x},${c.y})`;
-  }, { timeout: 45_000, intervals: [300], message: "dono pisa no tile do acompanhante" }).toBe("pisou");
+    await waitSettled(page);
+    pisou = await expect.poll(async () => {
+      const n = (await me(page))!, c2 = await companionOf(page);
+      return (n.x === alvo.x && n.y === alvo.y) || (!!c2 && n.x === c2.x && n.y === c2.y);
+    }, { timeout: 5_000 }).toBe(true).then(() => "pisou", () => "não pisou");
+  }
+  expect(pisou, "dono pisa no tile do acompanhante").toBe("pisou");
 
   // Desligar: sem 🤖 e sem acompanhante.
   await win.getByTestId("est-desligar").click();

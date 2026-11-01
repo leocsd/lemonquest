@@ -20,8 +20,8 @@ mostra. Assim a aba em segundo plano (que o navegador adormece) não atrapalha e
   acompanhante "Estagiário de <nome>" ao lado, só com a rota ligada: não ataca, não toma dano, não é alvo, não entra na
   battle list; bloqueia o tile para os outros, o dono passa por cima); funciona em qualquer lugar.
 - **Turno**: 2 h de rota por dia, gasto só com a rota rodando (pausada não gasta), recarregando 5 min por hora. Cura e
-  ataque não gastam. Acabou o turno, morreu ou entrou na zona de proteção: a rota desliga (cura e ataque continuam). Ligar
-  a rota dentro da zona de proteção é recusado.
+  ataque não gastam. Acabou o turno, morreu, entrou na zona de proteção ou entrou/saiu de uma partida do Coliseu: a rota desliga
+  (cura e ataque continuam). Ligar a rota dentro da zona de proteção é recusado.
 - **Alarmes** (só avisam, a caça continua; liga/desliga por tipo): poção acabando (< 10), vida baixa (limite próprio),
   jogador na tela (uma vez por jogador), atacado por jogador, mensagem privada, turno acabando (5 min), mochila cheia e
   "Você morreu" (sempre). Som, toast e o título da aba/janela do app piscando.

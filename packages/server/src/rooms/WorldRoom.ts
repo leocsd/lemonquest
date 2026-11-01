@@ -102,6 +102,8 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
 };
 /** Intervalo mínimo entre gravações "jogador + chão" depois de largar/pegar item (ver saveTransfers). */
 export const TRANSFER_SAVE_MS = 1000;
+/** Aviso da rota do Estagiário desligada na entrada/saída do Coliseu. */
+const AVISO_COLISEU = "O Estagiário não trabalha no Coliseu: a rota foi desligada.";
 const DEV = process.env.NODE_ENV !== "production";
 /** Log de desempenho do tick: dev = a cada 60 s; produção = a cada 5 min e só se algum tick passou de 30 ms. */
 const PERF_LOG_MS = DEV ? 60_000 : 5 * 60_000;
@@ -506,9 +508,11 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       getBest: (id) => this.records.get(id)?.data.arenaBest ?? 0,
       setBest: (id, n) => { const rec = this.records.get(id); if (rec) rec.data.arenaBest = n; },
       onWaveCleared: (p, wave) => { this.ach?.event(p.id, "arena", { wave }); this.quests.onArenaWave(p.id, wave); },
-      onEnter: (p) => this.npcs.close(p.id),
+      // O Estagiário não joga o Coliseu: a rota desliga ao entrar e ao sair (a saída tira o acompanhante do dono).
+      onEnter: (p) => { this.npcs.close(p.id); this.estagiario.desligarRota(p, AVISO_COLISEU); },
       onExit: (p) => {
         this.npcs.close(p.id);
+        this.estagiario.desligarRota(p, AVISO_COLISEU);
         this.summons.despawnOwner(p.id);
         this.conditions.clear(p.id);
       },

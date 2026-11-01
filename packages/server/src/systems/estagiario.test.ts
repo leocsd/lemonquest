@@ -1,5 +1,5 @@
 // Estagiário no servidor: cura, ataque, turno, liga/desliga da rota, pausas, gravação e caminhada da rota.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   BUSCA_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS, estagiarioPadrao,
   type EstagiarioConfig, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
@@ -68,9 +68,12 @@ function setup(o: SetupOpts = {}) {
     forceChase: (id: string, on: boolean) => { calls.push(["chase", id, on]); },
     resume: (id: string) => { calls.push(["resume", id]); },
   };
+  /** Donos com acompanhante no mundo (o teste pode tirar um, como o Coliseu faz ao sair). */
+  const acompanhantes = new Set<string>();
   const companions = {
-    spawnCompanion: (pl: PlayerState) => { calls.push(["spawn", pl.id]); return {}; },
-    despawnCompanion: (id: string) => { calls.push(["despawn", id]); },
+    spawnCompanion: (pl: PlayerState) => { calls.push(["spawn", pl.id]); acompanhantes.add(pl.id); return {}; },
+    despawnCompanion: (id: string) => { calls.push(["despawn", id]); acompanhantes.delete(id); },
+    companionOf: (id: string) => (acompanhantes.has(id) ? {} : undefined),
   };
   const npc = { aberto: false };
   const sent: { to: string; type: string; msg: any }[] = [];
@@ -107,7 +110,7 @@ function setup(o: SetupOpts = {}) {
   const notices = () => sent.filter((s) => s.type === S2C.Notice).map((s) => s.msg.text as string);
   const of = (k: string) => calls.filter((c) => c[0] === k);
   const indice = (): number => (sys as any).st.get("p").indice;
-  return { ...w, p, sys, mv, calls, of, prontas, pot, luta, npc, sent, estados, notices, tick, visitados, indice, now: () => clock };
+  return { ...w, p, sys, mv, calls, of, prontas, pot, luta, npc, sent, estados, notices, tick, visitados, indice, acompanhantes, now: () => clock };
 }
 
 /** Config com a rota "Ratos" de 3 pontos (10,10) → (15,10) → (20,10). */
@@ -765,7 +768,7 @@ describe("Estagiário: cenário com os sistemas reais", () => {
       spells: { ready: () => false, cast: () => ({ ok: false }) },
       potions: { potionReady: () => false, usePotion: () => false, countPotions: () => 0 },
       fight, monsters: w.mm, movement: mv,
-      companions: { spawnCompanion: () => ({}), despawnCompanion: () => {} },
+      companions: { spawnCompanion: () => ({}), despawnCompanion: () => {}, companionOf: () => ({}) },
       npcOpen: () => false, spellGroups: () => [], players: () => w.players.values(), send: () => {}, now: () => w.now(),
     });
     sys.load(p, { config: { ...estagiarioPadrao("knight"), rotas: [{ nome: "Ratos", pontos: [{ x: 2, y: 2 }, { x: 10, y: 2 }, { x: 10, y: 6 }] }] } });
@@ -960,4 +963,94 @@ describe("Estagiário: alarmes (só com a rota rodando)", () => {
       expect(alarmes(ligada, tipo)).toHaveLength(1);
     });
   }
+});
+
+describe("Estagiário: Coliseu, acompanhante e pausas (revisão final)", () => {
+  it("desligarRota pública (entrada/saída do Coliseu): desliga a rota, tira o 🤖 e o acompanhante, avisa e manda o estado", () => {
+    const w = setup({ saved: { config: comRota() } });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.sent.length = 0;
+    w.sys.desligarRota(w.p, "O Estagiário não entra no Coliseu: a rota foi desligada.");
+    expect(w.p.bot).toBe(false);
+    expect(w.of("chase").at(-1)).toEqual(["chase", "p", false]);
+    expect(w.of("despawn")).toEqual([["despawn", "p"]]);
+    expect(w.estados().at(-1)).toMatchObject({ rota: null });
+    expect(w.notices()).toEqual(["O Estagiário não entra no Coliseu: a rota foi desligada."]);
+    // Sem rota ligada: nada (nem estado, nem aviso).
+    w.sent.length = 0;
+    w.sys.desligarRota(w.p, "x");
+    expect(w.sent).toEqual([]);
+  });
+
+  it("acompanhante sumiu com a rota ligada (pausada ou não): o tick o põe de volta", () => {
+    const w = setup({ saved: { config: comRota() } });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    expect(w.of("spawn")).toHaveLength(1);
+    w.tick();
+    expect(w.of("spawn")).toHaveLength(1); // já existe: não chama de novo
+    w.acompanhantes.delete("p");
+    w.tick();
+    expect(w.of("spawn")).toHaveLength(2);
+    w.sys.manual("p");
+    w.acompanhantes.delete("p");
+    w.tick();
+    expect(w.of("spawn")).toHaveLength(3);
+    w.sys.onToggle(w.p, { rota: null });
+    w.tick();
+    expect(w.of("spawn")).toHaveLength(3); // rota desligada: não volta
+  });
+
+  it("pausa longa no mesmo alvo: ao voltar, o alvo válido não é largado no primeiro tick", () => {
+    const w = setup({ ratos: [{ x: 25, y: 25 }], saved: { config: comRota() } });
+    const rato = [...w.mm.all()][0]!;
+    w.luta.alvo = rato.s.id;
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.tick(500);
+    expect(w.p.targetId).toBe(rato.s.id);
+    for (let i = 0; i < 3; i++) { w.sys.manual("p"); w.tick(5000); } // 15 s pausada (> PONTO_TRAVADO_MS)
+    w.tick(PAUSA_MANUAL_MS);
+    expect(w.sys.estado(w.p).pausa).toBe("");
+    w.tick(500);
+    expect(w.p.targetId).toBe(rato.s.id);
+  });
+
+  it("pausa (manual ou NPC) desliga a perseguição forçada e a volta religa; trocar de rota na pausa também religa", () => {
+    const w = setup({ saved: { config: { ...comRota(), rotas: [...comRota().rotas, { nome: "Outra", pontos: [{ x: 10, y: 10 }, { x: 12, y: 10 }] }] } } });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.calls.length = 0;
+    w.sys.manual("p");
+    expect(w.of("chase")).toEqual([["chase", "p", false]]);
+    w.sys.manual("p"); // renovar não repete
+    expect(w.of("chase")).toEqual([["chase", "p", false]]);
+    w.tick(PAUSA_MANUAL_MS + TICK_MS);
+    expect(w.of("chase")).toEqual([["chase", "p", false], ["chase", "p", true]]);
+
+    w.calls.length = 0;
+    w.npc.aberto = true;
+    w.tick();
+    expect(w.of("chase")).toEqual([["chase", "p", false]]);
+    w.npc.aberto = false;
+    w.tick();
+    expect(w.of("chase")).toEqual([["chase", "p", false], ["chase", "p", true]]);
+
+    w.calls.length = 0;
+    w.sys.manual("p");
+    w.sys.onToggle(w.p, { rota: "Outra" });
+    expect(w.of("chase")).toEqual([["chase", "p", false], ["chase", "p", true]]);
+    expect(w.sys.estado(w.p).pausa).toBe("");
+  });
+
+  it("ataque: sem magia pronta (ou abaixo da reserva) não varre os monstros", () => {
+    const w = setup({ ratos: [{ x: 11, y: 10 }, { x: 11, y: 11 }], saved: { config: { ...estagiarioPadrao("knight"), ataque: [{ minBichos: 1, raio: 1, magia: "spin_strike" }, { minBichos: 2, raio: 1, magia: "spin_strike" }] } } });
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.sys.onToggle(w.p, { ataque: true });
+    const all = vi.spyOn(w.mm, "all");
+    w.tick();
+    expect(all).not.toHaveBeenCalled();
+    expect(w.of("cast")).toEqual([]);
+    w.prontas.add("spin_strike");
+    w.tick();
+    expect(all).toHaveBeenCalledTimes(1); // dois raios iguais: uma varredura só
+    expect(w.of("cast")).toHaveLength(1);
+  });
 });

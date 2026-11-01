@@ -214,9 +214,10 @@ export class WorldScene extends Phaser.Scene {
     // Grupo: nomes verdes + escudinho nos membros.
     const offParty = partyStore.subscribe(() => this.refreshPartyCues());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offParty);
-    // Voltou para a aba: quem acumulou passos com a aba escondida vai direto ao tile (sem correr a fila acelerado).
+    // Acompanhante do Estagiário: o nome do dono pode chegar depois da criatura (lista de jogadores tardia).
     const offCompanions = playersStore.subscribe(() => this.renameCompanions());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offCompanions);
+    // Voltou para a aba: quem acumulou passos com a aba escondida vai direto ao tile (sem correr a fila acelerado).
     const offTab = onTabReturn(() => settleActors(this.actors.values(), this.creatures.values()));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offTab);
 
