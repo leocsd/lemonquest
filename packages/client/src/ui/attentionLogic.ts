@@ -17,7 +17,7 @@ export type AttentionReason = "whisper" | "trade" | "party" | "friend" | "event"
 const ALERTS: Partial<Record<AttentionReason, { text: string; rank: number }>> = {
   attacked: { text: "⚔ Atacado!", rank: 1 },
   // Alarme do Estagiário (2026-11-01): o bot caça sozinho e precisa de você (mesma gravidade de "atacado").
-  estagiario: { text: "🤖 Estagiário!", rank: 1 },
+  estagiario: { text: "Estagiário!", rank: 1 },
   lowHp: { text: "⚠ Vida baixa!", rank: 2 },
   died: { text: "☠ Você morreu!", rank: 3 },
 };

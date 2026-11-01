@@ -9,7 +9,7 @@ vi.mock("../items/net.ts", () => ({ send: (type: string, msg: unknown) => { sent
 const { ESTAGIARIO_SEND_DELAY_MS, estagiarioStore, flushConfig, ligar, onEstadoFromServer, salvarConfig } = await import("./store.ts");
 
 const estado = (over: Partial<EstagiarioEstadoMsg> = {}): EstagiarioEstadoMsg => ({
-  config: estagiarioPadrao("knight"), cura: false, ataque: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 1000, ...over,
+  config: estagiarioPadrao("knight"), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 1000, ...over,
 });
 
 describe("estagiário: envio da configuração", () => {

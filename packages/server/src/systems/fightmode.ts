@@ -149,7 +149,9 @@ export class FightModeSystem {
   tick(now: number, players: Iterable<PlayerState>): void {
     for (const p of players) {
       if (p.hp <= 0) { p.followId = ""; const s = this.st.get(p.id); if (s) s.path = null; continue; }
-      if (p.auto && !p.targetId) this.autoTarget(p, now);
+      // Ataque automático (2026-11-01, dono: "mire sempre no bicho mais perto"): procura também com alvo, e troca
+      // para um monstro mais perto que o atual. Mirando um jogador (PvP), não troca.
+      if (p.auto && (!p.targetId || this.o.monsters.wild(p.targetId))) this.autoTarget(p, now);
       const range = Math.max(1, this.o.attackRange(p));
       // Alvo: monstro selvagem ou, no PvP, outro jogador.
       const t: Point | undefined = p.targetId ? this.o.monsters.wild(p.targetId)?.s ?? this.o.getPlayer?.(p.targetId) : undefined;
@@ -215,7 +217,11 @@ export class FightModeSystem {
     const reach = p.chase && !p.followId ? Math.max(range, AUTO_SEEK_DIST) : range;
     const ign = this.o.ignorado;
     const id = this.nearestTarget(p, reach, ign && ((m) => ign(p.id, m)));
-    if (id) p.targetId = id;
+    if (!id || id === p.targetId) return;
+    // Só troca se o novo for estritamente mais perto (empate fica no atual: não pula de um para outro sem parar).
+    const cur = p.targetId ? mm.wild(p.targetId) : undefined, nxt = mm.wild(id);
+    if (cur && nxt && cheb(p.x, p.y, nxt.s.x, nxt.s.y) >= cheb(p.x, p.y, cur.s.x, cur.s.y)) return;
+    p.targetId = id;
   }
 
   /**

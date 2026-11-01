@@ -7,13 +7,11 @@ import { BattleList } from "./BattleList.tsx";
 import { EquipmentPanel } from "./EquipmentPanel.tsx";
 import { HelpPopover } from "./HelpPopover.tsx";
 import { SoundPopover } from "./SoundPopover.tsx";
-import { AutoPotionPopover } from "./AutoPotionPopover.tsx";
 import { lootFilterStore } from "../items/lootFilter.ts";
 import { lootFilterOpen, toggleLootFilter } from "../items/LootFilterWindow.tsx";
 import { estagiarioOpen, estagiarioStore, fmtTurno, toggleEstagiario } from "../estagiario/store.ts";
 import { isDefaultLootFilter, lootFilterSummary, type EstagiarioEstadoMsg } from "@lemonquest/shared";
 import { A11yPopover } from "./A11yPopover.tsx";
-import { autoPotionStore } from "../items/autoPotion.ts";
 import { mutedStore, volumeStore } from "../../game/sfx.ts";
 import { PixelIcon } from "./icons.tsx";
 import { setHudInsets } from "./layout.ts";
@@ -28,7 +26,7 @@ import { useStore } from "./store.ts";
 import { outfitOpen, toggleOutfit } from "../outfit/outfit.ts";
 import { questLogOpen, toggleQuestLog } from "../quests/quests.ts";
 import { achievementsOpen, rankingOpen, toggleAchievements, toggleRanking } from "../achievements/achievements.ts";
-import { a11yOpen, autoOpen, helpOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDEBAR_W, skillsOpen, soundOpen, toggle, togglePopover } from "./uiState.ts";
+import { a11yOpen, helpOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDEBAR_W, skillsOpen, soundOpen, toggle, togglePopover } from "./uiState.ts";
 import { meStore } from "./world.ts";
 import { bestiaryOpen, toggleBestiary } from "../bestiary/Bestiary.tsx";
 import { agendaOpen, toggleAgenda } from "../agenda/agenda.ts";
@@ -51,10 +49,8 @@ export function Sidebar() {
   const muted = useStore(mutedStore);
   const volume = useStore(volumeStore).volume;
   const sound = useStore(soundOpen);
-  const autoPop = useStore(autoOpen);
   const a11yPop = useStore(a11yOpen);
   const lootWin = useStore(lootFilterOpen);
-  const autoCfg = useStore(autoPotionStore);
   const lootCfg = useStore(lootFilterStore);
   const estWin = useStore(estagiarioOpen);
   const est = useStore(estagiarioStore);
@@ -165,16 +161,6 @@ export function Sidebar() {
           <span class="rail-q">{muted || volume === 0 ? "×" : "♪"}</span>
         </button>
         <button
-          class={`rail-btn${autoCfg.hp || autoCfg.mana ? " active" : ""}`}
-          onClick={() => togglePopover(autoOpen)}
-          data-tip="Poção automática"
-          data-tip-sub={autoCfg.hp || autoCfg.mana ? `Vida ${autoCfg.hp ? autoCfg.hp + "%" : "off"} · Mana ${autoCfg.mana ? autoCfg.mana + "%" : "off"}` : "Desligada"}
-          aria-expanded={autoPop}
-          aria-label="Poção automática"
-        >
-          <span class="rail-q">⚗</span>
-        </button>
-        <button
           class={`rail-btn${lootWin || !isDefaultLootFilter(lootCfg) ? " active" : ""}`}
           onClick={toggleLootFilter}
           data-tip="Loot automático"
@@ -194,7 +180,7 @@ export function Sidebar() {
           aria-label="Estagiário"
           data-testid="rail-estagiario"
         >
-          <span class="rail-q" aria-hidden="true">🤖</span>
+          <PixelIcon name="cracha" size={16} />
         </button>
         <button
           class="rail-btn"
@@ -207,7 +193,6 @@ export function Sidebar() {
           <span class="rail-q">Aa</span>
         </button>
         {a11yPop && <A11yPopover />}
-        {autoPop && <AutoPotionPopover />}
         {help && <HelpPopover />}
         {sound && <SoundPopover />}
       </nav>

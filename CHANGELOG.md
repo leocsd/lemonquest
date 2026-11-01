@@ -1,5 +1,21 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · Estagiário: crachá, recomendações por magia, alvo mais perto, sem poção automática
+
+Dono: "quero um ícone mais a cara do jogo ao invés de 🤖", "uma recomendação default nas curas e ataques para cada
+vocação… por skill, área e alvo, e a quantidade de tiles que cada uma pega", "o auto ataque mire sempre no bicho mais
+perto" e "com o bot, tira o auto regen das poções".
+- **Crachá** em pixel art (cartão amarelo-limão com presilha e foto) no lugar do 🤖: ao lado do nome no mundo
+  (`Actor.setBot`), na battle list, no painel Online, no botão do trilho e na janela.
+- **Recomendado por vocação** (`curaRecomendada`, `ataqueRecomendado`, padrão de quem nunca configurou e botão "Usar
+  recomendado" nas abas): cura com poção < 35%, a cura própria (Limpar Feridas / Cura Divina), a Cura e a poção de mana;
+  ataque com uma regra por magia de área, com o raio dela (onda pelo comprimento, até 4) e 3 bichos nas de raio 3+ (2 nas
+  menores), da mais forte para a mais fraca, e no fim a tecla inteligente de alvo da vocação. Uma regra de "1 bicho" vale
+  com o alvo vivo mesmo longe.
+- **Alvo sempre o mais perto**: o ataque automático (F8) e o Estagiário procuram também com alvo e trocam para um monstro
+  estritamente mais perto (empate fica; mirando jogador, não troca).
+- **Sem poção automática do cliente** (botão ⚗ e o painel saíram): a cura automática é a do Estagiário.
+
 ## [Não lançado] — 2026-11-01 · Estagiário (bot de caça dentro do jogo)
 
 Dono: "introduzir um bot para farmar automático, igual um elfbot do Tibia 8.6, sem perder a graça". No tema do
@@ -7,10 +23,15 @@ escritório é o **Estagiário**: você o "contrata" para caçar por você. Spec
 `docs/superpowers/specs/2026-11-01-estagiario-design.md`. Quem decide e age é o **servidor**, a cada tick, com os sistemas
 que já existiam (magias, poções, ataque automático, modo Seguir, loot automático, pathfinding); o cliente só configura e
 mostra. Assim a aba em segundo plano (que o navegador adormece) não atrapalha e o turno não dá para burlar.
-- **Janela "Estagiário"** pelo 🤖 do trilho à direita, com interruptores de Cura e Ataque, rota rodando e turno restante, e
-  quatro abas: **Cura** (até 6 regras de vida/mana → magia de cura da vocação ou poção, a melhor que você tem),
-  **Ataque** (até 6 regras "N bichos a até R tiles → magia, família ou grupo", reserva de mana), **Rota** e **Alarmes**.
+- **Janela "Estagiário"** pelo botão do trilho à direita, com interruptores de Cura, Ataque e Buffs, rota rodando e turno restante, e
+  cinco abas: **Cura** (até 6 regras de vida/mana → magia de cura da vocação ou poção, a melhor que você tem),
+  **Ataque** (até 6 regras "N bichos a até R tiles → magia, família ou grupo", reserva de mana), **Buffs**, **Rota** e **Alarmes**.
   Salvo no personagem (`CharacterData.estagiario`).
+- **Buffs** (dono: "quero a opção também de buffs"): aba e interruptor próprios (fora do save, como Cura e Ataque; ligados
+  pela rota). Até 6 buffs da vocação (magias em si/no grupo que só aplicam condição: Pés Ligeiros, Pele de Ferro, Fúria,
+  Escudo de Mana, Muralha de Escudos, Luz Restauradora, Banho de Espuma...), reconjurados quando a condição acaba, com
+  "só em combate" por buff e "Usar recomendado" por vocação. Uma ação por tick: a cura vem antes; respeitam a reserva de
+  mana do ataque, menos o escudo de mana.
 - **Rota de caça**: "Gravar", andar pela caça, "Parar e salvar" com um nome (até 5 rotas, 200 pontos; ponto a cada mudança
   de direção, a cada 6 tiles e nos portais). Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê a até 12
   tiles (nunca jogador), o loot sai pelo loot automático e no fim volta ao começo. Ponto ou alvo inalcançável por 10 s é

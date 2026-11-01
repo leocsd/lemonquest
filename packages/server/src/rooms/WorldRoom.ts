@@ -411,7 +411,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     });
     this.estagiario = new EstagiarioSystem({
       spells: this.spells, potions: this.inventory, fight: this.fight, monsters: this.monsters, movement: this.movement,
-      companions: this.summons, npcOpen: (id) => this.npcs.openFor(id) !== "",
+      conditions: this.conditions, companions: this.summons, npcOpen: (id) => this.npcs.openFor(id) !== "",
       spellGroups: (p) => sanitizeSpellGroups(this.records.get(p.id)?.data.spellGroups, p.vocation),
       players: () => this.state.players.values(), send,
     });

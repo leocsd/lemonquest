@@ -5,6 +5,7 @@ import { session } from "../../session.ts";
 import { openPlayerMenu } from "../social/playerMenu.ts";
 import { battleSourcesStore, buildBattleList, BATTLE_RANGE, type BattleEntry } from "./battle.ts";
 import { FightModeControls } from "./FightMode.tsx";
+import { PixelIcon } from "./icons.tsx";
 import { Section } from "./Section.tsx";
 import { useStore } from "./store.ts";
 import { clearTarget, targetStore, toggleTarget } from "./target.ts";
@@ -51,6 +52,7 @@ export function BattleRows({ entries }: { entries: BattleEntry[] }) {
                 <span class="battle-name">
                   {(e.difficulty === "perigosa" || e.difficulty === "chefe") && <span class="battle-danger" aria-label={e.difficulty}>! </span>}
                   {e.elite && <span class="battle-elite" role="img" aria-label="elite">★ </span>}
+                  {e.bot && <span class="bot-badge" role="img" title="Estagiário caçando (bot)" aria-label="Estagiário"><PixelIcon name="cracha" size={11} /> </span>}
                   {e.name}
                   {e.pack && <span class="battle-pack" role="img" title="Chama o bando" aria-label="chama o bando"> ⚑</span>}
                 </span>

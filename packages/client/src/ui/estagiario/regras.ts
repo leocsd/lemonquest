@@ -1,6 +1,6 @@
 // Edição pura da configuração do Estagiário (sem DOM nem rede, para testar no node: store.test.ts). A janela só junta os
 // pedaços; o servidor sanitiza tudo de novo (shared/estagiario.ts).
-import { NOME_ROTA_MAX, REGRAS_MAX, type AlarmeTipo, type EstagiarioConfig, type RegraAtaque, type RegraCura } from "@lemonquest/shared";
+import { NOME_ROTA_MAX, REGRAS_MAX, type AlarmeTipo, type EstagiarioConfig, type RegraAtaque, type RegraBuff, type RegraCura } from "@lemonquest/shared";
 
 /** Regra nova de cura (vida abaixo de 50% → poção de vida), no fim; com REGRAS_MAX regras, a mesma lista. */
 export function addRegraCura(l: readonly RegraCura[]): readonly RegraCura[] {
@@ -12,6 +12,12 @@ export function addRegraCura(l: readonly RegraCura[]): readonly RegraCura[] {
 export function addRegraAtaque(l: readonly RegraAtaque[], magia: string): readonly RegraAtaque[] {
   if (l.length >= REGRAS_MAX || !magia) return l;
   return [...l, { minBichos: 1, raio: 1, magia }];
+}
+
+/** Buff novo com `magia`, fora de combate também, no fim; sem magia, repetido ou cheia, a mesma lista. */
+export function addRegraBuff(l: readonly RegraBuff[], magia: string): readonly RegraBuff[] {
+  if (l.length >= REGRAS_MAX || !magia || l.some((r) => r.magia === magia)) return l;
+  return [...l, { magia, emCombate: false }];
 }
 
 /** Sobe (`-1`) ou desce (`+1`) a regra `i`; nas pontas, a mesma lista. */
