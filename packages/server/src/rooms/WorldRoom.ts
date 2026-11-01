@@ -361,6 +361,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       // Ouro e comuns do abate em grupo divididos entre quem participou (mesma regra da XP compartilhada); raro+ vai ao chão.
       lootSharers: (p, m) => this.party.lootSharers(p.id, m.damageBy, m.s.x, m.s.y).filter((s) => !this.lingering.has(s.id)),
       filterOf: (p) => this.lootFilterOf(p.id),
+      onBackpackFull: (p) => this.estagiario.onMochilaCheia(p),
     });
     this.regen = new RegenSystem({
       inCombat: (id, now) => this.combat.inCombat(id, now),
@@ -465,7 +466,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       onPlayerDamaged: (p, sourceId, dealt) => this.invasion?.onPlayerDamaged(p, sourceId, dealt),
       interceptDeath: (p) => this.arena.interceptDeath(p),
       canAttackPlayer: (a, b) => this.pvp.canAttack(a, b),
-      onPlayerHit: (a, b, now) => this.pvp.onHit(a, b, now),
+      onPlayerHit: (a, b, now) => { this.pvp.onHit(a, b, now); this.estagiario.onAtacado(b, a); },
       onDying: (p, killer, now) => {
         if (killer) this.pvp.onKill(killer, p, now);
         // A morte devolve a vida na hora (renasce no templo): troca aberta e "seguir" não podem sobreviver a ela
@@ -585,6 +586,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       away: (id) => this.lingering.has(id),
       inPz: (x, y) => this.monsters.inPz(x, y),
       sameParty: (a, b) => this.party.sameParty(a, b),
+      onWhisper: (to, from) => this.estagiario.onPrivada(to, from),
     });
     // Mural de Excursões (ciclo 18): só escolhas (destino, faixa, horário, vagas), persistido no kv.
     this.excursions = new ExcursionSystem({

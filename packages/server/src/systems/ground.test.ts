@@ -590,6 +590,36 @@ describe("loot de grupo: cai no chão reservado ao grupo por 15 s, depois qualqu
     expect(t.w.notices().at(-1)).toMatch(/^Esse item é do grupo por mais \d+ s\.$/);
   });
 
+  it("grupo: item comum que ninguém tem espaço para receber cai no chão e avisa só quem estava sem espaço (alarme do Estagiário)", () => {
+    const t = groundWorld();
+    const killer = t.add("k", 9, 7, { partyId: "P1" }), ally = t.add("a", 8, 8, { partyId: "P1" });
+    for (const q of [killer, ally]) for (let k = 0; k < backpackCapacity(q.level, q.vocation); k++) t.w.inv.addItem(q, makeItem("sword"));
+    const players = new Map([["k", killer], ["a", ally]]);
+    const cheios: string[] = [];
+    const loot = new LootSystem({
+      inventory: t.w.inv, getPlayer: (id) => players.get(id), ground: t.ground, rng: () => 0, now: t.w.now,
+      send: (to, type, msg) => t.w.sent.push({ to, type, msg }), broadcast: () => {},
+      partyIdOf: () => "P1", lootSharers: () => [killer, ally], onBackpackFull: (q) => cheios.push(q.id),
+    });
+    killWith(loot, killer);
+    expect(t.onTile(9, 8).map((e) => e.item.defId)).toContain("vest");
+    expect(cheios.sort()).toEqual(["a", "k"]);
+  });
+
+  it("grupo: item que coube na mochila de alguém não dispara o alarme de mochila cheia", () => {
+    const t = groundWorld();
+    const killer = t.add("k", 9, 7, { partyId: "P1" }), ally = t.add("a", 8, 8, { partyId: "P1" });
+    const players = new Map([["k", killer], ["a", ally]]);
+    const cheios: string[] = [];
+    const loot = new LootSystem({
+      inventory: t.w.inv, getPlayer: (id) => players.get(id), ground: t.ground, rng: () => 0, now: t.w.now,
+      send: (to, type, msg) => t.w.sent.push({ to, type, msg }), broadcast: () => {},
+      partyIdOf: () => "P1", lootSharers: () => [killer, ally], onBackpackFull: (q) => cheios.push(q.id),
+    });
+    killWith(loot, killer);
+    expect(cheios).toEqual([]);
+  });
+
   it("raro+ pego por um membro vira linha no chat do grupo (também depois do prazo); quem é de fora não gera linha", () => {
     const t = groundWorld();
     const killer = t.add("k", 9, 7, { name: "Kiko", partyId: "P1" }), ally = t.add("a", 8, 8, { name: "Ana", partyId: "P1" }), stranger = t.add("s", 10, 8);

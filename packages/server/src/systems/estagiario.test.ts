@@ -1,7 +1,7 @@
 // Estagiário no servidor: cura, ataque, turno, liga/desliga da rota, pausas, gravação e caminhada da rota.
 import { describe, expect, it } from "vitest";
 import {
-  BUSCA_TILES, PAUSA_MANUAL_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS, estagiarioPadrao,
+  BUSCA_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS, estagiarioPadrao,
   type EstagiarioConfig, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
   type Vocation,
 } from "@lemonquest/shared";
@@ -400,13 +400,15 @@ describe("Estagiário: zona de proteção, morte e desconexão", () => {
     expect(w.sys.estado(w.p).rota).toBeNull();
   });
 
-  it("onDied desliga só a rota; desligarTudo desliga tudo, sem alarme", () => {
+  it("onDied desliga só a rota (e avisa a morte); desligarTudo desliga tudo, sem alarme", () => {
     const w = setup({ saved: { config: comRota() } });
     w.sys.onToggle(w.p, { cura: true, ataque: true });
     w.sys.onToggle(w.p, { rota: "Ratos" });
     w.sys.onDied(w.p);
     expect(w.p.bot).toBe(false);
     expect(w.sys.estado(w.p)).toMatchObject({ rota: null, cura: true, ataque: true });
+    expect(w.sent.filter((s) => s.type === S2C.EstagiarioAlarme).map((s) => s.msg.tipo)).toEqual(["morte"]);
+    w.sent.length = 0;
 
     w.sys.onToggle(w.p, { rota: "Ratos" });
     w.sys.desligarTudo(w.p);
@@ -463,337 +465,164 @@ describe("Estagiário: pausas", () => {
   });
 });
 
-describe("Estagiário: alarmes", () => {
-  it("alarme respeita o liga/desliga; 'morte' sempre sai", () => {
-    const w = setup({ saved: { config: { ...estagiarioPadrao("knight"), alarmes: { jogador: false, morte: false } } } });
-    w.sys.alarme(w.p, "jogador", "Fulano chegou");
-    w.sys.alarme(w.p, "morte", "Você morreu");
-    w.sys.alarme(w.p, "pocao", "Poções acabando");
-    expect(w.sent.filter((s) => s.type === S2C.EstagiarioAlarme).map((s) => s.msg)).toEqual([
-      { tipo: "morte", texto: "Você morreu" }, { tipo: "pocao", texto: "Poções acabando" },
-    ]);
-  });
-});
+describe("Estagiário: alarmes (só com a rota rodando)", () => {
+  type W = ReturnType<typeof setup>;
+  /** Setup com a rota "Ratos" ligada; as poções começam cheias (nada avisa até o teste mexer). */
+  const rodando = (extra: Partial<EstagiarioConfig> = {}, o: SetupOpts = {}) => {
+    const w = setup(o);
+    w.pot.qtd = { hp: 50, mana: 50 };
+    w.sys.onConfig(w.p, { config: comRota(extra) });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.sent.length = 0;
+    return w;
+  };
+  const alarmes = (w: W, tipo: string) =>
+    w.sent.filter((s) => s.type === S2C.EstagiarioAlarme && s.msg.tipo === tipo).map((s) => s.msg.texto as string);
+  const outro = (w: W, x = 12, y = 10) => w.add(player("q", x, y, { name: "Quim", hp: 100, maxHp: 100 }));
 
-describe("Estagiário: gravação de rota", () => {
-  /** Anda tile a tile (como os ticks veem o jogador) até (x, y) em linha reta. */
-  const andarAte = (w: ReturnType<typeof setup>, x: number, y: number) => {
-    while (w.p.x !== x || w.p.y !== y) {
-      w.p.x += Math.sign(x - w.p.x);
-      w.p.y += Math.sign(y - w.p.y);
-      w.tick();
-    }
+  it("pocao: avisa uma vez por tipo da cura abaixo do mínimo, só dos tipos usados nas regras, e rearma ao voltar a 10", () => {
+    const w = rodando({ cura: [{ quando: "vida", abaixoDe: 35, acao: { pocao: "hp" } }] });
+    w.pot.qtd.hp = POCAO_ALARME_MIN - 1;
+    w.pot.qtd.mana = 0; // mana não está nas regras: não conta
+    w.tick(200);
+    expect(alarmes(w, "pocao")).toEqual(["Estagiário: poções acabando (9 de vida)."]);
+    w.pot.qtd.hp = 3; w.tick(200);
+    expect(alarmes(w, "pocao")).toHaveLength(1); // ainda baixo: não repete
+    w.pot.qtd.hp = 9; w.tick(200); // entre o mínimo e 10 continua "avisado"
+    w.pot.qtd.hp = POCAO_ALARME_MIN; w.tick(200); // voltou: rearma
+    w.pot.qtd.hp = 2; w.tick(200);
+    expect(alarmes(w, "pocao")).toHaveLength(2);
+  });
+
+  it("pocao: poção de mana nas regras usa o texto de mana", () => {
+    const w = rodando({ cura: [{ quando: "mana", abaixoDe: 40, acao: { pocao: "mana" } }] });
+    w.pot.qtd.mana = 4;
+    w.tick(100);
+    expect(alarmes(w, "pocao")).toEqual(["Estagiário: poções acabando (4 de mana)."]);
+  });
+
+  it("vidaBaixa: avisa abaixo de vidaAlarme% uma vez e rearma só a partir de vidaAlarme + 10%", () => {
+    const w = rodando({ vidaAlarme: 25 }); // 150 de vida: 25% = 37,5
+    w.p.hp = 37; w.tick(100);
+    expect(alarmes(w, "vidaBaixa")).toEqual(["Estagiário: vida baixa (25%)."]);
+    w.p.hp = 30; w.tick(100);
+    w.p.hp = 50; w.tick(100); // 33%: ainda abaixo de 35%
+    w.p.hp = 36; w.tick(100);
+    expect(alarmes(w, "vidaBaixa")).toHaveLength(1);
+    w.p.hp = 53; w.tick(100); // 35,3%: rearmou
+    w.p.hp = 20; w.tick(100);
+    expect(alarmes(w, "vidaBaixa")).toHaveLength(2);
+  });
+
+  it("jogador: avisa quando outro jogador vivo entra no alcance e rearma quando ele sai", () => {
+    const w = rodando();
+    const q = outro(w, 10 + BUSCA_TILES + 1);
+    w.tick(100);
+    expect(alarmes(w, "jogador")).toEqual([]); // longe
+    q.x = 10 + BUSCA_TILES; w.tick(100);
+    expect(alarmes(w, "jogador")).toEqual(["Estagiário: Quim está por perto."]);
+    w.tick(100);
+    expect(alarmes(w, "jogador")).toHaveLength(1);
+    q.x = 30; w.tick(100); // saiu
+    q.x = 12; w.tick(100);
+    expect(alarmes(w, "jogador")).toHaveLength(2);
+    q.x = 30; w.tick(100);
+    q.x = 12; q.hp = 0; w.tick(100); // morto não conta
+    expect(alarmes(w, "jogador")).toHaveLength(2);
+  });
+
+  it("atacado: avisa com o nome do atacante e só de novo 10 s depois", () => {
+    const w = rodando();
+    const q = outro(w);
+    w.sys.onAtacado(w.p, q);
+    w.sys.onAtacado(w.p, q);
+    expect(alarmes(w, "atacado")).toEqual(["Estagiário: Quim está te atacando!"]);
+    w.tick(9_000);
+    w.sys.onAtacado(w.p, q);
+    expect(alarmes(w, "atacado")).toHaveLength(1);
+    w.tick(1_100);
+    w.sys.onAtacado(w.p, q);
+    expect(alarmes(w, "atacado")).toHaveLength(2);
+  });
+
+  it("privada: um alarme por mensagem", () => {
+    const w = rodando();
+    const q = outro(w);
+    w.sys.onPrivada(w.p, q);
+    w.sys.onPrivada(w.p, q);
+    expect(alarmes(w, "privada")).toEqual(["Estagiário: mensagem de Quim.", "Estagiário: mensagem de Quim."]);
+  });
+
+  it("turno: avisa ao cruzar 5 min restantes, uma vez; rearma quando o turno volta acima", () => {
+    const w = rodando({}, { saved: { turno: { ms: TURNO_AVISO_MS + 200, em: 10_000 } } });
+    w.tick(100);
+    expect(alarmes(w, "turno")).toEqual([]);
+    w.tick(300);
+    expect(alarmes(w, "turno")).toEqual(["Estagiário: faltam 5 min de turno."]);
+    w.tick(500);
+    expect(alarmes(w, "turno")).toHaveLength(1);
+    // Desliga, o turno recarrega acima de 5 min, liga de novo: avisa outra vez ao cruzar.
+    w.sys.onToggle(w.p, { rota: null });
+    (w.sys as any).st.get("p").turno = { ms: TURNO_AVISO_MS + 100, em: w.now() };
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.tick(300);
+    expect(alarmes(w, "turno")).toHaveLength(2);
+  });
+
+  it("mochila: avisa uma vez e só de novo 60 s depois", () => {
+    const w = rodando();
+    w.sys.onMochilaCheia(w.p);
+    w.sys.onMochilaCheia(w.p);
+    expect(alarmes(w, "mochila")).toEqual(["Estagiário: mochila cheia — o loot está ficando no chão."]);
+    w.tick(59_000);
+    w.sys.onMochilaCheia(w.p);
+    expect(alarmes(w, "mochila")).toHaveLength(1);
+    w.tick(1_100);
+    w.sys.onMochilaCheia(w.p);
+    expect(alarmes(w, "mochila")).toHaveLength(2);
+  });
+
+  it("morte: com a rota rodando avisa sempre (mesmo com o alarme desligado); sem a rota não avisa", () => {
+    const w = rodando({ alarmes: { morte: false } });
+    w.sys.onDied(w.p);
+    expect(alarmes(w, "morte")).toEqual(["Estagiário: você morreu. A rota foi desligada."]);
+    const w2 = setup();
+    w2.sys.onDied(w2.p);
+    expect(alarmes(w2, "morte")).toEqual([]);
+  });
+
+  // Um gatilho por tipo (sem a morte, que tem teste próprio), para provar o liga/desliga e a rota parada de uma vez.
+  const gatilhos: Record<string, { setup?: SetupOpts; dispara: (w: W) => void }> = {
+    pocao: { dispara: (w) => { w.pot.qtd.hp = 1; w.tick(100); } },
+    vidaBaixa: { dispara: (w) => { w.p.hp = 10; w.tick(100); } },
+    jogador: { dispara: (w) => { outro(w); w.tick(100); } },
+    atacado: { dispara: (w) => w.sys.onAtacado(w.p, outro(w)) },
+    privada: { dispara: (w) => w.sys.onPrivada(w.p, outro(w)) },
+    turno: { setup: { saved: { turno: { ms: TURNO_AVISO_MS - 1, em: 10_000 } } }, dispara: (w) => { w.tick(100); } },
+    mochila: { dispara: (w) => w.sys.onMochilaCheia(w.p) },
   };
 
-  it("iniciar grava um ponto por mudança de direção e por portal; parar com nome salva a rota (nome limpo)", () => {
-    const w = setup();
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    expect(w.estados().at(-1)).toMatchObject({ gravando: true, pontosGravados: 1 });
-    w.tick();
-    andarAte(w, 13, 10);
-    andarAte(w, 13, 12);
-    w.p.x = 30; w.p.y = 30; // atravessou um portal pisado em (13,12)
-    w.tick();
-    andarAte(w, 31, 30);
-    expect(w.sys.estado(w.p)).toMatchObject({ gravando: true, pontosGravados: 4 });
-    w.sys.onGravar(w.p, { acao: "parar", nome: "  Caça\u0000 dos   ratos  " });
-    const pontos: PontoRota[] = [
-      { x: 10, y: 10 }, { x: 13, y: 10 }, { x: 13, y: 12, portal: true }, { x: 30, y: 30 }, { x: 31, y: 30 },
-    ];
-    expect(w.estados().at(-1)).toMatchObject({ gravando: false, pontosGravados: 0 });
-    expect(w.sys.estado(w.p).config.rotas).toEqual([{ nome: "Caça dos ratos", pontos }]);
-  });
+  for (const [tipo, g] of Object.entries(gatilhos)) {
+    it(`${tipo}: não avisa com o alarme desligado, nem com a rota desligada ou pausada`, () => {
+      const desligado = rodando({ alarmes: { [tipo]: false } }, g.setup);
+      g.dispara(desligado);
+      expect(alarmes(desligado, tipo)).toEqual([]);
 
-  it("iniciar de novo durante a gravação é ignorado (com aviso), sem perder os pontos", () => {
-    const w = setup();
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    w.tick();
-    andarAte(w, 13, 10);
-    andarAte(w, 13, 12);
-    const antes = w.sys.estado(w.p).pontosGravados;
-    expect(antes).toBe(2);
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    expect(w.notices().at(-1)).toBe("Já está gravando.");
-    expect(w.sys.estado(w.p).pontosGravados).toBe(antes);
-  });
+      const parada = setup(g.setup);
+      parada.pot.qtd = { hp: 50, mana: 50 };
+      g.dispara(parada);
+      expect(alarmes(parada, tipo)).toEqual([]);
 
-  it("ligar a rota durante a gravação é recusado (com aviso)", () => {
-    const w = setup({ saved: { config: comRota() } });
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    w.sys.onToggle(w.p, { rota: "Ratos" });
-    expect(w.p.bot).toBe(false);
-    expect(w.sys.estado(w.p)).toMatchObject({ rota: null, gravando: true });
-    expect(w.notices().at(-1)).toBe("Pare a gravação antes de ligar a rota.");
-    expect(w.of("spawn")).toEqual([]);
-  });
+      const pausada = rodando({}, g.setup);
+      pausada.sys.manual("p"); // movimento manual pausa a rota
+      pausada.tick(100);
+      pausada.sent.length = 0;
+      g.dispara(pausada);
+      expect(alarmes(pausada, tipo)).toEqual([]);
 
-  it("recusa iniciar com a rota rodando", () => {
-    const w = setup({ saved: { config: comRota() } });
-    w.sys.onToggle(w.p, { rota: "Ratos" });
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    expect(w.sys.estado(w.p).gravando).toBe(false);
-    expect(w.notices().at(-1)).toBe("Desligue a rota para gravar outra.");
-  });
-
-  it("mesmo nome (sem diferença de maiúsculas) substitui; cheio com nome novo avisa e continua gravando", () => {
-    const cheio = { ...estagiarioPadrao("knight"), rotas: Array.from({ length: ROTAS_MAX }, (_, i) => ({ nome: `R${i}`, pontos: [{ x: 1, y: 1 }, { x: 2, y: 2 }] })) };
-    const w = setup({ saved: { config: cheio } });
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    w.tick();
-    andarAte(w, 12, 10);
-    w.sys.onGravar(w.p, { acao: "parar", nome: "Nova" });
-    expect(w.notices().at(-1)).toBe(`Já há ${ROTAS_MAX} rotas: apague uma antes.`);
-    expect(w.sys.estado(w.p)).toMatchObject({ gravando: true });
-    expect(w.sys.estado(w.p).config.rotas.map((r) => r.nome)).toEqual(["R0", "R1", "R2", "R3", "R4"]);
-
-    w.sys.onGravar(w.p, { acao: "parar", nome: "r2" });
-    const rotas = w.sys.estado(w.p).config.rotas;
-    expect(rotas.map((r) => r.nome)).toEqual(["R0", "R1", "r2", "R3", "R4"]);
-    expect(rotas[2]!.pontos).toEqual([{ x: 10, y: 10 }, { x: 12, y: 10 }]);
-    expect(w.sys.estado(w.p).gravando).toBe(false);
-  });
-
-  it("nome vazio ou menos de 2 pontos: não salva (continua gravando); descartar só larga a gravação", () => {
-    const w = setup();
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    w.tick();
-    w.sys.onGravar(w.p, { acao: "parar", nome: "Parado" });
-    expect(w.notices().at(-1)).toBe("Ande um pouco antes de salvar a rota.");
-    andarAte(w, 12, 10);
-    w.sys.onGravar(w.p, { acao: "parar", nome: "   " });
-    expect(w.notices().at(-1)).toBe("Dê um nome à rota.");
-    expect(w.sys.estado(w.p)).toMatchObject({ gravando: true });
-    expect(w.sys.estado(w.p).config.rotas).toEqual([]);
-
-    w.sys.onGravar(w.p, { acao: "descartar" });
-    expect(w.estados().at(-1)).toMatchObject({ gravando: false, pontosGravados: 0 });
-    expect(w.sys.estado(w.p).config.rotas).toEqual([]);
-    for (const lixo of [undefined, "x", { acao: "voar" }, { acao: "parar", nome: 7 }]) w.sys.onGravar(w.p, lixo as never);
-    expect(w.sys.estado(w.p).config.rotas).toEqual([]);
-  });
-
-  it("morrer ou desconectar larga a gravação (o teleporte da morte não vira portal)", () => {
-    const w = setup();
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    w.sys.onDied(w.p);
-    expect(w.sys.estado(w.p).gravando).toBe(false);
-    w.sys.onGravar(w.p, { acao: "iniciar" });
-    w.sys.desligarTudo(w.p);
-    expect(w.sys.estado(w.p).gravando).toBe(false);
-  });
-});
-
-describe("Estagiário: rodar a rota", () => {
-  const rota = (pontos: PontoRota[]): EstagiarioConfig => ({ ...estagiarioPadrao("knight"), rotas: [{ nome: "R", pontos }] });
-
-  it("anda de ponto em ponto pelo caminho e volta ao primeiro (circuito)", () => {
-    const w = setup({ andar: true, saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 15, y: 14 }]) } });
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(8000);
-    expect(w.visitados.has("15,10")).toBe(true);
-    expect(w.visitados.has("15,14")).toBe(true);
-    w.visitados.clear();
-    w.tick(8000);
-    expect(w.visitados.has("10,10")).toBe(true); // circuito: voltou ao primeiro
-  });
-
-  it("ponto de portal: pisa nele, o teleporte leva ao ponto seguinte e a rota continua dali", () => {
-    const w = setup({
-      andar: true, portais: { "13,10": { x: 30, y: 30 } },
-      saved: { config: rota([{ x: 10, y: 10 }, { x: 13, y: 10, portal: true }, { x: 30, y: 30 }, { x: 33, y: 30 }]) },
+      const ligada = rodando({}, g.setup);
+      g.dispara(ligada);
+      expect(alarmes(ligada, tipo)).toHaveLength(1);
     });
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(4000);
-    expect(w.visitados.has("30,30")).toBe(true);
-    expect(w.visitados.has("33,30")).toBe(true);
-  });
-
-  it("ponto inalcançável (fora do mapa, sem caminho): pula para o próximo depois de PONTO_TRAVADO_MS", () => {
-    const w = setup({ andar: true, saved: { config: rota([{ x: 10, y: 10 }, { x: 500, y: 500 }, { x: 14, y: 10 }]) } });
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(PONTO_TRAVADO_MS - 500);
-    expect([w.p.x, w.p.y]).toEqual([10, 10]);
-    expect(w.indice()).toBe(1);
-    w.tick(1000);
-    expect(w.indice()).toBe(2);
-    w.tick(2000);
-    expect(w.visitados.has("14,10")).toBe(true);
-  });
-
-  it("ponto ocupado (chega ao lado e não progride): também pula", () => {
-    // O rato parado no ponto (15,10) ocupa o tile: o caminho chega ao lado e não chega mais perto.
-    const w = setup({ andar: true, ratos: [{ x: 15, y: 10 }], saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 14, y: 35 }]) } });
-    w.sys.onToggle(w.p, { rota: "R" }); // a busca falsa nunca acha alvo: só a caminhada conta
-    w.tick(3000);
-    expect(w.indice()).toBe(1);
-    expect([w.p.x, w.p.y]).toEqual([14, 10]); // ao lado do ponto, sem chegar
-    w.tick(PONTO_TRAVADO_MS);
-    expect(w.indice()).toBe(2); // pulou para o próximo (ainda andando até ele, longe)
-  });
-
-  it("portal trancado pulado: pula também o trecho do outro lado (até depois do próximo portal)", () => {
-    // A porta em (13,10) devolve o jogador (requisito não cumprido): o outro lado (30,30)…(34,30) é inalcançável.
-    const w = setup({
-      andar: true, portais: { "13,10": { x: 12, y: 10 } },
-      saved: { config: rota([
-        { x: 10, y: 10 }, { x: 13, y: 10, portal: true }, { x: 30, y: 30 }, { x: 33, y: 30 }, { x: 34, y: 30, portal: true },
-        { x: 12, y: 14 }, { x: 10, y: 14 },
-      ]) },
-    });
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(PONTO_TRAVADO_MS - 500);
-    expect(w.indice()).toBe(1);
-    w.tick(1500);
-    expect(w.indice()).toBe(5); // nada de 10 s em (30,30) e mais 10 s em (33,30)…
-    w.tick(2000);
-    expect(w.visitados.has("12,14")).toBe(true);
-  });
-
-  it("portal trancado sem outro portal na rota: o resto é do outro lado, volta ao primeiro ponto", () => {
-    const w = setup({
-      andar: true, portais: { "13,10": { x: 12, y: 10 } },
-      saved: { config: rota([{ x: 10, y: 30 }, { x: 10, y: 10 }, { x: 13, y: 10, portal: true }, { x: 30, y: 30 }, { x: 33, y: 30 }]) },
-      over: { x: 10, y: 10 },
-    });
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(1000);
-    expect(w.indice()).toBe(2);
-    w.tick(PONTO_TRAVADO_MS + 500);
-    expect(w.indice()).toBe(0);
-  });
-
-  it("com o ataque automático (F8) ligado, o monstro largado também não é mirado de novo: a rota segue", () => {
-    const cerca = [];
-    for (let x = 13; x <= 15; x++) for (let y = 9; y <= 11; y++) if (x !== 14 || y !== 10) cerca.push({ x, y });
-    const w = setup({
-      andar: true, lutaReal: true, ratos: [{ x: 14, y: 10 }], paredes: cerca, over: { auto: true, chase: true },
-      saved: { config: rota([{ x: 10, y: 10 }, { x: 10, y: 20 }]) },
-    });
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(PONTO_TRAVADO_MS + 500);
-    expect(w.p.targetId).toBe("");
-    w.tick(3000);
-    expect(w.visitados.has("10,20")).toBe(true);
-    expect(w.p.targetId).toBe("");
-    expect(w.sys.ignorado("p", [...w.mm.all()][0]!.s.id)).toBe(true);
-    expect(w.sys.ignorado("outro", [...w.mm.all()][0]!.s.id)).toBe(false); // sem rota/estado: nada ignorado
-  });
-
-  it("alvo à vista mas inalcançável (atrás de água/cerca): larga o alvo em PONTO_TRAVADO_MS e a rota segue", () => {
-    // Rato em (14,10) cercado por tiles que só bloqueiam o andar: a busca real o vê (linha de visão), a perseguição não chega.
-    const cerca = [];
-    for (let x = 13; x <= 15; x++) for (let y = 9; y <= 11; y++) if (x !== 14 || y !== 10) cerca.push({ x, y });
-    const w = setup({
-      andar: true, lutaReal: true, ratos: [{ x: 14, y: 10 }], paredes: cerca,
-      saved: { config: rota([{ x: 10, y: 10 }, { x: 10, y: 20 }]) },
-    });
-    const rato = [...w.mm.all()][0]!;
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(5000);
-    expect(w.p.targetId).toBe(rato.s.id);
-    expect([w.p.x, w.p.y]).toEqual([10, 10]); // preso: nem a perseguição nem a rota andam
-    w.tick(PONTO_TRAVADO_MS - 5000 + 500);
-    expect(w.p.targetId).toBe("");
-    w.tick(3000);
-    expect(w.visitados.has("10,20")).toBe(true); // a rota seguiu
-    expect(w.p.targetId).toBe(""); // e não voltou a mirar o mesmo rato
-  });
-
-  it("alvo que está apanhando (vida caindo) não é largado, mesmo sem chegar mais perto", () => {
-    const w = setup({ andar: true, ratos: [{ x: 25, y: 25 }], saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }]) } });
-    const rato = [...w.mm.all()][0]!;
-    rato.s.hp = 1000;
-    w.luta.alvo = rato.s.id;
-    w.sys.onToggle(w.p, { rota: "R" });
-    for (let i = 0; i < 30; i++) { rato.s.hp -= 1; w.tick(500); } // 15 s apanhando de longe
-    expect(w.p.targetId).toBe(rato.s.id);
-    expect([w.p.x, w.p.y]).toEqual([10, 10]);
-  });
-
-  it("com alvo vivo não anda; ao matar, retoma pelo ponto mais próximo", () => {
-    const w = setup({ andar: true, ratos: [{ x: 25, y: 25 }], saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 20, y: 10 }]) } });
-    const rato = [...w.mm.all()][0]!;
-    w.luta.alvo = rato.s.id;
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.tick(2000);
-    expect(w.p.targetId).toBe(rato.s.id);
-    expect([w.p.x, w.p.y]).toEqual([10, 10]); // a perseguição (forceChase, falsa aqui) é que aproximaria
-    w.mv.teleport(w.p, 19, 12); // a perseguição levou até lá
-    w.luta.alvo = "";
-    w.mm.kill(rato);
-    w.tick();
-    expect(w.indice()).toBe(2);
-    w.tick(2000);
-    expect(w.visitados.has("20,10")).toBe(true);
-  });
-
-  it("pausa manual: não anda; ao sair da pausa, retoma pelo ponto mais próximo", () => {
-    const w = setup({ andar: true, saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 20, y: 10 }]) } });
-    w.sys.onToggle(w.p, { rota: "R" });
-    w.sys.manual("p");
-    w.tick(PAUSA_MANUAL_MS - 1000);
-    expect([w.p.x, w.p.y]).toEqual([10, 10]);
-    w.mv.teleport(w.p, 21, 12); // o jogador andou à mão até perto do último ponto
-    w.tick(1000 + TICK_MS);
-    expect(w.sys.estado(w.p).pausa).toBe("");
-    expect(w.indice()).toBe(2);
-    w.tick(1500);
-    expect(w.visitados.has("20,10")).toBe(true);
-  });
-});
-
-describe("Estagiário: cenário com os sistemas reais", () => {
-  it("rota ligada: passa pelo ponto, o ataque automático mata o rato, o turno gasta; manual pausa; desligar tira o bot", () => {
-    const grade = openGrid(30, 10);
-    const w = world({
-      grid: grade, defs: () => def({ id: "rato", hp: 10, armor: 0, aggroRange: 0, stationary: true, respawnMs: 999_999 }),
-      // Rato a 12 tiles de (10,2) e a mais de 12 de todo o caminho antes dele: só é visto depois de passar pelo ponto.
-      spawns: [{ defId: "rato", x: 22, y: 6, count: 1, radius: 0 }],
-    });
-    w.mm.spawnAll();
-    const rato = [...w.mm.all()][0]!;
-    const p = w.add(player("p", 3, 2, { vocation: "knight", level: 20, hp: 150, maxHp: 150, mana: 100, maxMana: 100, bot: false, chase: false }));
-    w.mm.playerList = [...w.players.values()];
-    const mv = new MovementSystem(grade, { now: () => w.now() });
-    mv.setExtraBlocker((x, y) => w.mm.isMonsterAt(x, y));
-    mv.addPlayer(p);
-    const fight = new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: (q) => w.combat.attackOf(q).range, now: () => w.now() });
-    // Cura e ataque "falsos mas reais": a mesma interface, sem magia pronta nem poção (o rato morre no ataque automático).
-    const sys = new EstagiarioSystem({
-      spells: { ready: () => false, cast: () => ({ ok: false }) },
-      potions: { potionReady: () => false, usePotion: () => false, countPotions: () => 0 },
-      fight, monsters: w.mm, movement: mv,
-      companions: { spawnCompanion: () => ({}), despawnCompanion: () => {} },
-      npcOpen: () => false, spellGroups: () => [], players: () => w.players.values(), send: () => {}, now: () => w.now(),
-    });
-    sys.load(p, { config: { ...estagiarioPadrao("knight"), rotas: [{ nome: "Ratos", pontos: [{ x: 2, y: 2 }, { x: 10, y: 2 }, { x: 10, y: 6 }] }] } });
-    const visitados = new Set<string>();
-    let passouEm = -1, mirouEm = -1;
-    const passo = () => {
-      sys.tick(w.now());
-      if (p.targetId && mirouEm < 0) mirouEm = w.now();
-      fight.tick(w.now(), w.players.values());
-      mv.tick(w.now(), w.players.values());
-      visitados.add(`${p.x},${p.y}`);
-      if (p.x === 10 && p.y === 2 && passouEm < 0) passouEm = w.now();
-    };
-    sys.onToggle(p, { cura: true, rota: "Ratos" });
-    expect(p.bot).toBe(true);
-    const turno = sys.estado(p).turnoMs;
-    let ms = 0;
-    while (ms < 20_000 && !(visitados.has("10,2") && !w.mm.wild(rato.s.id))) { w.run(TICK_MS, passo); ms += TICK_MS; }
-    expect(visitados.has("10,2")).toBe(true);
-    expect(mirouEm).toBeGreaterThan(passouEm); // passou pelo ponto e só então viu o rato
-    expect(passouEm).toBeGreaterThan(0);
-    expect(w.mm.wild(rato.s.id)).toBeUndefined();
-    expect(sys.estado(p).turnoMs).toBeLessThan(turno);
-    expect(p.bot).toBe(true);
-
-    sys.manual(p.id);
-    const onde = [p.x, p.y];
-    w.run(PAUSA_MANUAL_MS - 200, passo);
-    expect([p.x, p.y]).toEqual(onde);
-    sys.onToggle(p, { rota: null });
-    expect(p.bot).toBe(false);
-  });
+  }
 });

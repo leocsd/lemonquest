@@ -3,7 +3,7 @@
 // sistemas que já existem: magias, poções, busca de alvo/perseguição, caminho (A*) e o acompanhante visível. As regras
 // puras (sanitização, turno, escolha de cura/ataque, gravação de rota) estão em shared/estagiario.ts.
 import {
-  BUSCA_TILES, PAUSA_MANUAL_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, alarmeLigado, avancarTurno, dirFromDelta,
+  BUSCA_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TURNO_AVISO_MS, alarmeLigado, avancarTurno, dirFromDelta,
   escolherAtaque, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId,
   novaGravacao, pickFromFamily, resolveFamily, sanitizeEstagiario,
   type AlarmeTipo, type CuraAcao, type EstagiarioAlarmeMsg, type EstagiarioConfig, type EstagiarioConfigMsg,
@@ -26,6 +26,9 @@ const AVISO_PZ = "Saia da zona de proteção para ligar a rota.";
 const CAMINHO_MS = 300;
 /** Monstro largado por não dar para chegar nele (água, cerca): a busca o ignora por este tempo e a rota segue. */
 export const IGNORAR_ALVO_MS = 30_000;
+/** Alarme "atacado" no máximo a cada 10 s (cada golpe do PvP chama o gancho) e "mochila" a cada 60 s (todo abate cheio). */
+export const ATACADO_REARMA_MS = 10_000;
+export const MOCHILA_REARMA_MS = 60_000;
 
 export interface EstagiarioOptions {
   spells: { ready(p: PlayerState, id: string, now?: number): boolean; cast(p: PlayerState, id: string, targetId?: string, opts?: { silent?: boolean }): { ok: boolean } };
@@ -45,6 +48,18 @@ export interface EstagiarioOptions {
   send: (sessionId: string, type: string, msg: unknown) => void;
   now?: () => number;
 }
+
+/** O que já avisou (para não repetir a cada tick) e o que re-arma o aviso; só vale com a rota rodando. */
+interface Avisos {
+  pocao: Set<QuickPotionKind>;
+  vidaBaixa: boolean;
+  jogadores: Set<string>;
+  turno: boolean;
+  atacadoAte: number;
+  mochilaAte: number;
+}
+
+const avisosNovos = (): Avisos => ({ pocao: new Set(), vidaBaixa: false, jogadores: new Set(), turno: false, atacadoAte: 0, mochilaAte: 0 });
 
 interface Estado {
   config: EstagiarioConfig;
@@ -81,6 +96,7 @@ interface Estado {
   emPz: boolean;
   estadoEm: number;
   buscaEm: number;
+  avisos: Avisos;
 }
 
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
@@ -102,7 +118,7 @@ export class EstagiarioSystem {
       caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, lutando: false,
       alvoId: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
-      pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0,
+      pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, avisos: avisosNovos(),
     });
   }
 
@@ -178,8 +194,37 @@ export class EstagiarioSystem {
     const s = this.st.get(p.id);
     if (!s?.rota && !s?.grav) return;
     s.grav = null;
+    // Antes de desligar: o alarme só vale se a rota estava ligada (sem ela o jogador não estava fora do teclado).
+    if (s.rota) this.alarme(p, "morte", "Estagiário: você morreu. A rota foi desligada.");
     this.desligarRota(p, s);
     this.enviarEstado(p);
+  }
+
+  /** Dano de jogador em jogador (PvP): avisa a vítima com a rota rodando, no máximo a cada ATACADO_REARMA_MS. */
+  onAtacado(vitima: PlayerState, atacante: PlayerState): void {
+    const s = this.st.get(vitima.id);
+    if (!s || !this.rodando(s)) return;
+    const now = this.now();
+    if (now < s.avisos.atacadoAte) return;
+    s.avisos.atacadoAte = now + ATACADO_REARMA_MS;
+    this.alarme(vitima, "atacado", `Estagiário: ${atacante.name} está te atacando!`);
+  }
+
+  /** Sussurro recebido: um alarme por mensagem (o jogador quer ver cada uma). */
+  onPrivada(para: PlayerState, de: PlayerState): void {
+    const s = this.st.get(para.id);
+    if (!s || !this.rodando(s)) return;
+    this.alarme(para, "privada", `Estagiário: mensagem de ${de.name}.`);
+  }
+
+  /** Abate em que algo não coube na mochila: no máximo um alarme por MOCHILA_REARMA_MS. */
+  onMochilaCheia(p: PlayerState): void {
+    const s = this.st.get(p.id);
+    if (!s || !this.rodando(s)) return;
+    const now = this.now();
+    if (now < s.avisos.mochilaAte) return;
+    s.avisos.mochilaAte = now + MOCHILA_REARMA_MS;
+    this.alarme(p, "mochila", "Estagiário: mochila cheia — o loot está ficando no chão.");
   }
 
   /** Caiu a conexão ou saiu: tudo desliga (sem ninguém no cliente o Estagiário não trabalha). Ao voltar, nada religa. */
@@ -231,7 +276,40 @@ export class EstagiarioSystem {
     if (s.cura) this.curar(p, s, now);
     if (this.ataqueLigado(s)) this.atacar(p, s, now);
     // Depois do ataque: o alvo escolhido neste tick já segura a caminhada (não dá um passo da rota para o lado errado).
-    if (this.rodando(s)) this.andar(p, s, now);
+    if (this.rodando(s)) { this.vigiar(p, s); this.andar(p, s, now); }
+  }
+
+  /**
+   * Alarmes de estado (poção, vida, jogador perto, turno), checados a cada tick com a rota rodando. Cada um avisa uma
+   * vez ao cruzar o limite e só avisa de novo depois de voltar para o lado seguro (histerese), senão tocaria a 20 Hz.
+   */
+  private vigiar(p: PlayerState, s: Estado): void {
+    const a = s.avisos;
+    for (const r of s.config.cura) {
+      if (!("pocao" in r.acao)) continue;
+      const kind = r.acao.pocao;
+      const n = this.o.potions.countPotions(p, kind);
+      if (n >= POCAO_ALARME_MIN) a.pocao.delete(kind);
+      else if (!a.pocao.has(kind)) {
+        a.pocao.add(kind);
+        this.alarme(p, "pocao", `Estagiário: poções acabando (${n} de ${kind === "hp" ? "vida" : "mana"}).`);
+      }
+    }
+    const pct = p.maxHp > 0 ? (p.hp / p.maxHp) * 100 : 100;
+    if (pct >= s.config.vidaAlarme + 10) a.vidaBaixa = false;
+    else if (pct < s.config.vidaAlarme && !a.vidaBaixa) {
+      a.vidaBaixa = true;
+      this.alarme(p, "vidaBaixa", `Estagiário: vida baixa (${Math.round(pct)}%).`);
+    }
+    const perto = new Set<string>();
+    for (const q of this.o.players()) {
+      if (q.id === p.id || q.hp <= 0 || cheb(p.x, p.y, q.x, q.y) > BUSCA_TILES) continue;
+      perto.add(q.id);
+      if (!a.jogadores.has(q.id)) { a.jogadores.add(q.id); this.alarme(p, "jogador", `Estagiário: ${q.name} está por perto.`); }
+    }
+    for (const id of a.jogadores) if (!perto.has(id)) a.jogadores.delete(id);
+    if (s.turno.ms > TURNO_AVISO_MS) a.turno = false;
+    else if (!a.turno) { a.turno = true; this.alarme(p, "turno", "Estagiário: faltam 5 min de turno."); }
   }
 
   /** Gravando: guarda o passo (ou o teleporte) entre o tick anterior e este; ponto novo → estado para o painel. */
@@ -451,7 +529,8 @@ export class EstagiarioSystem {
     s.pausaAte = 0;
     s.emPz = false;
     s.estadoEm = now;
-    if (ja) return; // trocou de rota: o resto já está ligado
+    if (ja) return;
+    s.avisos = avisosNovos(); // rota nova: o que já estava no limite avisa de novo // trocou de rota: o resto já está ligado
     p.bot = true;
     this.o.fight.forceChase(p.id, true);
     this.o.companions.spawnCompanion(p, now);
