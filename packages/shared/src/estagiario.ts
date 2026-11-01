@@ -83,12 +83,14 @@ const raioDaMagia = (s: SpellDef): number => Math.max(1, Math.min(4, s.target ==
  */
 export function ataqueRecomendado(v: Vocation): RegraAtaque[] {
   const alvo = familiesFor(v).find((f) => f.id.endsWith(":target"));
+  // A família de alvo do cavaleiro só tem magia a partir do lv 30 (Golpe Brutal): a Investida (lv 10) cobre o meio.
+  const extras: RegraAtaque[] = v === "knight" ? [{ minBichos: 1, raio: 1, magia: "charge" }] : [];
   const area = spellsFor(v)
     .filter((s) => s.damage && !s.heal && (s.target === "area_self" || s.target === "area_target" || s.target === "wave"))
     .sort((a, b) => b.level - a.level)
-    .slice(0, REGRAS_MAX - (alvo ? 1 : 0))
+    .slice(0, REGRAS_MAX - extras.length - (alvo ? 1 : 0))
     .map((s): RegraAtaque => ({ minBichos: minBichosArea(s), raio: raioDaMagia(s), magia: s.id }));
-  return alvo ? [...area, { minBichos: 1, raio: 1, magia: alvo.id }] : area;
+  return alvo ? [...area, ...extras, { minBichos: 1, raio: 1, magia: alvo.id }] : [...area, ...extras];
 }
 
 /**
@@ -226,15 +228,19 @@ export function escolherCura(
   return null;
 }
 
+/**
+ * Ataque a conjurar: a primeira regra com magia pronta (`resolver`: família/grupo → a magia) e bichos suficientes.
+ * Resolve antes de contar: a contagem depende da magia resolvida (onda conta nos tiles da onda; área no alvo, em volta
+ * do alvo) e uma regra sem magia pronta nem precisa contar.
+ */
 export function escolherAtaque(
-  regras: readonly RegraAtaque[], bichosEm: (raio: number) => number, manaPct: number, reservaMana: number,
+  regras: readonly RegraAtaque[], bichosEm: (raio: number, magia: string) => number, manaPct: number, reservaMana: number,
   resolver: (magia: string) => string | null,
 ): string | null {
   if (manaPct < reservaMana) return null;
   for (const r of regras) {
-    if (bichosEm(r.raio) < r.minBichos) continue;
     const id = resolver(r.magia);
-    if (id) return id;
+    if (id && bichosEm(r.raio, id) >= r.minBichos) return id;
   }
   return null;
 }
@@ -266,13 +272,26 @@ export function indiceMaisProximo(pontos: readonly PontoRota[], pos: { x: number
 
 export const novaGravacao = (pos: { x: number; y: number }): Gravacao => ({ pontos: [{ x: pos.x, y: pos.y }], dir: null, desdeUltimo: 0 });
 
-/** Um passo do jogador durante a gravação (`de` → `para`, posições de ticks seguidos). */
-export function gravarPasso(g: Gravacao, de: { x: number; y: number }, para: { x: number; y: number }): Gravacao {
+/**
+ * Um passo do jogador durante a gravação (`de` → `para`, posições de ticks seguidos). Salto (mais de 1 tile): `portal`
+ * é o tile do portal pisado (o servidor o acha: no mesmo tick o passo chega nele e o portal já leva ao destino, então o
+ * tick só vê `de`, ao lado, e `para`); ausente = o próprio `de` (compatível); null = não foi portal (Investida, /tp,
+ * viagem de NPC): origem e destino entram como pontos comuns, sem portal.
+ */
+export function gravarPasso(
+  g: Gravacao, de: { x: number; y: number }, para: { x: number; y: number }, portal?: { x: number; y: number } | null,
+): Gravacao {
   if (g.pontos.length >= PONTOS_MAX || (de.x === para.x && de.y === para.y)) return g;
   const pontos = [...g.pontos];
   const push = (p: PontoRota) => { if (pontos.length < PONTOS_MAX) pontos.push(p); };
-  if (cheb(de, para) > 1) { // teleporte (portal): o tile pisado e o destino
-    push({ x: de.x, y: de.y, portal: true });
+  if (cheb(de, para) > 1) {
+    const last = pontos[pontos.length - 1];
+    if (portal === null) { // salto sem portal: a origem (se ainda não é o último ponto) e o destino
+      if (!last || last.x !== de.x || last.y !== de.y) push({ x: de.x, y: de.y });
+    } else {
+      const t = portal ?? de;
+      push({ x: t.x, y: t.y, portal: true });
+    }
     push({ x: para.x, y: para.y });
     return { pontos, dir: null, desdeUltimo: 0 };
   }

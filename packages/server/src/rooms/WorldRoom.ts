@@ -414,6 +414,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       conditions: this.conditions, companions: this.summons, npcOpen: (id) => this.npcs.openFor(id) !== "",
       spellGroups: (p) => sanitizeSpellGroups(this.records.get(p.id)?.data.spellGroups, p.vocation),
       players: () => this.state.players.values(), send,
+      sameParty: (a, b) => this.party.sameParty(a, b),
+      isPortalTile: (x, y) => this.portals.isPortalTile(x, y),
     });
     this.combat.hooks = {
       xpMult: () => this.events?.xpMult() ?? 1,

@@ -1,7 +1,8 @@
 import { REGRAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, estagiarioPadrao, type RegraAtaque, type RegraBuff, type RegraCura } from "@lemonquest/shared";
 import { describe, expect, it } from "vitest";
 import {
-  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, apagarRota, fmtTurno, moverRegra, removerRegra, renomearRota, setRegra, turnoMostrado,
+  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, apagarRota, fmtPonto, fmtTurno, moverRegra, ondeConta, removerRegra, renomearRota,
+  setRegra, turnoMostrado,
 } from "./regras.ts";
 
 const cura = (abaixoDe: number): RegraCura => ({ quando: "vida", abaixoDe, acao: { pocao: "hp" } });
@@ -105,5 +106,20 @@ describe("turno restante", () => {
     expect(turnoMostrado(e(null), 0, 120_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_610_000);
     expect(turnoMostrado({ turnoMs: TURNO_MAX_MS - 1, rota: null, pausa: "" }, 0, 3_600_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(TURNO_MAX_MS);
     expect(turnoMostrado({ turnoMs: 5, rota: "R", pausa: "" }, 0, 999_999, TURNO_MAX_MS, TURNO_RECARGA)).toBe(0);
+  });
+});
+
+describe("cabeçalho e rótulos do Estagiário", () => {
+  it("onde a regra de ataque conta os bichos: em volta de você, do alvo (área no alvo) ou na onda", () => {
+    expect(ondeConta("spin_strike")).toBe("em volta de você");
+    expect(ondeConta("fam:knight:target")).toBe("em volta de você");
+    expect(ondeConta("fire_burst")).toBe("em volta do alvo");
+    expect(ondeConta("energy_wave")).toBe("na onda virada para o alvo");
+  });
+
+  it("ponto da rota: 1-based de n; sem rota, nada", () => {
+    expect(fmtPonto({ i: 0, n: 12 })).toBe("ponto 1/12");
+    expect(fmtPonto({ i: 11, n: 12 })).toBe("ponto 12/12");
+    expect(fmtPonto(null)).toBe("");
   });
 });

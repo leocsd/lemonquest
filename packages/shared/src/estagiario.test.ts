@@ -32,6 +32,8 @@ describe("estagiário: configuração", () => {
       { minBichos: 2, raio: 2, magia: "whirlwind" },
       { minBichos: 2, raio: 1, magia: "front_sweep" },
       { minBichos: 2, raio: 1, magia: "spin_strike" },
+      // A família de alvo do cavaleiro só tem magia a partir do lv 30: a Investida (lv 10) cobre o meio do caminho.
+      { minBichos: 1, raio: 1, magia: "charge" },
       { minBichos: 1, raio: 1, magia: "fam:knight:target" },
     ]);
     for (const v of ["knight", "paladin", "sorcerer", "druid", "fairy"] as const) {
@@ -184,6 +186,18 @@ describe("estagiário: decisões", () => {
     expect(escolherAtaque(at, bichos(0, 0), 80, 30, resolve)).toBeNull();
   });
 
+  it("ataque: resolve a magia antes de contar e conta com a magia resolvida (onda e área no alvo contam diferente)", () => {
+    const at = [{ minBichos: 2, raio: 3, magia: "fam:sorcerer:wave" }, { minBichos: 1, raio: 1, magia: "fireball" }];
+    const vistos: [number, string][] = [];
+    const conta = (raio: number, magia: string) => { vistos.push([raio, magia]); return magia === "fire_wave" ? 2 : 1; };
+    expect(escolherAtaque(at, conta, 80, 30, (m) => (m === "fam:sorcerer:wave" ? "fire_wave" : m))).toBe("fire_wave");
+    expect(vistos).toEqual([[3, "fire_wave"]]);
+    vistos.length = 0;
+    // Regra sem magia pronta nem conta (contar pesa).
+    expect(escolherAtaque(at, conta, 80, 30, (m) => (m === "fireball" ? m : null))).toBe("fireball");
+    expect(vistos).toEqual([[1, "fireball"]]);
+  });
+
   it("rota: retoma pelo ponto mais próximo (Chebyshev; empate = o primeiro)", () => {
     const pts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
     expect(indiceMaisProximo(pts, { x: 9, y: 2 })).toBe(1);
@@ -204,6 +218,21 @@ describe("estagiário: gravação de rota", () => {
     expect(fecharGravacao(g, { x: 51, y: 70 })).toEqual([
       { x: 0, y: 0 }, { x: 6, y: 0 }, { x: 8, y: 0 }, { x: 8, y: 2, portal: true }, { x: 50, y: 70 }, { x: 51, y: 70 },
     ]);
+  });
+
+  it("teleporte: o tile do portal informado vira o ponto de portal; sem portal (Investida, /tp), só pontos comuns", () => {
+    let g = novaGravacao({ x: 0, y: 0 });
+    g = gravarPasso(g, { x: 0, y: 0 }, { x: 1, y: 0 });
+    // Pisou no portal (2,0) e o mesmo tick já o levou a (40,40): o servidor vê (1,0) → (40,40) e acha o portal ao lado.
+    g = gravarPasso(g, { x: 1, y: 0 }, { x: 40, y: 40 }, { x: 2, y: 0 });
+    expect(g.pontos).toEqual([{ x: 0, y: 0 }, { x: 2, y: 0, portal: true }, { x: 40, y: 40 }]);
+    // Investida (salto de 3 tiles sem portal): origem e destino comuns.
+    g = gravarPasso(g, { x: 40, y: 40 }, { x: 43, y: 40 }, null);
+    expect(g.pontos.slice(3)).toEqual([{ x: 43, y: 40 }]);
+    g = gravarPasso(g, { x: 43, y: 40 }, { x: 44, y: 40 });
+    g = gravarPasso(g, { x: 44, y: 40 }, { x: 47, y: 43 }, null);
+    expect(g.pontos.slice(3)).toEqual([{ x: 43, y: 40 }, { x: 44, y: 40 }, { x: 47, y: 43 }]);
+    expect(g.pontos.some((p, i) => i > 1 && p.portal)).toBe(false);
   });
 
   it("para de crescer em PONTOS_MAX", () => {
