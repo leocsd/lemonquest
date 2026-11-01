@@ -202,7 +202,7 @@ export class SocialSystem {
       };
       if (this.o.zoneAt && this.zoneVisible(viewer, q, friends)) e.zone = zones?.get(q.id) ?? this.o.zoneAt(q.x, q.y) ?? NO_ZONE;
       if (this.o.away?.(q.id)) e.away = true;
-      if (q.bot) e.bot = true; // rota do Estagiário rodando: 🤖 no painel de quem vê
+      if (q.bot) e.bot = true; // rota do Estagiário rodando: crachá no painel de quem vê
       list.push(e);
     }
     return { list: sortOnline(list), offlineFriends: friendNames.filter((n) => !on.has(nameKey(n))) };

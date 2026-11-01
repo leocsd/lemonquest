@@ -116,7 +116,7 @@ export class WorldScene extends Phaser.Scene {
   private companionOwner = new Map<string, string>();
   /** Acompanhantes criados antes de o nome do dono chegar: o rótulo é refeito quando ele aparece no playersStore. */
   private companionUnnamed = new Set<string>();
-  /** Jogadores com a rota do Estagiário rodando (🤖 no nome). */
+  /** Jogadores com a rota do Estagiário rodando (crachá ao lado do nome). */
   private botOn = new Map<string, boolean>();
   private dying = new Set<string>();
   /** Última posição de criaturas já removidas (para números de dano que chegam depois). */
@@ -498,13 +498,12 @@ export class WorldScene extends Phaser.Scene {
     else if (turned) actor.face(p.dir);
   }
 
-  /** Rota do Estagiário ligou/desligou: 🤖 antes do nome (o título, 2ª linha do rótulo, é reaplicado por cima). */
+  /** Rota do Estagiário ligou/desligou: crachá à esquerda do nome (2026-11-01: no lugar do 🤖 no texto). */
   private syncBotName(id: string, actor: Actor, p: PlayerView) {
     const bot = !!p.bot;
     if ((this.botOn.get(id) ?? false) === bot) return;
     this.botOn.set(id, bot);
-    actor.setName((bot ? "🤖 " : "") + p.name);
-    actor.setTitle(p.title ?? "");
+    actor.setBot(bot);
   }
 
   /** Nome do acompanhante: "Estagiário de <dono>" (dono pelo sessionId em ownerId). */
@@ -1058,8 +1057,10 @@ export class WorldScene extends Phaser.Scene {
       predStats: () => ({ ...this.predictor.stats, timeoutMs: this.predictor.confirmTimeoutMs }),
       monsters: () => [...this.creatureKnown].filter(([id]) => !this.dying.has(id))
         .map(([id, k]) => ({ id, x: k.x, y: k.y, ...this.creatureInfo.get(id), ownerId: this.companionOwner.get(id) })),
-      /** Primeira linha do rótulo sobre o personagem (o nome como aparece na tela, com o 🤖 do Estagiário). */
+      /** Primeira linha do rótulo sobre o personagem (o nome como aparece na tela). */
       nameLabel: (id: string) => this.actors.get(id)?.nameLabel() ?? null,
+      /** O crachá do Estagiário (rota do bot rodando) está ao lado do nome. */
+      botBadge: (id: string) => this.actors.get(id)?.isBot ?? false,
       ground: () => this.ground?.all() ?? [],
       /** Seta-guia do novato (null = escondida). */
       guide: () => this.guide?.shown ?? null,

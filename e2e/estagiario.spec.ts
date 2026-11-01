@@ -1,6 +1,6 @@
 // Estagiário (bot de caça executado pelo servidor): gravar uma rota andando com o teclado na floresta, salvar com nome,
-// ligar; o 🤖 aparece no próprio nome, o acompanhante surge (fora da battle list, e o dono passa por cima dele) e um rato
-// morre sem comando (o XP sobe). Desligar tira o 🤖 e some com o acompanhante.
+// ligar; o crachá do Estagiário aparece ao lado do próprio nome, o acompanhante surge (fora da battle list, e o dono passa por cima dele) e um rato
+// morre sem comando (o XP sobe). Desligar tira o crachá e some com o acompanhante.
 import { expect, test, type Page } from "@playwright/test";
 import { enterGame, me, meState, monsters, say, setLevel, teleport, waitSettled, walkableNear } from "./helpers.ts";
 
@@ -38,7 +38,7 @@ const companionOf = async (page: Page) => {
   return (await monsters(page)).find((k) => k.defId === "estagiario" && (!k.ownerId || k.ownerId === myId)) ?? null;
 };
 
-test("Estagiário: grava a rota, liga, 🤖 no nome, acompanhante fora da batalha e atravessável, mata um rato sozinho e desliga", async ({ page }) => {
+test("Estagiário: grava a rota, liga, crachá no nome, acompanhante fora da batalha e atravessável, mata um rato sozinho e desliga", async ({ page }) => {
   test.setTimeout(180_000);
   const p = await enterGame(page, "knight");
   await setLevel(page, 8);
@@ -72,10 +72,10 @@ test("Estagiário: grava a rota, liga, 🤖 no nome, acompanhante fora da batalh
   await expect.poll(async () => (await meState(page))?.bot, { timeout: 15_000 }).toBe(true);
   await expect(win.getByTestId("est-desligar")).toBeVisible();
 
-  // O próprio nome ganha o 🤖.
+  // O próprio nome ganha o crachá do Estagiário (o texto do nome não muda).
   const myId = await page.evaluate(() => (window as any).__lq.myId() as string);
-  await expect.poll(() => page.evaluate((id) => (window as any).__lq.nameLabel(id) as string | null, myId), { timeout: 10_000 })
-    .toBe(`🤖 ${p.name}`);
+  await expect.poll(() => page.evaluate((id) => (window as any).__lq.botBadge(id) as boolean, myId), { timeout: 10_000 }).toBe(true);
+  expect(await page.evaluate((id) => (window as any).__lq.nameLabel(id) as string | null, myId)).toBe(p.name);
 
   // O acompanhante existe e não aparece na battle list (não é alvo).
   await expect.poll(async () => !!(await companionOf(page)), { timeout: 15_000, message: "acompanhante na tela" }).toBe(true);
@@ -102,6 +102,9 @@ test("Estagiário: grava a rota, liga, 🤖 no nome, acompanhante fora da batalh
       if (!busy.has(`${x},${y}`) && (await walkable(page, x, y))) { lado = { key, x, y }; break; }
     }
     if (!lado) { pisou = `sem vizinho livre do acompanhante em ${c!.x},${c!.y}`; await page.waitForTimeout(1000); continue; }
+    // Pausa a rota antes do /tp (mexer à mão pausa 10 s): a rota do teste tem 3 passos e puxaria o personagem de volta
+    // ao ponto dela antes de o teleporte ser conferido (falha do CI de 2026-11-01).
+    await stepAnywhere(page);
     await teleport(page, lado.x, lado.y);
     const m = (await me(page))!, alvo = await companionOf(page); // tile do acompanhante na hora da seta
     const key = alvo && Object.entries(DIRS).find(([, [dx, dy]]) => m.x + dx === alvo.x && m.y + dy === alvo.y)?.[0];
@@ -118,9 +121,9 @@ test("Estagiário: grava a rota, liga, 🤖 no nome, acompanhante fora da batalh
   }
   expect(pisou, "dono pisa no tile do acompanhante").toBe("pisou");
 
-  // Desligar: sem 🤖 e sem acompanhante.
+  // Desligar: sem crachá e sem acompanhante.
   await win.getByTestId("est-desligar").click();
   await expect.poll(async () => (await meState(page))?.bot, { timeout: 15_000 }).toBe(false);
   await expect.poll(async () => !!(await companionOf(page)), { timeout: 15_000, message: "acompanhante sumiu" }).toBe(false);
-  await expect.poll(() => page.evaluate((id) => (window as any).__lq.nameLabel(id) as string | null, myId), { timeout: 10_000 }).toBe(p.name);
+  await expect.poll(() => page.evaluate((id) => (window as any).__lq.botBadge(id) as boolean, myId), { timeout: 10_000 }).toBe(false);
 });

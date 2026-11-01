@@ -71,6 +71,21 @@ function ensurePartyShield(scene: Phaser.Scene) {
   }));
   tex.refresh();
 }
+/** Crachá 7×9 do Estagiário (rota do bot rodando; no lugar do 🤖): cartão amarelo-limão, presilha azul e foto. */
+const BOT_BADGE_TEX = "bot-badge";
+function ensureBotBadge(scene: Phaser.Scene) {
+  if (scene.textures.exists(BOT_BADGE_TEX)) return;
+  const tex = scene.textures.createCanvas(BOT_BADGE_TEX, 7, 9)!;
+  const c = tex.getContext();
+  const rows = ["0033300", "0030300", "1111111", "1222221", "1442221", "1442221", "1222221", "1255521", "1111111"];
+  const color: Record<string, string> = { "1": "#2a2410", "2": "#ffe24a", "3": "#8fb4ff", "4": "#6a5a2a", "5": "#a08a30" };
+  rows.forEach((r, y) => [...r].forEach((ch, x) => {
+    if (ch === "0") return;
+    c.fillStyle = color[ch]!;
+    c.fillRect(x, y, 1, 1);
+  }));
+  tex.refresh();
+}
 /** Caveira 7×7 do PvP (branca / vermelha), gerada uma vez por cor. */
 const SKULL_FILL = { white: "#f2efe0", red: "#ff3b30" } as const;
 export type SkullKind = keyof typeof SKULL_FILL;
@@ -130,6 +145,8 @@ export class Actor {
   /** Marca de grupo (escudinho) e cor original do nome. */
   private partyIcon: Phaser.GameObjects.Image | null = null;
   private skullIcon: Phaser.GameObjects.Image | null = null;
+  /** Crachá do Estagiário à esquerda do nome (rota do bot rodando). */
+  private botIcon: Phaser.GameObjects.Image | null = null;
   private skullKind = "";
   private baseNameColor = "#ffffff";
   /** Falas ativas, da mais antiga para a mais nova. */
@@ -226,6 +243,23 @@ export class Actor {
 
   get inParty(): boolean { return !!this.partyIcon; }
 
+  /** Rota do Estagiário rodando: crachá à esquerda do nome (antes do escudinho do grupo, se houver). */
+  setBot(on: boolean) {
+    if (on === !!this.botIcon) return;
+    if (on) {
+      ensureBotBadge(this.deps.scene);
+      this.botIcon = this.deps.scene.add.image(0, 0, BOT_BADGE_TEX).setOrigin(1, 0.5).setScale(2);
+      this.deps.uiLayer.add(this.botIcon);
+      this.placePartyIcon();
+      this.applyVisible();
+    } else {
+      this.botIcon?.destroy();
+      this.botIcon = null;
+    }
+  }
+
+  get isBot(): boolean { return !!this.botIcon; }
+
   /** Caveira do PvP à direita do nome ("" remove). */
   setSkull(kind: string) {
     if (kind === this.skullKind) return;
@@ -241,8 +275,9 @@ export class Actor {
 
   private placePartyIcon() {
     this.skullIcon?.setPosition(Math.round(this.label.x + this.label.displayWidth / 2 + 2), Math.round(this.label.y - this.label.displayHeight / 2));
-    if (!this.partyIcon) return;
-    this.partyIcon.setPosition(Math.round(this.label.x - this.label.displayWidth / 2 - 2), Math.round(this.label.y - this.label.displayHeight / 2));
+    const left = Math.round(this.label.x - this.label.displayWidth / 2 - 2), y = Math.round(this.label.y - this.label.displayHeight / 2);
+    this.partyIcon?.setPosition(left, y);
+    this.botIcon?.setPosition(this.partyIcon ? left - this.partyIcon.displayWidth - 2 : left, y);
   }
 
   /** Mostra uma fala sobre a cabeça. */
@@ -425,6 +460,7 @@ export class Actor {
     for (const s of this.speech) s.text.setVisible(v);
     this.partyIcon?.setVisible(v);
     this.skullIcon?.setVisible(v);
+    this.botIcon?.setVisible(v);
     this.barBg.setVisible(v && !this.noBar);
     this.barGhost.setVisible(v && !this.noBar);
     this.barFill.setVisible(v && !this.noBar);
@@ -626,6 +662,7 @@ export class Actor {
     for (const s of this.speech) s.text.destroy();
     this.partyIcon?.destroy();
     this.skullIcon?.destroy();
+    this.botIcon?.destroy();
     this.barBg.destroy();
     this.barGhost.destroy();
     this.barFill.destroy();

@@ -38,7 +38,7 @@ export function flushConfig(): void {
   if (cur) send(C2S.EstagiarioConfig, { config: cur.config } satisfies EstagiarioConfigMsg);
 }
 
-/** Liga/desliga cura, ataque ou a rota (só o que vier definido muda). A configuração pendente vai antes. */
+/** Liga/desliga cura, ataque, buffs ou a rota (só o que vier definido muda). A configuração pendente vai antes. */
 export function ligar(m: EstagiarioToggleMsg): void {
   flushConfig();
   send(C2S.EstagiarioToggle, m);

@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-01e",
+    date: "1º de novembro",
+    title: "Estagiário de crachá",
+    items: [
+      "O Estagiário agora usa crachá (no nome, na batalha, no Online e no botão do trilho).",
+      "Cura, ataque e buffs já vêm recomendados para a sua vocação: uma regra por magia de área, com o raio dela. Botão \"Usar recomendado\" em cada aba.",
+      "O ataque automático sempre mira o bicho mais perto. A poção automática saiu: quem cura sozinho agora é o Estagiário.",
+    ],
+  },
+  {
     id: "2026-11-01d",
     date: "1º de novembro",
     title: "Contrate o Estagiário",
@@ -19,6 +29,7 @@ export const NEWS: readonly NewsEntry[] = [
       "Botão 🤖 no trilho à direita: o Estagiário cura você e ataca os bichos por perto com as magias e poções que você escolher.",
       "Grave uma rota de caça andando por ela; ligada, ele roda a rota sozinho, mata o que vê e pega o loot. Gasta turno (2 h por dia).",
       "Com a rota ligada aparece o 🤖 no seu nome e o seu Estagiário ao lado. Só funciona com o jogo aberto.",
+      "Aba Buffs: ele mantém ativos os buffs que você escolher (pressa, Pele de Ferro, Escudo de Mana...), alguns só em combate.",
       "Alarmes avisam com som quando a poção acaba, a vida cai, chega um jogador, alguém ataca ou manda mensagem.",
     ],
   },

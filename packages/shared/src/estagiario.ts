@@ -1,7 +1,7 @@
 // Estagiário (2026-11-01, spec docs/superpowers/specs/2026-11-01-estagiario-design.md): bot de caça do próprio jogo.
 // Aqui só as regras puras (o servidor decide e age em server/systems/estagiario.ts; o cliente só configura).
-import { castableBy, type SpellGroup } from "./data/spellFamilies.ts";
-import { spellDef } from "./data/spells.ts";
+import { castableBy, familiesFor, type SpellGroup } from "./data/spellFamilies.ts";
+import { spellDef, spellsFor, type SpellDef } from "./data/spells.ts";
 import type { QuickPotionKind } from "./itemRules.ts";
 import type { Vocation } from "./types.ts";
 
@@ -9,6 +9,8 @@ export type CuraAcao = { magia: string } | { pocao: QuickPotionKind };
 export interface RegraCura { quando: "vida" | "mana"; abaixoDe: number; acao: CuraAcao }
 /** Conta os monstros selvagens a até `raio` tiles; com `minBichos` ou mais, conjura `magia` (magia, família ou grupo). */
 export interface RegraAtaque { minBichos: number; raio: number; magia: string }
+/** Buff mantido ativo: reconjura `magia` quando a condição dela acaba; `emCombate` = só com um monstro vivo de alvo. */
+export interface RegraBuff { magia: string; emCombate: boolean }
 /** `portal`: o tile do portal pisado na gravação (a rota anda até ele para atravessar de novo). */
 export interface PontoRota { x: number; y: number; portal?: boolean }
 export interface RotaCaca { nome: string; pontos: PontoRota[] }
@@ -16,6 +18,8 @@ export type AlarmeTipo = "pocao" | "vidaBaixa" | "jogador" | "atacado" | "privad
 export interface EstagiarioConfig {
   cura: RegraCura[];
   ataque: RegraAtaque[];
+  /** Buffs mantidos ativos (2026-11-01, pedido do dono), na ordem. */
+  buffs: RegraBuff[];
   /** Abaixo desta % de mana não conjura magia de ataque (sobra para a cura). */
   reservaMana: number;
   rotas: RotaCaca[];
@@ -52,15 +56,71 @@ const cleanNome = (raw: unknown): string =>
 
 const curaDaVocacao = (v: Vocation): string => (v === "fairy" ? "fairy_kiss" : "light_heal");
 
+/**
+ * Cura recomendada por vocação (2026-11-01, pedido do dono): poção forte primeiro na vida baixa; depois a cura própria
+ * da vocação (Limpar Feridas do cavaleiro, Cura Divina do paladino — só saem quando o level libera; antes disso a regra
+ * é pulada e vale a seguinte); a Cura comum; e a poção de mana. Magos curam mais com a Cura (magic level alto).
+ */
+export function curaRecomendada(v: Vocation): RegraCura[] {
+  const hp = (abaixoDe: number): RegraCura => ({ quando: "vida", abaixoDe, acao: { pocao: "hp" } });
+  const mp = (abaixoDe: number): RegraCura => ({ quando: "mana", abaixoDe, acao: { pocao: "mana" } });
+  const magia = (abaixoDe: number, id: string): RegraCura => ({ quando: "vida", abaixoDe, acao: { magia: id } });
+  if (v === "knight") return [hp(35), magia(55, "wound_cleansing"), magia(70, "light_heal"), mp(25)];
+  if (v === "paladin") return [hp(35), magia(60, "divine_healing"), magia(70, "light_heal"), mp(35)];
+  return [hp(35), magia(65, curaDaVocacao(v)), mp(35)];
+}
+
+/** Quantos bichos a até `raio` tiles pedem a magia de área: as de raio 3+ pedem 3; as menores, 2. */
+const minBichosArea = (s: SpellDef): number => (s.target === "area_self" && (s.radius ?? 1) >= 3 ? 3 : 2);
+/** Raio (tiles) em volta do personagem que conta os bichos para a magia: o raio dela, ou o comprimento da onda. */
+const raioDaMagia = (s: SpellDef): number => Math.max(1, Math.min(4, s.target === "wave" ? s.length ?? 1 : s.radius ?? 1));
+
+/**
+ * Ataque recomendado por vocação, magia por magia (2026-11-01, pedido do dono: "por skill, área e alvo, e a quantidade
+ * de tiles que cada uma pega"): cada magia de dano em área (em volta, no alvo ou onda) vira uma regra com o raio dela e
+ * 2–3 bichos, da mais forte (level maior) para a mais fraca; a última regra é a tecla inteligente "no alvo" da vocação,
+ * que solta o golpe de alvo único mais forte pronto (do level 1 em diante). Magias acima do level são puladas sozinhas.
+ */
+export function ataqueRecomendado(v: Vocation): RegraAtaque[] {
+  const alvo = familiesFor(v).find((f) => f.id.endsWith(":target"));
+  const area = spellsFor(v)
+    .filter((s) => s.damage && !s.heal && (s.target === "area_self" || s.target === "area_target" || s.target === "wave"))
+    .sort((a, b) => b.level - a.level)
+    .slice(0, REGRAS_MAX - (alvo ? 1 : 0))
+    .map((s): RegraAtaque => ({ minBichos: minBichosArea(s), raio: raioDaMagia(s), magia: s.id }));
+  return alvo ? [...area, { minBichos: 1, raio: 1, magia: alvo.id }] : area;
+}
+
+/**
+ * Magia de buff (2026-11-01): em si mesmo ou no grupo, aplica uma condição e não dá dano, não cura nem invoca
+ * (Pés Ligeiros, Pele de Ferro, Fúria, Escudo de Mana, Muralha de Escudos, Luz Restauradora, Banho de Espuma...).
+ */
+export const ehBuff = (s: SpellDef): boolean =>
+  (s.target === "self" || s.target === "party") && !!s.condition && !s.damage && !s.heal && !s.summon;
+
+/** Buffs que a vocação pode escolher, do level menor para o maior. */
+export const buffsDaVocacao = (v: Vocation): SpellDef[] => spellsFor(v).filter(ehBuff);
+
+/**
+ * Buffs recomendados por vocação: a pressa sempre (fora de combate também, para andar a rota mais rápido); o cavaleiro
+ * segura Pele de Ferro e Fúria na luta; magos e a fada, o escudo de mana na luta. Acima do level, a regra é pulada.
+ */
+export function buffsRecomendados(v: Vocation): RegraBuff[] {
+  const b = (magia: string, emCombate: boolean): RegraBuff => ({ magia, emCombate });
+  if (v === "knight") return [b("swift_feet", false), b("iron_skin", true), b("berserk", true)];
+  if (v === "paladin") return [b("swift_feet", false)];
+  if (v === "fairy") return [b("bubble_bath", true), b("swift_wings", false)];
+  return [b("mana_shield", true), b("swift_feet", false)];
+}
+
+const RESERVA_MANA: Partial<Record<Vocation, number>> = { knight: 20, paladin: 25 };
+
 export function estagiarioPadrao(v: Vocation): EstagiarioConfig {
   return {
-    cura: [
-      { quando: "vida", abaixoDe: 35, acao: { pocao: "hp" } },
-      { quando: "vida", abaixoDe: 70, acao: { magia: curaDaVocacao(v) } },
-      { quando: "mana", abaixoDe: 40, acao: { pocao: "mana" } },
-    ],
-    ataque: [],
-    reservaMana: 30,
+    cura: curaRecomendada(v),
+    ataque: ataqueRecomendado(v),
+    buffs: buffsRecomendados(v),
+    reservaMana: RESERVA_MANA[v] ?? 30,
     rotas: [],
     alarmes: {},
     vidaAlarme: 25,
@@ -87,6 +147,13 @@ function regraAtaque(raw: unknown, v: Vocation, groups: readonly SpellGroup[]): 
   const s = spellDef(r.magia);
   if (s && (!s.damage || s.heal)) return null; // magia solta: só de dano (família/grupo já são de ataque)
   return { minBichos: int(r.minBichos, 1, 8, 1), raio: int(r.raio, 1, 4, 1), magia: r.magia };
+}
+
+function regraBuff(raw: unknown, v: Vocation): RegraBuff | null {
+  const r = obj(raw);
+  if (!r || typeof r.magia !== "string") return null;
+  const s = spellDef(r.magia);
+  return s && s.vocations.includes(v) && ehBuff(s) ? { magia: s.id, emCombate: r.emCombate === true } : null;
 }
 
 function rota(raw: unknown): RotaCaca | null {
@@ -118,13 +185,21 @@ export function sanitizeEstagiario(raw: unknown, v: Vocation, groups: readonly S
     const k = rota(e);
     if (k && !rotas.some((x) => x.nome.toLowerCase() === k.nome.toLowerCase())) rotas.push(k);
   }
+  const buffs: RegraBuff[] = [];
+  for (const e of Array.isArray(r.buffs) ? r.buffs.slice(0, REGRAS_MAX * 4) : []) {
+    if (buffs.length >= REGRAS_MAX) break;
+    const k = regraBuff(e, v);
+    if (k && !buffs.some((x) => x.magia === k.magia)) buffs.push(k); // a mesma magia duas vezes não faz nada a mais
+  }
   const alarmes: Partial<Record<AlarmeTipo, boolean>> = {};
   const a = obj(r.alarmes);
   if (a) for (const t of ALARMES) if (t !== "morte" && a[t] === false) alarmes[t] = false;
   return {
     cura: Array.isArray(r.cura) ? list(r.cura, (e) => regraCura(e, v), REGRAS_MAX) : estagiarioPadrao(v).cura,
-    ataque: list(r.ataque, (e) => regraAtaque(e, v, groups), REGRAS_MAX),
-    reservaMana: int(r.reservaMana, 0, 90, 30),
+    ataque: Array.isArray(r.ataque) ? list(r.ataque, (e) => regraAtaque(e, v, groups), REGRAS_MAX) : ataqueRecomendado(v),
+    // Sem a lista no que veio salvo (configuração de antes dos buffs): vale o recomendado; lista vazia fica vazia.
+    buffs: Array.isArray(r.buffs) ? buffs : buffsRecomendados(v),
+    reservaMana: int(r.reservaMana, 0, 90, RESERVA_MANA[v] ?? 30),
     rotas,
     alarmes,
     vidaAlarme: int(r.vidaAlarme, 1, 99, 25),
@@ -160,6 +235,23 @@ export function escolherAtaque(
     if (bichosEm(r.raio) < r.minBichos) continue;
     const id = resolver(r.magia);
     if (id) return id;
+  }
+  return null;
+}
+
+/**
+ * Buff a conjurar agora: o primeiro da lista cuja condição não está ativa, que vale fora de combate (ou há alvo), que
+ * respeita a reserva de mana (menos o escudo de mana, que é de sobrevivência) e está pronto.
+ */
+export function escolherBuff(
+  regras: readonly RegraBuff[], ativo: (condicao: string) => boolean, comAlvo: boolean, manaPct: number, reservaMana: number,
+  pronto: (magia: string) => boolean,
+): string | null {
+  for (const r of regras) {
+    const s = spellDef(r.magia);
+    if (!s?.condition || (r.emCombate && !comAlvo) || ativo(s.condition.id)) continue;
+    if (s.condition.id !== "manashield" && manaPct < reservaMana) continue;
+    if (pronto(s.id)) return s.id;
   }
   return null;
 }

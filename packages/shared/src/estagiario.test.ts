@@ -1,21 +1,50 @@
 import { describe, expect, it } from "vitest";
+import { SPELLS } from "./data/spells.ts";
 import {
   ALARMES, BUSCA_TILES, NOME_ROTA_MAX, PONTOS_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS,
-  alarmeLigado, avancarTurno, escolherAtaque, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso,
+  alarmeLigado, ataqueRecomendado, avancarTurno, buffsDaVocacao, buffsRecomendados, ehBuff, escolherAtaque, escolherBuff,
+  escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso,
   indiceMaisProximo, novaGravacao, sanitizeEstagiario, type RegraCura,
 } from "./estagiario.ts";
 
 describe("estagiário: configuração", () => {
-  it("padrão: poção de vida < 35%, cura da vocação < 70%, poção de mana < 40%; sem ataque e sem rotas", () => {
+  it("padrão = recomendado da vocação: cura com a poção, a cura própria, a Cura e a poção de mana; sem rotas", () => {
     const c = estagiarioPadrao("knight");
     expect(c.cura).toEqual([
       { quando: "vida", abaixoDe: 35, acao: { pocao: "hp" } },
+      { quando: "vida", abaixoDe: 55, acao: { magia: "wound_cleansing" } },
       { quando: "vida", abaixoDe: 70, acao: { magia: "light_heal" } },
-      { quando: "mana", abaixoDe: 40, acao: { pocao: "mana" } },
+      { quando: "mana", abaixoDe: 25, acao: { pocao: "mana" } },
     ]);
+    expect(estagiarioPadrao("paladin").cura.map((r) => r.acao)).toContainEqual({ magia: "divine_healing" });
     expect(estagiarioPadrao("fairy").cura[1]!.acao).toEqual({ magia: "fairy_kiss" });
-    expect([c.ataque, c.rotas, c.reservaMana, c.vidaAlarme]).toEqual([[], [], 30, 25]);
+    expect([c.rotas, c.reservaMana, c.vidaAlarme]).toEqual([[], 20, 25]);
     for (const a of ALARMES) expect(alarmeLigado(c, a), a).toBe(true);
+    // Recomendação válida para a própria vocação (sobrevive à sanitização, nada some).
+    for (const v of ["knight", "paladin", "sorcerer", "druid", "fairy"] as const) {
+      expect(sanitizeEstagiario(estagiarioPadrao(v), v), v).toEqual(estagiarioPadrao(v));
+    }
+  });
+
+  it("ataque recomendado: uma regra por magia de área (raio dela, 3 bichos nas de raio 3+, 2 nas menores), da mais forte para a mais fraca, e por último a tecla de alvo da vocação", () => {
+    expect(ataqueRecomendado("knight")).toEqual([
+      { minBichos: 3, raio: 3, magia: "earthquake" },
+      { minBichos: 2, raio: 2, magia: "whirlwind" },
+      { minBichos: 2, raio: 1, magia: "front_sweep" },
+      { minBichos: 2, raio: 1, magia: "spin_strike" },
+      { minBichos: 1, raio: 1, magia: "fam:knight:target" },
+    ]);
+    for (const v of ["knight", "paladin", "sorcerer", "druid", "fairy"] as const) {
+      const r = ataqueRecomendado(v);
+      expect(r.length, v).toBeLessThanOrEqual(REGRAS_MAX);
+      expect(r[r.length - 1]!.magia, v).toBe(`fam:${v}:target`);
+      for (const x of r) { expect(x.raio).toBeGreaterThanOrEqual(1); expect(x.raio).toBeLessThanOrEqual(4); }
+    }
+    // A onda conta pelo comprimento (até 4).
+    expect(ataqueRecomendado("sorcerer")).toContainEqual({ minBichos: 2, raio: 4, magia: "fire_wave" });
+    // Sem a lista de ataque no que veio salvo: vale o recomendado (configuração antiga não fica sem ataque).
+    expect(sanitizeEstagiario({ cura: [] }, "knight").ataque).toEqual(ataqueRecomendado("knight"));
+    expect(sanitizeEstagiario({ ataque: [] }, "knight").ataque).toEqual([]);
   });
 
   it("sanitiza: limites, magias de outra vocação, curas que não curam, ataques que curam, lixo", () => {
@@ -54,6 +83,62 @@ describe("estagiário: configuração", () => {
     expect(c.rotas[0]!.nome).toHaveLength(NOME_ROTA_MAX);
     expect(c.rotas[0]!.pontos).toHaveLength(PONTOS_MAX);
     expect(new Set(c.rotas.map((r) => r.nome)).size).toBe(ROTAS_MAX);
+  });
+});
+
+describe("estagiário: buffs", () => {
+  const VOCS = ["knight", "paladin", "sorcerer", "druid", "fairy"] as const;
+
+  it("buff = em si/no grupo, com condição, sem dano, cura ou invocação", () => {
+    const buffs = Object.values(SPELLS).filter(ehBuff).map((s) => s.id).sort();
+    expect(buffs).toEqual(expect.arrayContaining(["swift_feet", "iron_skin", "berserk", "mana_shield", "shield_wall", "restoring_light", "bubble_bath", "swift_wings"]));
+    for (const fora of ["light_heal", "provoke", "summon_wolf", "elemental_rupture", "group_heal", "fireball"]) expect(buffs, fora).not.toContain(fora);
+    expect(buffsDaVocacao("sorcerer").map((s) => s.id)).toEqual(["swift_feet", "mana_shield"]);
+  });
+
+  it("recomendados por vocação valem para a própria vocação e estão no padrão", () => {
+    expect(buffsRecomendados("knight")).toEqual([
+      { magia: "swift_feet", emCombate: false }, { magia: "iron_skin", emCombate: true }, { magia: "berserk", emCombate: true },
+    ]);
+    expect(buffsRecomendados("paladin")).toEqual([{ magia: "swift_feet", emCombate: false }]);
+    expect(buffsRecomendados("druid")).toEqual([{ magia: "mana_shield", emCombate: true }, { magia: "swift_feet", emCombate: false }]);
+    expect(buffsRecomendados("fairy")).toEqual([{ magia: "bubble_bath", emCombate: true }, { magia: "swift_wings", emCombate: false }]);
+    for (const v of VOCS) {
+      expect(estagiarioPadrao(v).buffs, v).toEqual(buffsRecomendados(v));
+      const ids = buffsDaVocacao(v).map((s) => s.id);
+      for (const r of buffsRecomendados(v)) expect(ids, `${v} ${r.magia}`).toContain(r.magia);
+    }
+  });
+
+  it("sanitiza: magia que não é buff ou de outra vocação sai, repetida sai, limite REGRAS_MAX; sem lista = recomendado; [] fica []", () => {
+    const c = sanitizeEstagiario({
+      buffs: [
+        { magia: "iron_skin", emCombate: true },
+        { magia: "iron_skin", emCombate: false }, // repetida
+        { magia: "mana_shield", emCombate: true }, // de mago
+        { magia: "light_heal", emCombate: false }, // cura
+        { magia: "provoke" }, // área
+        { magia: 5 }, null, "lixo",
+        { magia: "swift_feet", emCombate: "sim" }, // emCombate inválido = false
+      ],
+    }, "knight");
+    expect(c.buffs).toEqual([{ magia: "iron_skin", emCombate: true }, { magia: "swift_feet", emCombate: false }]);
+    expect(sanitizeEstagiario({ cura: [] }, "sorcerer").buffs).toEqual(buffsRecomendados("sorcerer"));
+    expect(sanitizeEstagiario({ buffs: [] }, "sorcerer").buffs).toEqual([]);
+    const muitos = Array.from({ length: 20 }, (_, i) => ({ magia: ["swift_feet", "iron_skin", "berserk", "shield_wall"][i % 4], emCombate: false }));
+    expect(sanitizeEstagiario({ buffs: muitos }, "knight").buffs.length).toBeLessThanOrEqual(REGRAS_MAX);
+  });
+
+  it("escolherBuff: pula ativo, só em combate sem alvo, abaixo da reserva (menos o escudo de mana) e o que não está pronto", () => {
+    const regras = [{ magia: "mana_shield", emCombate: true }, { magia: "swift_feet", emCombate: false }];
+    const nada = () => false, tudo = () => true;
+    expect(escolherBuff(regras, nada, true, 80, 30, tudo)).toBe("mana_shield");
+    expect(escolherBuff(regras, nada, false, 80, 30, tudo)).toBe("swift_feet"); // sem alvo: só o de fora de combate
+    expect(escolherBuff(regras, (c) => c === "manashield", true, 80, 30, tudo)).toBe("swift_feet");
+    expect(escolherBuff(regras, nada, true, 10, 30, tudo)).toBe("mana_shield"); // escudo ignora a reserva
+    expect(escolherBuff(regras, nada, false, 10, 30, tudo)).toBeNull(); // pressa respeita a reserva
+    expect(escolherBuff(regras, nada, true, 80, 30, (m) => m === "swift_feet")).toBe("swift_feet");
+    expect(escolherBuff(regras, tudo, true, 80, 30, tudo)).toBeNull();
   });
 });
 

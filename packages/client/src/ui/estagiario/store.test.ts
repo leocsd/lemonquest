@@ -1,7 +1,7 @@
-import { REGRAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, estagiarioPadrao, type RegraAtaque, type RegraCura } from "@lemonquest/shared";
+import { REGRAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, estagiarioPadrao, type RegraAtaque, type RegraBuff, type RegraCura } from "@lemonquest/shared";
 import { describe, expect, it } from "vitest";
 import {
-  addRegraAtaque, addRegraCura, alternarAlarme, apagarRota, fmtTurno, moverRegra, removerRegra, renomearRota, setRegra, turnoMostrado,
+  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, apagarRota, fmtTurno, moverRegra, removerRegra, renomearRota, setRegra, turnoMostrado,
 } from "./regras.ts";
 
 const cura = (abaixoDe: number): RegraCura => ({ quando: "vida", abaixoDe, acao: { pocao: "hp" } });
@@ -25,6 +25,16 @@ describe("edição das regras do Estagiário", () => {
     expect(addRegraAtaque(vazia, "")).toBe(vazia);
     const cheia = Array.from({ length: REGRAS_MAX }, () => ataque("fireball"));
     expect(addRegraAtaque(cheia, "fireball")).toBe(cheia);
+  });
+
+  it("+ Buff acrescenta a magia (fora de combate também); repetida, vazia ou cheia não muda nada", () => {
+    const base: RegraBuff[] = [{ magia: "iron_skin", emCombate: true }];
+    expect(addRegraBuff(base, "swift_feet")).toEqual([...base, { magia: "swift_feet", emCombate: false }]);
+    expect(addRegraBuff(base, "iron_skin")).toBe(base);
+    expect(addRegraBuff(base, "")).toBe(base);
+    const cheia = Array.from({ length: REGRAS_MAX }, (_, i): RegraBuff => ({ magia: `b${i}`, emCombate: false }));
+    expect(addRegraBuff(cheia, "swift_feet")).toBe(cheia);
+    expect(setRegra(base, 0, { emCombate: false })).toEqual([{ magia: "iron_skin", emCombate: false }]);
   });
 
   it("subir/descer troca com a vizinha; nas pontas não faz nada", () => {

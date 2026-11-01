@@ -29,6 +29,8 @@ turno de ~2 h por dia, qualquer lugar.
 | ES-4 | Alarmes: poção, vida baixa, jogador perto, atacado, mensagem privada, turno, mochila cheia, morte | ✅ (2026-11-01) | `server/systems/estagiario.test.ts`, `social`, `inventory`, `ground` |
 | ES-5 | Cliente: janela "Estagiário" (Cura, Ataque, Rota, Alarmes), botão 🤖 no trilho, 🤖 no nome, acompanhante na tela (fora da batalha, o dono atravessa), alarmes com som/toast/título | ✅ (2026-11-01) | `ui/estagiario/store.test.ts`, `storeSync.test.ts`, `battle.test.ts`, `attentionLogic.test.ts` |
 | ES-6 | E2E: gravar, ligar, 🤖, acompanhante fora da batalha e atravessável, rato morto sem comando, desligar | ✅ (2026-11-01) | `e2e/estagiario.spec.ts` (CI da PR) |
+| ES-8 | Buffs: aba e interruptor (ligados pela rota), até 6 buffs da vocação reconjurados quando a condição acaba, "só em combate", recomendados por vocação, cura antes, reserva de mana (menos o escudo de mana) | ✅ (2026-11-01) | `shared/estagiario.test.ts`, `server/systems/estagiario.test.ts`, `ui/estagiario/store.test.ts` |
+| ES-9 | Crachá em pixel art no lugar do 🤖; cura, ataque e buffs recomendados por vocação (regra por magia de área com o raio dela); alvo sempre o mais perto (F8 e Estagiário); poção automática do cliente removida | ✅ (2026-11-01) | `estagiario.test.ts` (shared), `m4.test.ts` (troca para o mais perto), `battle.test.ts` |
 | ES-7 | Arte própria do acompanhante; reabastecer/vender/depositar sozinho ("refill"); rendimento menor para o bot | 🧭 | — |
 
 ## Combate e cavaleiro (2026-11-01)
@@ -753,7 +755,7 @@ Mantido para referência da numeração `#N` e das validações; nada aqui está
 | D | Chefes na agenda (Lich qua 20h, Rei Goblin dom 20h) + `/evento` convoca | ✅ | `monsters.test.ts` (`callBoss`), `events.test.ts` |
 | D | Bônus de login por dias seguidos (7 dias) | ✅ | `loginBonus.test.ts` (6) + conferido num servidor real (ouro e aviso; sem repetir no dia) |
 | C | Bestiário (tecla B) com abates por monstro e drops | ✅ | `bestiaryLogic.test.ts`, `achievements.test.ts`, `e2e/bestiary.spec.ts` |
-| C | Poção automática por % | ✅ | `autoPotion.test.ts` |
+| C | Poção automática por % | ✅ → removida em 2026-11-01 (a cura automática passou a ser a do Estagiário) | — |
 | C | Acessibilidade: texto maior, alto contraste, animações reduzidas | ✅ | `a11yLogic.test.ts` (efeito visual não conferido em captura) |
 | C | Tela de Novidades; aviso fora da aba | ✅ | `news.test.ts`, `newsLogic.test.ts`, `attentionLogic.test.ts` |
 | F | Evento manual persistido (reinício) | ✅ | `events.test.ts` |

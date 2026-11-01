@@ -97,7 +97,7 @@ export const C2S = {
   SetLootFilter: "setLootFilter",
   /** Salva a configuração do Estagiário (EstagiarioConfigMsg, shared/estagiario.ts). */
   EstagiarioConfig: "estagiarioConfig",
-  /** Liga/desliga cura, ataque ou a rota do Estagiário (EstagiarioToggleMsg). */
+  /** Liga/desliga cura, ataque, buffs ou a rota do Estagiário (EstagiarioToggleMsg). */
   EstagiarioToggle: "estagiarioToggle",
   /** Gravação de rota do Estagiário: iniciar, parar (com nome) ou descartar (EstagiarioGravarMsg). */
   EstagiarioGravar: "estagiarioGravar",
@@ -108,14 +108,14 @@ export interface SetLootFilterMsg { filter: LootFilter }
 /** C2S.EstagiarioConfig: a configuração inteira (o servidor sanitiza e devolve em S2C.EstagiarioEstado). */
 export interface EstagiarioConfigMsg { config: EstagiarioConfig }
 /** C2S.EstagiarioToggle: só o que vier definido muda; `rota` = nome da rota a rodar, null = parar. */
-export interface EstagiarioToggleMsg { cura?: boolean; ataque?: boolean; rota?: string | null }
+export interface EstagiarioToggleMsg { cura?: boolean; ataque?: boolean; buffs?: boolean; rota?: string | null }
 /** C2S.EstagiarioGravar: grava a rota andando; "parar" salva com `nome`. */
 export interface EstagiarioGravarMsg { acao: "iniciar" | "parar" | "descartar"; nome?: string }
 /** Por que a rota está pausada: "" = rodando/desligada, "manual" = o jogador mexeu, "npc" = janela de NPC aberta. */
 export type EstagiarioPausa = "" | "manual" | "npc";
 /** S2C.EstagiarioEstado: tudo que o painel do Estagiário mostra. */
 export interface EstagiarioEstadoMsg {
-  config: EstagiarioConfig; cura: boolean; ataque: boolean; rota: string | null;
+  config: EstagiarioConfig; cura: boolean; ataque: boolean; buffs: boolean; rota: string | null;
   pausa: EstagiarioPausa; gravando: boolean; pontosGravados: number; turnoMs: number;
 }
 /** S2C.EstagiarioAlarme: aviso para o jogador (som, toast e título da aba). */

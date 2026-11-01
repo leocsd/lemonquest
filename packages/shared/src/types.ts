@@ -108,7 +108,7 @@ export interface PlayerView {
   chase: boolean;
   /** true = ataque automático: escolhe sozinho o monstro mais próximo quando está sem alvo. */
   auto?: boolean;
-  /** Rota do Estagiário rodando (🤖 no nome). */
+  /** Rota do Estagiário rodando (crachá ao lado do nome). */
   bot?: boolean;
   /** Id do jogador que está sendo seguido ("" = ninguém). */
   followId?: string;
