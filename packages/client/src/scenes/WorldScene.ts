@@ -1056,7 +1056,9 @@ export class WorldScene extends Phaser.Scene {
       /** Reconciliações da predição do próprio jogador (diagnóstico de lag) e a espera atual pela confirmação. */
       predStats: () => ({ ...this.predictor.stats, timeoutMs: this.predictor.confirmTimeoutMs }),
       monsters: () => [...this.creatureKnown].filter(([id]) => !this.dying.has(id))
-        .map(([id, k]) => ({ id, x: k.x, y: k.y, ...this.creatureInfo.get(id) })),
+        .map(([id, k]) => ({ id, x: k.x, y: k.y, ...this.creatureInfo.get(id), ownerId: this.companionOwner.get(id) })),
+      /** Primeira linha do rótulo sobre o personagem (o nome como aparece na tela, com o 🤖 do Estagiário). */
+      nameLabel: (id: string) => this.actors.get(id)?.nameLabel() ?? null,
       ground: () => this.ground?.all() ?? [],
       /** Seta-guia do novato (null = escondida). */
       guide: () => this.guide?.shown ?? null,

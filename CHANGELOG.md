@@ -1,5 +1,35 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · Estagiário (bot de caça dentro do jogo)
+
+Dono: "introduzir um bot para farmar automático, igual um elfbot do Tibia 8.6, sem perder a graça". No tema do
+escritório é o **Estagiário**: você o "contrata" para caçar por você. Spec em
+`docs/superpowers/specs/2026-11-01-estagiario-design.md`. Quem decide e age é o **servidor**, a cada tick, com os sistemas
+que já existiam (magias, poções, ataque automático, modo Seguir, loot automático, pathfinding); o cliente só configura e
+mostra. Assim a aba em segundo plano (que o navegador adormece) não atrapalha e o turno não dá para burlar.
+- **Janela "Estagiário"** pelo 🤖 do trilho à direita, com interruptores de Cura e Ataque, rota rodando e turno restante, e
+  quatro abas: **Cura** (até 6 regras de vida/mana → magia de cura da vocação ou poção, a melhor que você tem),
+  **Ataque** (até 6 regras "N bichos a até R tiles → magia, família ou grupo", reserva de mana), **Rota** e **Alarmes**.
+  Salvo no personagem (`CharacterData.estagiario`).
+- **Rota de caça**: "Gravar", andar pela caça, "Parar e salvar" com um nome (até 5 rotas, 200 pontos; ponto a cada mudança
+  de direção, a cada 6 tiles e nos portais). Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê a até 12
+  tiles (nunca jogador), o loot sai pelo loot automático e no fim volta ao começo. Ponto ou alvo inalcançável por 10 s é
+  pulado. Andar ou clicar no chão pausa 10 s; janela de NPC aberta pausa até fechar.
+- **Decisões do dono**: pode ficar sozinho, mas só com o cliente aberto e conectado (caiu ou fechou: desliga tudo; na
+  volta nada religa); rendimento igual a jogar; visível para todos (🤖 antes do nome no mundo, na batalha e no Online, e o
+  acompanhante "Estagiário de <nome>" ao lado, só com a rota ligada: não ataca, não toma dano, não é alvo, não entra na
+  battle list; bloqueia o tile para os outros, o dono passa por cima); funciona em qualquer lugar.
+- **Turno**: 2 h de rota por dia, gasto só com a rota rodando (pausada não gasta), recarregando 5 min por hora. Cura e
+  ataque não gastam. Acabou o turno, morreu ou entrou na zona de proteção: a rota desliga (cura e ataque continuam). Ligar
+  a rota dentro da zona de proteção é recusado.
+- **Alarmes** (só avisam, a caça continua; liga/desliga por tipo): poção acabando (< 10), vida baixa (limite próprio),
+  jogador na tela (uma vez por jogador), atacado por jogador, mensagem privada, turno acabando (5 min), mochila cheia e
+  "Você morreu" (sempre). Som, toast e o título da aba/janela do app piscando.
+- Testes: unitários no shared, no servidor e no cliente; E2E `e2e/estagiario.spec.ts` (a sonda `__lq` ganhou
+  `nameLabel` e o `ownerId` dos monstros).
+- Fora do escopo por enquanto (ES-7 no ROADMAP): arte própria do acompanhante, reabastecer/vender sozinho e rendimento
+  menor para o bot.
+
 ## [Não lançado] — 2026-11-01 · lista de batalha até a borda da tela; ataque automático procura mais longe
 
 Dono: "a lista de batalha tenha os bichos com mais distância, no máximo o que aparece na tela" e "o modo de atacar

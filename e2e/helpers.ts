@@ -14,7 +14,7 @@ export interface Player {
 }
 
 interface Tile { x: number; y: number }
-export interface MonsterInfo extends Tile { id: string; defId?: string; name?: string; hp?: number; maxHp?: number }
+export interface MonsterInfo extends Tile { id: string; defId?: string; name?: string; hp?: number; maxHp?: number; ownerId?: string }
 export interface GroundInfo extends Tile { id: string; defId: string; count: number }
 
 let nameCursor = -1;

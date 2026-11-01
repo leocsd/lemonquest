@@ -300,6 +300,11 @@ export class Actor {
     }
   }
 
+  /** Nome mostrado agora (1ª linha do rótulo, sem o título). Sonda E2E `__lq.nameLabel`. */
+  nameLabel(): string {
+    return this.label.text.split("\n")[0]!;
+  }
+
   setName(name: string, color?: string) {
     if (this.label.text !== name) this.label.setText(name);
     if (color && this.label.style.color !== color) this.label.setColor(color);
