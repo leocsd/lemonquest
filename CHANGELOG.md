@@ -1,5 +1,26 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · Métricas e logs (clientes e servidor, /metricas, arquivos JSONL)
+
+Dono: "2 clients abertos estão comendo 2 GB de RAM… não é melhor criar um metrics e logs para o game de uma vez?" e,
+depois, "eu quero só arquivos para monitorar depois". Spec:
+[docs/superpowers/specs/2026-11-01-metricas-logs-design.md](docs/superpowers/specs/2026-11-01-metricas-logs-design.md).
+- **Cliente** (`ui/perf/perf.ts`, ligado no `WorldScene`): 30 s depois de entrar e a cada 60 s manda `C2S.ClientPerf`
+  com FPS médio e mínimo (amostra por segundo), heap do JS (Chrome/Edge/WebView2; senão vazio), memória estimada das
+  texturas (largura×altura×4), objetos na cena, `web`/`desktop` e há quanto tempo está aberto. Para ao sair da sala.
+- **Servidor** (`systems/metrics.ts`): valida o relatório (`shared/metrics.ts`; 1/s no `MESSAGE_LIMITS` e no máximo 1 a
+  cada 20 s), guarda o último e os 60 mais recentes de cada jogador; amostra a cada 30 s RSS, heap, CPU %, tick
+  médio/máx/p95, online, monstros, itens no chão, Estagiários com rota, mensagens/s e autosave (anel de 24 h na memória).
+- **Arquivos** (`persistence/metricsFiles.ts`), nada no banco: `metricas/` ao lado do banco (ou `LEMONQUEST_METRICS_DIR`),
+  `servidor-`, `clientes-` e `eventos-AAAA-MM-DD.jsonl`, gravados em lote a cada 5 s fora do tick (e no desligamento),
+  apagados após 30 dias; erro de disco avisa uma vez e não para nada.
+- **Log** `[metrica] {"tipo":…}` com no máximo 1 linha por minuto por tipo e chave: `tick_lento` (> 200 ms),
+  `cliente_pesado` (heap > 700 MB, texturas > 400 MB ou FPS mínimo < 15), `servidor_memoria` (RSS > 1,5 GB),
+  `erro_sistema` (passo isolado pelo `runSafe`) e `resumo` (a cada 30 min). O `[tick]` periódico continua igual.
+- **Consultar:** `/metricas` (admin: servidor agora, última hora e clientes do mais pesado ao mais leve) e
+  `/metricas <nome>` (histórico de heap, texturas e FPS mínimo daquele cliente); `npm run admin -- metricas [dias]`
+  (resumo diário a partir dos arquivos).
+
 ## [Não lançado] — 2026-11-01 · Estagiário: crachá, recomendações por magia, alvo mais perto, sem poção automática
 
 Dono: "quero um ícone mais a cara do jogo ao invés de 🤖", "uma recomendação default nas curas e ataques para cada

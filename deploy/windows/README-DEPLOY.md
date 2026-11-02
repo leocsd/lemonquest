@@ -190,8 +190,9 @@ rode `npm ci` e `npm run build` e inicie de novo.
 | `PORT` | `2567` | Porta HTTP/WebSocket do servidor. |
 | `LEMONQUEST_DB` | `data\lemonquest.db` (na raiz do repo) | Caminho do banco SQLite. |
 | `LEMONQUEST_BACKUP_DIR` | `data\backups` | Pasta onde o servidor grava os backups automáticos. |
+| `LEMONQUEST_METRICS_DIR` | `data\metricas` (ao lado do banco) | Arquivos de métricas (JSON Lines por dia: `servidor-`, `clientes-`, `eventos-AAAA-MM-DD.jsonl`; apagados após 30 dias). Resumo: `npm run admin -- metricas [dias]`. Veja "Métricas e logs" no README principal. |
 | `LEMONQUEST_DEV_COMMANDS` | desligado | `1` habilita comandos de desenvolvimento (só para teste, **não** deixe ligado em produção sem necessidade). |
-| `LEMONQUEST_ADMINS` | vazio | Nomes de personagens admin, separados por vírgula (ex.: `Leo,Ana`). Comandos de admin (`/kick`, `/mute`, `/unmute`, `/anuncio`, `/online`, `/resetsenha`, `/tp`, `/status`, `/evento`, `/desbloquear`, `/vincular`) valem em produção; os de dev só com `LEMONQUEST_DEV_COMMANDS=1` fora de produção. Veja "Administradores" no README principal. |
+| `LEMONQUEST_ADMINS` | vazio | Nomes de personagens admin, separados por vírgula (ex.: `Leo,Ana`). Comandos de admin (`/kick`, `/mute`, `/unmute`, `/anuncio`, `/online`, `/resetsenha`, `/tp`, `/status`, `/metricas`, `/evento`, `/desbloquear`, `/vincular`) valem em produção; os de dev só com `LEMONQUEST_DEV_COMMANDS=1` fora de produção. Veja "Administradores" no README principal. |
 | `LEMONQUEST_ADMIN_ACCOUNTS` | vazio | Contas (login) que podem criar personagens com nome de admin; sem ela, esses nomes ficam reservados se o personagem ainda não existir. |
 | `LEMONQUEST_BACKUP_COPY_DIR` | vazio | Pasta extra (outro disco/pasta de rede) que recebe uma cópia de cada backup, com rotação própria (1 por dia, 14 dias). Se estiver indisponível, só loga. |
 | `LEMONQUEST_CLICKUP_TOKEN` | vazio | Token pessoal do ClickUp (só leitura): liga o "Chegou!", as barras de sprint, a aba "Na obra" e as conquistas de tarefas (veja "ClickUp no jogo" no README principal). Sem ele, nada disso liga. Precisa de saída HTTPS para `api.clickup.com`. |

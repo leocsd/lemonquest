@@ -22,9 +22,31 @@ admin" segue fora (ROADMAP ⛔). Base existente: `/status` (admin, `systems/stat
 **Servidor** (a cada 30 s, em memória: anel das últimas 24 h = 2.880 amostras): RSS e heap do processo
 (`process.memoryUsage`), CPU % do processo no intervalo (`process.cpuUsage`), tick médio / máximo / p95 do intervalo,
 jogadores online, monstros vivos, itens no chão, Estagiários com rota rodando (`p.bot`), mensagens recebidas por
-segundo, autosave médio/máximo (o que o `/status` já mede). Ao virar o dia (ou a cada hora) grava um **resumo diário**
-no `kv` (`metricas:AAAA-MM-DD`: mínimo/média/máximo de cada número do servidor e, dos clientes, média/máximo de heap,
-texMb e fps-mínimo por personagem). Reiniciar o servidor perde só o anel; o resumo do dia segue no banco.
+segundo, autosave médio/máximo (o que o `/status` já mede). Cada amostra vai também para o arquivo do dia (abaixo).
+Reiniciar o servidor perde só o anel (o "agora/última hora" do `/metricas`); os arquivos ficam.
+
+**Mudança do dono (2026-11-01): "eu quero só arquivos para monitorar depois".** Nada de métricas no banco (o resumo
+diário no `kv` saiu); tudo vai para arquivos.
+
+## Onde fica
+
+- **Pasta:** `LEMONQUEST_METRICS_DIR` ou, sem ela, `metricas/` ao lado do banco em uso (`LEMONQUEST_DB`): `data/metricas/`
+  no dev e no serviço Windows; `/app/data/metricas/` no container = `docker-data/metricas/` no host; o servidor E2E,
+  com banco em `%TEMP%`, grava no temporário dele. Banco em memória (testes unitários) = nenhum arquivo.
+- **Arquivos** (JSON Lines: um objeto por linha, só acrescenta, um arquivo por dia pela data local do servidor):
+  - `servidor-AAAA-MM-DD.jsonl`: cada amostra de 30 s
+    (`t, rssMb, heapMb, cpuPct, tickMedMs, tickMaxMs, tickP95Ms, online, monstros, chao, bots, msgsS, saveMedMs?, saveMaxMs?`);
+  - `clientes-AAAA-MM-DD.jsonl`: cada relatório de cliente aceito (`t, nome, fps, fpsMin, heapMb, texMb, objetos, app, uptimeS`);
+  - `eventos-AAAA-MM-DD.jsonl`: cada linha `[metrica]` (`t, tipo, …`), que continua saindo também no stdout.
+- **Gravação:** as linhas ficam num buffer e vão juntas para o disco a cada 5 s (`fs.promises.appendFile`, fora do
+  tick) e no desligamento (síncrono). Erro de disco é logado uma vez e nunca derruba o tick (as métricas seguem na memória).
+- **Retenção:** arquivos com mais de 30 dias (`METRICS_RETENTION_DAYS`, `persistence/metricsFiles.ts`) são apagados na
+  subida e uma vez por dia.
+- **Ler:** `npm run admin -- metricas [dias]` (resumo por dia); no host do Docker
+  `docker compose logs lemonquest | grep '\[metrica\]'`, `tail -n 5 docker-data/metricas/servidor-$(date +%F).jsonl`,
+  `jq -r '[.nome,.app,.heapMb,.texMb,.fpsMin] | @tsv' docker-data/metricas/clientes-$(date +%F).jsonl`,
+  `jq -c 'select(.tipo=="cliente_pesado")' docker-data/metricas/eventos-*.jsonl`; dentro do container,
+  `docker compose exec lemonquest ls /app/data/metricas`.
 
 ## Logs
 
@@ -43,8 +65,9 @@ com `docker logs lemonquest | grep '\[metrica\]'`), com limite por tipo (no máx
   máx tick, mín online/máx online); depois os clientes online ordenados por heap: `nome · app · heap · texturas · fps
   (mín) · objetos · há quanto tempo aberto`. `/metricas <nome>` mostra o histórico curto daquele cliente (heap e fps
   nas últimas amostras) para ver se cresce.
-- **`npm run admin -- metricas [dias]`** (CLI que lê o banco, como a `telemetria`): resumos diários dos últimos N dias
-  (padrão 7) — servidor e clientes por personagem.
+- **`npm run admin -- metricas [dias]`** (CLI que lê os arquivos JSONL, sem abrir o banco): resumos diários dos últimos
+  N dias (padrão 7, máximo 30) — servidor (mín/méd/máx de cada número) e clientes por personagem (heap e texturas
+  média/máximo, FPS mínimo).
 
 ## Fora do escopo
 

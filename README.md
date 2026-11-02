@@ -101,6 +101,7 @@ As respostas aparecem só para o admin (aviso + linha no chat). Toda ação fica
 | `/tp <nome>` | Leva você para perto do jogador. |
 | `/resetsenha <conta>` | Gera um **código de recuperação** (8 caracteres, vale 24 h, uso único) — só você vê. Passe para o dono da conta, que usa em "Esqueci minha senha" na tela de login. |
 | `/status` | Fotografia do servidor: online, monstros, tick, memória, autosave e a progressão medida (horas por level, mortes e ouro por faixa). |
+| `/metricas` · `/metricas <nome>` | Desempenho: servidor agora (RSS, heap, CPU, tick médio/máx/p95, online, monstros, Estagiários com rota, msgs/s), a última hora e os clientes online do mais pesado ao mais leve (app, heap, texturas, FPS e mínimo, objetos, há quanto tempo aberto). Com nome, o histórico curto daquele cliente (heap, texturas e FPS mínimo) para ver se cresce. |
 | `/evento <nome> [minutos]` · `/evento parar` | Liga um evento semanal fora do horário (sem argumentos lista os eventos e o estado). Quem não é admin só lê o estado. |
 | `/desbloquear <nome> <roupa\|addon\|título>` | Libera uma roupa, addon ou título para um personagem (ex.: `pirata`, `pirata_chapeu`, `title:persistente`). |
 | `/vincular <personagem> <apelido\|id do ClickUp>` · `/vincular <personagem> nenhum` | Liga o personagem a um usuário do ClickUp (apelido da equipe, ex.: `pedrao`, `Lucas P.`, ou o id numérico): tarefas que ele fechar **a partir de agora** contam nas conquistas de tarefas. Sem argumentos lista os vínculos. Funciona com o personagem offline. |
@@ -112,6 +113,7 @@ Sem nenhum admin online, o dono do servidor gera o código pelo terminal:
 npm run admin -- reset-password <conta>          # na pasta do projeto (usa LEMONQUEST_DB ou data/lemonquest.db)
 npm run admin -- deleted                         # lista personagens excluídos (arquivo deleted_characters)
 npm run admin -- telemetria                      # progressão por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h), skills reais e causas de morte
+npm run admin -- metricas [dias]                 # resumo diário das métricas (servidor mín/méd/máx; clientes por personagem), lido dos arquivos em metricas/ (padrão 7 dias)
 npm run admin -- create-account <conta>          # conta nova sem senha + código de recuperação (24 h): a pessoa escolhe a senha em "Esqueci minha senha"
 npm run admin -- create-character <conta> "<nome>" <vocação> [m|f]   # personagem com o kit inicial na conta; vocações: knight, paladin, sorcerer, druid e a oculta fairy (Fada)
 ```
@@ -121,6 +123,22 @@ A **Fada** (`fairy`) é uma vocação oculta: a tela de criação não a oferece
 Ela tem magias próprias (palavras `plim …`), a roupa "Fada" com asas e varinha (só ela veste) e brilhinho permanente.
 
 Docker: veja [deploy/docker/README.md](deploy/docker/README.md#9-administração).
+
+### Métricas e logs
+
+O servidor mede a si mesmo e aos clientes, sem serviço externo e sem gravar no banco: só **arquivos** para olhar depois.
+Cada cliente manda FPS (média e mínimo), heap do JavaScript (Chrome/Edge/app de desktop), memória estimada das
+texturas e número de objetos 30 s depois de entrar e depois a cada 60 s; o servidor amostra a cada 30 s (RSS, heap,
+CPU, tick médio/máx/p95, online, monstros, itens no chão, Estagiários com rota, mensagens/s, autosave).
+
+- **Pasta:** `LEMONQUEST_METRICS_DIR` ou `metricas/` ao lado do banco (`data/metricas/` no dev, `docker-data/metricas/`
+  no Docker). Arquivos JSON Lines por dia (data local): `servidor-AAAA-MM-DD.jsonl`, `clientes-AAAA-MM-DD.jsonl` e
+  `eventos-AAAA-MM-DD.jsonl`; os com mais de 30 dias são apagados sozinhos.
+- **Log:** linhas `[metrica] {"tipo":…}` (no máximo 1 por minuto por tipo e chave): `tick_lento` (tick acima de 200 ms),
+  `cliente_pesado` (heap > 700 MB, texturas > 400 MB ou FPS mínimo < 15), `servidor_memoria` (RSS > 1,5 GB),
+  `erro_sistema` (um sistema lançou e foi isolado) e `resumo` (a cada 30 min).
+- **Consultar:** `/metricas` no jogo (admin), `npm run admin -- metricas [dias]` no terminal, ou direto nos arquivos:
+  `jq -c 'select(.heapMb > 500)' data/metricas/clientes-2026-11-01.jsonl`, `grep cliente_pesado data/metricas/eventos-*.jsonl`.
 
 ### ClickUp no jogo (opcional)
 

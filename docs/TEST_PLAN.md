@@ -17,6 +17,20 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — métricas e logs (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1892 passando (151 arquivos). Arquivos novos: `shared/src/metrics.test.ts`
+(4: relatório válido, heap vazio, mínimo acima da média, lixo descartado), `client/src/ui/perf/perf.test.ts` (7: janela
+de FPS, `texMb`, contagem de objetos nas camadas, heap, primeiro envio aos 30 s e depois a cada 60 s, leitura que lança
+não derruba), `server/src/systems/metrics.test.ts` (14: p95, amostra de 30 s com tick/CPU/msgs/autosave, anel de 2.880,
+servidor_memoria e resumo, tick_lento 1×/min com "suprimidos", erro_sistema pelo `ErrorLog`, relatórios dos clientes
+com intervalo mínimo e histórico de 60, cliente_pesado, linhas do `/metricas` e do `/metricas <nome>`, resumo diário) e
+`server/src/persistence/metricsFiles.test.ts` (6: pasta ao lado do banco, JSONL por tipo e dia em lote, flush a cada 5 s
+e síncrono, erro de disco avisado uma vez, retenção de 30 dias, CLI `metricas` em pasta temporária). Nos existentes:
+`admin.test.ts` (`/metricas` só para admin) e `WorldRoom.test.ts` ("WorldRoom: métricas", 2: mensagem validada e
+limitada, some ao sair, banco em memória sem arquivos; `/metricas` só para admin). Todos os testes usam pasta temporária
+ou banco em memória (nenhum arquivo em `data/`). Sem E2E novo (nada visível para o jogador); o CI da PR roda a suíte E2E.
+
 ## Resultados — Estagiário (2026-11-01)
 
 Typecheck 3× tsc; suíte unitária inteira: 1809 passando (147 arquivos). Arquivos novos: `shared/src/estagiario.test.ts` (9: sanitização,
