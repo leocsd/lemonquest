@@ -6,6 +6,7 @@ import { App } from "./ui/App.tsx";
 import { GAME_NAME } from "@lemonquest/shared";
 import { loading } from "./ui/loading.ts";
 import "./ui/attention.ts";
+import "./ui/cursors/cursors.css";
 import "./ui/a11y/a11y.css";
 import "./ui/a11y/a11y.ts";
 

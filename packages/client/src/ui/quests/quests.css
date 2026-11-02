@@ -23,7 +23,7 @@
 .quest-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .quest-actions:empty { display: none; }
 .quest-btn, .quest-tracker-head button {
-  font: inherit; font-size: 12px; cursor: pointer; color: var(--hud-text) !important; background: #1b2030;
+  font: inherit; font-size: 12px; cursor: var(--cur-mao); color: var(--hud-text) !important; background: #1b2030;
   border: 1px solid #343b4e; border-radius: 4px; transition: background-color 120ms, border-color 120ms;
 }
 .quest-btn:hover, .quest-tracker-head button:hover { background: #262d42; border-color: var(--hud-line-hi); }
@@ -51,11 +51,11 @@
   background: rgba(17, 20, 28, 0.66); border: 1px solid var(--hud-line-soft); border-radius: 6px; font-size: 12px;
   backdrop-filter: blur(2px);
 }
-.quest-tracker-head { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 4px 0 7px; color: var(--hud-muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; user-select: none; }
+.quest-tracker-head { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 4px 0 7px; color: var(--hud-muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; cursor: var(--cur-mao); user-select: none; }
 .quest-tracker-head > span:nth-child(2) { flex: 1; }
 .quest-tracker-head button { width: 18px; height: 18px; padding: 0; display: grid; place-items: center; font-size: 12px; line-height: 1; }
 .quest-tracker ul { list-style: none; margin: 0; padding: 2px 8px 6px; display: flex; flex-direction: column; gap: 5px; }
-.qt-name { color: #ffd447; font-weight: 600; font-size: 12px; text-shadow: 0 1px 0 #000; cursor: pointer; }
+.qt-name { color: #ffd447; font-weight: 600; font-size: 12px; text-shadow: 0 1px 0 #000; cursor: var(--cur-mao); }
 .qt-name.ready::after { content: " — entregar"; color: #8fd18f; font-weight: 500; }
 .qt-step { display: flex; justify-content: space-between; gap: 6px; color: #d9d7cc; text-shadow: 0 1px 0 #000; padding-left: 6px; }
 .qt-step.done { color: #8fd18f; }
@@ -91,7 +91,7 @@
 .ql-detail h3 { margin: 0; font-size: 15px; color: var(--hud-text); }
 .ql-meta { font-size: 11px; color: var(--hud-muted); }
 .ql-summary { font-size: 12px; line-height: 1.5; color: #cfccbf; }
-.ql-track { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--hud-muted); cursor: pointer; }
+.ql-track { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--hud-muted); cursor: var(--cur-mao); }
 .ql-empty { margin: auto; color: var(--hud-faint); font-size: 12px; text-align: center; padding: 20px; }
 
 /* Cartão "Missão concluída" */
@@ -112,6 +112,6 @@
 .qt-head { display: flex; align-items: center; gap: 6px; }
 .qt-head > .qt-name { flex: 1; min-width: 0; }
 /* color com !important: o "#ui button { color: inherit }" (hud.css) vence classe simples e deixava o "Guiando" com texto claro sobre o amarelo (1,1:1). */
-.qt-guide { flex: none; height: 16px; padding: 0 5px; font: inherit; font-size: 10px; line-height: 14px; color: var(--hud-muted) !important; background: #1a1f2e; border: 1px solid var(--hud-line); border-radius: 3px; cursor: pointer; }
+.qt-guide { flex: none; height: 16px; padding: 0 5px; font: inherit; font-size: 10px; line-height: 14px; color: var(--hud-muted) !important; background: #1a1f2e; border: 1px solid var(--hud-line); border-radius: 3px; cursor: var(--cur-mao); }
 .qt-guide:hover { color: #ffd447 !important; border-color: var(--hud-line-hi); }
 .qt-guide.on { color: #10131c !important; background: #ffd447; border-color: #ffd447; }

@@ -4,6 +4,6 @@
    ".ach-win, .rank-win" em achievements.css: a ordem dos CSS no bundle não é garantida. */
 .hud-window.rank-win { top: 96px; left: max(32px, calc(50% - 206px)); }
 
-/* Conquistas e Ranking agora arrastam pela barra de título (achievements.css ainda põe cursor: default nelas). */
-.hud-window.ach-win .win-title, .hud-window.rank-win .win-title { cursor: grab; }
-.hud-window.ach-win.dragging .win-title, .hud-window.rank-win.dragging .win-title { cursor: grabbing; }
+/* Conquistas e Ranking agora arrastam pela barra de título (achievements.css ainda põe cursor: var(--cur-padrao) nelas). */
+.hud-window.ach-win .win-title, .hud-window.rank-win .win-title { cursor: var(--cur-pegar); }
+.hud-window.ach-win.dragging .win-title, .hud-window.rank-win.dragging .win-title { cursor: var(--cur-segurar); }

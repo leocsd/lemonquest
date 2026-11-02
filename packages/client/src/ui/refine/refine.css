@@ -3,7 +3,7 @@
 .refine-hint { font-size: 11px; line-height: 1.4; color: var(--hud-muted); }
 .refine-empty { line-height: 1.4; }
 .refine-list { max-height: 196px; }
-.refine-row { cursor: pointer; }
+.refine-row { cursor: var(--cur-mao); }
 .refine-row.active { border-color: rgba(217, 164, 65, 0.6); background: rgba(217, 164, 65, 0.08); }
 .refine-where { font-size: 11px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
 .refine-detail {

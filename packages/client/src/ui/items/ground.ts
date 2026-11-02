@@ -10,6 +10,8 @@ export interface GroundBridge {
   myTile: () => { x: number; y: number } | null;
   /** Mover item do chão (a cena anda até o item quando ele está longe). Ausente = manda direto. */
   moveGround?: (groundId: string, x: number, y: number, count?: number) => void;
+  /** Pegar item do chão (a cena anda até o item quando ele está longe). Ausente = manda direto. */
+  pickup?: (groundId: string, to?: PickupTo) => void;
 }
 
 let bridge: GroundBridge | null = null;
@@ -40,6 +42,15 @@ export function moveGroundAtPointer(groundId: string, clientX: number, clientY: 
   if (!t) return;
   if (bridge?.moveGround) bridge.moveGround(groundId, t.x, t.y, count);
   else moveGroundItem(groundId, t.x, t.y, count);
+}
+
+/**
+ * Arrastou um item do chão até um slot: pega. O servidor só aceita a 1 tile e recusa longe em silêncio, então a cena
+ * anda até o item antes quando ele está longe (antes o arrasto de um item a 2+ tiles simplesmente não fazia nada).
+ */
+export function pickupFromDrag(groundId: string, to: PickupTo): void {
+  if (bridge?.pickup) bridge.pickup(groundId, to);
+  else pickupItem(groundId, to);
 }
 
 export function pickupItem(groundId: string, to?: PickupTo): void {

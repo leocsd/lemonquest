@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-01f",
+    date: "1º de novembro",
+    title: "Cursor de limão",
+    items: [
+      "O mouse ganhou cursores do tema: seta de limão, espada sobre os bichos, balão nos NPCs e mão para pegar itens do chão.",
+      "Segure Shift sobre alguma coisa e o cursor vira lupa: o clique olha em vez de agir.",
+      "Arrastar um item do chão de longe até a mochila agora funciona: o personagem vai até o item e pega.",
+      "Largar item no chão não pede mais confirmação. Pilha vai inteira; segure Shift ao arrastar para escolher quanto.",
+    ],
+  },
+  {
     id: "2026-11-01e",
     date: "1º de novembro",
     title: "Estagiário de crachá",
@@ -65,15 +76,6 @@ export const NEWS: readonly NewsEntry[] = [
       "O Golpe Brutal agora se fala \"exori ico\". O Golpe Frontal saiu.",
       "Magias à distância alcançam 2 tiles mais longe.",
       "Modo Seguir: escolher o alvo já começa a perseguir na hora.",
-    ],
-  },
-  {
-    id: "2026-10-31a",
-    date: "31 de outubro",
-    title: "Agora tem app de desktop",
-    items: [
-      "Baixe o app na tela de login (Windows, Mac ou Linux): ícone na área de trabalho, janela só do jogo e nenhuma tecla brigando com o navegador.",
-      "O app abre direto no servidor do escritório e pergunta quando sair versão nova dele. O jogo no navegador continua igual.",
     ],
   },
   {

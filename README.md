@@ -23,8 +23,8 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Atacar / soltar alvo | clique (esquerdo ou direito) na criatura |
 | Mirar o bicho mais próximo / trocar pro próximo | `Espaço` (cicla pela lista de Batalha; ignora jogadores) |
 | Falar com NPC | clique no NPC |
-| Largar item no chão | arraste da mochila/equipamento para o mundo (até 3 tiles; pilhas abrem uma barrinha para escolher a quantidade) |
-| Pegar item do chão | clique direito, duplo clique ou `Ctrl`+clique no item (ou arraste para a mochila) |
+| Largar item no chão | arraste da mochila/equipamento para o mundo (até 3 tiles; larga na hora, sem confirmação; a pilha vai inteira, e `Shift` durante o arraste abre a barrinha para escolher a quantidade) |
+| Pegar item do chão | clique direito, duplo clique ou `Ctrl`+clique no item (ou arraste para a mochila); longe, o personagem anda até o item e pega ao chegar |
 | Olhar (detalhes de criatura, jogador, NPC, baú ou item do chão) | os dois botões do mouse juntos, ou `Shift`+clique |
 | Mover item no chão | arraste o item para outro tile (até 3 tiles de você, linha livre; longe, o personagem anda até o item e move ao chegar; numa pilha, aperte `Shift` **depois** de começar a arrastar para escolher quanto — `Shift`+clique é olhar) |
 | Magias da barra | `1`–`0` por padrão (ou digite as palavras mágicas no chat, ex.: `exura`). Só aparece o que o seu level já libera |
@@ -70,16 +70,6 @@ Itens no chão somem em 10 min (raros ou melhores: 20 min). Eles sobrevivem a um
 o servidor desligado também conta.
 
 Não use a mesma senha do trabalho: a rede do escritório não é criptografada (HTTP).
-
-## App de desktop
-
-Em vez do navegador, dá para jogar num app próprio (Windows, Mac e Linux): ícone na área de trabalho, janela só do
-jogo, nenhuma tecla brigando com o navegador e atualização automática. Baixe na tela de login ("Baixar o app") ou em
-<https://github.com/leocsd/lemonquest/releases/latest>. O app abre o servidor do escritório; para apontar para outro,
-rode-o com `--url http://host:porta`. Detalhes, build e como soltar versão: [`packages/desktop/README.md`](packages/desktop/README.md).
-
-Avisos únicos por PC, por não termos certificado pago: no Windows o SmartScreen pede "Mais informações → Executar
-assim mesmo"; no Mac, "Abrir assim mesmo" em Privacidade e Segurança.
 
 ## Administradores
 
@@ -127,7 +117,7 @@ Docker: veja [deploy/docker/README.md](deploy/docker/README.md#9-administração
 ### Métricas e logs
 
 O servidor mede a si mesmo e aos clientes, sem serviço externo e sem gravar no banco: só **arquivos** para olhar depois.
-Cada cliente manda FPS (média e mínimo), heap do JavaScript (Chrome/Edge/app de desktop), memória estimada das
+Cada cliente manda FPS (média e mínimo), heap do JavaScript (Chrome/Edge), memória estimada das
 texturas e número de objetos 30 s depois de entrar e depois a cada 60 s; o servidor amostra a cada 30 s (RSS, heap,
 CPU, tick médio/máx/p95, online, monstros, itens no chão, Estagiários com rota, mensagens/s, autosave).
 

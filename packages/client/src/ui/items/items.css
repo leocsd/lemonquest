@@ -30,7 +30,7 @@
 
 /* ---------- Slot de item ---------- */
 .item-slot { user-select: none; touch-action: none; }
-.item-slot.filled { cursor: grab; }
+.item-slot.filled { cursor: var(--cur-pegar); }
 .item-slot.filled:not(.rar-common) {
   border-color: color-mix(in srgb, var(--rc) 62%, var(--hud-line-soft));
   box-shadow: inset 0 0 7px color-mix(in srgb, var(--rc) 20%, transparent), inset 0 1px 0 rgba(0, 0, 0, 0.5);
@@ -55,7 +55,7 @@
 .item-slot.drag-src { opacity: 0.35; }
 .item-slot.drop-ok.drop-hover { background: rgba(95, 209, 122, 0.24); box-shadow: 0 0 0 1px #5fd17a, inset 0 0 9px rgba(95, 209, 122, 0.55) !important; }
 .item-slot.drop-bad.drop-hover { opacity: 1; background: rgba(217, 83, 79, 0.2); border-color: #d9534f !important; box-shadow: 0 0 0 1px #d9534f; }
-body.item-dragging, body.item-dragging * { cursor: grabbing !important; user-select: none !important; }
+body.item-dragging, body.item-dragging * { cursor: var(--cur-segurar) !important; user-select: none !important; }
 
 .drag-ghost {
   position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; opacity: 0.92;
@@ -82,7 +82,7 @@ body.item-dragging, body.item-dragging * { cursor: grabbing !important; user-sel
 /* ---------- Modos de batalha ---------- */
 .fight-modes { display: flex; align-items: center; gap: 2px; padding: 1px; border-radius: 4px; background: rgba(0, 0, 0, 0.25); }
 .fm-btn {
-  width: 18px; height: 18px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  width: 18px; height: 18px; padding: 0; display: grid; place-items: center; cursor: var(--cur-mao);
   background: transparent; border: 1px solid transparent; border-radius: 3px; color: var(--hud-faint) !important;
   transition: background-color 120ms, color 120ms, border-color 120ms;
 }
@@ -143,7 +143,7 @@ body.item-dragging, body.item-dragging * { cursor: grabbing !important; user-sel
 /* Visual padrão dos botões do HUD. Todo botão de classe própria precisa estar aqui ou ter background próprio: o
    "#ui button" (hud.css) não define fundo, e sem ele o botão sai com o cinza-claro do navegador (party-btn/mini saíam brancos). */
 .dlg-step, .dlg-btn, .qty button, .shop-btn, .npc-tab, .arena-btn, .party-btn, .party-mini, .online-mini {
-  font: inherit; font-size: 12px; cursor: pointer; color: var(--hud-text) !important; background: #1b2030;
+  font: inherit; font-size: 12px; cursor: var(--cur-mao); color: var(--hud-text) !important; background: #1b2030;
   border: 1px solid #343b4e; border-radius: 4px; transition: background-color 120ms, border-color 120ms;
 }
 .dlg-step { width: 26px; height: 28px; padding: 0; font-size: 15px; }
@@ -164,7 +164,7 @@ body.item-dragging, body.item-dragging * { cursor: grabbing !important; user-sel
   transition: background-color 150ms;
 }
 .quick-slots:hover { background: var(--hud-bg); }
-.quick-slot { width: 42px; height: 42px; padding: 0; cursor: pointer; overflow: hidden; }
+.quick-slot { width: 42px; height: 42px; padding: 0; cursor: var(--cur-mao); overflow: hidden; }
 .quick-slot.empty .quick-count { color: var(--hud-faint); }
 .quick-slot.hp.filled { border-color: rgba(217, 83, 79, 0.5); }
 .quick-slot.mana.filled { border-color: rgba(74, 125, 217, 0.55); }

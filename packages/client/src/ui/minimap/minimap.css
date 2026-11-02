@@ -2,7 +2,7 @@
 .minimap { width: 100%; display: flex; flex-direction: column; gap: 4px; }
 .minimap-box { position: relative; width: 100%; aspect-ratio: 1 / 1; padding: 0; overflow: hidden; background: #07080c; }
 .minimap-canvas {
-  display: block; width: 100%; height: 100%; cursor: crosshair;
+  display: block; width: 100%; height: 100%; cursor: var(--cur-mira);
   image-rendering: pixelated; image-rendering: crisp-edges;
 }
 .minimap-box::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 14px 2px rgba(7, 8, 12, .75); }
@@ -15,23 +15,23 @@
 .worldmap {
   position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 14px 24px 16px; box-sizing: border-box;
-  background: rgba(4, 5, 8, .92); cursor: pointer;
+  background: rgba(4, 5, 8, .92); cursor: var(--cur-mao);
 }
 .worldmap-head { flex: none; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 18px; }
 .worldmap-title { font-size: 26px; font-weight: 600; letter-spacing: 2px; color: #d9a441; }
 /* Botões no visual dos poços do HUD. A cor vai no contêiner: `#ui button { color: inherit }` vence a classe do botão. */
-.worldmap-tools { display: flex; gap: 6px; font-size: 13px; color: var(--hud-text); cursor: default; }
-.wm-btn { height: 28px; padding: 0 10px; background: var(--hud-well); border: 1px solid var(--hud-line-hi); border-radius: 4px; cursor: pointer; }
+.worldmap-tools { display: flex; gap: 6px; font-size: 13px; color: var(--hud-text); cursor: var(--cur-padrao); }
+.wm-btn { height: 28px; padding: 0 10px; background: var(--hud-well); border: 1px solid var(--hud-line-hi); border-radius: 4px; cursor: var(--cur-mao); }
 .wm-btn:hover { border-color: #d9a441; }
 .wm-btn:focus-visible { outline: 2px solid #d9a441; outline-offset: 1px; }
 /* A vista ocupa a sobra da coluna (largura − 48 px; altura sem título e legendas, que podem quebrar linha). O canvas mede
    esta caixa, então a legenda nunca empurra o mapa para fora da janela. */
 .worldmap-view {
-  position: relative; flex: 1 1 auto; min-height: 0; align-self: stretch; overflow: hidden; cursor: default;
+  position: relative; flex: 1 1 auto; min-height: 0; align-self: stretch; overflow: hidden; cursor: var(--cur-padrao);
   background: #07080c; border: 2px solid #2c3242; border-radius: 4px; box-shadow: 0 0 40px rgba(0, 0, 0, .8);
 }
-.worldmap-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; image-rendering: pixelated; }
-.worldmap-canvas.grabbing { cursor: grabbing; }
+.worldmap-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; cursor: var(--cur-pegar); touch-action: none; image-rendering: pixelated; }
+.worldmap-canvas.grabbing { cursor: var(--cur-segurar); }
 .worldmap-zoom {
   position: absolute; right: 8px; bottom: 6px; padding: 1px 6px; border-radius: 3px; pointer-events: none;
   font-size: 12px; font-variant-numeric: tabular-nums; color: #c4c6cf; background: rgba(7, 8, 12, .75);
@@ -59,14 +59,14 @@
 /* ---------- Dia/noite ---------- */
 .minimap-night { position: absolute; inset: 0; pointer-events: none; background: #0a1030; mix-blend-mode: multiply; transition: opacity 1s; }
 .daynight { position: relative; display: flex; justify-content: center; }
-.daynight-btn { display: flex; align-items: center; gap: 6px; background: none; border: 0; color: #c4c6cf; font: inherit; font-size: 12px; cursor: pointer; padding: 1px 6px; border-radius: 3px; }
+.daynight-btn { display: flex; align-items: center; gap: 6px; background: none; border: 0; color: #c4c6cf; font: inherit; font-size: 12px; cursor: var(--cur-mao); padding: 1px 6px; border-radius: 3px; }
 .daynight-btn:hover { background: rgba(255, 255, 255, .06); }
 .dn-icon { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .dn-icon.sun { background: #ffd447; box-shadow: 0 0 6px 1px rgba(255, 212, 71, .7); }
 .dn-icon.moon { background: transparent; box-shadow: inset -3px -1px 0 0 #cfd8ff; }
 .dn-time { font-variant-numeric: tabular-nums; color: #8a8fa0; }
 .daynight-pop { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); width: 150px; padding: 8px; z-index: 40; display: flex; flex-direction: column; gap: 4px; }
-.dn-opt { background: #1b2030; border: 1px solid #343b4e; color: #c4c6cf; border-radius: 3px; padding: 3px 6px; font: inherit; font-size: 12px; cursor: pointer; }
+.dn-opt { background: #1b2030; border: 1px solid #343b4e; color: #c4c6cf; border-radius: 3px; padding: 3px 6px; font: inherit; font-size: 12px; cursor: var(--cur-mao); }
 .dn-opt.active { border-color: #d9a441; color: #f3e6b8; }
 
 /* ---------- Marcadores (ciclo 17) ---------- */

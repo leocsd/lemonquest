@@ -11,11 +11,21 @@
 | Benchmark manual | `npx tsx packages/server/src/systems/pathfinding.bench.ts` | custo do A* (µs por caminho) |
 | Carga | servidor E2E (`E2E_PORT=2872 E2E_SKIP_BUILD=1 node e2e/start-server.mjs`) + `node tools/loadtest.mjs http://127.0.0.1:2872 --bots 10 --secs 130` | tick do servidor (log `[tick]`), ida e volta de um passo |
 | Fuzz | servidor E2E com `E2E_ADMINS="Fuzz Inv"` + `node tools/fuzz.mjs <url> --mode proto` / `--mode inventory --name "Fuzz Inv"` | servidor não cai nem registra exceção; inventário sem duplicação |
-| App de desktop | `cargo test` em `packages/desktop/src-tauri` + `appInfo.test.ts` no cliente + checklist manual por sistema | unitários dos módulos `endereco`, `nav`, `boot`, `saude`, `atualizador` e da sonda `appInfo`; instalação, boot, teclas e update em Windows/macOS/Linux à mão (`docs/superpowers/plans/2026-10-31-app-desktop-tauri.md`, Task 11) |
 | CI | `.github/workflows/ci.yml` | typecheck + unitários + build + Docker `/health` + E2E |
 
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
+
+## Resultados — cursores do tema limão (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1900 passando (154 arquivos). Novos: `client/src/game/cursor.test.ts` (3: cursor
+pelo que o clique faria, criatura vence item no chão, Shift vira lupa só sobre alguma coisa) e
+`client/src/ui/cursors/cursors.test.ts` (3: PNG 32×32 com hotspot dentro e variável no CSS para cada cursor, os 6 do
+canvas existem, nenhum CSS do cliente com cursor do sistema ou variável inexistente). Build do cliente conferido: as
+variáveis saem com as imagens embutidas (`data:image/png`). Sem E2E novo (cursor não aparece em captura do Playwright);
+conferir à mão no navegador. Pegar do chão arrastando de longe e largar sem confirmação: `dropConfirm.test.ts` ficou só
+com a venda (as regras de confirmação de largar saíram); o arrasto longe reaproveita o `pickupGround` já coberto pelo E2E
+`ground.spec` (o CI da PR roda).
 
 ## Resultados — métricas e logs (2026-11-01)
 

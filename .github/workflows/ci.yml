@@ -36,25 +36,6 @@ jobs:
           node tools/smoke.mjs http://127.0.0.1:3050 --drop || { cat /tmp/lq-ci/server.log; exit 1; }
           kill %1 || true
 
-  app:
-    name: App de desktop (cargo check e testes)
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - name: Dependências do WebKitGTK
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: packages/desktop/src-tauri
-      - run: cargo check --locked
-        working-directory: packages/desktop/src-tauri
-      - run: cargo test --locked
-        working-directory: packages/desktop/src-tauri
-
   docker:
     name: Docker build (sem push)
     runs-on: ubuntu-latest

@@ -73,7 +73,7 @@
 /* "Tem mais embaixo": faixa colada no fim da coluna (some quando chega ao fim ou cabe tudo). */
 .panel-more {
   position: sticky; bottom: 0; flex: none; margin-top: -30px; height: 30px; width: 100%;
-  border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 14px; color: var(--hud-text, #e8e6d9);
+  border: 0; padding: 0; cursor: var(--cur-mao); font: inherit; font-size: 14px; color: var(--hud-text, #e8e6d9);
   background: linear-gradient(to bottom, rgba(11, 13, 19, 0), rgba(11, 13, 19, 0.92));
   opacity: 0; pointer-events: none; transition: opacity 160ms ease;
 }
@@ -97,7 +97,7 @@
 /* As bolinhas são o único lugar com a mão de arrastar (dono, 2026-10-27: "mãozinha nas bolinhas, não pointer em tudo");
    o ::after dá uma área de pegada maior que os 5×10 px desenhados. Arrastar pelo resto do cabeçalho continua valendo. */
 .drag-grip {
-  position: absolute; left: 5px; top: 8px; width: 5px; height: 10px; opacity: 0; cursor: grab; /* 5 px da parede (dono: "não ficar colado") */
+  position: absolute; left: 5px; top: 8px; width: 5px; height: 10px; opacity: 0; cursor: var(--cur-pegar); /* 5 px da parede (dono: "não ficar colado") */
   background: radial-gradient(circle, var(--hud-muted) 0.9px, transparent 1.2px) 0 0 / 3px 3px; transition: opacity 120ms;
 }
 .drag-grip::after { content: ""; position: absolute; inset: -6px -7px; }
@@ -112,7 +112,7 @@
 .hud-section .fight-modes .fm-btn { width: 16px; height: 16px; }
 .hud-section .fight-modes { gap: 1px; }
 .pin-btn {
-  position: absolute; right: 4px; top: 5px; width: 16px; height: 16px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  position: absolute; right: 4px; top: 5px; width: 16px; height: 16px; padding: 0; display: grid; place-items: center; cursor: var(--cur-mao);
   background: transparent; border: 0; border-radius: 3px; color: var(--hud-faint) !important; opacity: 0.35;
   transition: opacity 120ms, background-color 120ms, color 120ms;
 }
@@ -131,11 +131,11 @@
 }
 .hud-panel.reordering > [data-panel-id]:not(.dragging) { transition: transform 180ms var(--hud-ease); }
 .hud-panel.reordering > .dragging {
-  position: relative; z-index: 3; transition: none; cursor: grabbing;
+  position: relative; z-index: 3; transition: none; cursor: var(--cur-segurar);
   border-color: var(--hud-line-hi); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
 }
 .hud-panel.reordering > .dragging.settling { transition: transform 170ms var(--hud-ease); }
-.panel-dragging, .panel-dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+.panel-dragging, .panel-dragging * { cursor: var(--cur-segurar) !important; user-select: none; -webkit-user-select: none; }
 .panel-dragging .hud-tooltip { display: none; }
 
 
@@ -154,7 +154,7 @@
 }
 .hud-side:not(.open) .hud-rail { right: 8px; }
 .rail-btn {
-  width: 26px; height: 26px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  width: 26px; height: 26px; padding: 0; display: grid; place-items: center; cursor: var(--cur-mao);
   background: transparent; border: 0; border-radius: 4px; color: var(--hud-muted) !important;
   transition: background-color 120ms, color 120ms;
 }
@@ -173,7 +173,7 @@
 /* HP/mana compactos com o painel recolhido */
 .compact-vitals {
   position: fixed; top: 8px; right: calc(8px + 34px + 6px); width: 172px; z-index: 20;
-  display: flex; align-items: center; gap: 8px; padding: 5px 7px 5px 5px; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; padding: 5px 7px 5px 5px; cursor: var(--cur-mao);
   animation: hud-pop 160ms var(--hud-ease);
 }
 .compact-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -183,7 +183,7 @@
 /* Seções dobráveis */
 .hud-section { flex: none; position: relative; }
 .hud-section-head {
-  width: 100%; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; cursor: default;
+  width: 100%; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; cursor: var(--cur-padrao);
   background: none; border: 0; text-align: left;
   font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-muted) !important;
   transition: color 120ms, padding-left 120ms var(--hud-ease);
@@ -273,7 +273,7 @@
 /* ---------- Batalha ---------- */
 .battle-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .battle-row {
-  width: 100%; display: flex; align-items: center; gap: 7px; padding: 4px 6px 4px 4px; cursor: pointer; text-align: left;
+  width: 100%; display: flex; align-items: center; gap: 7px; padding: 4px 6px 4px 4px; cursor: var(--cur-mao); text-align: left;
   background: transparent; border: 1px solid transparent; border-radius: 4px;
   transition: background-color 120ms, border-color 120ms;
 }
@@ -308,7 +308,7 @@
 /* Sem calha fixa (a coluna tem 220 px e o nome da criatura já corta com reticências): só 3 px para a barra de 6 px não colar nas linhas. */
 .sized-body > .battle-list { padding-right: 3px; }
 .size-grip {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 9px; cursor: ns-resize; touch-action: none; z-index: 1;
+  position: absolute; left: 0; right: 0; bottom: 0; height: 9px; cursor: var(--cur-redimensionar); touch-action: none; z-index: 1;
   display: grid; place-items: center; border-radius: 0 0 var(--hud-radius) var(--hud-radius);
 }
 .size-grip-dots {
@@ -317,7 +317,7 @@
 }
 .size-grip:hover .size-grip-dots, .panel-resizing .size-grip-dots { opacity: 0.95; }
 .size-grip:hover { background: rgba(255, 255, 255, 0.03); }
-.panel-resizing, .panel-resizing * { cursor: ns-resize !important; user-select: none; -webkit-user-select: none; }
+.panel-resizing, .panel-resizing * { cursor: var(--cur-redimensionar) !important; user-select: none; -webkit-user-select: none; }
 .panel-resizing .hud-tooltip { display: none; }
 
 /* ---------- Mochila ---------- */
@@ -347,8 +347,8 @@
   transition: background-color 150ms;
 }
 .action-bar:hover { background: var(--hud-bg); }
-.action-slot { width: 42px; height: 42px; padding: 0; cursor: pointer; overflow: hidden; }
-.action-slot.filled { cursor: grab; }
+.action-slot { width: 42px; height: 42px; padding: 0; cursor: var(--cur-mao); overflow: hidden; }
+.action-slot.filled { cursor: var(--cur-pegar); }
 .action-slot.drop-over { outline: 2px solid #ffd447; outline-offset: -2px; background: rgba(255, 212, 71, 0.15); }
 .action-slot:not(.filled)::before {
   content: ""; width: 10px; height: 10px; opacity: 0.35;
@@ -390,7 +390,7 @@
 .action-slot.no-target .action-state { color: var(--hud-muted); }
 /* Família (tecla inteligente): losango no canto de cima. */
 .action-family { position: absolute; right: 3px; top: 0; font-size: 10px; line-height: 12px; color: var(--hud-gold); text-shadow: 0 1px 0 #000; z-index: 2; }
-.action-slot.locked { cursor: not-allowed; }
+.action-slot.locked { cursor: var(--cur-proibido); }
 .action-slot.locked img { filter: grayscale(1) brightness(0.55); }
 .action-slot.locked::after { content: ""; position: absolute; inset: 0; z-index: 1; background: rgba(5, 6, 10, 0.35); pointer-events: none; }
 .action-lock {
@@ -436,20 +436,20 @@
 .hud-window { position: fixed; z-index: 30; display: flex; flex-direction: column; animation: hud-pop 150ms var(--hud-ease); }
 .hud-window.dragging { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
 .win-title {
-  display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 4px 0 8px; cursor: grab; user-select: none;
+  display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 4px 0 8px; cursor: var(--cur-pegar); user-select: none;
   border-bottom: 1px solid var(--hud-line); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--hud-muted);
   touch-action: none;
 }
-.hud-window.dragging .win-title { cursor: grabbing; }
+.hud-window.dragging .win-title { cursor: var(--cur-segurar); }
 .win-title > span:nth-child(2) { flex: 1; }
 .win-grip { width: 6px; height: 12px; opacity: 0.5; background: radial-gradient(circle, var(--hud-muted) 1px, transparent 1.2px) 0 0 / 3px 3px; }
 .win-close {
-  width: 22px; height: 22px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  width: 22px; height: 22px; padding: 0; display: grid; place-items: center; cursor: var(--cur-mao);
   background: none; border: 0; border-radius: 4px; font-size: 16px; line-height: 1; color: var(--hud-muted) !important;
 }
 .win-close:hover { background: rgba(217, 83, 79, 0.15); color: #ff9a92 !important; }
 /* × das janelas centralizadas (Desafios, Novidades, Troca): mesmo visual do .win-close; o tamanho continua no CSS de cada uma. */
-.ch-x, .news-x, .trade-x { display: grid; place-items: center; cursor: pointer; background: none; border: 0; border-radius: 4px; color: var(--hud-muted) !important; }
+.ch-x, .news-x, .trade-x { display: grid; place-items: center; cursor: var(--cur-mao); background: none; border: 0; border-radius: 4px; color: var(--hud-muted) !important; }
 .ch-x:hover, .news-x:hover, .trade-x:hover { background: rgba(217, 83, 79, 0.15); color: #ff9a92 !important; }
 .win-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .kv { margin: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -530,7 +530,7 @@ kbd {
 
 /* ---------- Som (popover do ♪) ---------- */
 .sound-pop { width: 220px; }
-.sound-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #c4c6cf; cursor: pointer; }
+.sound-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #c4c6cf; cursor: var(--cur-mao); }
 .sound-row + .sound-row { margin-top: 8px; }
 .sound-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--hud-gold); }
 .sound-row b { width: 34px; text-align: right; font-weight: 600; color: var(--hud-text); font-variant-numeric: tabular-nums; }

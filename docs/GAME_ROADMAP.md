@@ -13,6 +13,16 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Cursores do tema limão (2026-11-01)
+
+Pedido do dono: "mude o cursor do mouse… coloque na temática, todas as opções".
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| CU-1 | 12 cursores em pixel art (`tools/cursors/generate.mjs` → `client/src/ui/cursors/*.png` + `cursors.css`) e todo `cursor:` do CSS do cliente pelas variáveis | ✅ (2026-11-01) | `ui/cursors/cursors.test.ts` |
+| CU-3 | Arrastar item do chão para um slot de longe: anda até o item e pega (antes o servidor recusava em silêncio); largar no mundo sem confirmação, pilha inteira (Shift escolhe) | ✅ (2026-11-01) | `dropConfirm.test.ts` ajustado; typecheck; E2E `ground.spec` no CI |
+| CU-2 | Canvas do mundo pelo que o clique faria (espada, balão, mão, pegar; lupa com Shift) | ✅ (2026-11-01) | `game/cursor.test.ts`; olhar à mão no navegador |
+
 ## Métricas e logs (2026-11-01)
 
 Pedido do dono ("2 clients abertos estão comendo 2 GB de RAM… criar um metrics e logs") e decisão: leve, sem serviço
@@ -63,7 +73,10 @@ modo Seguir na hora e andar saindo do modo Seguir.
 | CB-4 | Leitura de balanço aplicada ("atualize tudo"): Lasca de Gelo do druida, Flecha Paralisante de controle, bênção pelo estágio da morte, armas Carmesim lv 85, loot dos chefes regionais, Espírito de Chama, Poção de Mana Forte, poções das missões lv 80+, Galho Seco | ✅ (2026-11-01) | `vocationBalance`, `arena`, `spells`, `items`, `quests`, `combatFormulas` |
 | CB-5 | Resto da leitura: `spells.test.ts` pela potência real (tabela regerada), peças regionais não dominam a referência do slot (Calças Antichama, Boné de Visitante, Calça Impermeável, Amuleto de Rubi), Kappa do Lodo com mais XP e loot, Protótipo e Fornalha com peças do tier 7 | ✅ (2026-11-01) | `spells.test.ts`, `items.test.ts`; script de loot por vida |
 
-## App de desktop (2026-10-31)
+## App de desktop (2026-10-31) — removido em 2026-11-01
+
+Dono: "remova esse negócio de client app, não tá dando certo". Pacote `packages/desktop`, workflows e link da tela de
+login saíram; o jogo é só no navegador. A tabela abaixo fica como histórico.
 
 Spec: [superpowers/specs/2026-10-31-app-desktop-tauri-design.md](superpowers/specs/2026-10-31-app-desktop-tauri-design.md).
 Decisões do dono: casca que carrega o jogo do servidor; Windows + macOS + Linux; Tauri 2; instaladores e `latest.json`
