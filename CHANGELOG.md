@@ -7,6 +7,8 @@ tiles do dono (era 1) e anda 15% mais rápido que ele (`COMPANION_STEP_FACTOR`),
 2 tiles, andando a 2–3, sem teleportar. O caminho dele é recalculado assim que o dono muda de tile.
 Também (dono): o acompanhante se chama só "Estagiário" (sem "de <dono>") e cada um veste uma roupa diferente — um de 18
 moradores do pack, escolhido pelo nome do dono (sempre a mesma para o mesmo dono). Título da janela só com o nome.
+Barra de ações sem a engrenagem: a janela Magias abre pela tecla H ou pelo botão novo "Magias" no trilho à direita (dono: "tire a
+engrenagem das skills, deixa na barra lateral").
 
 ## [Não lançado] — 2026-11-01 · Estagiário: crachá, recomendações por magia, alvo mais perto, sem poção automática
 
