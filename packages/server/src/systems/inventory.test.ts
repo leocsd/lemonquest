@@ -337,6 +337,39 @@ describe("inventory: potions", () => {
     expect(w.inv.countPotions(p, "hp")).toBe(23);
   });
 
+  it("usePotion com `cobrir` (Estagiário v2): a menor poção que cobre o que falta; sem nenhuma que cubra, a maior", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { level: 30 }); // cavaleiro lv 30: 585 de vida (applyStats recalcula e enche)
+    p.hp = 100;
+    w.inv.addItem(p, makeItem("hp_pot_huge", 2)); // 450
+    w.inv.addItem(p, makeItem("hp_pot", 2)); // 50
+    w.inv.addItem(p, makeItem("health_potion", 2)); // 100
+    expect(w.inv.usePotion(p, "hp", { silent: true, cobrir: 60 })).toBe(true);
+    expect(p.hp).toBe(200); // a de 100 (a menor que cobre 60), não a Grande
+    expect(bp(w).find((x) => x?.defId === "health_potion")?.count).toBe(1);
+    w.advance(1000);
+    expect(w.inv.usePotion(p, "hp", { silent: true, cobrir: 800 })).toBe(true);
+    expect(bp(w).find((x) => x?.defId === "hp_pot_huge")?.count).toBe(1); // nenhuma cobre 800: a maior
+    w.advance(1000);
+    expect(w.inv.usePotion(p, "hp", { silent: true })).toBe(true);
+    expect(bp(w).some((x) => x?.defId === "hp_pot_huge")).toBe(false); // sem `cobrir`: a maior, como Q/E
+  });
+
+  it("eatAny (Estagiário v2): come a primeira comida que o level deixa; sem comida, nada; satisfeito, nada", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { level: 10 });
+    expect(w.inv.eatAny(p, { silent: true })).toBe(false);
+    w.inv.addItem(p, makeItem("ham", 1)); // lv 30: ainda não
+    w.inv.addItem(p, makeItem("bread", 2));
+    expect(w.inv.eatAny(p, { silent: true })).toBe(true);
+    expect(bp(w).find((x) => x?.defId === "bread")?.count).toBe(1);
+    expect(bp(w).find((x) => x?.defId === "ham")?.count).toBe(1);
+    expect(w.food.remainingMs("p1", w.now())).toBeGreaterThan(0);
+    // Recarga da comida (1 s): não come de novo já.
+    expect(w.inv.eatAny(p, { silent: true })).toBe(false);
+    expect(w.notices()).toEqual([]);
+  });
+
   it("discard destroys the item", () => {
     const w = invWorld();
     const p = w.mk();

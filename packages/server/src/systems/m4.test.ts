@@ -644,3 +644,44 @@ describe("dev commands", () => {
     expect(t.w.inv.gold("p1")).toBe(0);
   });
 });
+
+describe("fight modes: perseguição forçada com distância (Estagiário v2)", () => {
+  function chaseWorld(range = 6) {
+    const w = world({ grid: openGrid(40, 20), spawns: [{ defId: "dummy", x: 20, y: 10, count: 1, radius: 0 }], defs: () => def({ hp: 10_000, aggroRange: 0 }) });
+    w.mm.spawnAll();
+    const m = [...w.mm.all()][0]!;
+    const mv = new MovementSystem(openGrid(40, 20), { now: () => w.now() });
+    mv.setExtraBlocker((x, y) => w.mm.isMonsterAt(x, y));
+    const fight = new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => range, now: () => w.now() });
+    const p = w.add(player("p", 10, 10, { chase: false, stance: "balanced" }));
+    mv.addPlayer(p);
+    p.targetId = m.s.id;
+    const step = () => { fight.tick(w.now(), w.players.values()); mv.tick(w.now(), w.players.values()); };
+    return { w, m, mv, fight, p, step };
+  }
+
+  it("forceChase com `parar`: para a essa distância do alvo (com visão) em vez de ir até o lado; sem `parar`, colado", () => {
+    const c = chaseWorld();
+    c.fight.forceChase("p", true, 3);
+    c.w.run(6000, c.step);
+    expect(cheb(c.p.x, c.p.y, c.m.s.x, c.m.s.y)).toBe(3);
+    c.fight.forceChase("p", true); // trocou para colado
+    c.w.run(3000, c.step);
+    expect(cheb(c.p.x, c.p.y, c.m.s.x, c.m.s.y)).toBe(1);
+    // Desligou: a distância some junto; religar sem `parar` é colado.
+    c.fight.forceChase("p", false);
+    c.p.x = 10;
+    c.fight.forceChase("p", true);
+    c.w.run(6000, c.step);
+    expect(cheb(c.p.x, c.p.y, c.m.s.x, c.m.s.y)).toBe(1);
+  });
+
+  it("o jogador jogando à mão (p.chase) segue colado mesmo depois de a perseguição forçada ter tido distância", () => {
+    const c = chaseWorld();
+    c.p.chase = true;
+    c.fight.forceChase("p", true, 4);
+    c.fight.forceChase("p", false);
+    c.w.run(6000, c.step);
+    expect(cheb(c.p.x, c.p.y, c.m.s.x, c.m.s.y)).toBe(1);
+  });
+});

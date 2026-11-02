@@ -99,3 +99,23 @@ describe("rascunho do Estagiário", () => {
     });
   });
 });
+
+describe("rascunho v2: campos opcionais, comer e distância", () => {
+  it("mana mínima e vida do alvo: 0, vazio (NaN) ou inválido somem; valor válido fica na faixa; comer e distância vão no rascunho", () => {
+    const c = srv({ ataque: [{ minBichos: 1, raio: 1, magia: "spin_strike" }], buffs: [{ magia: "swift_feet", quando: "sempre" }] });
+    const r = limitarRascunho({
+      ...extrairRascunho(c),
+      ataque: [{ minBichos: 1, raio: 1, magia: "spin_strike", manaMin: NaN, vidaAlvoMin: 150 }],
+      buffs: [{ magia: "swift_feet", quando: "sempre", manaMin: 0 }],
+      comer: false, distancia: 4,
+    }, c);
+    expect(r.ataque).toEqual([{ minBichos: 1, raio: 1, magia: "spin_strike", vidaAlvoMin: 100 }]);
+    expect(Object.keys(r.ataque[0]!)).not.toContain("manaMin");
+    expect(r.buffs).toEqual([{ magia: "swift_feet", quando: "sempre" }]);
+    expect(Object.keys(r.buffs[0]!)).not.toContain("manaMin");
+    expect([r.comer, r.distancia]).toEqual([false, 4]);
+    // Campo opcional digitado e apagado não suja o rascunho depois de limitado.
+    expect(rascunhoSujo(limitarRascunho({ ...extrairRascunho(c), ataque: [{ ...c.ataque[0]!, manaMin: NaN }] }, c), c)).toBe(false);
+    expect(rascunhoSujo({ ...extrairRascunho(c), comer: false }, c)).toBe(true);
+  });
+});

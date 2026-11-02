@@ -44,6 +44,29 @@ export function pickQuickPotion(
 }
 
 /**
+ * Poção do Estagiário (v2, 2026-11-02): a MENOR que cobre `falta` (o que falta para encher) entre as que o level e a
+ * vocação permitem; se nenhuma cobre, a maior (= pickQuickPotion). O cavaleiro com 245 de mana bebia a Poção de Mana
+ * Grande (900) e jogava fora dois terços. Empate: a primeira da mochila. Q/E seguem com pickQuickPotion.
+ */
+export function pickPotionFor(
+  slots: readonly (ItemInstance | null | undefined)[], kind: QuickPotionKind, level: number, falta: number,
+  defOf: (id: string) => ItemDef | undefined, vocation?: Vocation,
+): { index: number; needLevel: number } {
+  const maior = pickQuickPotion(slots, kind, level, defOf, vocation);
+  if (maior.index < 0 || !(falta > 0)) return maior;
+  let index = -1, best = Infinity;
+  slots.forEach((it, i) => {
+    const d = it ? defOf(it.defId) : undefined;
+    const amount = potionAmount(d, kind);
+    if (amount < falta || amount >= best) return;
+    if (vocation && !vocationFits(d?.vocations, vocation)) return;
+    if (levelNeeded(d, level) > 0) return;
+    best = amount; index = i;
+  });
+  return index >= 0 ? { index, needLevel: 0 } : maior;
+}
+
+/**
  * Onde o clique rápido põe `it` em `slots` (depot ou mochila): a primeira pilha igual (mesmo item e raridade) com
  * espaço, senão o primeiro espaço vazio; -1 = cheio de verdade. O que não couber nessa pilha o servidor espalha pelas
  * outras pilhas e espaços vazios do destino (InventorySystem.moveContainer).

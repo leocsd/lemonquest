@@ -3,9 +3,10 @@
 // ataque, buffs, reserva de mana e alarmes mexem num rascunho (store.ts rascunhoStore) que só vai no "Aplicar"; ligar/desligar,
 // gravar, renomear e apagar rota vão na hora. Abre pelo 🤖 do trilho. Molde: items/LootFilterWindow.tsx.
 import {
-  ALARMES, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao, buffsRecomendados,
+  ALARMES, DISTANCIAS, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao, buffsRecomendados,
   curaRecomendada, spellDef, spellsFor,
-  type AlarmeTipo, type CuraAcao, type EstagiarioConfig, type EstagiarioEstadoMsg, type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
+  type AlarmeTipo, type CuraAcao, type CuraQuando, type EstagiarioConfig, type EstagiarioEstadoMsg, type RegraAtaque, type RegraBuff, type RegraCura,
+  type Vocation,
 } from "@lemonquest/shared";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { groupsStore } from "../hotkeys/hotkeys.ts";
@@ -17,8 +18,8 @@ import { meStore } from "../hud/world.ts";
 import { bindOverlay } from "../overlays.ts";
 import {
   addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, editarRascunho,
-  estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, ondeConta, rascunhoStore,
-  rascunhoSujo, removerRegra, renomearRota, salvarConfig, setRegra, turnoMostrado,
+  estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, ondeConta, QUANDO_BUFF,
+  rascunhoStore, rascunhoSujo, removerRegra, renomearRota, rotuloBuff, rotuloDistancia, salvarConfig, setRegra, turnoMostrado,
 } from "./store.ts";
 import "./estagiario.css";
 
@@ -169,28 +170,41 @@ function CampoNumero({ label, lim, value, onValor, step }: { label: string; lim:
 const acaoKey = (a: CuraAcao): string => ("pocao" in a ? `pocao:${a.pocao}` : `magia:${a.magia}`);
 const acaoDe = (k: string): CuraAcao => (k.startsWith("magia:") ? { magia: k.slice(6) } : { pocao: k === "pocao:mana" ? "mana" : "hp" });
 
+const QUANDO_CURA: readonly { id: CuraQuando; label: string }[] = [{ id: "vida", label: "Vida" }, { id: "mana", label: "Mana" }, { id: "aliado", label: "Aliado" }];
+
 function AbaCura({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
   const curas = useMemo(() => spellsFor(voc).filter((s) => s.heal), [voc]);
+  // Cura em grupo (druida/fada): a regra "Aliado" (colega de grupo abaixo de X %) só existe com ela.
+  const emGrupo = useMemo(() => curas.filter((s) => s.target === "party"), [curas]);
   const set = (cura: readonly RegraCura[]) => editarRascunho({ cura: [...cura] });
+  const mudarQuando = (i: number, raw: string) => {
+    const quando: CuraQuando = raw === "mana" || (raw === "aliado" && emGrupo.length) ? (raw as CuraQuando) : "vida";
+    const r = c.cura[i]!;
+    // "Aliado" só com cura em grupo: troca a ação se a atual não serve.
+    const acao: CuraAcao = quando === "aliado" && !("magia" in r.acao && emGrupo.some((s) => "magia" in r.acao && s.id === r.acao.magia)) ? { magia: emGrupo[0]!.id } : r.acao;
+    set(setRegra(c.cura, i, { quando, acao }));
+  };
   return (
     <div class="est-pane">
-      <p class="est-note">Avaliadas de cima para baixo a cada instante: a primeira que vale e está pronta sai. Respeita as recargas de magia e poção.</p>
+      <p class="est-note">
+        Avaliadas de cima para baixo a cada instante: a primeira que vale e está pronta sai. Respeita as recargas de magia e poção; a poção
+        bebida é a menor que cobre o que falta.{emGrupo.length > 0 && " \"Aliado\": um colega de grupo ao alcance da cura em grupo abaixo da porcentagem."}
+      </p>
       {c.cura.length === 0 && <div class="est-empty">Nenhuma regra de cura.</div>}
       <ol class="est-rules">
         {c.cura.map((r, i) => (
           <li key={i} class="est-rule">
             <span class="est-idx">{i + 1}</span>
-            <select class="est-sel" aria-label="Quando" value={r.quando} onChange={(e) => set(setRegra(c.cura, i, { quando: val(e) === "mana" ? "mana" : "vida" }))}>
-              <option value="vida">Vida</option>
-              <option value="mana">Mana</option>
+            <select class="est-sel" aria-label="Quando" value={r.quando} onChange={(e) => mudarQuando(i, val(e))}>
+              {QUANDO_CURA.filter((q) => q.id !== "aliado" || emGrupo.length > 0).map((q) => <option key={q.id} value={q.id}>{q.label}</option>)}
             </select>
             <span>abaixo de</span>
             <CampoNumero label="Porcentagem" lim={LIMITES.abaixoDe} value={r.abaixoDe} onValor={(v) => set(setRegra(c.cura, i, { abaixoDe: v }))} />
             <span>% →</span>
             <select class="est-sel est-grow" aria-label="Ação" value={acaoKey(r.acao)} onChange={(e) => set(setRegra(c.cura, i, { acao: acaoDe(val(e)) }))}>
-              <option value="pocao:hp">Poção de vida</option>
-              <option value="pocao:mana">Poção de mana</option>
-              {curas.map((s) => <option key={s.id} value={`magia:${s.id}`}>{s.name} (lv {s.level})</option>)}
+              {r.quando !== "aliado" && <option value="pocao:hp">Poção de vida</option>}
+              {r.quando !== "aliado" && <option value="pocao:mana">Poção de mana</option>}
+              {(r.quando === "aliado" ? emGrupo : curas).map((s) => <option key={s.id} value={`magia:${s.id}`}>{s.name} (lv {s.level})</option>)}
               {"magia" in r.acao && !curas.some((s) => "magia" in r.acao && s.id === r.acao.magia) && (
                 <option value={acaoKey(r.acao)}>{spellDef(r.acao.magia)?.name ?? r.acao.magia}</option>
               )}
@@ -203,6 +217,10 @@ function AbaCura({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
       {" "}
       <button class="est-btn" onClick={() => set(curaRecomendada(voc))} data-tip="Recomendado" data-tip-sub="Troca as regras pelas recomendadas da vocação" data-testid="est-cura-recomendada">Usar recomendado</button>
       {c.cura.length >= REGRAS_MAX && <span class="est-note"> Máximo de {REGRAS_MAX} regras.</span>}
+      <div class="est-row">
+        <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" />
+        <span class="est-note">com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando (menos de 1 min)</span>
+      </div>
     </div>
   );
 }
@@ -253,8 +271,9 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
     <div class="est-pane">
       <p class="est-note">
         Alvo: o monstro mais próximo à vista (nunca jogador). Regras de cima para baixo: conta os monstros em volta de você (em volta
-        do alvo nas magias de área no alvo; nos tiles da onda virada para o alvo nas ondas) e conjura a primeira que bate e está pronta.
-        Família e grupo escolhem a magia pronta como as teclas inteligentes.
+        do alvo nas magias de área no alvo; nos tiles da onda virada para o alvo nas ondas) e conjura a primeira que bate, está pronta e
+        alcança o alvo. Família e grupo escolhem a magia pronta como as teclas inteligentes. "Mana ≥" troca a reserva geral só naquela
+        regra (0 = a reserva); "alvo com ≥ X% de vida" poupa a magia grande no bicho quase morto (0 = qualquer).
       </p>
       {c.ataque.length === 0 && <div class="est-empty">Nenhuma regra: só o ataque básico.</div>}
       <ol class="est-rules">
@@ -270,6 +289,10 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
               {opts(r.magia)}
             </select>
             <Mover l={c.ataque} i={i} set={set} />
+            <span class="est-inline est-opc">
+              mana ≥ <CampoNumero label="Mana mínima da regra" lim={LIMITES.pctOpcional} value={r.manaMin ?? 0} onValor={(v) => set(setRegra(c.ataque, i, { manaMin: v }))} />%
+              {" · "}alvo com ≥ <CampoNumero label="Vida mínima do alvo" lim={LIMITES.pctOpcional} value={r.vidaAlvoMin ?? 0} onValor={(v) => set(setRegra(c.ataque, i, { vidaAlvoMin: v }))} />% de vida
+            </span>
           </li>
         ))}
       </ol>
@@ -285,6 +308,21 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
         <CampoNumero label="Reserva de mana" lim={LIMITES.reservaMana} step={5} value={c.reservaMana} onValor={(v) => editarRascunho({ reservaMana: v })} />
         <span>% de mana</span>
       </label>
+      {/* Manter distância (v2, decisão do dono): só para quem ataca à distância; o cavaleiro luta colado. */}
+      {voc !== "knight" && (
+        <>
+          <label class="est-row">
+            <span>Manter distância do alvo:</span>
+            <select class="est-sel" aria-label="Distância" value={String(c.distancia)} onChange={(e) => editarRascunho({ distancia: Number(val(e)) })} data-testid="est-distancia">
+              {DISTANCIAS.map((d) => <option key={d} value={String(d)}>{rotuloDistancia(d)}</option>)}
+            </select>
+          </label>
+          <p class="est-note">
+            Só com a rota rodando: para de perseguir a essa distância (com visão) e recua um passo quando um bicho corpo a corpo encosta.
+            Monstro que ataca à distância não faz recuar; com arma corpo a corpo, fica colado.
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -297,15 +335,13 @@ function AbaBuffs({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; level
   const [nova, setNova] = useState("");
   const escolhida = livres.some((s) => s.id === nova) ? nova : livres[0]?.id ?? "";
   const set = (buffs: readonly RegraBuff[]) => editarRascunho({ buffs: [...buffs] });
-  const rotulo = (id: string) => {
-    const s = spellDef(id);
-    return s ? `${s.name}${s.level > level ? ` (lv ${s.level})` : ""}` : id;
-  };
+  const rotulo = (id: string) => { const s = spellDef(id); return s ? rotuloBuff(s, level) : id; };
   return (
     <div class="est-pane">
       <p class="est-note">
-        Mantém os buffs ativos: quando um acaba, conjura de novo (um por vez, depois da cura). "Só em combate" espera um monstro de
-        alvo. Respeita a reserva de mana do ataque, menos o escudo de mana. Acima do seu level, o buff é pulado.
+        Mantém os buffs (e a invocação) ativos: quando um acaba, conjura de novo (um por vez, depois da cura). "Em combate" = deu ou levou
+        dano há pouco. Só sai se depois dele ainda sobra mana para a sua cura mais cara (o escudo de mana sai sempre); "mana ≥" é uma
+        exigência a mais sua (0 = nenhuma). Acima do seu level, o buff é pulado.
       </p>
       {c.buffs.length === 0 && <div class="est-empty">Nenhum buff.</div>}
       <ol class="est-rules">
@@ -316,11 +352,13 @@ function AbaBuffs({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; level
               {opcoes.filter((s) => s.id === r.magia || !c.buffs.some((x) => x.magia === s.id)).map((s) => <option key={s.id} value={s.id}>{rotulo(s.id)}</option>)}
               {!opcoes.some((s) => s.id === r.magia) && <option value={r.magia}>{rotulo(r.magia)}</option>}
             </select>
-            <label class="est-inline">
-              <input type="checkbox" checked={r.emCombate} onChange={(e) => set(setRegra(c.buffs, i, { emCombate: (e.currentTarget as HTMLInputElement).checked }))} />
-              só em combate
-            </label>
+            <select class="est-sel" aria-label="Quando" value={r.quando} onChange={(e) => { const q = val(e); set(setRegra(c.buffs, i, { quando: q === "combate" || q === "fora" ? q : "sempre" })); }}>
+              {QUANDO_BUFF.map((q) => <option key={q.id} value={q.id}>{q.label}</option>)}
+            </select>
             <Mover l={c.buffs} i={i} set={set} />
+            <span class="est-inline est-opc">
+              mana ≥ <CampoNumero label="Mana mínima do buff" lim={LIMITES.pctOpcional} value={r.manaMin ?? 0} onValor={(v) => set(setRegra(c.buffs, i, { manaMin: v }))} />%
+            </span>
           </li>
         ))}
       </ol>

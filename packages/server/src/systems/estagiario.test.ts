@@ -1,7 +1,7 @@
 // Estagiário no servidor: cura, ataque, turno, liga/desliga da rota, pausas, gravação e caminhada da rota.
 import { describe, expect, it, vi } from "vitest";
 import {
-  BUSCA_TILES, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS, estagiarioPadrao,
+  BUSCA_TILES, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS, estagiarioPadrao,
   type EstagiarioConfig, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
   type Vocation,
 } from "@lemonquest/shared";
@@ -33,6 +33,12 @@ interface SetupOpts {
   grupo?: string[];
   /** Tiles de portal de verdade ("x,y"), para a gravação (PortalSystem.isPortalTile). */
   portalTiles?: string[];
+  /** Ajustes no def do rato (v2: rato que anda e bate, para o recuo). */
+  bicho?: Partial<MonsterDef>;
+  /** Alcance do ataque básico do jogador (v2: manter distância só acima de 1). */
+  alcance?: number;
+  /** Ids de jogadores no grupo do "p" que contam como aliados para a cura em grupo. */
+  aliados?: string[];
 }
 
 /**
@@ -41,7 +47,7 @@ interface SetupOpts {
  */
 function setup(o: SetupOpts = {}) {
   const defs: Record<string, MonsterDef> = {
-    rato: def({ id: "rato", hp: 30, aggroRange: 0, stationary: true, respawnMs: 999_999 }),
+    rato: def({ id: "rato", hp: 30, aggroRange: 0, stationary: true, respawnMs: 999_999, ...o.bicho }),
     boneco: def({ id: "boneco", hp: 30, aggroRange: 0, stationary: true, invulnerable: true, respawnMs: 999_999 }),
   };
   const grade = openGrid(40, 40);
@@ -72,10 +78,12 @@ function setup(o: SetupOpts = {}) {
     },
   };
   /** `bebivel`: o level/vocação deixa beber (InventorySystem.canDrink); `bebe`: o usePotion consegue. */
-  const pot = { pronta: true, bebe: true, qtd: { hp: 5, mana: 5 } as Record<QuickPotionKind, number>, bebivel: { hp: true, mana: true } as Record<QuickPotionKind, boolean> };
+  const pot = { pronta: true, bebe: true, qtd: { hp: 5, mana: 5 } as Record<QuickPotionKind, number>, bebivel: { hp: true, mana: true } as Record<QuickPotionKind, boolean>, cobertas: [] as (number | undefined)[] };
   const potions = {
     potionReady: () => pot.pronta,
-    usePotion: (_p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean }) => { calls.push(["pocao", kind, opts]); return pot.bebe; },
+    usePotion: (_p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean; cobrir?: number }) => {
+      calls.push(["pocao", kind, { silent: opts?.silent }]); pot.cobertas.push(opts?.cobrir); return pot.bebe;
+    },
     countPotions: (_p: PlayerState, kind: QuickPotionKind) => pot.qtd[kind],
     canDrink: (_p: PlayerState, kind: QuickPotionKind) => pot.bebivel[kind] && pot.qtd[kind] > 0,
   };
@@ -85,7 +93,7 @@ function setup(o: SetupOpts = {}) {
       calls.push(["busca", reach]);
       return luta.alvo && !ignorar?.(luta.alvo) ? luta.alvo : "";
     },
-    forceChase: (id: string, on: boolean) => { calls.push(["chase", id, on]); },
+    forceChase: (id: string, on: boolean, parar?: number) => { calls.push(parar !== undefined && parar > 1 ? ["chase", id, on, parar] : ["chase", id, on]); },
     resume: (id: string) => { calls.push(["resume", id]); },
   };
   /** Donos com acompanhante no mundo (o teste pode tirar um, como o Coliseu faz ao sair). */
@@ -96,6 +104,12 @@ function setup(o: SetupOpts = {}) {
     companionOf: (id: string) => (acompanhantes.has(id) ? {} : undefined),
   };
   const npc = { aberto: false };
+  /** Movimento falso: `livre` = o jogador está parado (sem tecla, clique nem passo em curso). */
+  const mov = { livre: true };
+  /** v2: combate (null = sem gancho, vale "tem alvo"), invocações vivas, comida restante e o que foi comido. */
+  const combate = { em: null as boolean | null };
+  const invoc = { n: 0 };
+  const comida = { restante: Infinity, comeu: 0 };
   /** Condições ativas do jogador (o buff só é reconjurado quando a dele acabou). */
   const conds = new Set<string>();
   const conditions = { has: (_id: string, c: string) => conds.has(c) };
@@ -109,11 +123,17 @@ function setup(o: SetupOpts = {}) {
     : null;
   const sys = new EstagiarioSystem({
     spells, potions, conditions, fight: real ?? fight, monsters: w.mm,
-    movement: o.andar ? mv : { isIdle: () => true, pathFor: () => null, follow: () => "ok" },
+    movement: o.andar ? mv : { isIdle: () => mov.livre, pathFor: () => null, follow: () => "ok" },
     companions, npcOpen: () => npc.aberto, spellGroups: () => o.groups ?? [],
     players: () => w.players.values(), send: (to, type, msg) => sent.push({ to, type, msg }),
     sameParty: (a, b) => a === "p" && (o.grupo ?? []).includes(b),
     isPortalTile: (x, y) => (o.portalTiles ?? []).includes(`${x},${y}`),
+    inCombat: () => combate.em ?? !!w.mm.wild(p.targetId),
+    invocacoes: () => invoc.n,
+    alimentadoMs: () => comida.restante,
+    comer: () => { comida.comeu++; calls.push(["comer"]); return true; },
+    aliados: () => (o.aliados ?? []).map((id) => w.players.get(id)).filter((q): q is PlayerState => !!q),
+    attackRange: () => o.alcance ?? 1,
     now: () => clock,
   });
   sys.load(p, o.saved as never);
@@ -136,7 +156,7 @@ function setup(o: SetupOpts = {}) {
   const of = (k: string) => calls.filter((c) => c[0] === k);
   const indice = (): number => (sys as any).st.get("p").indice;
   const st = (): any => (sys as any).st.get("p");
-  return { ...w, p, sys, mv, calls, of, prontas, falham, dirs, conds, pot, luta, npc, sent, estados, notices, tick, visitados, indice, st, acompanhantes, now: () => clock };
+  return { ...w, p, sys, mv, calls, of, prontas, falham, dirs, conds, pot, luta, npc, mov, combate, invoc, comida, sent, estados, notices, tick, visitados, indice, st, acompanhantes, now: () => clock };
 }
 
 /** Config com a rota "Ratos" de 3 pontos (10,10) → (15,10) → (20,10). */
@@ -316,7 +336,7 @@ describe("Estagiário: cura", () => {
 
 describe("Estagiário: cura que não trava", () => {
   it("poção que o level/vocação não deixa beber não trava a cura: vai a magia, e o buff não fica bloqueado", () => {
-    const w = setup({ over: { hp: 30 }, saved: { config: { ...estagiarioPadrao("knight"), buffs: [{ magia: "swift_feet", emCombate: false }] } } });
+    const w = setup({ over: { hp: 30 }, saved: { config: { ...estagiarioPadrao("knight"), buffs: [{ magia: "swift_feet", quando: "sempre" }] } } });
     w.sys.onToggle(w.p, { cura: true, buffs: true });
     w.pot.bebivel.hp = false; // só Poção Grande (lv 30) na mochila
     w.prontas.add("swift_feet");
@@ -347,7 +367,7 @@ describe("Estagiário: buffs", () => {
     ({ ...estagiarioPadrao("knight"), cura: [], ataque: [], buffs, ...extra });
 
   it("liga e desliga; conjura o buff que falta (silencioso), não com a condição ativa; desligado ou morto: nada", () => {
-    const w = setup({ saved: { config: comBuffs([{ magia: "swift_feet", emCombate: false }]) } });
+    const w = setup({ saved: { config: comBuffs([{ magia: "swift_feet", quando: "sempre" }]) } });
     w.prontas.add("swift_feet");
     w.tick();
     expect(w.of("cast")).toEqual([]); // desligado
@@ -375,7 +395,7 @@ describe("Estagiário: buffs", () => {
   });
 
   it("'só em combate': só com um monstro vivo de alvo; o de fora de combate vale sempre", () => {
-    const w = setup({ ratos: [{ x: 11, y: 10 }], saved: { config: comBuffs([{ magia: "iron_skin", emCombate: true }, { magia: "swift_feet", emCombate: false }]) } });
+    const w = setup({ ratos: [{ x: 11, y: 10 }], saved: { config: comBuffs([{ magia: "iron_skin", quando: "combate" }, { magia: "swift_feet", quando: "sempre" }]) } });
     w.prontas.add("iron_skin");
     w.sys.onToggle(w.p, { buffs: true });
     w.tick();
@@ -386,7 +406,7 @@ describe("Estagiário: buffs", () => {
   });
 
   it("uma ação por tick: com cura no tick, o buff espera o próximo", () => {
-    const w = setup({ over: { hp: 30 }, saved: { config: comBuffs([{ magia: "swift_feet", emCombate: false }], { cura: [{ quando: "vida", abaixoDe: 50, acao: { magia: "light_heal" } }] }) } });
+    const w = setup({ over: { hp: 30 }, saved: { config: comBuffs([{ magia: "swift_feet", quando: "sempre" }], { cura: [{ quando: "vida", abaixoDe: 50, acao: { magia: "light_heal" } }] }) } });
     w.prontas.add("light_heal").add("swift_feet");
     w.sys.onToggle(w.p, { cura: true, buffs: true });
     w.tick();
@@ -397,24 +417,35 @@ describe("Estagiário: buffs", () => {
     expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
   });
 
-  it("reserva de mana: abaixo dela o buff não sai, menos o escudo de mana (sobrevivência)", () => {
-    const w = setup({ vocation: "sorcerer", over: { mana: 20 }, saved: { config: { ...comBuffs([{ magia: "swift_feet", emCombate: false }, { magia: "mana_shield", emCombate: false }]), reservaMana: 30 } } });
+  it("v2: a reserva do ataque não segura os buffs; a mana mínima da regra é a única exigência além da mana da própria magia", () => {
+    // Feiticeiro com 6 % de mana (bem abaixo da reserva do ataque de 30 %): o Pés Ligeiros sai assim mesmo.
+    const w = setup({
+      vocation: "sorcerer", over: { mana: 60, maxMana: 1000 },
+      saved: { config: { ...comBuffs([{ magia: "swift_feet", quando: "sempre" }, { magia: "mana_shield", quando: "sempre" }]), reservaMana: 30 } },
+    });
     w.prontas.add("swift_feet");
     w.sys.onToggle(w.p, { buffs: true });
     w.tick();
-    expect(w.of("cast")).toEqual([]);
+    expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
+    w.calls.length = 0;
+    w.conds.add("haste");
     w.prontas.add("mana_shield");
     w.tick();
     expect(w.of("cast").map((c) => c[1])).toEqual(["mana_shield"]);
+    // Mana mínima da regra: exigência do jogador (40 % < 50 % espera; 50 % sai).
     w.calls.length = 0;
-    w.conds.add("manashield");
-    w.p.mana = 40;
+    w.conds.delete("haste");
+    w.sys.onConfig(w.p, { config: comBuffs([{ magia: "swift_feet", quando: "sempre", manaMin: 50 }]) });
+    w.p.mana = 400;
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    w.p.mana = 500;
     w.tick();
     expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
   });
 
   it("com a rota rodando ficam ligados (o estado mostra); desligar a rota volta ao escolhido; desligarTudo desliga", () => {
-    const w = setup({ saved: { config: comRota({ buffs: [{ magia: "swift_feet", emCombate: false }] }) } });
+    const w = setup({ saved: { config: comRota({ buffs: [{ magia: "swift_feet", quando: "sempre" }] }) } });
     w.prontas.add("swift_feet");
     w.sys.onToggle(w.p, { rota: "Ratos" });
     expect(w.estados().at(-1)).toMatchObject({ rota: "Ratos", buffs: true });
@@ -435,16 +466,34 @@ describe("Estagiário: buffs", () => {
 describe("Estagiário: ataque", () => {
   const regras = (magia: string, minBichos = 2, raio = 1) => ({ ...estagiarioPadrao("knight"), ataque: [{ minBichos, raio, magia }] });
 
-  it("sem alvo: busca o monstro mais próximo a BUSCA_TILES; só o ataque ligado não retoma a perseguição", () => {
+  it("sem alvo: busca o monstro mais próximo a BUSCA_TILES; só o ataque ligado retoma a perseguição assim que o jogador fica parado", () => {
     const w = setup({ ratos: [{ x: 14, y: 10 }] });
     const rato = [...w.mm.all()][0]!;
     w.luta.alvo = rato.s.id;
+    w.mov.livre = false; // andando à mão: retomar agora cancelaria a pausa de 1,5 s que o Move acabou de pôr na perseguição
     w.sys.onToggle(w.p, { ataque: true });
     w.tick();
     expect(w.of("busca")).toEqual([["busca", BUSCA_TILES]]);
     expect(w.p.targetId).toBe(rato.s.id);
-    // O jogador está jogando à mão: retomar cancelaria a pausa de 1,5 s que o Move/WalkTo acabou de pôr na perseguição.
     expect(w.of("resume")).toEqual([]);
+    w.tick(500);
+    expect(w.of("resume")).toEqual([]);
+    w.mov.livre = true; // parou: a perseguição retoma já (era o "delay para seguir o bicho na primeira vez que o vê")
+    w.tick();
+    expect(w.of("resume")).toEqual([["resume", "p"]]);
+    w.tick(1000);
+    expect(w.of("resume")).toHaveLength(1); // uma vez por alvo novo
+  });
+
+  it("busca a cada 100 ms sem alvo e a cada 400 ms com alvo (procurando um mais perto)", () => {
+    const w = setup({ ratos: [{ x: 14, y: 10 }] });
+    w.sys.onToggle(w.p, { ataque: true });
+    w.tick(1000);
+    expect(w.of("busca").length).toBeGreaterThanOrEqual(9);
+    w.calls.length = 0;
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.tick(1000);
+    expect(w.of("busca").length).toBeLessThanOrEqual(3);
   });
 
   it("alvo novo com a rota rodando retoma a perseguição; com a rota pausada (manual), não", () => {
@@ -453,9 +502,14 @@ describe("Estagiário: ataque", () => {
     w.luta.alvo = rato.s.id;
     w.sys.onToggle(w.p, { ataque: true, rota: "Ratos" });
     w.sys.manual("p");
+    w.mov.livre = false;
     w.tick(1000);
     expect(w.p.targetId).toBe(rato.s.id);
-    expect(w.of("resume")).toEqual([]);
+    expect(w.of("resume")).toEqual([]); // rota pausada e o jogador andando: não retoma
+    w.mov.livre = true;
+    w.tick();
+    expect(w.of("resume")).toEqual([["resume", "p"]]); // parou: o Ataque é escolha dele, a perseguição retoma
+    w.calls.length = 0;
 
     w.tick(PAUSA_MANUAL_MS);
     expect(w.sys.estado(w.p).pausa).toBe("");
@@ -559,7 +613,7 @@ describe("Estagiário: ataque", () => {
     w.sys.onToggle(w.p, { ataque: true });
     w.tick(500);
     expect(w.p.targetId).toBe(rato.s.id);
-    expect(w.of("resume")).toEqual([]);
+    expect(w.of("resume")).toEqual([["resume", "p"]]); // o jogador está parado: a perseguição (escolha dele) retoma já
   });
 
   it("alvo jogador (mirado à mão): não busca nem conjura; desligado: nada", () => {
@@ -1390,5 +1444,205 @@ describe("Estagiário: Coliseu, acompanhante e pausas (revisão final)", () => {
     expect(all).not.toHaveBeenCalled(); // conta pelos tiles, sem varrer todos os monstros
     expect(at).toHaveBeenCalledTimes(9); // dois raios iguais: uma contagem só (3×3)
     expect(w.of("cast")).toHaveLength(1);
+  });
+});
+
+describe("Estagiário v2: cura (poção que cobre a falta, aliado), comer", () => {
+  it("a poção pede a menor que cobre o que falta (vida ou mana)", () => {
+    const w = setup({ over: { hp: 30, maxHp: 500, mana: 10, maxMana: 300 } });
+    w.sys.onToggle(w.p, { cura: true });
+    w.tick();
+    expect(w.of("pocao")).toEqual([["pocao", "hp", { silent: true }]]);
+    expect(w.pot.cobertas).toEqual([470]);
+    w.p.hp = 500;
+    w.tick(2000);
+    expect(w.pot.cobertas.at(-1)).toBe(290);
+  });
+
+  it("regra 'aliado': colega de grupo a até o raio da magia abaixo do limiar → cura em grupo; longe ou com vida boa, nada", () => {
+    const cura = [{ quando: "aliado" as const, abaixoDe: 50, acao: { magia: "group_heal" } }];
+    const w = setup({ vocation: "druid", aliados: ["q"], saved: { config: { ...estagiarioPadrao("druid"), cura } } });
+    const q = w.add(player("q", 12, 10, { hp: 40, maxHp: 100 }));
+    w.prontas.add("group_heal");
+    w.sys.onToggle(w.p, { cura: true });
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["group_heal"]);
+    w.calls.length = 0;
+    q.hp = 90;
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    q.hp = 40; q.x = 20; // fora dos 4 tiles da Cura em Grupo
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    // Fora do grupo não conta.
+    const w2 = setup({ vocation: "druid", saved: { config: { ...estagiarioPadrao("druid"), cura } } });
+    w2.add(player("q", 12, 10, { hp: 40, maxHp: 100 }));
+    w2.prontas.add("group_heal");
+    w2.sys.onToggle(w2.p, { cura: true });
+    w2.tick();
+    expect(w2.of("cast")).toEqual([]);
+  });
+
+  it("comer sozinho: com a Cura ligada e o alimentado acabando, come (uma tentativa a cada 2 s); desligado ou satisfeito, não", () => {
+    const w = setup();
+    w.comida.restante = 30_000;
+    w.tick(1000);
+    expect(w.comida.comeu).toBe(0); // cura desligada
+    w.sys.onToggle(w.p, { cura: true });
+    w.tick(1000);
+    expect(w.comida.comeu).toBe(1);
+    w.tick(3000);
+    expect(w.comida.comeu).toBe(2); // uma por COMER_INTERVALO_MS, não por tick
+    w.comida.restante = 10 * 60_000;
+    w.tick(5000);
+    expect(w.comida.comeu).toBe(2);
+    w.comida.restante = 0;
+    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), comer: false } });
+    w.tick(5000);
+    expect(w.comida.comeu).toBe(2);
+  });
+});
+
+describe("Estagiário v2: buffs (combate real, fora de combate, invocação) e motivo", () => {
+  it("'em combate' pela condição de combate (deu/levou dano), não por ter alvo; 'fora de combate' é o contrário", () => {
+    const w = setup({ ratos: [{ x: 11, y: 10 }], saved: { config: { ...estagiarioPadrao("knight"), cura: [], buffs: [{ magia: "iron_skin", quando: "combate" }, { magia: "swift_feet", quando: "fora" }] } } });
+    w.prontas.add("iron_skin").add("swift_feet");
+    w.sys.onToggle(w.p, { buffs: true });
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.combate.em = false; // mirando, mas ninguém bateu ainda
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
+    w.calls.length = 0;
+    w.conds.add("haste");
+    w.combate.em = true;
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["iron_skin"]);
+  });
+
+  it("invocação: conjura quando o druida não tem invocação viva; com uma viva, espera", () => {
+    const w = setup({ vocation: "druid", ratos: [{ x: 11, y: 10 }], saved: { config: { ...estagiarioPadrao("druid"), cura: [], buffs: [{ magia: "summon_wolf", quando: "combate" }] } } });
+    w.prontas.add("summon_wolf");
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.sys.onToggle(w.p, { buffs: true });
+    w.invoc.n = 1;
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    w.invoc.n = 0;
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["summon_wolf"]);
+  });
+
+  it("motivo 'sem mana para o buff' quando o buff pronto espera a mana mínima da regra", () => {
+    const w = setup({ ratos: [{ x: 11, y: 10 }], over: { mana: 60 }, saved: { config: { ...estagiarioPadrao("knight"), buffs: [{ magia: "swift_feet", quando: "sempre", manaMin: 80 }] } } });
+    w.prontas.add("swift_feet");
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.sys.onToggle(w.p, { ataque: true, buffs: true });
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    expect(w.sys.estado(w.p).motivo).toBe("sem mana para o buff");
+    w.p.mana = 90;
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
+  });
+});
+
+describe("Estagiário v2: ataque com alcance, mana mínima e vida do alvo", () => {
+  const regras = (ataque: EstagiarioConfig["ataque"]) => ({ ...estagiarioPadrao("knight"), ataque });
+
+  it("magia de alvo só conta como pronta com o alvo no alcance: longe, sai a Investida (4) no lugar do Golpe Brutal (1); mais longe, nada e o motivo explica", () => {
+    const w = setup({ ratos: [{ x: 13, y: 10 }], saved: { config: regras([{ minBichos: 1, raio: 1, magia: "brutal_strike" }, { minBichos: 1, raio: 1, magia: "charge" }]) }, over: { level: 30 } });
+    w.p.targetId = [...w.mm.all()][0]!.s.id; // a 3 tiles
+    w.prontas.add("brutal_strike").add("charge");
+    w.sys.onToggle(w.p, { ataque: true });
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["charge"]);
+    w.calls.length = 0;
+    w.p.x = 7; // a 6 tiles: nenhuma alcança
+    w.tick();
+    expect(w.of("cast")).toEqual([]);
+    expect(w.sys.estado(w.p).motivo).toBe("alvo fora do alcance");
+    w.p.x = 12; // ao lado: o Golpe Brutal (primeira regra) sai
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["brutal_strike"]);
+  });
+
+  it("mana mínima da regra substitui a reserva geral (para baixo também); vida mínima do alvo pula a regra", () => {
+    const w = setup({ ratos: [{ x: 11, y: 10 }], over: { mana: 15 }, saved: { config: regras([{ minBichos: 1, raio: 1, magia: "spin_strike", manaMin: 10 }]) } });
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.prontas.add("spin_strike");
+    w.sys.onToggle(w.p, { ataque: true });
+    w.tick();
+    expect(w.of("cast").map((c) => c[1])).toEqual(["spin_strike"]); // 15 % < reserva 20 %, mas a regra pede 10 %
+    expect(w.sys.estado(w.p).motivo).toBe("");
+
+    const w2 = setup({ ratos: [{ x: 11, y: 10 }], saved: { config: regras([{ minBichos: 1, raio: 1, magia: "spin_strike", vidaAlvoMin: 50 }, { minBichos: 1, raio: 1, magia: "charge" }]) } });
+    const rato = [...w2.mm.all()][0]!;
+    rato.s.hp = 10; // 33 % de 30
+    w2.p.targetId = rato.s.id;
+    w2.prontas.add("spin_strike").add("charge");
+    w2.sys.onToggle(w2.p, { ataque: true });
+    w2.tick();
+    expect(w2.of("cast").map((c) => c[1])).toEqual(["charge"]);
+  });
+});
+
+describe("Estagiário v2: manter distância", () => {
+  it("a perseguição forçada para à distância da opção (limitada ao alcance da arma); o cavaleiro (0) fica colado", () => {
+    const w = setup({ vocation: "paladin", alcance: 6, saved: { config: { ...comRota(), distancia: 3 } } });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    expect(w.of("chase")).toEqual([["chase", "p", true, 3]]);
+    w.calls.length = 0;
+    w.sys.onConfig(w.p, { config: { ...comRota(), distancia: 4 } });
+    w.tick();
+    expect(w.of("chase")).toEqual([["chase", "p", true, 4]]); // mudou: reenvia uma vez
+    w.tick(1000);
+    expect(w.of("chase")).toHaveLength(1);
+    // Arma corpo a corpo: a opção não vale (colado).
+    const w2 = setup({ vocation: "paladin", alcance: 1, saved: { config: { ...comRota(), distancia: 3 } } });
+    w2.sys.onToggle(w2.p, { rota: "Ratos" });
+    expect(w2.of("chase")).toEqual([["chase", "p", true]]);
+    const w3 = setup({ saved: { config: comRota() } });
+    w3.sys.onToggle(w3.p, { rota: "Ratos" });
+    expect(w3.of("chase")).toEqual([["chase", "p", true]]);
+  });
+
+  it("com um monstro corpo a corpo encostado, recua um passo para longe dele mantendo o alvo no alcance; sem a opção ou monstro à distância, fica", () => {
+    const base = { vocation: "paladin" as const, alcance: 6, andar: true, bicho: { stationary: false } };
+    const w = setup({ ...base, ratos: [{ x: 11, y: 10 }], saved: { config: { ...estagiarioPadrao("paladin"), distancia: 3, rotas: comRota().rotas } } });
+    w.p.targetId = [...w.mm.all()][0]!.s.id;
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.tick(1000);
+    expect(w.p.x).toBeLessThan(10); // deu pelo menos um passo para oeste (longe do rato a leste)
+    expect(w.p.y).toBe(10);
+    expect(w.sys.estado(w.p).motivo).toBe("mantendo distância");
+    // Sem a opção: fica onde está.
+    const w2 = setup({ ...base, ratos: [{ x: 11, y: 10 }], saved: { config: { ...estagiarioPadrao("paladin"), distancia: 0, rotas: comRota().rotas } } });
+    w2.p.targetId = [...w2.mm.all()][0]!.s.id;
+    w2.sys.onToggle(w2.p, { rota: "Ratos" });
+    w2.tick(1000);
+    expect([w2.p.x, w2.p.y]).toEqual([10, 10]);
+    // Monstro que ataca à distância encostado: recuar não adianta.
+    const w3 = setup({ ...base, bicho: { stationary: false, attackRange: 5 }, ratos: [{ x: 11, y: 10 }], saved: { config: { ...estagiarioPadrao("paladin"), rotas: comRota().rotas } } });
+    w3.p.targetId = [...w3.mm.all()][0]!.s.id;
+    w3.sys.onToggle(w3.p, { rota: "Ratos" });
+    w3.tick(1000);
+    expect([w3.p.x, w3.p.y]).toEqual([10, 10]);
+  });
+
+  it("não recua a mais de RECUO_MAX_TILES de onde a luta começou nem na pausa manual", () => {
+    const w = setup({ vocation: "paladin", alcance: 6, andar: true, bicho: { stationary: false }, ratos: [{ x: 11, y: 10 }], saved: { config: { ...estagiarioPadrao("paladin"), rotas: comRota().rotas } } });
+    const rato = [...w.mm.all()][0]!;
+    w.p.targetId = rato.s.id;
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    // O rato "acompanha" (pelo índice de posição do servidor): a cada passo do jogador, volta a encostar. Menos de 10 s no
+    // total, senão o alvo parado sem perder vida conta como inalcançável e é largado (alvoTravado).
+    for (let i = 0; i < 25; i++) { w.tick(300); w.mm.place(rato, w.p.x + 1, w.p.y); }
+    expect(10 - w.p.x).toBeLessThanOrEqual(RECUO_MAX_TILES);
+    expect(10 - w.p.x).toBeGreaterThanOrEqual(RECUO_MAX_TILES - 1);
+    const x = w.p.x;
+    w.sys.manual("p");
+    w.mm.place(rato, w.p.x + 1, w.p.y);
+    w.tick(1000);
+    expect(w.p.x).toBe(x);
   });
 });
