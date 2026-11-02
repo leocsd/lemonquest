@@ -101,6 +101,8 @@ export const C2S = {
   EstagiarioToggle: "estagiarioToggle",
   /** Gravação de rota do Estagiário: iniciar, parar (com nome) ou descartar (EstagiarioGravarMsg). */
   EstagiarioGravar: "estagiarioGravar",
+  /** Desempenho do cliente (ClientPerfMsg, shared/metrics.ts): FPS, memória e texturas, a cada 60 s; só para o admin. */
+  ClientPerf: "clientPerf",
 } as const;
 
 /** C2S.SetLootFilter: o filtro inteiro (o servidor limpa e devolve o que ficou gravado em S2C.LootFilter). */
