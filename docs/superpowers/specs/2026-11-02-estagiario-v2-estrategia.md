@@ -175,14 +175,16 @@ vê na tela.
 
 ## 4. Perfis recomendados por vocação (resultado esperado das fases 1–2)
 
-| | Cura | Ataque | Buffs |
-|---|---|---|---|
-| Cavaleiro | poção <35 · Limpar Feridas <60 · Cura <60 · mana <25 | Terremoto 3/r3 · Fúria Giratória 2/r2 · Giro Feroz 2/r1 · **Golpe Giratório 1/r1** · Investida 1 · Golpe no alvo 1 | Pés Ligeiros sempre · Pele de Ferro em combate · Fúria em combate |
-| Paladino | poção <35 · Cura Divina <60 · Cura <60 · mana <30 | Chuva de Estrelas 2/r3 · Julgamento Divino 2/r2 · Flecha Explosiva 2/r1 · Onda Sagrada 3/r3 · Chuva de Flechas 2/r2 · Flecha no alvo 1 (igual a hoje) | Pés Ligeiros sempre · (fase 3: distância 3) |
-| Feiticeiro | poção <35 · Cura <55 · mana <35 (hoje Cura <65) | Tempestade Elétrica 3/r4 · Onda de Fogo 2/r4 · Inferno 3/r3 · Explosão de Fogo 2/r2 · Onda de Energia 2/r4 · Ataque no alvo 1 (igual a hoje) | Escudo de Mana em combate · Pés Ligeiros sempre · (distância 3) |
-| Druida / Fada | poção <35 · Cura <55 · mana <35 (hoje <65) | Tempestade de Terra 3/r4 · Onda de Gelo 2/r4 · Nevasca 3/r3 · Chuva de Gelo 2/r2 · Ataque no alvo 1 (igual a hoje; a Fada com as magias-espelho) | Escudo de Mana em combate · Pés Ligeiros sempre · **Lobo/Borboleta em combate** · (distância 3) |
+Perfis em vigor depois da afinação da seção 8 (2026-11-02, segunda rodada):
 
-Reserva de mana: cavaleiro 20 %, paladino 25 %, magos 30 % (iguais a hoje; a reserva volta a ser só do ataque).
+| | Cura | Ataque (bichos/raio) | Buffs | Distância |
+|---|---|---|---|---|
+| Cavaleiro | **poção <50** · Limpar Feridas <35 · Cura <35 · mana <25 | Terremoto 2/r3 · Fúria Giratória 1/r2 · Giro Feroz 1/r1 · Golpe Giratório 1/r1 · Investida 1 · Golpe no alvo 1 | Pés Ligeiros sempre · Pele de Ferro em combate · Fúria em combate | colado |
+| Paladino | **poção <60** · Cura Divina <35 · Cura <35 · mana <30 | Chuva de Estrelas 2/r3 · Julgamento Divino 1/r2 · Flecha Explosiva 1/r1 · Onda Sagrada 2/r3 · Chuva de Flechas 1/r2 · Flecha no alvo 1 | Pés Ligeiros sempre | 3 |
+| Feiticeiro | **poção <50** · Cura <55 · mana <35 | Tempestade Elétrica 2/r4 · Onda de Fogo 1/r4 · Inferno 2/r3 · Explosão de Fogo 1/r2 · Onda de Energia 1/r4 · Ataque no alvo 1 | **Escudo de Mana sempre** · Pés Ligeiros sempre | 3 |
+| Druida / Fada | **poção <50** · Cura <55 · mana <35 | Tempestade de Terra 2/r4 · Onda de Gelo 1/r4 · Nevasca 2/r3 · Chuva de Gelo 1/r2 · Ataque no alvo 1 (a Fada com as magias-espelho) | **Escudo de Mana sempre** · Pés Ligeiros sempre · Lobo/Borboleta em combate | 3 |
+
+Reserva de mana: cavaleiro 20 %, paladino 25 %, magos 30 % (iguais a antes; a reserva é só do ataque).
 
 ## 5. Validação
 
@@ -217,6 +219,35 @@ novos são "mantendo distância", "alvo fora do alcance" e "sem mana para o buff
 para seguir o bicho na primeira vez que o vê": sem alvo a busca passou a cada 100 ms (era 400) e, fora da rota, o alvo
 novo retoma a perseguição assim que o jogador fica parado (todo Move/WalkTo pausa a perseguição por 1,5 s e o bot não
 retomava para não cancelar a pausa).
+
+## 8. Afinação por vocação (2026-11-02, segunda rodada)
+
+Dono, depois do deploy da v2: "faz sentido usar a cura ao invés de pote com kina? O pote cura muito mais e a skill come
+tempo de skills para atacar" e "antes de aplicar, faça essa análise para todas as classes e skills". Grid medido com o
+`estagiarioSimKit.ts` (o simulador extraído do teste de balanço): por vocação, uma dimensão de cada vez a partir do
+recomendado da v2 (8 curas, 9 ataques, 4–5 buffs, 4 distâncias), nos lv 20/40/60, duas sementes, contra 4 monstros da
+faixa; depois as combinações vencedoras contra 4 e 2 monstros e sem poção de mana. Abates em 4 min, soma dos levels:
+
+| Vocação | Dimensão | O que ganhou | Abates (v2 → afinado) |
+|---|---|---|---|
+| cavaleiro | cura | poção <50 primeiro, Limpar Feridas/Cura <35 de emergência (a poção cura 61 % de uma vez e não ocupa a recarga global; a mana vai para as magias) | 112 → 156 |
+| cavaleiro | ataque | Giro Feroz e Fúria Giratória com 1 bicho (Terremoto segue com 2) | +5 (bando) / +25 (2 monstros) |
+| cavaleiro | buffs | mantidos: sem buffs rende igual em bando, mas vida mínima 23 % em vez de 37 % | — |
+| paladino | cura | poção <60 (mesmos abates da <50, vida mínima 44–51 % em vez de 25–39 %), Cura Divina/Cura <35 | 115 → 151 |
+| paladino | distância | 3 fica (colado: +9 % em bando, −9 % com 2 monstros e o dobro de poções de vida; 4: −7 %) | — |
+| feiticeiro | cura | poção <50 e Cura <55 (as duas: a Cura é 36 % da vida por 70 de mana) | 109 → 119 |
+| feiticeiro | ataque | áreas de raio 1–2 e ondas com 1 bicho (Explosão de Fogo e ondas no alvo sozinho); raio 3+ com 2 | 119 → 133 (2 monstros: 92 → 131) |
+| feiticeiro | buffs | Escudo de Mana sempre (em combate chegava depois do primeiro golpe): vida mínima 20 % em vez de 7 % no lv 40 | 109 → 116 |
+| feiticeiro | distância | 3 fica (colado: +7 % em bando, −8 % com 2 monstros; empate) | — |
+| druida | cura | poção <50 e Cura <55: abates iguais, vida mínima 24–39 % em vez de 2–22 % | — |
+| druida | ataque / buffs | áreas 1 bicho e Escudo de Mana sempre; lobo em combate (sempre: −8 %, 90 de mana por minuto andando) | 132 → 140 (2 monstros: 94 → 134) |
+| todas | reserva de mana | 10 não muda; 45 derruba 7–20 %: ficam 20/25/30 | — |
+| todas | ordem | alvo primeiro, só alvo ou só área: −15 a −60 % (área e alvo único se completam) | — |
+
+Resultado final (recomendado novo contra o recomendado de 2026-11-01, com o mesmo motor): cavaleiro 82 → 156 em bando
+e 88 → 127 com 2 monstros; paladino 113 → 149 e 117 → 146; feiticeiro 134 → 135 e 109 → 126; druida 123 → 142 e
+98 → 127. Sem poção de mana o cavaleiro vai de 52 para 79 e o paladino de 25 para 69; os magos seguem em ~20–30 (são a
+mana). O preço é poção de vida: o cavaleiro lv 40 bebe 26 por 4 min em vez de 5 (e 16 de mana em vez de 52).
 
 ## 7. Riscos e cuidados
 

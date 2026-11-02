@@ -10,13 +10,24 @@ import {
 const VOCS = ["knight", "paladin", "sorcerer", "druid", "fairy"] as const;
 
 describe("estagiário: configuração", () => {
-  it("padrão = recomendado da vocação: poção, a cura própria e a Cura no MESMO limiar, poção de mana; come; distância por vocação; sem rotas", () => {
+  it("padrão = recomendado da vocação: poção como cura principal, a cura própria e a Cura de emergência no MESMO limiar, poção de mana; come; distância por vocação; sem rotas", () => {
     const c = estagiarioPadrao("knight");
     expect(c.cura).toEqual([
-      { quando: "vida", abaixoDe: 35, acao: { pocao: "hp" } },
-      { quando: "vida", abaixoDe: 60, acao: { magia: "wound_cleansing" } },
-      { quando: "vida", abaixoDe: 60, acao: { magia: "light_heal" } },
+      { quando: "vida", abaixoDe: 50, acao: { pocao: "hp" } },
+      { quando: "vida", abaixoDe: 35, acao: { magia: "wound_cleansing" } },
+      { quando: "vida", abaixoDe: 35, acao: { magia: "light_heal" } },
       { quando: "mana", abaixoDe: 25, acao: { pocao: "mana" } },
+    ]);
+    // Afinado no arnês (2026-11-02): a poção vem ANTES da magia em todas (cura mais de uma vez e não ocupa a recarga global).
+    for (const v of VOCS) {
+      const r = curaRecomendada(v);
+      expect("pocao" in r[0]!.acao && r[0]!.acao.pocao, v).toBe("hp");
+      const magias = r.filter((x) => "magia" in x.acao);
+      for (const m of magias) expect(m.abaixoDe, `${v} ${JSON.stringify(m.acao)}`).toBeLessThanOrEqual(r[0]!.abaixoDe + (v === "sorcerer" || v === "druid" || v === "fairy" ? 5 : 0));
+    }
+    expect(curaRecomendada("paladin")[0]!.abaixoDe).toBe(60);
+    expect(curaRecomendada("sorcerer")).toEqual([
+      { quando: "vida", abaixoDe: 50, acao: { pocao: "hp" } }, { quando: "vida", abaixoDe: 55, acao: { magia: "light_heal" } }, { quando: "mana", abaixoDe: 35, acao: { pocao: "mana" } },
     ]);
     // v2: a cura própria nunca fica com limiar menor que a Cura comum (entre os dois só a Cura saía, 70 de mana por 11 %).
     for (const v of VOCS) {
@@ -35,12 +46,12 @@ describe("estagiário: configuração", () => {
     for (const v of VOCS) expect(sanitizeEstagiario(estagiarioPadrao(v), v), v).toEqual(estagiarioPadrao(v));
   });
 
-  it("ataque recomendado: uma regra por magia de área (raio dela, 3 bichos nas de raio 3+, 1 nas baratas, 2 nas outras), da mais forte para a mais fraca, e por último a tecla de alvo da vocação", () => {
+  it("ataque recomendado: uma regra por magia de área (raio dela, 2 bichos nas de raio 3+, 1 nas outras), da mais forte para a mais fraca, e por último a tecla de alvo da vocação", () => {
     expect(ataqueRecomendado("knight")).toEqual([
-      { minBichos: 3, raio: 3, magia: "earthquake" },
-      { minBichos: 2, raio: 2, magia: "whirlwind" },
-      { minBichos: 2, raio: 1, magia: "front_sweep" },
-      // Barata (8 de mana): vale com um bicho só (v2; antes esperava 2 e nunca saía contra um monstro).
+      { minBichos: 2, raio: 3, magia: "earthquake" },
+      // Raio 1–2 vale com um bicho só (afinado 2026-11-02; antes esperava 2–3 e as áreas ficavam paradas contra um monstro).
+      { minBichos: 1, raio: 2, magia: "whirlwind" },
+      { minBichos: 1, raio: 1, magia: "front_sweep" },
       { minBichos: 1, raio: 1, magia: "spin_strike" },
       // A família de alvo do cavaleiro só tem magia a partir do lv 30: a Investida (lv 10) cobre o meio do caminho.
       { minBichos: 1, raio: 1, magia: "charge" },
@@ -52,8 +63,10 @@ describe("estagiário: configuração", () => {
       expect(r[r.length - 1]!.magia, v).toBe(`fam:${v}:target`);
       for (const x of r) { expect(x.raio).toBeGreaterThanOrEqual(1); expect(x.raio).toBeLessThanOrEqual(4); }
     }
-    // A onda conta pelo comprimento (até 4).
-    expect(ataqueRecomendado("sorcerer")).toContainEqual({ minBichos: 2, raio: 4, magia: "fire_wave" });
+    // A onda conta pelo comprimento (até 4) e vale com um bicho; as áreas de raio 3+ esperam 2.
+    expect(ataqueRecomendado("sorcerer")).toContainEqual({ minBichos: 1, raio: 4, magia: "fire_wave" });
+    expect(ataqueRecomendado("sorcerer")).toContainEqual({ minBichos: 2, raio: 3, magia: "inferno" });
+    expect(ataqueRecomendado("paladin")).toContainEqual({ minBichos: 2, raio: 3, magia: "star_rain" });
     // Sem a lista de ataque no que veio salvo: vale o recomendado (configuração antiga não fica sem ataque).
     expect(sanitizeEstagiario({ cura: [] }, "knight").ataque).toEqual(ataqueRecomendado("knight"));
     expect(sanitizeEstagiario({ ataque: [] }, "knight").ataque).toEqual([]);
@@ -138,8 +151,10 @@ describe("estagiário: buffs", () => {
       { magia: "swift_feet", quando: "sempre" }, { magia: "iron_skin", quando: "combate" }, { magia: "berserk", quando: "combate" },
     ]);
     expect(buffsRecomendados("paladin")).toEqual([{ magia: "swift_feet", quando: "sempre" }]);
-    expect(buffsRecomendados("druid")).toEqual([{ magia: "mana_shield", quando: "combate" }, { magia: "swift_feet", quando: "sempre" }, { magia: "summon_wolf", quando: "combate" }]);
-    expect(buffsRecomendados("fairy")).toEqual([{ magia: "bubble_bath", quando: "combate" }, { magia: "swift_wings", quando: "sempre" }, { magia: "summon_butterfly", quando: "combate" }]);
+    // Escudo de mana sempre (afinado 2026-11-02: "em combate" chegava depois do primeiro golpe do bando).
+    expect(buffsRecomendados("sorcerer")).toEqual([{ magia: "mana_shield", quando: "sempre" }, { magia: "swift_feet", quando: "sempre" }]);
+    expect(buffsRecomendados("druid")).toEqual([{ magia: "mana_shield", quando: "sempre" }, { magia: "swift_feet", quando: "sempre" }, { magia: "summon_wolf", quando: "combate" }]);
+    expect(buffsRecomendados("fairy")).toEqual([{ magia: "bubble_bath", quando: "sempre" }, { magia: "swift_wings", quando: "sempre" }, { magia: "summon_butterfly", quando: "combate" }]);
     for (const v of VOCS) {
       expect(estagiarioPadrao(v).buffs, v).toEqual(buffsRecomendados(v));
       const ids = buffsDaVocacao(v).map((s) => s.id);
