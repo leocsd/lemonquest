@@ -11,7 +11,7 @@
   position: relative; width: min(640px, 96vw); max-height: 94vh; animation: hud-pop 160ms var(--hud-ease);
 }
 .hud-card.outfit-win { background: rgba(17, 20, 28, 0.96); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
-.outfit-win .win-title { cursor: default; flex: none; }
+.outfit-win .win-title { cursor: var(--cur-padrao); flex: none; }
 /* Encolhe (e rola por dentro) só quando a tela é mais baixa que a janela: o max-height de 94vh continua valendo. */
 .outfit-body {
   display: flex; gap: 12px; padding: 12px; box-sizing: border-box;
@@ -22,7 +22,7 @@
 .outfit-stage { flex: 0 0 200px; min-width: 0; max-width: 200px; height: var(--outfit-stage-h); display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .outfit-stage > * { flex: none; }
 .outfit-preview {
-  width: 176px; height: 184px; box-sizing: border-box; display: grid; place-items: center; cursor: pointer; border-radius: 5px;
+  width: 176px; height: 184px; box-sizing: border-box; display: grid; place-items: center; cursor: var(--cur-mao); border-radius: 5px;
   border: 1px solid var(--hud-line-soft);
   background:
     radial-gradient(ellipse 46px 10px at 50% 86%, rgba(0, 0, 0, 0.35), transparent 70%),
@@ -34,7 +34,7 @@
 .outfit-preview { position: relative; }
 .outfit-sex { position: absolute; top: 6px; right: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1; }
 .outfit-sex-btn {
-  width: 26px; height: 24px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  width: 26px; height: 24px; padding: 0; display: grid; place-items: center; cursor: var(--cur-mao);
   background: rgba(0, 0, 0, 0.45); border: 1px solid var(--hud-line); border-radius: 4px; color: var(--hud-muted) !important;
 }
 .outfit-sex-btn:hover { border-color: var(--hud-line-hi); color: var(--hud-text) !important; }
@@ -42,7 +42,7 @@
 .outfit-sex-btn:focus-visible { outline: 2px dashed var(--hud-gold); outline-offset: 1px; }
 .outfit-rotate { height: 22px; display: flex; align-items: center; gap: 8px; }
 .outfit-arrow {
-  width: 26px; height: 22px; padding: 0; cursor: pointer; font-size: 10px; line-height: 1;
+  width: 26px; height: 22px; padding: 0; cursor: var(--cur-mao); font-size: 10px; line-height: 1;
   background: rgba(0, 0, 0, 0.3); border: 1px solid var(--hud-line); border-radius: 4px; color: var(--hud-muted) !important;
 }
 .outfit-arrow { display: grid; place-items: center; }
@@ -60,7 +60,7 @@
 .outfit-addons { width: 100%; height: calc(2 * var(--addon-h) + 5px); display: flex; flex-direction: column; gap: 5px; }
 .outfit-addon {
   height: var(--addon-h); box-sizing: border-box; min-width: 0;
-  display: flex; align-items: center; gap: 8px; padding: 0 8px; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 8px; padding: 0 8px; cursor: var(--cur-mao); user-select: none;
   background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; font-size: 13px;
 }
 .outfit-addon .outfit-lock { position: static; margin-left: auto; flex: none; }
@@ -84,7 +84,7 @@
   gap: var(--swatch-gap) 0;
 }
 .outfit-tone {
-  width: var(--swatch); height: var(--swatch); box-sizing: border-box; border-radius: 50%; padding: 0; cursor: pointer;
+  width: var(--swatch); height: var(--swatch); box-sizing: border-box; border-radius: 50%; padding: 0; cursor: var(--cur-mao);
   display: grid; place-items: center; border: 2px solid rgba(0, 0, 0, 0.6);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 1px 2px rgba(0, 0, 0, 0.5);
   transition: transform 90ms var(--hud-ease);
@@ -107,7 +107,7 @@
 /* Fonte no contêiner (.outfit-buy): o "#ui button { font: inherit }" do hud.css vence a classe. Até 2 linhas. */
 .outfit-btn.outfit-buy-btn { width: 100%; min-width: 0; height: auto; min-height: 28px; padding: 3px 6px; }
 .outfit-btn.outfit-buy-btn.confirm { color: #fff !important; background: var(--hud-red); border-color: var(--hud-red); }
-.outfit-btn.outfit-buy-btn:disabled { opacity: 0.55; cursor: default; }
+.outfit-btn.outfit-buy-btn:disabled { opacity: 0.55; cursor: var(--cur-padrao); }
 
 .outfit-grid {
   flex: 1; list-style: none; margin: 0; padding: 0; align-content: start;
@@ -115,7 +115,7 @@
 }
 .outfit-cell {
   position: relative; width: 100%; height: 100%; box-sizing: border-box;
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 5px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 5px; cursor: var(--cur-mao);
   background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; font-size: 11px; color: var(--hud-muted) !important;
 }
 .outfit-cell canvas { display: block; }
@@ -141,7 +141,7 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
 }
 .outfit-btn {
-  min-width: 82px; height: 28px; padding: 0 12px; cursor: pointer; font-size: 13px;
+  min-width: 82px; height: 28px; padding: 0 12px; cursor: var(--cur-mao); font-size: 13px;
   background: rgba(255, 255, 255, 0.04); border: 1px solid var(--hud-line-hi); border-radius: 5px; color: var(--hud-text) !important;
 }
 .outfit-btn:hover { background: rgba(255, 255, 255, 0.08); }
@@ -158,7 +158,7 @@
 /* Menu de contexto (botão direito no mundo) */
 .ctx-menu { position: fixed; z-index: 45; min-width: 150px; padding: 4px; display: flex; flex-direction: column; pointer-events: auto; animation: hud-pop 110ms var(--hud-ease); }
 .hud-card.ctx-menu { background: rgba(17, 20, 28, 0.97); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
-.ctx-item { text-align: left; padding: 6px 10px; cursor: pointer; font-size: 13px; background: none; border: 0; border-radius: 4px; color: var(--hud-text) !important; }
+.ctx-item { text-align: left; padding: 6px 10px; cursor: var(--cur-mao); font-size: 13px; background: none; border: 0; border-radius: 4px; color: var(--hud-text) !important; }
 .ctx-item:hover, .ctx-item:focus-visible { background: rgba(217, 164, 65, 0.16); color: #ffe2a3 !important; outline: none; }
 /* Atacar jogador (ciclo 17): por último, separado e em vermelho. */
 .ctx-item.danger { margin-top: 4px; position: relative; color: #ff7b6e !important; }

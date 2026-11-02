@@ -7,7 +7,7 @@
 /* Folga de 2 px em volta dos itens (o overflow corta o contorno do selecionado) e 4 px à direita, onde fica a barra de 6 px
    (a calha estável evita o pulo de largura quando a lista passa a rolar). */
 .be-list { list-style: none; margin: 0; padding: 2px 4px 2px 2px; display: flex; flex-direction: column; gap: 2px; overflow: auto; scrollbar-gutter: stable; max-height: 52vh; }
-.be-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 8px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.04); color: #e4e8f5; font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; }
+.be-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 8px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.04); color: #e4e8f5; font: inherit; font-size: 12.5px; cursor: var(--cur-mao); text-align: left; }
 .be-item:hover { background: rgba(255, 255, 255, 0.1); }
 .be-item.sel { background: rgba(255, 212, 71, 0.16); outline: 1px solid rgba(255, 212, 71, 0.5); }
 .be-item.unknown { color: #7d86a3; }

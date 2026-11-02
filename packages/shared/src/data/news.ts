@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-01f",
+    date: "1º de novembro",
+    title: "Cursor de limão",
+    items: [
+      "O mouse ganhou cursores do tema: seta de limão, espada sobre os bichos, balão nos NPCs e mão para pegar itens do chão.",
+      "Segure Shift sobre alguma coisa e o cursor vira lupa: o clique olha em vez de agir.",
+    ],
+  },
+  {
     id: "2026-11-01e",
     date: "1º de novembro",
     title: "Estagiário de crachá",

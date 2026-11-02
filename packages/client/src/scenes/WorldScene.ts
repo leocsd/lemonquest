@@ -62,6 +62,7 @@ import { questStore } from "../ui/quests/quests.ts";
 import { spellCooldownLeft } from "../ui/hud/castbar.ts";
 import { BATTLE_RANGE, chebyshev, hpPct, inBattleView, setBattleEntries, setBattleView, clearBattleEntries, type BattleEntry } from "../ui/hud/battle.ts";
 import { getTarget, setTarget, subscribeTarget, toggleTarget, type Target } from "../ui/hud/target.ts";
+import { canvasCursor, type CanvasCursor, type HoverInfo } from "../game/cursor.ts";
 
 /** Último estado autoritativo conhecido de cada jogador/criatura (para detectar mudanças e checar ocupação). */
 interface Known { x: number; y: number; dir: number; stepMs: number }
@@ -294,6 +295,7 @@ export class WorldScene extends Phaser.Scene {
     this.guide = new GuideArrow(this, this.uiLayer);
     this.bobbers = new FishBobbers(this, this.uiLayer);
     this.setupPointer();
+    this.watchShift();
     this.disposers.push(subscribeTarget((t) => this.onStoreTarget(t)));
     // Janela foi para um monitor com outra escala: textos existentes na nova resolução (os novos já nascem nela).
     this.disposers.push(onTextResChange((r) => applyTextRes(this, r)));
@@ -1472,47 +1474,66 @@ export class WorldScene extends Phaser.Scene {
     return this.cameras.main.getWorldPoint(ptr.x, ptr.y, this.wpTmp);
   }
 
-  /** Cursor do canvas, só escrito quando muda (o hover roda a cada frame). */
-  private cursor = "";
-  private setCursor(c: string) {
+  /** Cursor do tema limão no canvas (game/cursor.ts), só escrito quando muda: o hover roda a cada frame. */
+  private cursor: CanvasCursor = "padrao";
+  private shiftDown = false;
+  private setCursor(c: CanvasCursor) {
     if (c === this.cursor) return;
     this.cursor = c;
-    this.game.canvas.style.cursor = c;
+    if (c === "padrao") delete this.game.canvas.dataset.cursor;
+    else this.game.canvas.dataset.cursor = c;
+  }
+  /** Shift + clique = olhar: o cursor vira lupa assim que a tecla desce, sem esperar o mouse mexer. */
+  private watchShift() {
+    const on = (e: KeyboardEvent) => { if (e.key === "Shift") this.shiftDown = e.type === "keydown"; };
+    const off = () => { this.shiftDown = false; };
+    window.addEventListener("keydown", on, true);
+    window.addEventListener("keyup", on, true);
+    window.addEventListener("blur", off);
+    this.disposers.push(() => {
+      window.removeEventListener("keydown", on, true);
+      window.removeEventListener("keyup", on, true);
+      window.removeEventListener("blur", off);
+    });
   }
 
   private updateHover() {
     const ptr = this.input.activePointer;
     this.ground.showLabel(null);
-    if (!ptr || !this.input.isOver) { this.hover.setVisible(false); return; }
+    if (!ptr || !this.input.isOver) { this.hover.setVisible(false); this.setCursor("padrao"); return; }
+    const shift = this.shiftDown;
+    const sobre = (h: Partial<HoverInfo>) => this.setCursor(canvasCursor({
+      creature: false, npc: false, usable: false, groundItem: false, player: false, shift, ...h,
+    }));
     const cid = this.creatureAtPointer(ptr);
     const c = cid ? this.creatures.get(cid) : undefined;
     if (c) {
-      this.setCursor("");
+      sobre({ creature: true });
       // Sobre uma criatura: quadrado branco no tile dela.
       this.hover.setPosition(this.pcam.snap(c.rx), this.pcam.snap(c.ry)).setAlpha(0.7).setVisible(true);
       return;
     }
     const nid = this.npcAtPointer(ptr);
     const nt = nid ? this.npcs.tileOf(nid) : null;
-    this.setCursor(nt ? "pointer" : "");
-    if (nt) { this.hover.setPosition(nt.x * TILE_SIZE, nt.y * TILE_SIZE).setAlpha(0.7).setVisible(true); return; }
+    if (nt) { sobre({ npc: true }); this.hover.setPosition(nt.x * TILE_SIZE, nt.y * TILE_SIZE).setAlpha(0.7).setVisible(true); return; }
     const sid = this.statueAtPointer(ptr);
     const st = sid ? this.statues.tileOf(sid) : null;
-    this.setCursor(st ? "pointer" : "");
-    if (st) { this.hover.setPosition(st.x * TILE_SIZE, st.y * TILE_SIZE).setAlpha(0.7).setVisible(true); return; }
+    if (st) { sobre({ usable: true }); this.hover.setPosition(st.x * TILE_SIZE, st.y * TILE_SIZE).setAlpha(0.7).setVisible(true); return; }
     const qid = this.questObjAtPointer(ptr);
     const qo = qid ? this.questObjs.get(qid) : undefined;
-    if (qo) { this.setCursor("pointer"); this.hover.setPosition(qo.x * TILE_SIZE, qo.y * TILE_SIZE).setAlpha(0.7).setVisible(true); return; }
+    if (qo) { sobre({ usable: true }); this.hover.setPosition(qo.x * TILE_SIZE, qo.y * TILE_SIZE).setAlpha(0.7).setVisible(true); return; }
     const t = this.pointerTile(ptr);
-    if (!t) { this.hover.setVisible(false); return; }
+    if (!t) { this.hover.setVisible(false); this.setCursor("padrao"); return; }
     const gid = this.ground.topAt(t.x, t.y);
+    const player = !!this.playerAtTile(t.x, t.y);
     if (gid) {
-      // Item no chão: cursor de mão + nome (cor da raridade) acima do tile.
-      this.setCursor("pointer");
+      // Item no chão: mão de pegar + nome (cor da raridade) acima do tile.
+      sobre({ groundItem: true, player });
       this.ground.showLabel(gid, this.pcam.toScreenX((t.x + 0.5) * TILE_SIZE), this.pcam.toScreenY(t.y * TILE_SIZE) - 2);
       this.hover.setPosition(t.x * TILE_SIZE, t.y * TILE_SIZE).setAlpha(0.45).setVisible(true);
       return;
     }
+    sobre({ player });
     this.hover.setPosition(t.x * TILE_SIZE, t.y * TILE_SIZE).setAlpha(0.18).setVisible(true);
   }
 

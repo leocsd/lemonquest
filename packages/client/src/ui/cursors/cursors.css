@@ -1,0 +1,36 @@
+/* GERADO por tools/cursors/generate.mjs: não edite à mão (rode o script). */
+/* Cursores do tema limão. No resto do CSS use sempre cursor: var(--cur-<nome>) (cursors.test.ts confere). */
+:root {
+  --cur-padrao: url("./padrao.png") 3 3, default;
+  --cur-mao: url("./mao.png") 11 3, pointer;
+  --cur-ataque: url("./ataque.png") 3 3, pointer;
+  --cur-falar: url("./falar.png") 3 3, pointer;
+  --cur-pegar: url("./pegar.png") 15 13, grab;
+  --cur-segurar: url("./segurar.png") 15 17, grabbing;
+  --cur-olhar: url("./olhar.png") 13 13, help;
+  --cur-ajuda: url("./ajuda.png") 3 3, help;
+  --cur-proibido: url("./proibido.png") 15 15, not-allowed;
+  --cur-mira: url("./mira.png") 15 15, crosshair;
+  --cur-redimensionar: url("./redimensionar.png") 15 15, ns-resize;
+  --cur-texto: url("./texto.png") 15 15, text;
+}
+
+html, body { cursor: var(--cur-padrao); }
+a[href], summary, select, label[for] { cursor: var(--cur-mao); }
+input:not([type]), input[type="text"], input[type="password"], input[type="search"], input[type="number"],
+input[type="email"], textarea, [contenteditable="true"] { cursor: var(--cur-texto); }
+input:disabled, textarea:disabled, select:disabled { cursor: var(--cur-proibido); }
+
+/* Canvas do mundo: o WorldScene escreve data-cursor conforme o que está sob o mouse (game/cursor.ts). */
+#game canvas { cursor: var(--cur-padrao); }
+#game canvas[data-cursor="mao"] { cursor: var(--cur-mao); }
+#game canvas[data-cursor="ataque"] { cursor: var(--cur-ataque); }
+#game canvas[data-cursor="falar"] { cursor: var(--cur-falar); }
+#game canvas[data-cursor="pegar"] { cursor: var(--cur-pegar); }
+#game canvas[data-cursor="segurar"] { cursor: var(--cur-segurar); }
+#game canvas[data-cursor="olhar"] { cursor: var(--cur-olhar); }
+#game canvas[data-cursor="ajuda"] { cursor: var(--cur-ajuda); }
+#game canvas[data-cursor="proibido"] { cursor: var(--cur-proibido); }
+#game canvas[data-cursor="mira"] { cursor: var(--cur-mira); }
+#game canvas[data-cursor="redimensionar"] { cursor: var(--cur-redimensionar); }
+#game canvas[data-cursor="texto"] { cursor: var(--cur-texto); }

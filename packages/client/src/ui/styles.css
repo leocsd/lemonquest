@@ -53,7 +53,7 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 .pw-wrap { position: relative; display: flex; }
 .pw-wrap input { flex: 1; min-width: 0; padding-right: 38px; }
 .pw-eye {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; padding: 0; cursor: pointer;
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; padding: 0; cursor: var(--cur-mao);
   background: transparent; border: 0; border-radius: 4px; font-size: 16px; line-height: 1; color: #a9adbb; opacity: 0.8;
 }
 .pw-eye:hover, .pw-eye[aria-pressed="true"] { opacity: 1; background: rgba(255, 255, 255, 0.06); }
@@ -64,18 +64,18 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 }
 /* color com !important: o "#ui button { color: inherit }" (hud.css) vence classe simples e deixava o texto claro sobre o dourado (1,8:1). */
 .btn {
-  font: inherit; font-size: 16px; padding: 9px 12px; cursor: pointer; color: #11141c !important;
+  font: inherit; font-size: 16px; padding: 9px 12px; cursor: var(--cur-mao); color: #11141c !important;
   background: #d9a441; border: 1px solid #d9a441; border-radius: 4px;
 }
 .btn:hover:not(:disabled) { filter: brightness(1.1); }
-.btn:disabled { opacity: 0.5; cursor: default; }
+.btn:disabled { opacity: 0.5; cursor: var(--cur-padrao); }
 .btn.ghost { background: transparent; color: #a9adbb !important; border-color: #2c3242; }
 .hint { margin: 0; font-size: 13px; color: #8a8fa0; text-align: center; }
 .error { color: #ff8a7a; font-size: 14px; text-align: center; }
 
 .voc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .voc-card {
-  font: inherit; text-align: left; cursor: pointer; color: #e8e6d9;
+  font: inherit; text-align: left; cursor: var(--cur-mao); color: #e8e6d9;
   display: flex; flex-direction: column; gap: 4px; padding: 10px;
   background: #0b0d13; border: 1px solid #2c3242; border-left: 4px solid var(--accent); border-radius: 4px;
 }
@@ -97,7 +97,7 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 /* Sexo do personagem novo: dois botões grandes com a roupa padrão da vocação escolhida (a prévia muda junto). */
 .sex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sex-card {
-  font: inherit; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+  font: inherit; cursor: var(--cur-mao); display: flex; align-items: center; gap: 10px; padding: 6px 10px;
   background: #0b0d13; border: 1px solid #2c3242; border-radius: 4px;
 }
 .sex-card:hover { background: #151925; }
@@ -121,11 +121,11 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 .login-loading { padding: 24px 0; animation: conn-pulse 1.2s ease-in-out infinite; }
 .hint.left { text-align: left; margin-top: -6px; font-size: 12px; }
 .link-btn {
-  font: inherit; font-size: 13px; color: #8a8fa0; background: none; border: none; padding: 2px; cursor: pointer;
+  font: inherit; font-size: 13px; color: #8a8fa0; background: none; border: none; padding: 2px; cursor: var(--cur-mao);
   align-self: center; text-decoration: underline; text-underline-offset: 3px;
 }
 .link-btn:hover:not(:disabled) { color: #e8e6d9; }
-.link-btn:disabled { opacity: 0.5; cursor: default; }
+.link-btn:disabled { opacity: 0.5; cursor: var(--cur-padrao); }
 
 .char-list {
   display: flex; flex-direction: column; gap: 6px; max-height: min(52vh, 380px); overflow-y: auto;
@@ -133,7 +133,7 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 }
 .char-card {
   --accent: #5f6475;
-  display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: var(--cur-mao); user-select: none;
   background: #0b0d13; border: 1px solid #2c3242; border-left: 4px solid var(--accent); border-radius: 4px;
   transition: background 80ms, border-color 80ms;
 }
@@ -176,18 +176,18 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 .chat.collapsed .chat-head { border-bottom-color: transparent; }
 .chat-tabs { display: flex; gap: 2px; }
 .chat-tab {
-  position: relative; padding: 2px 9px; font-size: 12px; line-height: 16px; cursor: pointer;
+  position: relative; padding: 2px 9px; font-size: 12px; line-height: 16px; cursor: var(--cur-mao);
   background: transparent; border: 1px solid transparent; border-radius: 4px; color: #8a8fa0 !important;
   transition: background-color 120ms, color 120ms;
 }
 .chat-tab.active { color: #d9a441 !important; background: rgba(217, 164, 65, 0.12); border-color: rgba(217, 164, 65, 0.22); }
-.chat-tab[aria-disabled="true"] { color: var(--hud-faint) !important; cursor: default; }
+.chat-tab[aria-disabled="true"] { color: var(--hud-faint) !important; cursor: var(--cur-padrao); }
 .chat-unread {
   position: absolute; top: -5px; right: -6px; min-width: 14px; height: 14px; padding: 0 3px; box-sizing: border-box;
   font-size: 10px; line-height: 14px; text-align: center; color: #11141c; background: #d9a441; border-radius: 7px;
 }
 .chat-hint { margin-left: auto; font-size: 11px; color: var(--hud-faint); white-space: nowrap; }
-.chat-fold { width: 22px; height: 22px; padding: 0; display: grid; place-items: center; cursor: pointer; background: none; border: 0; border-radius: 4px; color: #8a8fa0 !important; }
+.chat-fold { width: 22px; height: 22px; padding: 0; display: grid; place-items: center; cursor: var(--cur-mao); background: none; border: 0; border-radius: 4px; color: #8a8fa0 !important; }
 .chat-fold:hover { background: rgba(255, 255, 255, 0.06); color: #e8e6d9 !important; }
 .chat-caret { width: 5px; height: 5px; margin-top: -3px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform 150ms; }
 .chat-caret.up { transform: rotate(-135deg); margin-top: 3px; }
@@ -199,7 +199,7 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 /* "↓ N novas": aparece sobre a base da lista quando chegou mensagem e o leitor está lendo o histórico. */
 .chat-new {
   position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 1;
-  padding: 2px 10px; font-size: 11px; line-height: 16px; cursor: pointer; white-space: nowrap;
+  padding: 2px 10px; font-size: 11px; line-height: 16px; cursor: var(--cur-mao); white-space: nowrap;
   color: #11141c !important; background: #d9a441; border: 0; border-radius: 9px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 .chat.typing .chat-new { bottom: 46px; } /* acima do campo de texto (38 px + margem) */
@@ -216,7 +216,7 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 .emote-wrap { position: relative; display: inline-flex; }
 .emote-btn { font-size: 15px; line-height: 1; padding: 0 6px; }
 .emote-pop { position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 30; display: grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 4px; padding: 6px; background: rgba(16, 19, 28, 0.96); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
-.emote-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: #dfe4f2; font: inherit; font-size: 12px; cursor: pointer; text-align: left; }
+.emote-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: #dfe4f2; font: inherit; font-size: 12px; cursor: var(--cur-mao); text-align: left; }
 .emote-item:hover, .emote-item:focus-visible { background: rgba(255, 255, 255, 0.14); }
 .emote-glyph { font-weight: 700; min-width: 34px; text-align: center; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
 .chat-empty { color: #7a7f90; font-size: 12px; padding: 2px 0; }
@@ -273,13 +273,13 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 /* ---------- Recuperar senha / excluir personagem ---------- */
 .field input.reset-code { letter-spacing: 3px; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .char-del {
-  font: inherit; font-size: 11px; line-height: 1; padding: 4px 7px; flex: none; cursor: pointer;
+  font: inherit; font-size: 11px; line-height: 1; padding: 4px 7px; flex: none; cursor: var(--cur-mao);
   color: #a07878; background: transparent; border: 1px solid #3a2c30; border-radius: 3px;
   opacity: 0; transition: opacity 80ms, color 80ms, border-color 80ms;
 }
 .char-card:hover .char-del, .char-card.selected .char-del, .char-del:focus-visible { opacity: 1; }
 .char-del:hover:not(:disabled) { color: #ff8a7a; border-color: #ff8a7a; }
-.char-del:disabled { cursor: default; }
+.char-del:disabled { cursor: var(--cur-padrao); }
 @media (hover: none) { .char-del { opacity: 1; } }
 .login-dialog-wrap {
   position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
@@ -293,7 +293,7 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 
 /* ---------- Anúncio de admin (/anuncio) ---------- */
 .announce {
-  position: fixed; top: 30%; left: 50%; transform: translateX(-50%); z-index: 45; cursor: pointer;
+  position: fixed; top: 30%; left: 50%; transform: translateX(-50%); z-index: 45; cursor: var(--cur-mao);
   width: min(720px, 90vw); padding: 16px 24px; text-align: center; box-sizing: border-box;
   background: rgba(17, 20, 28, 0.9); border: 2px solid #d9a441; border-radius: 8px;
   box-shadow: 0 0 0 1px #000, 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(217, 164, 65, 0.25);

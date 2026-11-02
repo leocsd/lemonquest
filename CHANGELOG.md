@@ -1,5 +1,19 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · Cursores do mouse no tema limão
+
+Dono: "mude o cursor do mouse no lemon quest, coloque na temática, todas as opções". Doze cursores em pixel art própria
+(grade 16×16 com contorno, 32×32 na tela), gerados por `tools/cursors/generate.mjs` junto com `ui/cursors/cursors.css`
+(variáveis `--cur-<nome>` com a palavra-chave do sistema como reserva): padrão (seta de limão com folha), mão, atacar
+(espada com cabo de limão), falar (balão), pegar e segurar (mão aberta e fechada), olhar (lupa), ajuda (seta com "?"),
+proibido (fatia de limão cortada), mira, redimensionar e texto.
+- **HUD e telas**: todo `cursor:` do CSS do cliente virou `var(--cur-…)`; a página, links, campos de texto e campos
+  desabilitados ganharam regras de base. `cursors.test.ts` falha se algum CSS voltar a usar o cursor do sistema.
+- **Mundo** (`game/cursor.ts` + `WorldScene`): o canvas segue o que o clique faria ali: criatura = espada, NPC = balão,
+  estátua/baú/alavanca e outro jogador = mão, item no chão = mão de pegar; segurando Shift (Shift + clique = olhar) vira
+  lupa sobre qualquer coisa. Antes só NPC/item mostravam a mão do sistema e a criatura nem mudava.
+- Fora do tema de propósito: a tela de carregamento (antes do CSS do jogo) e as páginas de ranking e wiki.
+
 ## [Não lançado] — 2026-11-01 · Métricas e logs (clientes e servidor, /metricas, arquivos JSONL)
 
 Dono: "2 clients abertos estão comendo 2 GB de RAM… não é melhor criar um metrics e logs para o game de uma vez?" e,

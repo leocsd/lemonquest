@@ -1,0 +1,62 @@
+{
+  "padrao": {
+    "x": 3,
+    "y": 3,
+    "reserva": "default"
+  },
+  "mao": {
+    "x": 11,
+    "y": 3,
+    "reserva": "pointer"
+  },
+  "ataque": {
+    "x": 3,
+    "y": 3,
+    "reserva": "pointer"
+  },
+  "falar": {
+    "x": 3,
+    "y": 3,
+    "reserva": "pointer"
+  },
+  "pegar": {
+    "x": 15,
+    "y": 13,
+    "reserva": "grab"
+  },
+  "segurar": {
+    "x": 15,
+    "y": 17,
+    "reserva": "grabbing"
+  },
+  "olhar": {
+    "x": 13,
+    "y": 13,
+    "reserva": "help"
+  },
+  "ajuda": {
+    "x": 3,
+    "y": 3,
+    "reserva": "help"
+  },
+  "proibido": {
+    "x": 15,
+    "y": 15,
+    "reserva": "not-allowed"
+  },
+  "mira": {
+    "x": 15,
+    "y": 15,
+    "reserva": "crosshair"
+  },
+  "redimensionar": {
+    "x": 15,
+    "y": 15,
+    "reserva": "ns-resize"
+  },
+  "texto": {
+    "x": 15,
+    "y": 15,
+    "reserva": "text"
+  }
+}
