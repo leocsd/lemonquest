@@ -349,11 +349,6 @@
 .action-bar:hover { background: var(--hud-bg); }
 .action-slot { width: 42px; height: 42px; padding: 0; cursor: pointer; overflow: hidden; }
 .action-slot.filled { cursor: grab; }
-.action-config {
-  width: 18px; height: 42px; padding: 0; font-size: 12px; color: var(--hud-muted); opacity: 0.6;
-  background: transparent; border: 1px dashed var(--hud-line); border-radius: 4px; cursor: pointer;
-}
-.action-config:hover { opacity: 1; color: var(--hud-text, #fff); }
 .action-slot.drop-over { outline: 2px solid #ffd447; outline-offset: -2px; background: rgba(255, 212, 71, 0.15); }
 .action-slot:not(.filled)::before {
   content: ""; width: 10px; height: 10px; opacity: 0.35;

@@ -10,7 +10,7 @@ import { session } from "../session.ts";
 import { Actor, createCharacterAnims, SPEECH_COLOR_PARTY, type ActorDeps } from "../game/actor.ts";
 import { CombatFx, KIND_COLOR } from "../game/combatFx.ts";
 import { damageText } from "../game/damageText.ts";
-import { allCreatureSheets, creatureColor, creatureVisual, ELITE_GLYPH, levelDifficulty, sheetTrim } from "../game/creatures.ts";
+import { allCreatureSheets, companionLook, creatureColor, creatureVisual, ELITE_GLYPH, levelDifficulty, sheetTrim } from "../game/creatures.ts";
 import { Butterflies } from "../game/ambient.ts";
 import { FXTEST, startFxTest } from "../game/fxtest.ts";
 import { LootFx } from "../game/lootFx.ts";
@@ -506,24 +506,21 @@ export class WorldScene extends Phaser.Scene {
     actor.setBot(bot);
   }
 
-  /** Nome do acompanhante: "Estagiário de <dono>" (dono pelo sessionId em ownerId). */
-  private companionName(base: string, ownerId: string | undefined): string {
+  /** Nome do dono do acompanhante (pelo sessionId em ownerId), ou undefined se ainda não chegou. */
+  private companionOwnerName(ownerId: string | undefined): string | undefined {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const owner = (ownerId && (playersStore.get().get(ownerId)?.name ?? (this.room?.state as any)?.players?.get?.(ownerId)?.name)) as string | undefined;
-    return owner ? `${base} de ${owner}` : base;
+    return (ownerId && (playersStore.get().get(ownerId)?.name ?? (this.room?.state as any)?.players?.get?.(ownerId)?.name)) as string | undefined;
   }
 
-  /** Dono que chegou depois do acompanhante: o rótulo vira "Estagiário de <dono>". */
+  /** Dono que chegou depois do acompanhante: veste a roupa certa (escolhida pelo nome do dono). */
   private renameCompanions() {
     for (const id of this.companionUnnamed) {
-      const info = this.creatureInfo.get(id), a = this.creatures.get(id);
-      if (!info || !a) { this.companionUnnamed.delete(id); continue; }
-      const base = creatureVisual(info.defId).name;
-      const name = this.companionName(base, this.companionOwner.get(id));
-      if (name === base) continue;
+      const a = this.creatures.get(id);
+      if (!a) { this.companionUnnamed.delete(id); continue; }
+      const owner = this.companionOwnerName(this.companionOwner.get(id));
+      if (!owner) continue;
       this.companionUnnamed.delete(id);
-      info.name = name;
-      a.setName(name);
+      a.setLook(companionLook(owner));
     }
   }
 
@@ -563,14 +560,17 @@ export class WorldScene extends Phaser.Scene {
     const elite = !!m.elite;
     const companion = !!MONSTERS[m.defId]?.companion;
     if (companion) { this.companions.add(id); if (m.ownerId) this.companionOwner.set(id, m.ownerId); }
-    const name = companion ? this.companionName(v.name, m.ownerId) : elite ? eliteName(v.name) : v.name;
-    if (companion && name === v.name) this.companionUnnamed.add(id);
+    // Acompanhante: só "Estagiário" (dono, 2026-11-01), com a roupa escolhida pelo nome do dono.
+    const name = companion ? v.name : elite ? eliteName(v.name) : v.name;
+    const ownerName = companion ? this.companionOwnerName(m.ownerId) : undefined;
+    if (companion && !ownerName) this.companionUnnamed.add(id);
+    const look = companion ? companionLook(ownerName ?? m.ownerId ?? id) : v.look;
     // Elite: "★" antes do nome (a cor fica com a dificuldade — ver creatureColor).
     const actor = new Actor(
-      this.actorDeps(), v.look, (v.boss ? "☠ " : "") + (elite ? `${ELITE_GLYPH} ` : "") + name, false, m.x, m.y, m.dir,
+      this.actorDeps(), look, (v.boss ? "☠ " : "") + (elite ? `${ELITE_GLYPH} ` : "") + name, false, m.x, m.y, m.dir,
       {
         scale: v.scale, fontSize: v.boss ? 12 : 10, nameColor: companion ? COMPANION_NAME_COLOR : creatureColor(v.level, this.myLevel, v.boss, elite),
-        trim: sheetTrim(this, v.look.sheet), noBar: companion,
+        trim: sheetTrim(this, look.sheet), noBar: companion,
       },
     );
     actor.setHp(m.hp, m.maxHp, true);

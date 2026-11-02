@@ -14,6 +14,7 @@ import { isDefaultLootFilter, lootFilterSummary, type EstagiarioEstadoMsg } from
 import { A11yPopover } from "./A11yPopover.tsx";
 import { mutedStore, volumeStore } from "../../game/sfx.ts";
 import { PixelIcon } from "./icons.tsx";
+import { hotkeysOpen, toggleHotkeys } from "../hotkeys/hotkeys.ts";
 import { setHudInsets } from "./layout.ts";
 import { panelOrderStore, panelPinsStore, type PanelId } from "./panels.ts";
 import { usePanelDrag } from "./reorder.ts";
@@ -51,6 +52,7 @@ export function Sidebar() {
   const sound = useStore(soundOpen);
   const a11yPop = useStore(a11yOpen);
   const lootWin = useStore(lootFilterOpen);
+  const spellsWin = useStore(hotkeysOpen);
   const lootCfg = useStore(lootFilterStore);
   const estWin = useStore(estagiarioOpen);
   const est = useStore(estagiarioStore);
@@ -159,6 +161,18 @@ export function Sidebar() {
           aria-label="Som"
         >
           <span class="rail-q">{muted || volume === 0 ? "×" : "♪"}</span>
+        </button>
+        {/* Magias (2026-11-01): saiu da engrenagem da barra de ações para o trilho. */}
+        <button
+          class={`rail-btn${spellsWin ? " active" : ""}`}
+          onClick={toggleHotkeys}
+          data-tip="Magias"
+          data-tip-sub="Tecla de cada magia e grupos · H"
+          aria-pressed={spellsWin}
+          aria-label="Magias: atalhos e grupos"
+          data-testid="rail-magias"
+        >
+          <PixelIcon name="scroll" size={14} />
         </button>
         <button
           class={`rail-btn${lootWin || !isDefaultLootFilter(lootCfg) ? " active" : ""}`}

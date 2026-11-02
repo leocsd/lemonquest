@@ -1,4 +1,4 @@
-// Janela "Magias" (tecla H, ⚙ da barra): atalhos e grupos numa tela só, desenhada em volta da barra. Em cima, a barra
+// Janela "Magias" (tecla H ou botão Magias do trilho): atalhos e grupos numa tela só, desenhada em volta da barra. Em cima, a barra
 // em grande (um slot por atalho mais o "+"); clicar num slot o seleciona; embaixo, a grade de magias com ícones (clicar
 // põe no slot) ou, para um grupo do jogador, o editor de prioridade (GroupEditor.tsx). Tudo aplica na hora e vai ao
 // servidor junto (hotkeys.ts). Substituiu os painéis "Atalhos" e "Grupos de magia" em 2026-10-27 (decisão do dono:

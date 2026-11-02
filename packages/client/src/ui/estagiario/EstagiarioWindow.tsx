@@ -2,7 +2,6 @@
 // interruptores de Cura, Ataque e Buffs, a rota rodando e o turno restante; cinco abas: Cura, Ataque, Buffs, Rota e Alarmes. Cura,
 // ataque, buffs, reserva de mana e alarmes mexem num rascunho (store.ts rascunhoStore) que só vai no "Aplicar"; ligar/desligar,
 // gravar, renomear e apagar rota vão na hora. Abre pelo 🤖 do trilho. Molde: items/LootFilterWindow.tsx.
-import { PixelIcon } from "../hud/icons.tsx";
 import {
   ALARMES, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao, buffsRecomendados,
   curaRecomendada, spellDef, spellsFor,
@@ -63,7 +62,7 @@ function EstagiarioDialog() {
     <div ref={drag.ref} class={`hud-card hud-window est-win${drag.dragging ? " dragging" : ""}`} style={drag.style} role="dialog" aria-label="Estagiário">
       <div class="win-title" onPointerDown={drag.onTitleDown}>
         <span class="win-grip" aria-hidden="true" />
-        <span class="est-title"><PixelIcon name="cracha" size={12} /> Estagiário</span>
+        <span>Estagiário</span>
         <button class="win-close" onClick={closeEstagiario} data-tip="Fechar" data-tip-sub="Esc" aria-label="Fechar">×</button>
       </div>
       {!e || !r || !me ? <div class="est-empty">Esperando o servidor…</div> : (

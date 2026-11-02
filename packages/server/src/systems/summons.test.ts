@@ -4,7 +4,7 @@ import { Dir, MONSTERS, TICK_MS, stepDuration, type MonsterAbility, type Monster
 import { vi } from "vitest";
 import { MonsterAbilitySystem } from "./monsterAbilities.ts";
 import { cheb } from "./monsters.ts";
-import { SummonSystem } from "./summons.ts";
+import { COMPANION_STEP_FACTOR, SummonSystem } from "./summons.ts";
 import { def, openGrid, player, world } from "./testkit.ts";
 
 const stomp: MonsterAbility = {
@@ -95,12 +95,12 @@ describe("acompanhante do Estagiário", () => {
     expect(c.s.targetId).toBe("");
   });
 
-  it("segue o dono até ≤ 1 tile e reaparece ao lado se ele for para longe (> 6)", () => {
+  it("segue o dono e para a 2 tiles (sem colar); reaparece ao lado se ele for para longe (> 6)", () => {
     const w = setup();
     const c = w.summons.spawnCompanion(w.p, w.now())!;
     w.p.x = 15; // 5 tiles: anda
     w.run(4000);
-    expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(1);
+    expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(2);
     w.p.x = 5; w.p.y = 30; // teletransporte
     w.run(100);
     expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(1);
@@ -120,11 +120,29 @@ describe("acompanhante do Estagiário", () => {
       maxD = Math.max(maxD, cheb(c.s.x, c.s.y, w.p.x, w.p.y));
     });
     expect(w.p.x).toBe(33);
-    expect(c.stepBaseMs).toBe(stepDuration(40, Dir.S, 100, 150));
+    expect(c.stepBaseMs).toBe(Math.round(stepDuration(40, Dir.S, 100, 150) * COMPANION_STEP_FACTOR));
     expect(place).not.toHaveBeenCalled(); // nunca precisou reaparecer
     expect(maxD).toBeLessThanOrEqual(3);
     w.run(1000);
-    expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(1); // parou: encosta ao lado (segue a partir de 2 tiles)
+    expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(2); // parou: fica a 2 tiles, sem colar no boneco
+  });
+
+  it("fica sempre atrás do dono: 2 tiles contra a direção em que ele olha (vira junto; andando, termina atrás)", () => {
+    const w = setup();
+    w.p.x = 10; w.p.y = 10; w.p.dir = Dir.N;
+    const c = w.summons.spawnCompanion(w.p, w.now())!;
+    w.run(3000);
+    expect([c.s.x, c.s.y]).toEqual([10, 12]); // dono olhando para o norte: ao sul
+    w.p.dir = Dir.W;
+    w.run(3000);
+    expect([c.s.x, c.s.y]).toEqual([12, 10]); // virou para o oeste: contorna para o leste
+    // Andando para o leste: termina 2 tiles a oeste do dono.
+    w.p.dir = Dir.E;
+    const passo = stepDuration(w.p.level, Dir.E, 100, 100);
+    let acc = 0;
+    w.run(passo * 8, () => { acc += TICK_MS; if (acc >= passo && w.p.x < 16) { acc -= passo; w.p.x++; } });
+    w.run(2000);
+    expect([c.s.x, c.s.y]).toEqual([w.p.x - 2, w.p.y]);
   });
 
   it("reconjurar o Lobo não apaga o acompanhante; despawnCompanion e despawnOwner o removem", () => {
