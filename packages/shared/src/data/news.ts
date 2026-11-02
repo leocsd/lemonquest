@@ -12,6 +12,20 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-02a",
+    date: "2 de novembro",
+    title: "Estagiário mais esperto",
+    items: [
+      "Os buffs saem sempre que a magia tem mana: a reserva de mana do ataque não segura mais o Pés Ligeiros (nem os outros).",
+      "Cura recomendada nova: a Cura comum deixa de engolir a mana do cavaleiro e do paladino. Clique \"Usar recomendado\" nas abas Cura e Ataque para pegar a versão nova.",
+      "Quem atira (paladino, feiticeiro, druida) agora mantém distância na rota: para a 3 tiles do alvo e recua um passo quando um bicho encosta. Ajuste ou desligue na aba Ataque.",
+      "Regras com mais opções: \"mana ≥ X%\" e \"alvo com ≥ X% de vida\" no ataque; buff \"sempre / só em combate / só fora de combate\" e \"mana ≥ X%\".",
+      "Druida e fada mantêm o Lobo e a Borboleta invocados (aba Buffs). O Estagiário come sozinho quando o alimentado acaba e cura o grupo quando um colega está baixo.",
+      "A poção bebida é a menor que cobre o que falta, e a magia só é escolhida se alcança o alvo. O cabeçalho explica: \"mantendo distância\", \"alvo fora do alcance\", \"sem mana para o buff\".",
+      "Sem atraso para seguir o bicho: o Estagiário vê o monstro em até 0,1 s e, com o Ataque ligado, corre atrás dele assim que você para de andar.",
+    ],
+  },
+  {
     id: "2026-11-01f",
     date: "1º de novembro",
     title: "Cursor de limão",

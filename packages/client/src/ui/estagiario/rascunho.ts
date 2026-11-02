@@ -5,7 +5,7 @@
 import type { EstagiarioConfig } from "@lemonquest/shared";
 
 /** Os campos que a janela edita no rascunho (o resto da configuração, as rotas, vem sempre do servidor). */
-export type Rascunho = Pick<EstagiarioConfig, "cura" | "ataque" | "buffs" | "reservaMana" | "alarmes" | "vidaAlarme">;
+export type Rascunho = Pick<EstagiarioConfig, "cura" | "ataque" | "buffs" | "reservaMana" | "alarmes" | "vidaAlarme" | "comer" | "distancia">;
 
 /** Faixas dos números, as mesmas do servidor (shared/estagiario.ts sanitizeEstagiario). */
 export const LIMITES = {
@@ -14,11 +14,26 @@ export const LIMITES = {
   raio: { lo: 1, hi: 4, dflt: 1 },
   reservaMana: { lo: 0, hi: 90 },
   vidaAlarme: { lo: 1, hi: 99 },
+  /** Opcionais em % (0 = ausente): mana mínima e vida do alvo das regras de ataque, mana mínima dos buffs. */
+  pctOpcional: { lo: 0, hi: 100, dflt: 0 },
 } as const;
 
 export const extrairRascunho = (c: EstagiarioConfig): Rascunho => ({
   cura: c.cura, ataque: c.ataque, buffs: c.buffs, reservaMana: c.reservaMana, alarmes: c.alarmes, vidaAlarme: c.vidaAlarme,
+  comer: c.comer, distancia: c.distancia,
 });
+
+/** Campo opcional em % como o servidor guarda: 0, vazio ou inválido = sem a chave. */
+const opcional = (v: number | undefined): number | undefined => {
+  const n = limitar(v ?? 0, LIMITES.pctOpcional.lo, LIMITES.pctOpcional.hi, LIMITES.pctOpcional.dflt);
+  return n > 0 ? n : undefined;
+};
+/** Devolve `o` com as chaves opcionais presentes só quando têm valor (a comparação com o servidor ignora undefined). */
+function comOpcionais<T extends object>(o: T, campos: Partial<Record<keyof T, number | undefined>>): T {
+  const out = { ...o } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(campos)) { if (v === undefined) delete out[k]; else out[k] = v; }
+  return out as T;
+}
 
 /** Igualdade de valor (ordem das chaves não importa; NaN de campo vazio é igual a NaN). */
 export function iguais(a: unknown, b: unknown): boolean {
@@ -51,11 +66,12 @@ export function limitarRascunho(r: Rascunho, servidor: EstagiarioConfig): Rascun
   return {
     ...r,
     cura: r.cura.map((x, i) => ({ ...x, abaixoDe: limitar(x.abaixoDe, L.abaixoDe.lo, L.abaixoDe.hi, servidor.cura[i]?.abaixoDe ?? L.abaixoDe.dflt) })),
-    ataque: r.ataque.map((x, i) => ({
+    ataque: r.ataque.map((x, i) => comOpcionais({
       ...x,
       minBichos: limitar(x.minBichos, L.minBichos.lo, L.minBichos.hi, servidor.ataque[i]?.minBichos ?? L.minBichos.dflt),
       raio: limitar(x.raio, L.raio.lo, L.raio.hi, servidor.ataque[i]?.raio ?? L.raio.dflt),
-    })),
+    }, { manaMin: opcional(x.manaMin), vidaAlvoMin: opcional(x.vidaAlvoMin) })),
+    buffs: r.buffs.map((x) => comOpcionais({ ...x }, { manaMin: opcional(x.manaMin) })),
     reservaMana: limitar(r.reservaMana, L.reservaMana.lo, L.reservaMana.hi, servidor.reservaMana),
     vidaAlarme: limitar(r.vidaAlarme, L.vidaAlarme.lo, L.vidaAlarme.hi, servidor.vidaAlarme),
   };

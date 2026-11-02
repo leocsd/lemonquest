@@ -29,13 +29,13 @@ describe("edição das regras do Estagiário", () => {
   });
 
   it("+ Buff acrescenta a magia (fora de combate também); repetida, vazia ou cheia não muda nada", () => {
-    const base: RegraBuff[] = [{ magia: "iron_skin", emCombate: true }];
-    expect(addRegraBuff(base, "swift_feet")).toEqual([...base, { magia: "swift_feet", emCombate: false }]);
+    const base: RegraBuff[] = [{ magia: "iron_skin", quando: "combate" }];
+    expect(addRegraBuff(base, "swift_feet")).toEqual([...base, { magia: "swift_feet", quando: "sempre" }]);
     expect(addRegraBuff(base, "iron_skin")).toBe(base);
     expect(addRegraBuff(base, "")).toBe(base);
-    const cheia = Array.from({ length: REGRAS_MAX }, (_, i): RegraBuff => ({ magia: `b${i}`, emCombate: false }));
+    const cheia = Array.from({ length: REGRAS_MAX }, (_, i): RegraBuff => ({ magia: `b${i}`, quando: "sempre" }));
     expect(addRegraBuff(cheia, "swift_feet")).toBe(cheia);
-    expect(setRegra(base, 0, { emCombate: false })).toEqual([{ magia: "iron_skin", emCombate: false }]);
+    expect(setRegra(base, 0, { quando: "sempre" })).toEqual([{ magia: "iron_skin", quando: "sempre" }]);
   });
 
   it("subir/descer troca com a vizinha; nas pontas não faz nada", () => {

@@ -41,6 +41,25 @@ e síncrono, erro de disco avisado uma vez, retenção de 30 dias, CLI `metricas
 limitada, some ao sair, banco em memória sem arquivos; `/metricas` só para admin). Todos os testes usam pasta temporária
 ou banco em memória (nenhum arquivo em `data/`). Sem E2E novo (nada visível para o jogador); o CI da PR roda a suíte E2E.
 
+## Resultados — Estagiário v2 (2026-11-02)
+
+Typecheck 3× tsc; suíte unitária inteira: **1924 passando (154 arquivos)**. Novo: `server/src/systems/estagiarioBalance.test.ts`
+(6: as quatro vocações nos lv 20/40/60 com a configuração recomendada, sistemas reais — magias, condições, combate, IA,
+perseguição, movimento, regen — contra 4 monstros da faixa por 4 min, com e sem poção de mana, e a recomendada de antes
+como comparação; RNG semeado em tudo, relatório igual a cada rodada; asserções: zero conjurações falhas por alcance/visão,
+ninguém morre com poção de mana, Pés Ligeiros ≥ 90 %/≥ 60 % do tempo, cavaleiro/paladino ≤ 75 % das poções de mana de
+antes com abates ≥, atiradores ≤ 80 % da mana em cura de antes, ≥ 25 abates e ≥ 70 % de antes). Atualizados:
+`shared/src/estagiario.test.ts` (24: curas recomendadas no mesmo limiar, Golpe Giratório com 1 bicho, campos opcionais,
+`aliado`, `comer`, `distancia`, buffs com `quando`/invocação/`emCombate` antigo, `escolherBuff` sem a reserva do ataque,
+`escolherAtaque` com `manaMin`/`vidaAlvoMin`, `escolherRecuo`), `shared/src/itemRules.test.ts` (15: `pickPotionFor`),
+`server/src/systems/estagiario.test.ts` (97: poção que cobre a falta, cura por aliado, comer, buffs por condição de
+combate, invocação, motivos novos, resolvedor com alcance, mana mínima e vida do alvo, perseguição com distância, recuo
+com rato que acompanha, limite da origem e pausa, busca a cada 100 ms sem alvo e perseguição retomada quando o jogador
+para), `m4.test.ts` (34: `forceChase` com `parar`), `inventory.test.ts` (36:
+`usePotion({ cobrir })`, `eatAny`), `ui/estagiario/rascunho.test.ts` (11), `store.test.ts` (13), `storeSync.test.ts` (9).
+Sem E2E novo (a janela ganhou campos, o fluxo da rota do `e2e/estagiario.spec.ts` não mudou); o CI da PR roda a suíte E2E.
+Números medidos pelo teste de balanço na seção 6 da spec `docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md`.
+
 ## Resultados — Estagiário (2026-11-01)
 
 Typecheck 3× tsc; suíte unitária inteira: 1809 passando (147 arquivos). Arquivos novos: `shared/src/estagiario.test.ts` (9: sanitização,

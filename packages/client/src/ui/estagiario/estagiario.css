@@ -87,3 +87,7 @@
 /* Cabeçalho: ponto atual da rota e o motivo de não estar agindo (servidor: EstagiarioEstadoMsg.motivo/ponto). */
 .est-ponto { color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; }
 .est-motivo { font-size: 11px; color: #ffcf7a; font-style: italic; }
+
+/* v2: linha opcional da regra (mana mínima, vida do alvo) e a opção de distância. */
+.est-opc { flex-basis: 100%; color: var(--hud-muted, #8b93ad); font-size: 11px; }
+.est-opc .est-num { width: 44px; padding: 1px 4px; font-size: 11px; }
