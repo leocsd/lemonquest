@@ -61,10 +61,12 @@ ocupado com cura. A reserva de mana do ataque vira "duas vezes a cura mais cara"
 
 | Etapa | O quê | Status |
 |---|---|---|
-| 1 | Cura salva por personagem (com Ataque e Buffs) e ligada pela rota; diário de decisões na janela | ✅ 2026-11-02 (PR "Estagiário v3, etapa 1") |
-| 2 | Canais independentes: poção e magia de cura no mesmo tick; buff só com o canal de magia livre | 🧭 |
-| 3 | Perfil por nome (`preset`) no save e a política de cura por cobertura/custo (3 números por vocação) | 🧭 |
-| 4 | Modo simples (presets + deslizadores) e modo avançado (regras) | 🧭 |
+| 1 | Cura salva por personagem (com Ataque e Buffs) e ligada pela rota; diário de decisões na janela | ✅ 2026-11-02 |
+| 2 | Canais independentes: poção e magia de cura no mesmo tick; buff só com o canal de magia livre | ✅ 2026-11-02 |
+| 3 | Perfil por nome (`preset`) no save e a política de cura por cobertura/custo (3 números por vocação) | ✅ 2026-11-02 |
+| 4 | Modo simples (presets + deslizadores) e modo avançado (regras) | ✅ 2026-11-02 |
+
+Tudo na mesma PR ("Estagiário v3": dono aprovou a etapa 1 e depois "Faça as etapas 2 a 4").
 
 ## 6. Etapa 1 — o que foi feito
 
@@ -86,3 +88,68 @@ ocupado com cura. A reserva de mana do ataque vira "duas vezes a cura mais cara"
 
 Decisão que contraria a spec de 01/11 ("Desconectou / fechou o cliente: cura e ataque desligam"): aprovada pelo dono em
 2026-11-02 ("Pode fazer a etapa 1").
+
+## 7. Etapa 2 — canais
+
+`EstagiarioSystem.curar` devolve `{ pocao, magia }`: a poção (vida ou mana) e a magia de cura (própria ou de grupo)
+são recargas diferentes e saem no mesmo tick. No modo avançado as regras de poção e as de magia viram duas listas,
+cada uma com "a primeira que vale e está pronta" (a ordem dentro de cada lista continua a do jogador); no modo simples
+a política decide os dois canais de uma vez. O buff só espera a magia de cura (mesma recarga global), não a poção. O
+ataque continua depois (a recarga global o separa da cura por magia).
+
+## 8. Etapa 3 — perfil por nome e a política de cura
+
+- `EstagiarioConfig` ganha `modo` ("simples" | "avancado"), `preset` ("seguro" | "equilibrado" | "agressivo" | null)
+  e `perfil { emergencia, conforto, reserva }` (% de vida/mana). `estagiarioPadrao` = simples/equilibrado.
+- **Presets por vocação** (`perfilDoPreset`), partindo dos limiares medidos na v2 (poção a 50/60 %, cura própria a
+  35 %, reserva 25/30/35):
+
+  | Preset | Cavaleiro | Paladino | Magos (feiticeiro, druida, fada) |
+  |---|---|---|---|
+  | Seguro | 40 / 65 / 35 | 40 / 70 / 40 | 40 / 65 / 45 |
+  | Equilibrado (padrão) | 30 / 50 / 25 | 30 / 60 / 30 | 30 / 55 / 35 |
+  | Agressivo | 20 / 40 / 20 | 20 / 50 / 25 | 25 / 45 / 30 |
+
+- **Política** (`decidirCura(situacao, perfil)`, pura, no shared): abaixo da emergência, poção e a magia de cura mais
+  forte pronta, juntas; entre a emergência e o conforto, a magia se cobre ≥ `COBERTURA_MAGIA` (60 %) do que falta e
+  ainda sobra a reserva de mana, senão a poção, senão a magia que houver; colega de grupo abaixo do conforto → cura em
+  grupo (se a magia não foi precisa para si); mana abaixo da reserva → poção de mana, se o canal de poção está livre;
+  com o Escudo de Mana a mana é a vida (limiar da poção de mana = conforto; na emergência de mana ela passa na frente da
+  de vida, a não ser que a vida também esteja na emergência). O que segurou vira `motivos` (diário: "esperando").
+- **Situação** montada no servidor (`curarSimples`): poções prontas e quanto recuperam (`InventorySystem.potionAmount`,
+  a mesma escolha do `usePotion` com `cobrir`), magias de cura própria até o level com a cura esperada
+  (`curaEstimada`, a fórmula sem a variação, com o `magicLevel` do jogador) e o custo (`spellMana`), a cura em grupo e
+  se há colega abaixo do conforto ao alcance, o escudo (`conditions.has(id, "manashield")`).
+- **Configuração efetiva** (`configEfetiva`): no simples, ataque/buffs/distância recomendados da vocação e
+  `reservaMana = perfil.reserva`; as listas do jogador ficam guardadas para o avançado. A ideia "reserva do ataque =
+  2× a cura mais cara" foi descartada: com o pool de mana do cavaleiro daria 50 % e mataria o Giro Feroz (a reserva
+  medida é 20–25 %).
+- **Save compacto** (`compactar`): só o que difere do padrão da vocação; o preset vai pelo nome (sem os números); os
+  números próprios vão com `preset: null`; as listas só quando mexidas; `modo` vai junto de qualquer coisa (o sanitize
+  deduz o modo das listas quando ele não está lá — save de antes da v3). `CharacterData.estagiario.config` passa a
+  `Partial<EstagiarioConfig>`.
+- **Migração**: save sem `modo` com listas iguais ao recomendado → simples; personalizado → avançado com as regras de
+  antes (o jogador escolhe o simples na aba Perfil quando quiser). O cavaleiro do dono (poção < 80 %) fica no avançado.
+
+### Medido (estagiarioBalance.test.ts, soma lv 20/40/60, 4 monstros, 4 min, poções infinitas)
+
+| Vocação | Simples equilibrado | v2 avançado | Antes (v1) | Seguro (vida mín., soma) × equilibrado | Agressivo (abates) |
+|---|---|---|---|---|---|
+| Cavaleiro | 159 | 154 | 78 | 154 × 123 | 153 |
+| Paladino | 153 | 147 | 112 | 161 × 134 | 153 |
+| Feiticeiro | 143 | 128 | 135 | 96 × 108 | 142 |
+| Druida | 132 | 137 | 119 | 144 × 96 | 138 |
+
+Sem mortes em nenhum preset com poção de mana. Nos magos a vida mínima é a rajada de quando o escudo cai (caótica por
+cenário): o seguro é conferido pela soma geral (555 × 461) e no cavaleiro/paladino; o agressivo chega a 5 % no
+feiticeiro lv 40/60 — a dica do preset avisa. Sem poção de mana os magos rendem 5–12 abates por level (como na v2: o
+escudo come a mana).
+
+## 9. Etapa 4 — a janela
+
+Aba **Perfil** (a primeira): interruptor "Modo avançado"; no simples, os três presets como rádio (com a dica de cada
+um), "Números seus" quando um deslizador foi mexido, os deslizadores Emergência / Conforto / Reserva de mana (com o
+número ao lado; a faixa vale no Aplicar: emergência 5–60, conforto 10–90 e pelo menos 5 acima da emergência, reserva
+0–60), a descrição do que o bot faz com os números (`descricaoPerfil`) e "Comer sozinho". As abas Cura, Ataque e Buffs
+só aparecem no avançado (voltar ao simples com uma delas aberta cai no Perfil). O rascunho (`Rascunho`) ganha `modo`,
+`preset` e `perfil`; mexer num deslizador zera o preset (senão o servidor guardaria os números do preset, não os seus).

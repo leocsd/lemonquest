@@ -102,3 +102,15 @@
 .est-diario-aviso .est-diario-canal { color: #ffcf7a; }
 .est-diario-pocao .est-diario-canal { color: #ff9a92; }
 .est-diario-cura .est-diario-canal { color: #9ee6a0; }
+
+/* v3: aba Perfil — presets (rádio), deslizadores dos três números e a descrição do que o bot faz. */
+.est-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.est-preset {
+  padding: 4px 10px; border-radius: 5px; border: 1px solid var(--hud-line); background: rgba(255, 255, 255, 0.03); font: inherit; font-size: 12px; cursor: var(--cur-mao); color: var(--hud-text);
+}
+.est-preset.on { border-color: var(--hud-gold); color: var(--hud-gold); background: rgba(255, 212, 71, 0.08); }
+.est-slider { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.est-slider-label { flex: 0 0 112px; }
+.est-slider input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--hud-gold); }
+.est-slider .est-num { width: 52px; }
+.est-perfil-desc { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }

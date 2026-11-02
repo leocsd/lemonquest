@@ -18,6 +18,8 @@ interface SetupOpts {
   ratos?: { x: number; y: number }[];
   vocation?: Vocation;
   saved?: { config?: unknown; turno?: { ms: number; em: number }; ligado?: unknown };
+  /** v3: os testes das regras valem no modo avançado (o padrão do jogo é o simples); "simples" testa a política. */
+  modo?: "simples" | "avancado";
   over?: Partial<PlayerState>;
   groups?: SpellGroup[];
   /** Movimento real (MovementSystem na mesma grade) para a caminhada da rota; sem ele, um falso parado. */
@@ -92,6 +94,8 @@ function setup(o: SetupOpts = {}) {
     },
     countPotions: (_p: PlayerState, kind: QuickPotionKind) => pot.qtd[kind],
     canDrink: (_p: PlayerState, kind: QuickPotionKind) => pot.bebivel[kind] && pot.qtd[kind] > 0,
+    // v3 (modo simples): a poção bebível recupera `pot.cura` de vida (ou 100, se o teste não disse) e 100 de mana.
+    potionAmount: (_p: PlayerState, kind: QuickPotionKind) => (pot.bebivel[kind] && pot.qtd[kind] > 0 ? (kind === "hp" ? pot.cura || 100 : 100) : 0),
   };
   const luta = { alvo: "" };
   const fight = {
@@ -142,7 +146,7 @@ function setup(o: SetupOpts = {}) {
     attackRange: () => o.alcance ?? 1,
     now: () => clock,
   });
-  sys.load(p, o.saved as never);
+  sys.load(p, { ...o.saved, config: { ...(o.saved?.config as object | undefined), modo: o.modo ?? "avancado" } } as never);
   /** Tiles por onde o jogador passou (a cada tick). */
   const visitados = new Set<string>();
   const tick = (ms = TICK_MS) => {
@@ -167,31 +171,37 @@ function setup(o: SetupOpts = {}) {
   return { ...w, p, sys, mv, calls, of, prontas, falham, dirs, conds, pot, luta, npc, mov, combate, invoc, comida, sent, estados, notices, diarios, tick, visitados, indice, st, acompanhantes, now: () => clock };
 }
 
-/** Config com a rota "Ratos" de 3 pontos (10,10) → (15,10) → (20,10). */
+/** Config (modo avançado: as listas valem) com a rota "Ratos" de 3 pontos (10,10) → (15,10) → (20,10). */
 const comRota = (extra: Partial<EstagiarioConfig> = {}): EstagiarioConfig => ({
   ...estagiarioPadrao("knight"),
+  modo: "avancado",
   rotas: [{ nome: "Ratos", pontos: [{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 20, y: 10 }] }],
   ...extra,
 });
 
 describe("Estagiário: carregar e salvar", () => {
-  it("sem dado salvo: config padrão da vocação, turno cheio, nada ligado; saved não grava nada", () => {
-    const w = setup({ vocation: "druid" });
+  it("sem dado salvo: config padrão da vocação (modo simples, equilibrado), turno cheio, nada ligado; saved não grava nada", () => {
+    const w = setup({ vocation: "druid", modo: "simples" });
     const e = w.sys.estado(w.p);
     expect(e.config).toEqual(estagiarioPadrao("druid"));
     expect(e).toMatchObject({ cura: false, ataque: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: TURNO_MAX_MS });
     expect(w.sys.saved(w.p)).toBeUndefined();
   });
 
-  it("só o que difere do padrão é gravado: config mudada e turno gasto voltam no próximo load (sanitizados)", () => {
+  it("só o que difere do padrão é gravado (v3: compacto, com o modo): config mudada e turno gasto voltam no próximo load (sanitizados)", () => {
     const w = setup();
     w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), reservaMana: 55 } });
-    expect(w.sys.saved(w.p)).toEqual({ config: { ...estagiarioPadrao("knight"), reservaMana: 55 } });
+    expect(w.sys.saved(w.p)).toEqual({ config: { reservaMana: 55, modo: "simples" } });
 
     const w2 = setup({ saved: { config: { ...estagiarioPadrao("knight"), reservaMana: 999 }, turno: { ms: 60_000, em: 10_000 } } });
     expect(w2.sys.estado(w2.p).config.reservaMana).toBe(90); // sanitizado ao carregar
     expect(w2.sys.estado(w2.p).turnoMs).toBe(60_000);
-    expect(w2.sys.saved(w2.p)).toEqual({ config: { ...estagiarioPadrao("knight"), reservaMana: 90 }, turno: { ms: 60_000, em: 10_000 } });
+    expect(w2.sys.saved(w2.p)).toEqual({ config: { reservaMana: 90, modo: "avancado" }, turno: { ms: 60_000, em: 10_000 } });
+    // O preset vai pelo nome; os deslizadores próprios vão com os números.
+    w2.sys.onConfig(w2.p, { config: { ...estagiarioPadrao("knight"), preset: "seguro" } });
+    expect(w2.sys.saved(w2.p)!.config).toEqual({ preset: "seguro", modo: "simples" });
+    w2.sys.onConfig(w2.p, { config: { ...estagiarioPadrao("knight"), preset: null, perfil: { emergencia: 33, conforto: 66, reserva: 11 } } });
+    expect(w2.sys.saved(w2.p)!.config).toEqual({ preset: null, perfil: { emergencia: 33, conforto: 66, reserva: 11 }, modo: "simples" });
   });
 });
 
@@ -199,7 +209,7 @@ describe("Estagiário: configuração", () => {
   it("onConfig sanitiza (magia de outra vocação sai; grupo do jogador fica), troca e responde o estado", () => {
     const groups = [{ id: "fam:my:1", name: "Meu", spells: ["spin_strike"] }];
     const w = setup({ groups });
-    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), ataque: [
+    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), modo: "avancado", ataque: [
       { minBichos: 1, raio: 1, magia: "fireball" }, { minBichos: 2, raio: 9, magia: "fam:my:1" },
     ] } as EstagiarioConfig });
     const e = w.estados().at(-1)!;
@@ -209,7 +219,7 @@ describe("Estagiário: configuração", () => {
 
   it("lixo não quebra nem apaga a configuração", () => {
     const w = setup();
-    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), reservaMana: 10 } });
+    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), modo: "avancado", reservaMana: 10 } });
     for (const lixo of [undefined, null, "lixo", 7, { config: "x" }, { config: [1, 2] }]) w.sys.onConfig(w.p, lixo as never);
     expect(w.sys.estado(w.p).config.reservaMana).toBe(10);
   });
@@ -301,22 +311,23 @@ describe("Estagiário: liga e desliga", () => {
 });
 
 describe("Estagiário: cura", () => {
-  it("poção de vida abaixo de 35%, depois a magia de cura quando a poção não está pronta; uma ação por tick, silenciosa", () => {
+  it("canais (v3): a poção e a magia de cura saem no MESMO tick, silenciosas; sem poção pronta ou bebível, só a magia; a de mana espera a de vida", () => {
     const w = setup({ over: { hp: 30, mana: 10 } }); // vida 20%, mana 10%: todas as regras valem
     w.sys.onToggle(w.p, { cura: true });
     w.prontas.add("light_heal");
     w.tick();
-    expect(w.calls.filter((c) => c[0] === "pocao" || c[0] === "cast")).toEqual([["pocao", "hp", { silent: true }]]);
+    // Canal de poção: a primeira regra de poção que vale (vida); canal de magia: a Cura. Os dois juntos.
+    expect(w.calls.filter((c) => c[0] === "pocao" || c[0] === "cast")).toEqual([["pocao", "hp", { silent: true }], ["cast", "light_heal", undefined, { silent: true }]]);
 
     w.calls.length = 0;
-    w.pot.pronta = false; // recarga da poção: vai a magia
+    w.pot.pronta = false; // recarga da poção: só a magia
     w.tick();
     expect(w.calls).toEqual([["cast", "light_heal", undefined, { silent: true }]]);
 
     w.calls.length = 0;
-    w.pot.pronta = true; w.pot.qtd.hp = 0; // sem poção de vida: a magia
+    w.pot.pronta = true; w.pot.qtd.hp = 0; // sem poção de vida: a de mana (regra seguinte do canal) e a magia
     w.tick();
-    expect(w.calls).toEqual([["cast", "light_heal", undefined, { silent: true }]]);
+    expect(w.calls).toEqual([["pocao", "mana", { silent: true }], ["cast", "light_heal", undefined, { silent: true }]]);
   });
 
   it("vida boa e mana baixa: poção de mana; desligada, morto ou nada pronto: nada", () => {
@@ -372,7 +383,7 @@ describe("Estagiário: cura que não trava", () => {
 
 describe("Estagiário: buffs", () => {
   const comBuffs = (buffs: EstagiarioConfig["buffs"], extra: Partial<EstagiarioConfig> = {}): EstagiarioConfig =>
-    ({ ...estagiarioPadrao("knight"), cura: [], ataque: [], buffs, ...extra });
+    ({ ...estagiarioPadrao("knight"), modo: "avancado", cura: [], ataque: [], buffs, ...extra });
 
   it("liga e desliga; conjura o buff que falta (silencioso), não com a condição ativa; desligado ou morto: nada", () => {
     const w = setup({ saved: { config: comBuffs([{ magia: "swift_feet", quando: "sempre" }]) } });
@@ -474,7 +485,7 @@ describe("Estagiário: buffs", () => {
 });
 
 describe("Estagiário: ataque", () => {
-  const regras = (magia: string, minBichos = 2, raio = 1) => ({ ...estagiarioPadrao("knight"), ataque: [{ minBichos, raio, magia }] });
+  const regras = (magia: string, minBichos = 2, raio = 1) => ({ ...estagiarioPadrao("knight"), modo: "avancado" as const, ataque: [{ minBichos, raio, magia }] });
 
   it("sem alvo: busca o monstro mais próximo a BUSCA_TILES; só o ataque ligado retoma a perseguição assim que o jogador fica parado", () => {
     const w = setup({ ratos: [{ x: 14, y: 10 }] });
@@ -568,7 +579,7 @@ describe("Estagiário: ataque", () => {
     expect(w.of("cast").map((c) => c[1])).toEqual(["spin_strike"]);
 
     w.calls.length = 0;
-    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), ataque: [{ minBichos: 1, raio: 1, magia: "fam:my:1" }] } });
+    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), modo: "avancado", ataque: [{ minBichos: 1, raio: 1, magia: "fam:my:1" }] } });
     w.prontas.add("front_sweep");
     w.tick();
     expect(w.of("cast").map((c) => c[1])).toEqual(["front_sweep"]);
@@ -711,7 +722,7 @@ describe("Estagiário: zona de proteção, morte e desconexão", () => {
   });
 
   it("v3: o que estava ligado volta no load (só os true vão no save) depois de CARENCIA_LOGIN_MS; ligar algo à mão zera a carência", () => {
-    const w = setup({ over: { hp: 30 }, saved: { ligado: { cura: true, ataque: "sim" } } });
+    const w = setup({ over: { hp: 30 }, saved: { ligado: { cura: true, ataque: "sim" } }, modo: "simples" });
     expect(w.sys.estado(w.p)).toMatchObject({ cura: true, ataque: false, buffs: false });
     expect(w.sys.saved(w.p)).toEqual({ ligado: { cura: true } });
     w.tick(CARENCIA_LOGIN_MS - TICK_MS);
@@ -719,7 +730,7 @@ describe("Estagiário: zona de proteção, morte e desconexão", () => {
     w.tick(TICK_MS);
     expect(w.of("pocao")).toHaveLength(1);
 
-    const w2 = setup({ over: { hp: 30 }, saved: { ligado: { cura: true } } });
+    const w2 = setup({ over: { hp: 30 }, saved: { ligado: { cura: true } }, modo: "simples" });
     w2.sys.onToggle(w2.p, { ataque: true });
     w2.tick();
     expect(w2.of("pocao")).toHaveLength(1);
@@ -1546,7 +1557,7 @@ describe("Estagiário v2: cura (poção que cobre a falta, aliado), comer", () =
     w.tick(5000);
     expect(w.comida.comeu).toBe(2);
     w.comida.restante = 0;
-    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), comer: false } });
+    w.sys.onConfig(w.p, { config: { ...estagiarioPadrao("knight"), modo: "avancado", comer: false } });
     w.tick(5000);
     expect(w.comida.comeu).toBe(2);
   });
@@ -1596,7 +1607,7 @@ describe("Estagiário v2: buffs (combate real, fora de combate, invocação) e m
 });
 
 describe("Estagiário v2: ataque com alcance, mana mínima e vida do alvo", () => {
-  const regras = (ataque: EstagiarioConfig["ataque"]) => ({ ...estagiarioPadrao("knight"), ataque });
+  const regras = (ataque: EstagiarioConfig["ataque"]) => ({ ...estagiarioPadrao("knight"), modo: "avancado" as const, ataque });
 
   it("magia de alvo só conta como pronta com o alvo no alcance: longe, sai a Investida (4) no lugar do Golpe Brutal (1); mais longe, nada e o motivo explica", () => {
     const w = setup({ ratos: [{ x: 13, y: 10 }], saved: { config: regras([{ minBichos: 1, raio: 1, magia: "brutal_strike" }, { minBichos: 1, raio: 1, magia: "charge" }]) }, over: { level: 30 } });

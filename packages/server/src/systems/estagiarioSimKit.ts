@@ -29,9 +29,13 @@ export const VOCS: readonly Vocation[] = ["knight", "paladin", "sorcerer", "drui
 export const LEVELS = [20, 40, 60] as const;
 export const SEGUNDOS = 240;
 
+/** As regras recomendadas da v2 no modo avançado (a referência medida de 2026-11-02): o modo simples tem de render como elas. */
+export const configAvancada = (v: Vocation): Partial<EstagiarioConfig> => ({ ...estagiarioPadrao(v), modo: "avancado" });
+
 /**
  * A configuração recomendada de ANTES da v2 (2026-11-01), para medir o ganho: Cura comum com limiar acima da cura própria
  * (70 contra 55/60), magos com a Cura a 65, Golpe Giratório com 2 bichos, colado (sem manter distância), sem invocação.
+ * Modo avançado: no simples (v3) as listas não valem.
  */
 export function configAntiga(v: Vocation): Partial<EstagiarioConfig> {
   const hp = (abaixoDe: number): RegraCura => ({ quando: "vida", abaixoDe, acao: { pocao: "hp" } });
@@ -42,6 +46,7 @@ export function configAntiga(v: Vocation): Partial<EstagiarioConfig> {
       : [hp(35), mg(65, "light_heal"), mp(35)];
   const padrao = estagiarioPadrao(v);
   return {
+    modo: "avancado",
     cura,
     ataque: padrao.ataque.map((r) => (r.magia === "spin_strike" ? { ...r, minBichos: 2 } : r)),
     buffs: padrao.buffs.filter((b) => !spellDef(b.magia)?.summon),
@@ -116,6 +121,7 @@ export function simular(v: Vocation, L: number, o: Opcoes = {}): Resultado {
       return true;
     },
     countPotions: () => 999, canDrink: (_q: PlayerState, k: QuickPotionKind) => tem(k),
+    potionAmount: (_q: PlayerState, k: QuickPotionKind) => (tem(k) ? (k === "hp" ? POCAO_HP[L]! : POCAO_MANA[L]!) : 0),
   };
   const mv = new MovementSystem(grade, { now: w.now });
   mv.setExtraBlocker((x, y) => w.mm.isMonsterAt(x, y));

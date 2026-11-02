@@ -20,7 +20,7 @@ export interface CharacterData {
    * Estagiário: configuração, turno e, desde a v3 (etapa 1), o que o jogador deixou ligado (cura/ataque/buffs; a rota
    * não). Ausente = padrão, turno cheio e nada ligado.
    */
-  estagiario?: { config?: EstagiarioConfig; turno?: TurnoEstado; ligado?: EstagiarioLigado };
+  estagiario?: { config?: Partial<EstagiarioConfig>; turno?: TurnoEstado; ligado?: EstagiarioLigado };
   /** PvP: mortes injustas recentes (timestamps) — caveira vermelha. */
   pvpKills?: number[];
   /** PvP: fim da caveira branca (ms epoch); relogar não a apaga. */

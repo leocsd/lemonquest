@@ -4,10 +4,10 @@
 // num rascunho (store.ts rascunhoStore) que só vai no "Aplicar"; ligar/desligar, gravar, renomear e apagar rota vão na hora.
 // Abre pelo 🤖 do trilho. Molde: items/LootFilterWindow.tsx.
 import {
-  ALARMES, DIARIO_MAX, DISTANCIAS, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao,
-  buffsRecomendados, curaRecomendada, spellDef, spellsFor,
+  ALARMES, DIARIO_MAX, DISTANCIAS, NOME_ROTA_MAX, PRESETS, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao,
+  buffsRecomendados, curaRecomendada, perfilDoPreset, spellDef, spellsFor,
   type AlarmeTipo, type CuraAcao, type CuraQuando, type DiarioCanal, type DiarioItem, type EstagiarioConfig, type EstagiarioEstadoMsg,
-  type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
+  type Perfil, type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
 } from "@lemonquest/shared";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { groupsStore } from "../hotkeys/hotkeys.ts";
@@ -18,20 +18,23 @@ import { useWindowDrag } from "../hud/useWindowDrag.ts";
 import { meStore } from "../hud/world.ts";
 import { bindOverlay } from "../overlays.ts";
 import {
-  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, diarioStore,
-  editarRascunho, estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, ondeConta,
-  QUANDO_BUFF, rascunhoStore, rascunhoSujo, removerRegra, renomearRota, rotuloBuff, rotuloDistancia, salvarConfig, setRegra, turnoMostrado,
+  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, descricaoPerfil,
+  diarioStore, editarRascunho, estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra,
+  ondeConta, PRESET_LABEL, QUANDO_BUFF, rascunhoStore, rascunhoSujo, removerRegra, renomearRota, rotuloBuff, rotuloDistancia, salvarConfig, setRegra,
+  turnoMostrado,
 } from "./store.ts";
 import "./estagiario.css";
 
 // Esc pela pilha de sobreposições (a última janela aberta fecha primeiro), também com o foco num campo da janela.
 bindOverlay("estagiario", estagiarioOpen, (v) => v, () => closeEstagiario(), ".est-win");
 
-type Aba = "cura" | "ataque" | "buffs" | "rota" | "alarmes" | "diario";
+type Aba = "perfil" | "cura" | "ataque" | "buffs" | "rota" | "alarmes" | "diario";
 const ABAS: { id: Aba; label: string }[] = [
-  { id: "cura", label: "Cura" }, { id: "ataque", label: "Ataque" }, { id: "buffs", label: "Buffs" }, { id: "rota", label: "Rota" }, { id: "alarmes", label: "Alarmes" },
-  { id: "diario", label: "Diário" },
+  { id: "perfil", label: "Perfil" }, { id: "cura", label: "Cura" }, { id: "ataque", label: "Ataque" }, { id: "buffs", label: "Buffs" }, { id: "rota", label: "Rota" },
+  { id: "alarmes", label: "Alarmes" }, { id: "diario", label: "Diário" },
 ];
+/** As abas de regras só aparecem no modo avançado (v3). */
+const ABAS_REGRAS: readonly Aba[] = ["cura", "ataque", "buffs"];
 
 const CANAL_LABEL: Record<DiarioCanal, string> = {
   cura: "cura", pocao: "poção", buff: "buff", comer: "comida", rota: "rota", interruptor: "ligar", aviso: "aviso",
@@ -64,9 +67,13 @@ function EstagiarioDialog() {
   const e = useStore(estagiarioStore);
   const r = useStore(rascunhoStore);
   const me = useStore(meStore);
-  const [aba, setAba] = useState<Aba>("cura");
+  const [aba, setAba] = useState<Aba>("perfil");
   const drag = useWindowDrag("estagiario");
   useDialogFocus(drag.ref);
+  const simples = r?.modo === "simples";
+  const abas = simples ? ABAS.filter((a) => !ABAS_REGRAS.includes(a.id)) : ABAS;
+  // Voltou ao modo simples com uma aba de regras aberta: ela some, o Perfil fica.
+  useEffect(() => { if (simples && ABAS_REGRAS.includes(aba)) setAba("perfil"); }, [simples, aba]);
   return (
     <div ref={drag.ref} class={`hud-card hud-window est-win${drag.dragging ? " dragging" : ""}`} style={drag.style} role="dialog" aria-label="Estagiário">
       <div class="win-title" onPointerDown={drag.onTitleDown}>
@@ -78,7 +85,7 @@ function EstagiarioDialog() {
         <>
           <Cabecalho e={e} />
           <div class="est-tabs" role="tablist">
-            {ABAS.map((a) => (
+            {abas.map((a) => (
               <button
                 key={a.id} role="tab" aria-selected={aba === a.id} class={`est-tab${aba === a.id ? " active" : ""}`}
                 onClick={() => setAba(a.id)} data-testid={`est-tab-${a.id}`}
@@ -86,6 +93,7 @@ function EstagiarioDialog() {
             ))}
           </div>
           <div class="est-body">
+            {aba === "perfil" && <AbaPerfil c={{ ...e.config, ...r }} voc={me.vocation} />}
             {aba === "cura" && <AbaCura c={{ ...e.config, ...r }} voc={me.vocation} />}
             {aba === "ataque" && <AbaAtaque c={{ ...e.config, ...r }} voc={me.vocation} level={me.level} />}
             {aba === "buffs" && <AbaBuffs c={{ ...e.config, ...r }} voc={me.vocation} level={me.level} />}
@@ -173,6 +181,71 @@ function CampoNumero({ label, lim, value, onValor, step }: { label: string; lim:
       class="est-num" type="number" min={lim.lo} max={lim.hi} step={step} aria-label={label} value={texto}
       onInput={(ev) => { const t = val(ev); setTexto(t); onValor(lerNumero(t)); }}
     />
+  );
+}
+
+// ---------- Perfil (v3: modo simples × avançado) ----------
+
+/**
+ * Modo simples: um preset (Seguro / Equilibrado / Agressivo) ou os três números à mão (emergência, conforto, reserva de
+ * mana); ataque, buffs e distância são os recomendados da vocação. Modo avançado: as abas Cura, Ataque e Buffs valem.
+ */
+function AbaPerfil({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
+  const simples = c.modo === "simples";
+  // Mexer num número tira o preset (o servidor guardaria os números do preset, não os seus).
+  const setPerfil = (patch: Partial<Perfil>) => editarRascunho({ preset: null, perfil: { ...c.perfil, ...patch } });
+  return (
+    <div class="est-pane">
+      <div class="est-row">
+        <Interruptor label="Modo avançado" on={!simples} onClick={() => editarRascunho({ modo: simples ? "avancado" : "simples" })} testid="est-modo" />
+        <span class="est-note">
+          {simples ? "Três números e o ataque, os buffs e a distância recomendados da sua vocação." : "Valem as regras das abas Cura, Ataque e Buffs; o perfil fica guardado."}
+        </span>
+      </div>
+      {simples && (
+        <>
+          <div class="est-presets" role="radiogroup" aria-label="Perfil">
+            {PRESETS.map((pr) => (
+              <button
+                key={pr} role="radio" aria-checked={c.preset === pr} class={`est-preset${c.preset === pr ? " on" : ""}`}
+                onClick={() => editarRascunho({ preset: pr, perfil: perfilDoPreset(pr, voc) })} data-tip={PRESET_LABEL[pr].nome} data-tip-sub={PRESET_LABEL[pr].dica}
+                data-testid={`est-preset-${pr}`}
+              >{PRESET_LABEL[pr].nome}</button>
+            ))}
+            {c.preset === null && <span class="est-preset on" data-testid="est-preset-proprio">Números seus</span>}
+          </div>
+          <Deslizador label="Emergência" lim={LIMITES.emergencia} value={c.perfil.emergencia} onValor={(v) => setPerfil({ emergencia: v })} testid="est-emergencia" />
+          <Deslizador label="Conforto" lim={LIMITES.conforto} value={c.perfil.conforto} onValor={(v) => setPerfil({ conforto: v })} testid="est-conforto" />
+          <Deslizador label="Reserva de mana" lim={LIMITES.reserva} value={c.perfil.reserva} onValor={(v) => setPerfil({ reserva: v })} testid="est-reserva" />
+          <ul class="est-perfil-desc" data-testid="est-perfil-desc">
+            {descricaoPerfil(c.perfil).map((t) => <li key={t} class="est-note">{t}</li>)}
+          </ul>
+          <p class="est-note">
+            {c.preset ? "Com um perfil escolhido o jogo guarda só o nome: quando o perfil melhora, você recebe a versão nova sozinho. " : "Números seus ficam como estão. "}
+            A poção e a magia de cura são recargas diferentes e saem juntas quando precisa.
+          </p>
+          <div class="est-row">
+            <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" />
+            <span class="est-note">com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Deslizador com o número ao lado (os dois mexem no mesmo valor do rascunho; a faixa só vale no Aplicar). */
+function Deslizador({ label, lim, value, onValor, testid }: { label: string; lim: { lo: number; hi: number }; value: number; onValor: (v: number) => void; testid: string }) {
+  return (
+    <div class="est-slider">
+      <span class="est-slider-label">{label}</span>
+      <input
+        type="range" min={lim.lo} max={lim.hi} step={1} value={Number.isFinite(value) ? value : lim.lo} aria-label={label}
+        onInput={(ev) => onValor(Number(val(ev)))} data-testid={testid}
+      />
+      <CampoNumero label={`${label} (%)`} lim={lim} value={value} onValor={onValor} />
+      <span>%</span>
+    </div>
   );
 }
 

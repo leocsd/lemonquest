@@ -2,10 +2,10 @@
 // campos configuráveis e só manda ao servidor no "Aplicar". Antes, cada número digitado ia na hora e o eco do servidor
 // (e o estado periódico de 10 s com a rota rodando) redesenhava o campo com o valor antigo no meio da digitação.
 // Rotas não entram aqui: gravar, renomear e apagar continuam indo na hora (store.ts salvarConfig).
-import type { EstagiarioConfig } from "@lemonquest/shared";
+import { CONFORTO_ACIMA, PERFIL_LIMITES, type EstagiarioConfig } from "@lemonquest/shared";
 
 /** Os campos que a janela edita no rascunho (o resto da configuração, as rotas, vem sempre do servidor). */
-export type Rascunho = Pick<EstagiarioConfig, "cura" | "ataque" | "buffs" | "reservaMana" | "alarmes" | "vidaAlarme" | "comer" | "distancia">;
+export type Rascunho = Pick<EstagiarioConfig, "modo" | "preset" | "perfil" | "cura" | "ataque" | "buffs" | "reservaMana" | "alarmes" | "vidaAlarme" | "comer" | "distancia">;
 
 /** Faixas dos números, as mesmas do servidor (shared/estagiario.ts sanitizeEstagiario). */
 export const LIMITES = {
@@ -16,9 +16,14 @@ export const LIMITES = {
   vidaAlarme: { lo: 1, hi: 99 },
   /** Opcionais em % (0 = ausente): mana mínima e vida do alvo das regras de ataque, mana mínima dos buffs. */
   pctOpcional: { lo: 0, hi: 100, dflt: 0 },
+  /** v3: os três números do modo simples. */
+  emergencia: PERFIL_LIMITES.emergencia,
+  conforto: PERFIL_LIMITES.conforto,
+  reserva: PERFIL_LIMITES.reserva,
 } as const;
 
 export const extrairRascunho = (c: EstagiarioConfig): Rascunho => ({
+  modo: c.modo, preset: c.preset, perfil: c.perfil,
   cura: c.cura, ataque: c.ataque, buffs: c.buffs, reservaMana: c.reservaMana, alarmes: c.alarmes, vidaAlarme: c.vidaAlarme,
   comer: c.comer, distancia: c.distancia,
 });
@@ -63,8 +68,16 @@ export const limitar = (v: number, lo: number, hi: number, dflt: number): number
 /** Põe os números do rascunho nas faixas; campo inválido volta ao valor do servidor (ou ao padrão, em regra nova). */
 export function limitarRascunho(r: Rascunho, servidor: EstagiarioConfig): Rascunho {
   const L = LIMITES;
+  // v3: o perfil só com os deslizadores próprios (com preset o servidor usa os números do preset); conforto acima da emergência.
+  const emergencia = limitar(r.perfil.emergencia, L.emergencia.lo, L.emergencia.hi, servidor.perfil.emergencia);
+  const perfil = r.preset ? r.perfil : {
+    emergencia,
+    conforto: Math.max(emergencia + CONFORTO_ACIMA, limitar(r.perfil.conforto, L.conforto.lo, L.conforto.hi, servidor.perfil.conforto)),
+    reserva: limitar(r.perfil.reserva, L.reserva.lo, L.reserva.hi, servidor.perfil.reserva),
+  };
   return {
     ...r,
+    perfil,
     cura: r.cura.map((x, i) => ({ ...x, abaixoDe: limitar(x.abaixoDe, L.abaixoDe.lo, L.abaixoDe.hi, servidor.cura[i]?.abaixoDe ?? L.abaixoDe.dflt) })),
     ataque: r.ataque.map((x, i) => comOpcionais({
       ...x,

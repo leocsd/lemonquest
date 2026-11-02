@@ -14,12 +14,13 @@ export const NEWS: readonly NewsEntry[] = [
   {
     id: "2026-11-02c",
     date: "2 de novembro",
-    title: "Estagiário: a Cura fica ligada e um diário explica tudo",
+    title: "Estagiário v3: modo simples, Cura que fica ligada e um diário",
     items: [
-      "Cura, Ataque e Buffs ficam salvos no personagem: ao entrar de novo ou recarregar a página, voltam como estavam (3 s depois). A rota continua ligando à mão.",
-      "Ligar a rota agora liga a Cura também, como já fazia com Ataque e Buffs. Antes a Cura nascia desligada a cada entrada, e dava para caçar sem beber poção sem perceber.",
-      "Aba nova \"Diário\" na janela: cada poção e cura com quanto recuperou, por que ele esperou (poção em recarga, nenhuma poção que você possa beber, magia sem mana), rota e alarmes.",
-      "Com a vida baixa e a Cura desligada, o diário avisa. Sem poção de vida que você possa beber, também.",
+      "Aba nova \"Perfil\": escolha Seguro, Equilibrado ou Agressivo (feitos para a sua vocação) ou ajuste três números: emergência, conforto e reserva de mana. O resto é o recomendado.",
+      "Poção e magia de cura saem juntas quando a vida despenca (são recargas diferentes). Entre a emergência e o conforto, ele usa a magia se ela cobre o que falta; senão a poção.",
+      "Quem já tinha regras próprias continua no modo avançado com elas (abas Cura, Ataque e Buffs). Para experimentar o simples, desligue \"Modo avançado\" na aba Perfil.",
+      "Cura, Ataque e Buffs ficam salvos no personagem: ao entrar de novo ou recarregar a página, voltam como estavam. Ligar a rota agora liga a Cura também.",
+      "Aba \"Diário\": cada poção e cura com quanto recuperou, por que ele esperou (poção em recarga, nenhuma que você possa beber, magia sem mana), rota e alarmes.",
     ],
   },
   {

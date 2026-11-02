@@ -588,6 +588,18 @@ export class InventorySystem {
   }
 
   /**
+   * Quanto recupera a poção que `usePotion(..., { cobrir: falta })` beberia agora (0 = nenhuma que o level e a vocação
+   * deixem). A política do modo simples do Estagiário (v3) compara isso com o que a magia de cura devolve.
+   */
+  potionAmount(p: PlayerState, kind: QuickPotionKind, falta: number): number {
+    const inv = this.inv.get(p.id);
+    if (!inv) return 0;
+    const { index } = pickPotionFor(inv.backpack, kind, p.level, falta, this.defs, p.vocation);
+    const it = index >= 0 ? inv.backpack[index] : null;
+    return it ? potionAmount(this.defs(it.defId), kind) : 0;
+  }
+
+  /**
    * Quantas poções do tipo o jogador pode beber (todas as pilhas que o level e a vocação permitem) — o alarme de poção
    * acabando: as que ele não bebe não seguram a caça.
    */

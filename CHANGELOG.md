@@ -1,5 +1,33 @@
 # Changelog
 
+## [Não lançado] — 2026-11-02 · Estagiário v3, etapas 2–4: canais, perfil por nome e modo simples
+
+Dono: "Faça as etapas 2 a 4" da abordagem nova (`docs/superpowers/specs/2026-11-02-estagiario-v3-abordagem.md`).
+- **Canais** (etapa 2, `EstagiarioSystem.curar`): a poção e a magia de cura são recargas diferentes e saem no MESMO
+  tick (na emergência, poção + Limpar Feridas de uma vez); o buff só espera a magia de cura, não a poção. No modo
+  avançado as regras de poção e as de magia viram duas listas, cada uma com "a primeira que vale e está pronta".
+- **Modo simples** (etapa 3, `shared/estagiario.ts`): `modo: "simples" | "avancado"`, `preset: "seguro" |
+  "equilibrado" | "agressivo" | null` e `perfil { emergencia, conforto, reserva }` (% de vida/mana). A política
+  `decidirCura`: abaixo da emergência, poção e a magia mais forte juntas; entre a emergência e o conforto, a magia se
+  cobre ≥ 60 % do que falta sem furar a reserva (o mago com a Cura), senão a poção (o cavaleiro com o Limpar Feridas);
+  colega abaixo do conforto → cura em grupo; mana abaixo da reserva → poção de mana; com o Escudo de Mana a mana é a
+  vida (poção de mana abaixo do conforto e, na emergência de mana, na frente da de vida). Ataque, buffs e distância são
+  os recomendados da vocação (`configEfetiva`), com a reserva do perfil. Presets por vocação, conferidos no arnês
+  (`estagiarioBalance.test.ts`, soma dos levels 20/40/60 contra 4 monstros): equilibrado rende 103 % (cavaleiro),
+  104 % (paladino), 112 % (feiticeiro) e 96 % (druida) das regras recomendadas da v2, sem mortes; seguro sobe a vida
+  mínima (soma geral 555 contra 461); agressivo rende 96–105 % do equilibrado com a vida mínima mais baixa (magos a 5 %
+  no lv 40/60: arriscado, está na dica).
+- **Perfil por nome** (etapa 3): o save guarda `preset: "equilibrado"`, não os números (`compactar`: só o que difere do
+  padrão vai; o `modo` vai junto de qualquer coisa). Quem usa um preset recebe a versão nova dele sozinho. Save de
+  antes da v3 sem `modo`: listas iguais ao recomendado entram no simples; personalizadas ficam no avançado com as
+  regras de antes (e podem trocar na aba Perfil).
+- **Aba Perfil** (etapa 4, janela): interruptor "Modo avançado"; no simples, os três presets (rádio) ou "Números seus"
+  com deslizadores (emergência 5–60, conforto 10–90 e pelo menos 5 acima da emergência, reserva 0–60), a descrição do
+  que o bot faz com os números e "Comer sozinho"; as abas Cura, Ataque e Buffs só aparecem no avançado. O rascunho e
+  o Aplicar valem como antes.
+- Servidor: `potions.potionAmount` (InventorySystem) para a política comparar a poção com a magia; o alarme de poção no
+  simples vale para vida e mana. Simulador: `configAvancada(v)` (as regras da v2) e `configAntiga` no modo avançado.
+
 ## [Não lançado] — 2026-11-02 · Estagiário v3, etapa 1: Cura salva e ligada pela rota, diário de decisões
 
 Dono: "quando a vida abaixou muito, ele não usou pote". Leitura do banco de produção: o cavaleiro dele tinha "poção

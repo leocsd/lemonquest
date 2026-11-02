@@ -16,6 +16,26 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Estagiário v3, etapas 2–4 (2026-11-02)
+
+Typecheck 3× tsc; suíte unitária inteira verde (ver o total na seção abaixo, mais os novos). Novo arquivo
+`shared/src/estagiarioV3.test.ts` (11: presets por vocação ordenados e o padrão simples/equilibrado; `sanitizePerfil`
+nas faixas com o conforto acima da emergência; `sanitizeEstagiario` com modo explícito, inferido das listas no save de
+antes da v3, preset inválido/null; `compactar` vazio no padrão, preset pelo nome, números próprios, listas só mexidas,
+ida e volta pelo sanitize; `configEfetiva`; `curaEstimada`/`curasProprias`/`curaEmGrupo`; `decidirCura` em tabela:
+emergência com poção e magia juntas, conforto por cobertura ≥ 60 % e reserva, mana, Escudo de Mana, cura em grupo).
+`server/src/systems/estagiario.test.ts`: o arnês de teste passa a carregar no modo avançado (`modo` na opção) para as
+regras continuarem valendo; teste dos canais (poção e magia no mesmo tick; sem poção, a de mana e a magia), save compacto
+com preset e números próprios. `estagiarioBalance.test.ts` reescrito: modo simples equilibrado (padrão), sem poção de
+mana, seguro, agressivo, v2 avançado e antes — 8 asserções (sem falhas de alcance; sem mortes nos três presets; haste;
+cura sem engolir mana; distância; rendimento; equilibrado ≥ 90 % da v2 por vocação; seguro com a vida mínima maior no
+cavaleiro/paladino e na soma geral, agressivo ≥ 90 % do equilibrado). Resultado medido (soma lv 20/40/60, 4 monstros,
+4 min): abates cavaleiro 159 (v2 154, antes 78), paladino 153 (147, 112), feiticeiro 143 (128, 135), druida 132 (137,
+119); vida mínima (soma dos levels) seguro × equilibrado: cavaleiro 154 × 123, paladino 161 × 134, feiticeiro 96 × 108,
+druida 144 × 96. Cliente: `rascunho.test.ts` (+1: perfil com preset passa como veio, sem preset entra nas faixas e o
+conforto fica acima da emergência; modo/preset sujam o rascunho) e `store.test.ts` (+1: `descricaoPerfil`,
+`PRESET_LABEL`). Sem E2E novo (o `estagiario.spec.ts` liga a rota, agora no modo simples); o CI da PR roda.
+
 ## Resultados — Estagiário v3, etapa 1 (2026-11-02)
 
 Typecheck 3× tsc; suíte unitária inteira: 1934 passando (154 arquivos). Novos: `shared/src/estagiario.test.ts` (+2:

@@ -6,13 +6,14 @@
 // (sanitização, turno, escolha de cura/ataque/buff/recuo, gravação de rota) estão em shared/estagiario.ts.
 import {
   BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIARIO_MAX, DIR_DELTA, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C,
-  TURNO_AVISO_MS, alarmeLigado, avancarTurno, dirFromDelta, ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao,
+  TURNO_AVISO_MS, alarmeLigado, avancarTurno, compactar, configEfetiva, curaEmGrupo, curaEstimada, curasProprias, decidirCura, dirFromDelta,
+  ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao,
   fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
   resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef,
   type AlarmeTipo, type ConditionId, type CuraAcao, type DiarioCanal, type DiarioItem, type EstagiarioAlarmeMsg, type EstagiarioConfig,
   type EstagiarioConfigMsg, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioLigado,
   type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao, type NoticeMsg, type PontoRota, type QuickPotionKind, type RegraCura,
-  type SpellDef, type SpellGroup, type TurnoEstado,
+  type SituacaoCura, type SpellDef, type SpellGroup, type TurnoEstado,
 } from "@lemonquest/shared";
 import type { CharacterData } from "../persistence/types.ts";
 import type { PlayerState } from "../state.ts";
@@ -68,6 +69,8 @@ export interface EstagiarioOptions {
     usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean; cobrir?: number }): boolean;
     /** Só as poções que o level e a vocação deixam beber (o alarme de poção acabando). */
     countPotions(p: PlayerState, kind: QuickPotionKind): number;
+    /** v3: quanto recupera a poção que `usePotion({ cobrir: falta })` beberia (0 = nenhuma bebível). Ausente = 0 se não dá para beber, senão `falta`. */
+    potionAmount?(p: PlayerState, kind: QuickPotionKind, falta: number): number;
     /** Há poção do tipo que dá para beber (a regra de poção só vale assim; senão a cura seguinte). */
     canDrink(p: PlayerState, kind: QuickPotionKind): boolean;
   };
@@ -118,7 +121,10 @@ interface Avisos {
 const avisosNovos = (): Avisos => ({ pocao: new Set(), vidaBaixa: false, jogadores: new Map(), turno: false, atacadoAte: 0, mochilaAte: 0 });
 
 interface Estado {
+  /** O que o jogador configurou (vai no save e no estado ao cliente). */
   config: EstagiarioConfig;
+  /** v3: o que o tick usa (`configEfetiva`): no modo simples, o recomendado da vocação com a reserva do perfil. */
+  efetiva: EstagiarioConfig;
   /** Guardado só nas transições (rodando ↔ parado) e a cada tick com a rota rodando; parado, a recarga é calculada ao ler. */
   turno: TurnoEstado;
   cura: boolean;
@@ -213,7 +219,8 @@ export class EstagiarioSystem {
     const ligado = sanitizeLigado(saved?.ligado);
     const algo = !!(ligado.cura || ligado.ataque || ligado.buffs);
     this.st.set(p.id, {
-      config, turno: avancarTurno(saved?.turno, now, false), cura: !!ligado.cura, ataque: !!ligado.ataque, buffs: !!ligado.buffs, rota: null, indice: 0,
+      config, efetiva: configEfetiva(config, p.vocation),
+      turno: avancarTurno(saved?.turno, now, false), cura: !!ligado.cura, ataque: !!ligado.ataque, buffs: !!ligado.buffs, rota: null, indice: 0,
       caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
       inalcancavelAte: 0, recuandoAte: 0, foraAlcanceAte: 0, semManaBuffAte: 0, motivoEnviado: "", lutando: false, lutaOrigem: null, lutaFimEm: 0,
       alvoId: "", alvoAnterior: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
@@ -224,15 +231,17 @@ export class EstagiarioSystem {
   }
 
   /**
-   * Para `rec.data.estagiario`: só o que difere do padrão (config padrão, turno cheio e nada ligado não são gravados).
-   * `ligado` guarda a escolha do jogador, não o que a rota liga por tabela.
+   * Para `rec.data.estagiario`: só o que difere do padrão (config padrão, turno cheio e nada ligado não são gravados;
+   * v3: a config vai compacta — o preset pelo nome, as listas só se mexidas). `ligado` guarda a escolha do jogador, não
+   * o que a rota liga por tabela.
    */
   saved(p: PlayerState): CharacterData["estagiario"] {
     const s = this.st.get(p.id);
     if (!s) return undefined;
     const turno = this.acertar(s, this.now());
     const out: NonNullable<CharacterData["estagiario"]> = {};
-    if (JSON.stringify(s.config) !== JSON.stringify(estagiarioPadrao(p.vocation))) out.config = s.config;
+    const config = compactar(s.config, p.vocation);
+    if (Object.keys(config).length) out.config = config;
     if (turno.ms < avancarTurno(undefined, 0, false).ms) out.turno = { ...turno };
     const ligado: EstagiarioLigado = {};
     if (s.cura) ligado.cura = true;
@@ -251,6 +260,7 @@ export class EstagiarioSystem {
     if (!s || !obj(m) || !obj(m.config)) return;
     const rotasAntes = JSON.stringify(s.config.rotas);
     s.config = sanitizeEstagiario(m.config, p.vocation, this.o.spellGroups(p));
+    s.efetiva = configEfetiva(s.config, p.vocation);
     const rota = s.rota && this.rotaDe(s, s.rota);
     if (s.rota && !rota) this.pararRota(p, s, this.now(), "a rota foi apagada");
     // Os pontos podem ter mudado: só então recomeça do ponto mais próximo (o Aplicar de uma regra de cura não pode
@@ -444,7 +454,7 @@ export class EstagiarioSystem {
     if (!this.o.monsters.wild(p.targetId)) return "sem alvo por perto";
     if (now < s.foraAlcanceAte) return "alvo fora do alcance";
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
-    if (s.config.ataque.length && !s.config.ataque.some((r) => manaPct >= pisoDeMana(r, s.config.reservaMana))) return "reserva de mana";
+    if (s.efetiva.ataque.length && !s.efetiva.ataque.some((r) => manaPct >= pisoDeMana(r, s.efetiva.reservaMana))) return "reserva de mana";
     if (this.buffsLigados(s) && now < s.semManaBuffAte) return "sem mana para o buff";
     return "";
   }
@@ -492,12 +502,12 @@ export class EstagiarioSystem {
     // v3: a Cura também liga pela rota (como o ataque e os buffs); desligada com a vida baixa, o diário diz.
     const cura = this.curaLigada(s);
     if (!cura) this.avisarCuraDesligada(p, s, now);
-    // No máximo uma cura por tick; o ataque vem depois (a recarga global de magia separa os dois quando os dois são magia).
-    // Buff só num tick sem cura (uma ação por tick entre os dois: a cura tem prioridade e o buff espera o próximo).
-    const curou = cura && this.curar(p, s, now);
+    // v3 (canais): a poção e a magia de cura são recargas diferentes e saem no mesmo tick; o ataque vem depois (a recarga
+    // global de magia o separa da cura por magia). Buff só num tick sem magia de cura (a mesma recarga; a cura vem antes).
+    const curou = cura ? this.curar(p, s, now) : { pocao: false, magia: false };
     // Comer não mexe em recarga de magia nem de poção: vai junto com o que mais houver no tick.
-    if (cura && s.config.comer) this.comer(p, s, now);
-    if (!curou && this.buffsLigados(s)) this.buffar(p, s, now);
+    if (cura && s.efetiva.comer) this.comer(p, s, now);
+    if (!curou.magia && this.buffsLigados(s)) this.buffar(p, s, now);
     if (this.ataqueLigado(s)) this.atacar(p, s, now);
     // Depois do ataque: o alvo escolhido neste tick já segura a caminhada (não dá um passo da rota para o lado errado).
     if (this.rodando(s)) { this.vigiar(p, s, now); this.andar(p, s, now); }
@@ -509,9 +519,9 @@ export class EstagiarioSystem {
    */
   private vigiar(p: PlayerState, s: Estado, now: number): void {
     const a = s.avisos;
-    for (const r of s.config.cura) {
-      if (!("pocao" in r.acao)) continue;
-      const kind = r.acao.pocao;
+    // Poções que a cura usa: no modo simples as duas; no avançado, as das regras.
+    const kinds = new Set<QuickPotionKind>(s.config.modo === "simples" ? ["hp", "mana"] : s.efetiva.cura.flatMap((r) => ("pocao" in r.acao ? [r.acao.pocao] : [])));
+    for (const kind of kinds) {
       const n = this.o.potions.countPotions(p, kind);
       if (n >= POCAO_ALARME_MIN) a.pocao.delete(kind);
       else if (!a.pocao.has(kind)) {
@@ -593,51 +603,86 @@ export class EstagiarioSystem {
     if (now - s.estadoEm >= ESTADO_PERIODICO_MS) this.enviarEstado(p, now);
   }
 
+  /** Há colega de grupo ao alcance da magia com menos de `pct`% de vida (regras "aliado" e a cura em grupo do modo simples). */
+  private aliadoAbaixo(p: PlayerState, magia: string, pct: number): boolean {
+    if (!this.o.aliados) return false;
+    const raio = spellDef(magia)?.radius ?? 3;
+    for (const q of this.o.aliados(p)) if (q.hp > 0 && q.maxHp > 0 && cheb(p.x, p.y, q.x, q.y) <= raio && (q.hp / q.maxHp) * 100 < pct) return true;
+    return false;
+  }
+
   /**
-   * Uma ação de cura (magia ou poção) se alguma regra vale; devolve se agiu. A poção só conta se dá para beber (level e
-   * vocação: com só a Grande lv 30 na mochila a regra de poção ganhava todo tick, falhava em silêncio e a magia da
-   * regra seguinte nunca saía). Ação que falha mesmo assim (magia recusada, poção recusada) tenta a regra seguinte.
-   * v2: a poção é a menor que cobre o que falta; a regra "aliado" olha a vida dos colegas de grupo ao alcance da magia.
+   * Cura deste tick, um canal por recarga (v3 etapa 2): a poção (vida ou mana) e a magia de cura (ou de grupo) são
+   * recargas diferentes e saem juntas; devolve o que saiu. Modo simples: a política `decidirCura` com o perfil. Modo
+   * avançado: as regras de poção e as de magia são duas listas, cada uma com "a primeira que vale e está pronta". A
+   * poção só conta se dá para beber (level e vocação). Ação recusada vai ao diário e, no avançado, tenta a regra seguinte.
    */
-  private curar(p: PlayerState, s: Estado, now: number): boolean {
+  private curar(p: PlayerState, s: Estado, now: number): { pocao: boolean; magia: boolean } {
+    if (s.config.modo === "simples") return this.curarSimples(p, s, now);
     const falhou = new Set<CuraAcao>();
     const pronto = (a: CuraAcao) => !falhou.has(a) && ("magia" in a
       ? this.o.spells.ready(p, a.magia, now)
       : this.o.potions.potionReady(p, now) && this.o.potions.canDrink(p, a.pocao));
-    const aliadoAbaixo = (pct: number, a: CuraAcao): boolean => {
-      if (!("magia" in a) || !this.o.aliados) return false;
-      const raio = spellDef(a.magia)?.radius ?? 3;
-      for (const q of this.o.aliados(p)) if (q.hp > 0 && q.maxHp > 0 && cheb(p.x, p.y, q.x, q.y) <= raio && (q.hp / q.maxHp) * 100 < pct) return true;
+    const aliado = (pct: number, a: CuraAcao): boolean => "magia" in a && this.aliadoAbaixo(p, a.magia, pct);
+    const esperando: RegraCura[] = [];
+    const canal = (regras: RegraCura[]): boolean => {
+      for (let k = 0; k < regras.length; k++) {
+        const antes = esperando.length;
+        const acao = escolherCura(p, regras, pronto, aliado, (r) => esperando.push(r));
+        if (!acao) return false;
+        esperando.length = antes; // o que ficou antes da escolhida não é espera
+        if (this.executarCura(p, s, now, acao, this.situacao(p, regras.find((r) => r.acao === acao)!))) return true;
+        falhou.add(acao);
+      }
       return false;
     };
-    // Diário: as regras que valem mas não estão prontas (uma linha "esperando" a cada DIARIO_ESPERA_MS).
-    const esperando: RegraCura[] = [];
-    for (let k = 0; k < s.config.cura.length; k++) {
-      esperando.length = 0;
-      const acao = escolherCura(p, s.config.cura, pronto, aliadoAbaixo, (r) => esperando.push(r));
-      if (!acao) {
-        if (esperando.length && now - s.esperaAnotadaEm >= DIARIO_ESPERA_MS) {
-          s.esperaAnotadaEm = now;
-          this.anotar(s, now, "cura", `${this.situacao(p, esperando[0]!)}: esperando (${esperando.map((r) => this.porQueNaoPronta(p, r, now)).join("; ")})`);
-        }
-        return false;
-      }
-      // A ação devolvida é a da própria regra (mesma referência): o diário diz qual regra valeu.
-      const regra = s.config.cura.find((r) => r.acao === acao);
-      const situacao = regra ? this.situacao(p, regra) : "cura";
-      const hpAntes = p.hp, manaAntes = p.mana;
-      const ok = "magia" in acao
-        ? this.o.spells.cast(p, acao.magia, undefined, { silent: true }).ok
-        : this.o.potions.usePotion(p, acao.pocao, { silent: true, cobrir: acao.pocao === "hp" ? p.maxHp - p.hp : p.maxMana - p.mana });
-      if (ok) {
-        const ganho = "pocao" in acao && acao.pocao === "mana" ? p.mana - manaAntes : p.hp - hpAntes;
-        this.anotar(s, now, "magia" in acao ? "cura" : "pocao", `${situacao} → ${this.nomeDaAcao(acao)}${ganho > 0 ? `, +${ganho}` : ""}`);
-        return true;
-      }
-      falhou.add(acao);
-      this.anotar(s, now, "aviso", `${situacao}: ${this.nomeDaAcao(acao)} recusada`);
-    }
-    return false;
+    const pocao = canal(s.efetiva.cura.filter((r) => "pocao" in r.acao));
+    const magia = canal(s.efetiva.cura.filter((r) => "magia" in r.acao));
+    if (esperando.length) this.anotarEspera(p, s, now, this.situacao(p, esperando[0]!), esperando.map((r) => this.porQueNaoPronta(p, r, now)));
+    return { pocao, magia };
+  }
+
+  /** Modo simples: monta a situação (poções, magias de cura até o level, grupo, escudo) e executa a decisão da política. */
+  private curarSimples(p: PlayerState, s: Estado, now: number): { pocao: boolean; magia: boolean } {
+    const falta = Math.max(0, p.maxHp - p.hp), faltaMana = Math.max(0, p.maxMana - p.mana);
+    const pronta = this.o.potions.potionReady(p, now);
+    const recupera = (k: QuickPotionKind, f: number) =>
+      this.o.potions.potionAmount ? this.o.potions.potionAmount(p, k, f) : this.o.potions.canDrink(p, k) ? Math.max(1, f) : 0;
+    const grupo = curaEmGrupo(p.vocation, p.level);
+    const sit: SituacaoCura = {
+      hp: p.hp, maxHp: p.maxHp, mana: p.mana, maxMana: p.maxMana,
+      pocao: { hp: { pronta, recupera: recupera("hp", falta) }, mana: { pronta, recupera: recupera("mana", faltaMana) } },
+      magias: curasProprias(p.vocation, p.level).map((m) => ({ id: m.id, pronta: this.o.spells.ready(p, m.id, now), cura: curaEstimada(m.heal, p.level, p.magicLevel ?? 0), mana: m.mana })),
+      grupo: grupo ? { id: grupo.id, pronta: this.o.spells.ready(p, grupo.id, now), aliadoBaixo: this.aliadoAbaixo(p, grupo.id, s.config.perfil.conforto) } : undefined,
+      escudoDeMana: this.o.conditions.has(p.id, "manashield"),
+    };
+    const d = decidirCura(sit, s.config.perfil);
+    const pct = (cur: number, max: number) => (max > 0 ? Math.round((cur / max) * 100) : 0);
+    const situacao = d.pocao === "mana" && !d.magia ? `mana ${pct(p.mana, p.maxMana)}%` : `vida ${pct(p.hp, p.maxHp)}%`;
+    const pocao = d.pocao !== null && this.executarCura(p, s, now, { pocao: d.pocao }, d.pocao === "mana" ? `mana ${pct(p.mana, p.maxMana)}%` : `vida ${pct(p.hp, p.maxHp)}%`);
+    const magia = d.magia !== null && this.executarCura(p, s, now, { magia: d.magia }, d.magia === grupo?.id && sit.grupo?.aliadoBaixo ? `aliado abaixo de ${s.config.perfil.conforto}%` : `vida ${pct(p.hp, p.maxHp)}%`);
+    if (d.motivos.length) this.anotarEspera(p, s, now, situacao, d.motivos);
+    return { pocao, magia };
+  }
+
+  /** Executa a poção ou a magia e anota no diário (com o ganho); false se foi recusada. */
+  private executarCura(p: PlayerState, s: Estado, now: number, acao: CuraAcao, situacao: string): boolean {
+    const hpAntes = p.hp, manaAntes = p.mana;
+    const ok = "magia" in acao
+      ? this.o.spells.cast(p, acao.magia, undefined, { silent: true }).ok
+      : this.o.potions.usePotion(p, acao.pocao, { silent: true, cobrir: acao.pocao === "hp" ? p.maxHp - p.hp : p.maxMana - p.mana });
+    if (ok) {
+      const ganho = "pocao" in acao && acao.pocao === "mana" ? p.mana - manaAntes : p.hp - hpAntes;
+      this.anotar(s, now, "magia" in acao ? "cura" : "pocao", `${situacao} → ${this.nomeDaAcao(acao)}${ganho > 0 ? `, +${ganho}` : ""}`);
+    } else this.anotar(s, now, "aviso", `${situacao}: ${this.nomeDaAcao(acao)} recusada`);
+    return ok;
+  }
+
+  /** Diário: "esperando" com os motivos, no máximo a cada DIARIO_ESPERA_MS. */
+  private anotarEspera(_p: PlayerState, s: Estado, now: number, situacao: string, motivos: string[]): void {
+    if (now - s.esperaAnotadaEm < DIARIO_ESPERA_MS) return;
+    s.esperaAnotadaEm = now;
+    this.anotar(s, now, "cura", `${situacao}: esperando (${motivos.join("; ")})`);
   }
 
   /** "vida 42%" / "mana 18%" / "aliado abaixo de 50%": o que fez a regra valer. */
@@ -662,11 +707,12 @@ export class EstagiarioSystem {
     return `${nome} em recarga`;
   }
 
-  /** Cura desligada com a vida abaixo de alguma regra de vida: o diário diz, no máximo a cada DIARIO_CURA_OFF_MS. */
+  /** Cura desligada com a vida abaixo do conforto (ou de alguma regra de vida): o diário diz, no máximo a cada DIARIO_CURA_OFF_MS. */
   private avisarCuraDesligada(p: PlayerState, s: Estado, now: number): void {
     if (p.maxHp <= 0 || now - s.curaOffAnotadaEm < DIARIO_CURA_OFF_MS) return;
     const pct = (p.hp / p.maxHp) * 100;
-    if (!s.config.cura.some((r) => r.quando === "vida" && pct < r.abaixoDe)) return;
+    const vale = s.config.modo === "simples" ? pct < s.config.perfil.conforto : s.efetiva.cura.some((r) => r.quando === "vida" && pct < r.abaixoDe);
+    if (!vale) return;
     s.curaOffAnotadaEm = now;
     this.anotar(s, now, "aviso", `vida ${Math.round(pct)}%: a Cura está desligada`);
   }
@@ -681,7 +727,7 @@ export class EstagiarioSystem {
 
   /** Reconjura o primeiro buff (ou invocação) da lista que acabou (regras em escolherBuff); no máximo um por tick. */
   private buffar(p: PlayerState, s: Estado, now: number): void {
-    if (!s.config.buffs.length) return;
+    if (!s.efetiva.buffs.length) return;
     const ctx = {
       ativo: (c: ConditionId) => this.o.conditions.has(p.id, c),
       invocado: () => (this.o.invocacoes?.(p.id) ?? 0) > 0,
@@ -689,7 +735,7 @@ export class EstagiarioSystem {
       mana: p.mana, maxMana: p.maxMana,
       pronto: (id: string) => this.o.spells.ready(p, id, now),
     };
-    const magia = escolherBuff(s.config.buffs, ctx);
+    const magia = escolherBuff(s.efetiva.buffs, ctx);
     if (magia) {
       if (this.o.spells.cast(p, magia, undefined, { silent: true }).ok) {
         const def = spellDef(magia);
@@ -699,7 +745,7 @@ export class EstagiarioSystem {
     }
     // Nada saiu: se a mana mínima da regra (ou a mana da própria magia) é o que segura, o painel explica.
     const pronta = (id: string) => this.o.spells.ready(p, id, now) || this.o.spells.ready({ ...p, mana: Number.MAX_SAFE_INTEGER } as PlayerState, id, now);
-    if (escolherBuff(s.config.buffs, { ...ctx, mana: Number.MAX_SAFE_INTEGER, maxMana: Number.MAX_SAFE_INTEGER, pronto: pronta })) s.semManaBuffAte = now + MOTIVO_MS;
+    if (escolherBuff(s.efetiva.buffs, { ...ctx, mana: Number.MAX_SAFE_INTEGER, maxMana: Number.MAX_SAFE_INTEGER, pronto: pronta })) s.semManaBuffAte = now + MOTIVO_MS;
   }
 
   private atacar(p: PlayerState, s: Estado, now: number): void {
@@ -731,10 +777,10 @@ export class EstagiarioSystem {
     }
     const alvo = mm.wild(p.targetId);
     if (!alvo) return;
-    if (!s.config.ataque.length) return;
+    if (!s.efetiva.ataque.length) return;
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
     // Nenhuma regra com mana no piso dela (o dela ou a reserva geral): nem resolve nem conta.
-    if (!s.config.ataque.some((r) => manaPct >= pisoDeMana(r, s.config.reservaMana))) return;
+    if (!s.efetiva.ataque.some((r) => manaPct >= pisoDeMana(r, s.efetiva.reservaMana))) return;
     // Magia resolvida uma vez por tick (os grupos do jogador também: lê o save), e os bichos contados uma vez por
     // magia e raio, só se alguma regra tem magia pronta. O resultado é o mesmo de escolherAtaque sem o cache.
     // v2: magia de alvo (ou área no alvo) só conta como pronta com o alvo no alcance e à vista — antes o Golpe Brutal
@@ -760,9 +806,9 @@ export class EstagiarioSystem {
       resolvidas.set(id, r);
       return r;
     };
-    if (!s.config.ataque.some((r) => resolver(r.magia))) {
+    if (!s.efetiva.ataque.some((r) => resolver(r.magia))) {
       // Pronta, mas só fora do alcance: o painel explica ("alvo fora do alcance") enquanto a perseguição aproxima.
-      if (s.config.ataque.some((r) => resolverCom(r.magia, () => true))) s.foraAlcanceAte = now + MOTIVO_MS;
+      if (s.efetiva.ataque.some((r) => resolverCom(r.magia, () => true))) s.foraAlcanceAte = now + MOTIVO_MS;
       return;
     }
     const contagem = new Map<string, number>();
@@ -776,7 +822,7 @@ export class EstagiarioSystem {
       return n;
     };
     const alvoPct = alvo.s.maxHp > 0 ? (alvo.s.hp / alvo.s.maxHp) * 100 : 100;
-    const magia = escolherAtaque(s.config.ataque, bichosEm, manaPct, s.config.reservaMana, resolver, alvoPct);
+    const magia = escolherAtaque(s.efetiva.ataque, bichosEm, manaPct, s.efetiva.reservaMana, resolver, alvoPct);
     if (!magia) return;
     // A onda sai para onde o jogador olha (o último passo): vira para o alvo antes, senão ela varre o lado errado.
     if (spellDef(magia)?.target === "wave") {
@@ -867,7 +913,7 @@ export class EstagiarioSystem {
    */
   private recuar(p: PlayerState, s: Estado, now: number): void {
     const alcance = this.o.attackRange?.(p) ?? 1;
-    if (s.config.distancia <= 0 || alcance <= 1) return;
+    if (s.efetiva.distancia <= 0 || alcance <= 1) return;
     const mm = this.o.monsters;
     const alvo = mm.wild(p.targetId);
     if (!alvo || mm.inPz(p.x, p.y) || !this.o.movement.isIdle(p, now)) return;
@@ -879,7 +925,7 @@ export class EstagiarioSystem {
     }
     if (!ameacas.length) return;
     const t = escolherRecuo({
-      pos: p, alvo: alvo.s, ameacas, distancia: Math.min(s.config.distancia, alcance), alcance, origem: s.lutaOrigem ?? p,
+      pos: p, alvo: alvo.s, ameacas, distancia: Math.min(s.efetiva.distancia, alcance), alcance, origem: s.lutaOrigem ?? p,
       livre: (x, y) => mm.grid.isWalkable(x, y) && !mm.isMonsterAt(x, y) && !mm.inPz(x, y) && !this.ocupado(p, { x, y }),
       visao: (x, y) => mm.los(x, y, alvo.s.x, alvo.s.y),
     });
@@ -891,7 +937,7 @@ export class EstagiarioSystem {
   /** Distância a que a perseguição forçada para: a opção "manter distância", limitada ao alcance do ataque (1 = colado). */
   private pararEm(p: PlayerState, s: Estado): number {
     const alcance = this.o.attackRange?.(p) ?? 1;
-    return s.config.distancia > 0 && alcance > 1 ? Math.min(s.config.distancia, alcance) : 1;
+    return s.efetiva.distancia > 0 && alcance > 1 ? Math.min(s.efetiva.distancia, alcance) : 1;
   }
 
   /** Há outra criatura (monstro, inclusive o acompanhante, ou outro jogador) parada no tile do ponto. */
