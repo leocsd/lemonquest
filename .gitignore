@@ -37,10 +37,3 @@ assets/maps/review/
 .env
 .env.*
 !.env.example
-
-# App de desktop (Tauri): compilação do Rust e arquivos gerados pela CLI
-packages/desktop/src-tauri/target/
-packages/desktop/src-tauri/gen/
-# Ícones de Android/iOS que `tauri icon` gera junto com os de desktop: o app não os usa
-packages/desktop/src-tauri/icons/android/
-packages/desktop/src-tauri/icons/ios/

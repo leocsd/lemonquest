@@ -36,7 +36,3 @@ packages/server/dist
 # Segredos não entram na imagem
 .env
 .env.*
-
-# App de desktop (Tauri): compilação do Rust e arquivos gerados pela CLI nunca entram na imagem
-packages/desktop/src-tauri/target/
-packages/desktop/src-tauri/gen/

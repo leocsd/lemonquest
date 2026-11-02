@@ -11,7 +11,6 @@
 | Benchmark manual | `npx tsx packages/server/src/systems/pathfinding.bench.ts` | custo do A* (µs por caminho) |
 | Carga | servidor E2E (`E2E_PORT=2872 E2E_SKIP_BUILD=1 node e2e/start-server.mjs`) + `node tools/loadtest.mjs http://127.0.0.1:2872 --bots 10 --secs 130` | tick do servidor (log `[tick]`), ida e volta de um passo |
 | Fuzz | servidor E2E com `E2E_ADMINS="Fuzz Inv"` + `node tools/fuzz.mjs <url> --mode proto` / `--mode inventory --name "Fuzz Inv"` | servidor não cai nem registra exceção; inventário sem duplicação |
-| App de desktop | `cargo test` em `packages/desktop/src-tauri` + `appInfo.test.ts` no cliente + checklist manual por sistema | unitários dos módulos `endereco`, `nav`, `boot`, `saude`, `atualizador` e da sonda `appInfo`; instalação, boot, teclas e update em Windows/macOS/Linux à mão (`docs/superpowers/plans/2026-10-31-app-desktop-tauri.md`, Task 11) |
 | CI | `.github/workflows/ci.yml` | typecheck + unitários + build + Docker `/health` + E2E |
 
 Rodar o jogo isolado para testes manuais (não toca no banco real):
