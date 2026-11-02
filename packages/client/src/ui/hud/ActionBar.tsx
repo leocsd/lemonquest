@@ -1,10 +1,9 @@
-// Barra de ações (um slot por atalho de magia) centralizada na área visível, com overlay radial de cooldown e o botão
-// que abre a janela Magias (H). Magia (ou família) ainda bloqueada no level não aparece: o atalho continua salvo e
+// Barra de ações (um slot por atalho de magia) centralizada na área visível, com overlay radial de cooldown. A janela
+// Magias abre pela tecla H ou pelo botão do trilho lateral (2026-11-01: a engrenagem saiu da barra). Magia (ou família) ainda bloqueada no level não aparece: o atalho continua salvo e
 // o slot surge quando ela libera. Magias de alvo mostram o alcance: avermelhada longe do alvo, apagada sem alvo.
 import { spellDef, spellMana } from "@lemonquest/shared";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { activateSlot, cooldownStore, flashStore, shakeStore, slotCountStore, slotRangeStore, slotsStore, type Cooldown, type SlotAction, type SlotRange } from "./actionbar.ts";
-import { toggleHotkeys } from "../hotkeys/hotkeys.ts";
 import { useStore } from "./store.ts";
 import { meStore } from "./world.ts";
 import { swapSlots } from "./castbar.ts";
@@ -27,7 +26,6 @@ export function ActionBar() {
         if (a && level < (a.unlockLevel ?? a.level ?? 0)) return null;
         return <ActionSlot key={i} index={i} action={a} cd={cds[i]} now={now} flash={flashes[i]} shake={shakes[i]} level={level} mana={me?.mana ?? 0} range={ranges[i] ?? null} />;
       })}
-      <button class="action-config" onClick={toggleHotkeys} aria-label="Magias: atalhos e grupos" data-tip="Magias" data-tip-sub="Tecla de cada magia e grupos · H">⚙</button>
     </div>
   );
 }

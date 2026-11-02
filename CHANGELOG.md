@@ -1,5 +1,17 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · acompanhante do Estagiário a 1–2 tiles
+
+Dono: "o estagiário está colando no boneco quando ele anda, pode ficar 1 ou 2 tiles distante". O acompanhante para a 2
+tiles do dono (era 1) e anda 15% mais rápido que ele (`COMPANION_STEP_FACTOR`), para não largar para trás: parado fica a
+2 tiles, andando a 2–3, sem teleportar. O caminho dele é recalculado assim que o dono muda de tile.
+E sempre atrás (dono: "quero que ele fique sempre atrás"): o destino é o tile 2 casas contra a direção em que o dono olha
+(bloqueado → 1 casa atrás → diagonais de trás); se o dono vira, ele contorna para trás.
+Também (dono): o acompanhante se chama só "Estagiário" (sem "de <dono>") e cada um veste uma roupa diferente — um de 18
+moradores do pack, escolhido pelo nome do dono (sempre a mesma para o mesmo dono). Título da janela só com o nome.
+Barra de ações sem a engrenagem: a janela Magias abre pela tecla H ou pelo botão novo "Magias" no trilho à direita (dono: "tire a
+engrenagem das skills, deixa na barra lateral").
+
 ## [Não lançado] — 2026-11-01 · Estagiário: crachá, recomendações por magia, alvo mais perto, sem poção automática
 
 Dono: "quero um ícone mais a cara do jogo ao invés de 🤖", "uma recomendação default nas curas e ataques para cada

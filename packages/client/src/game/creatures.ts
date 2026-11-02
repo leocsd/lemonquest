@@ -54,9 +54,31 @@ export function creatureVisual(defId: string): CreatureVisual {
   return v;
 }
 
-/** Todos os sheets de criaturas do catálogo atual (para preload + animações). */
+/**
+ * Roupas do acompanhante do Estagiário (2026-11-01, dono: "cada estagiário vai ter uma roupa diferente"): moradores do
+ * pack. O nome do dono escolhe a roupa (hash estável): o Estagiário de cada um é sempre o mesmo, e cada jogador tem o seu.
+ */
+const COMPANION_SPRITES: readonly CreatureSprite[] = [
+  "Boy", "Villager", "Villager2", "Villager3", "Villager4", "Villager5", "Villager6", "Woman", "Inspector", "Noble",
+  "ManGreen", "Hunter", "EggBoy", "EggGirl", "Eskimo", "Master", "OldMan", "Princess",
+].map((n) => ({ url: `ninja/Actor/Character/${n}/SpriteSheet.png`, frameWidth: 16, frameHeight: 16, layout: "grid4" }) as CreatureSprite);
+
+/** Índice da roupa para um nome (hash simples e estável, igual em qualquer cliente). */
+export function companionLookIndex(seed: string): number {
+  let h = 0;
+  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h % COMPANION_SPRITES.length;
+}
+
+/** Visual do acompanhante do dono `seed` (nome do dono). */
+export function companionLook(seed: string): CharacterLook {
+  return { sheet: sheetFor(COMPANION_SPRITES[companionLookIndex(seed)]!), tint: 0xffffff };
+}
+
+/** Todos os sheets de criaturas do catálogo atual (para preload + animações), com as roupas do Estagiário. */
 export function allCreatureSheets(): CharacterSheet[] {
   for (const def of Object.values(MONSTERS)) sheetFor(def.sprite);
+  for (const sp of COMPANION_SPRITES) sheetFor(sp);
   return [...sheets.values()];
 }
 
