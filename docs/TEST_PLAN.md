@@ -24,7 +24,9 @@ pelo que o clique faria, criatura vence item no chão, Shift vira lupa só sobre
 `client/src/ui/cursors/cursors.test.ts` (3: PNG 32×32 com hotspot dentro e variável no CSS para cada cursor, os 6 do
 canvas existem, nenhum CSS do cliente com cursor do sistema ou variável inexistente). Build do cliente conferido: as
 variáveis saem com as imagens embutidas (`data:image/png`). Sem E2E novo (cursor não aparece em captura do Playwright);
-conferir à mão no navegador.
+conferir à mão no navegador. Pegar do chão arrastando de longe e largar sem confirmação: `dropConfirm.test.ts` ficou só
+com a venda (as regras de confirmação de largar saíram); o arrasto longe reaproveita o `pickupGround` já coberto pelo E2E
+`ground.spec` (o CI da PR roda).
 
 ## Resultados — métricas e logs (2026-11-01)
 

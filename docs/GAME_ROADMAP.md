@@ -20,6 +20,7 @@ Pedido do dono: "mude o cursor do mouse… coloque na temática, todas as opçõ
 | # | Item | Status | Validação |
 |---|---|---|---|
 | CU-1 | 12 cursores em pixel art (`tools/cursors/generate.mjs` → `client/src/ui/cursors/*.png` + `cursors.css`) e todo `cursor:` do CSS do cliente pelas variáveis | ✅ (2026-11-01) | `ui/cursors/cursors.test.ts` |
+| CU-3 | Arrastar item do chão para um slot de longe: anda até o item e pega (antes o servidor recusava em silêncio); largar no mundo sem confirmação, pilha inteira (Shift escolhe) | ✅ (2026-11-01) | `dropConfirm.test.ts` ajustado; typecheck; E2E `ground.spec` no CI |
 | CU-2 | Canvas do mundo pelo que o clique faria (espada, balão, mão, pegar; lupa com Shift) | ✅ (2026-11-01) | `game/cursor.test.ts`; olhar à mão no navegador |
 
 ## Métricas e logs (2026-11-01)

@@ -1,5 +1,17 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · Pegar do chão arrastando de longe e largar sem confirmação
+
+Dono: "tem hora que eu não consigo puxar o item do chão", "se estiver longe, quero que ele vá para perto do loot" e "não
+quero a tela de confirmação quando eu for dropar um item".
+- **Bug**: arrastar um item do chão até a mochila/equipamento mandava "pegar" na hora, mas o servidor só aceita a 1 tile
+  e recusa longe em silêncio: com o item a 2+ tiles, nada acontecia. Agora o arrasto passa pelo mesmo caminho do clique
+  direito (`pickupGround` da cena, pela ponte `pickup` de `ui/items/ground.ts`): perto pega já; longe, o personagem anda
+  até o lado do item e pega ao chegar, no slot onde o item foi solto.
+- **Largar**: soltar no mundo larga na hora. Sai o "tem certeza?" de raro/épico/lendário/refinado e a barrinha que abria
+  sozinha para pilhas (a pilha vai inteira; `Shift` durante o arraste escolhe a quantidade, como entre slots).
+  `needsDropConfirm`/`dropConfirmText` saíram de `dropConfirm.ts` (fica só a confirmação da venda de item refinado).
+
 ## [Não lançado] — 2026-11-01 · Cursores do mouse no tema limão
 
 Dono: "mude o cursor do mouse no lemon quest, coloque na temática, todas as opções". Doze cursores em pixel art própria

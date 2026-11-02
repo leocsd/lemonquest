@@ -4,7 +4,7 @@ import { Callbacks, type Room } from "@colyseus/sdk";
 import {
   C2S, DROP_RANGE, EMOTES, MONSTERS, S2C, TILE_SIZE, NPC_RANGE,
   eliteName, lineOfSight, monsterAbilitySpell, spellDef, spellsFor, type AttackMsg, type LookGroundMsg, type MonsterTelegraphMsg, type CombatEvent, type ChatMessage, type CombatMsg, type EmoteMsg, type FishCastMsg, type ConditionsMsg, type SkillUpMsg, type SpellCastMsg, type SpellDef, type CreatureDiedMsg, type DiedMsg, type Dir, type LevelUpMsg,
-  type GroundItemView, type MonsterView, type LootMsg, type MoveMsg, type NpcOpenMsg, type NpcSayMsg, type PlayerView, type TurnMsg, type WalkToMsg, type XpGainMsg,
+  type GroundItemView, type MonsterView, type LootMsg, type MoveMsg, type NpcOpenMsg, type NpcSayMsg, type PickupTo, type PlayerView, type TurnMsg, type WalkToMsg, type XpGainMsg,
 } from "@lemonquest/shared";
 import { session } from "../session.ts";
 import { countObjects, startPerfReporter, type TexSource } from "../ui/perf/perf.ts";
@@ -288,6 +288,7 @@ export class WorldScene extends Phaser.Scene {
       },
       myTile: () => { const k = this.known.get(this.myId); return k ? { x: k.x, y: k.y } : null; },
       moveGround: (id, x, y, count) => this.moveGround(id, x, y, count),
+      pickup: (id, to) => this.pickupGround(id, to),
     });
     this.disposers.push(() => setGroundBridge(null));
     const homes = [this.world.spawn, ...["herbalist", "shop"].map((id) => this.npcs.tileOf(id)).filter((t): t is { x: number; y: number } => !!t)];
@@ -868,18 +869,18 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Pegar item do chão: ao lado (ou em cima) = já; longe = anda até ficar ao lado e pega ao chegar. */
-  private pickupGround(id: string) {
+  private pickupGround(id: string, to?: PickupTo) {
     const g = this.ground.get(id);
     const me = this.actors.get(this.myId);
     if (!g || !me || !this.room) return;
     this.pendingNpc = null;
-    if (chebyshev(me.tileX, me.tileY, g.x, g.y) <= 1 && !me.isMoving) { this.pendingGround = null; pickupItem(id); return; }
+    if (chebyshev(me.tileX, me.tileY, g.x, g.y) <= 1 && !me.isMoving) { this.pendingGround = null; pickupItem(id, to); return; }
     // Destino: o próprio tile (se livre) ou o vizinho livre mais perto.
     const onTile = this.world.grid.isWalkable(g.x, g.y) && !this.isOccupiedByOther(g.x, g.y);
     const near = this.freeNeighbor(g, me);
     const dOn = Math.hypot(g.x - me.tileX, g.y - me.tileY);
     const best = near && (!onTile || Math.hypot(near.x - me.tileX, near.y - me.tileY) < dOn) ? near : onTile ? { x: g.x, y: g.y } : null;
-    if (best) this.walkForGround(id, best, () => pickupItem(id));
+    if (best) this.walkForGround(id, best, () => pickupItem(id, to));
   }
 
   /**
