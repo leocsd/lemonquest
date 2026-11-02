@@ -72,8 +72,6 @@ export const DISTANCIAS: readonly number[] = [0, 2, 3, 4];
 export const RECUO_MAX_TILES = 6;
 /** Come quando o "alimentado" tem menos que isto pela frente. */
 export const COMER_ANTES_MS = 60_000;
-/** Magia de área "barata": vale com um bicho só (o Golpe Giratório, 8 de mana, 2,2× o ataque básico). */
-export const MAGIA_BARATA_MANA = 10;
 
 const int = (v: unknown, lo: number, hi: number, dflt: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : dflt;
@@ -86,24 +84,33 @@ const pctOpcional = (v: unknown): number | undefined => { const n = int(v, 0, 10
 const curaDaVocacao = (v: Vocation): string => (v === "fairy" ? "fairy_kiss" : "light_heal");
 
 /**
- * Cura recomendada por vocação: poção forte primeiro na vida baixa; a cura própria da vocação (Limpar Feridas do
- * cavaleiro, Cura Divina do paladino) e a Cura comum NO MESMO limiar — a Cura só sai enquanto a própria está trancada
- * pelo level (antes era 70 % contra 55/60 %, e entre os dois limiares só a Cura saía: 70 de mana por 11 % da vida no
- * cavaleiro, que bebia 51 poções de mana em 4 min e não sobrava mana nem recarga para atacar; v2, 2026-11-02); e a
- * poção de mana. Magos curam mais com a Cura (magic level alto) e aguentam o limiar mais baixo.
+ * Cura recomendada por vocação (afinada no arnês de balanço, 2026-11-02, dono: "o pote cura muito mais e a skill come
+ * tempo de skills para atacar"): a POÇÃO é a cura principal — cura de uma vez (a Grande, 450, é 61 % da vida de um
+ * cavaleiro lv 40 contra 15 % do Limpar Feridas) e não ocupa a recarga global, que fica livre para as magias de ataque.
+ * A cura própria da vocação e a Cura comum (mesmo limiar; a Cura só sai enquanto a própria está trancada pelo level)
+ * ficam de emergência, para quando a poção está em recarga. Medido contra 4 monstros da faixa: cavaleiro lv 40 de 42
+ * para 58 abates em 4 min, paladino de 40 para 50, com a vida mínima mais alta. Magos mantêm a Cura (36 % da vida por
+ * 70 de mana, pool grande) como cura corrente ao lado da poção. Paladino com a poção a 60 %: mesmos abates, vida mínima
+ * 44–51 % em vez de 25–39 %. A poção de mana alimenta as magias (cavaleiro 25 %, paladino 30 %, magos 35 %: mais baixo
+ * derruba os abates, mais alto só gasta poção).
  */
 export function curaRecomendada(v: Vocation): RegraCura[] {
   const hp = (abaixoDe: number): RegraCura => ({ quando: "vida", abaixoDe, acao: { pocao: "hp" } });
   const mp = (abaixoDe: number): RegraCura => ({ quando: "mana", abaixoDe, acao: { pocao: "mana" } });
   const magia = (abaixoDe: number, id: string): RegraCura => ({ quando: "vida", abaixoDe, acao: { magia: id } });
-  if (v === "knight") return [hp(35), magia(60, "wound_cleansing"), magia(60, "light_heal"), mp(25)];
-  if (v === "paladin") return [hp(35), magia(60, "divine_healing"), magia(60, "light_heal"), mp(30)];
-  return [hp(35), magia(55, curaDaVocacao(v)), mp(35)];
+  if (v === "knight") return [hp(50), magia(35, "wound_cleansing"), magia(35, "light_heal"), mp(25)];
+  if (v === "paladin") return [hp(60), magia(35, "divine_healing"), magia(35, "light_heal"), mp(30)];
+  return [hp(50), magia(55, curaDaVocacao(v)), mp(35)];
 }
 
-/** Quantos bichos a até `raio` tiles pedem a magia de área: as de raio 3+ pedem 3; as baratas valem com 1; as outras, 2. */
-const minBichosArea = (s: SpellDef): number =>
-  s.target === "area_self" && (s.radius ?? 1) >= 3 ? 3 : s.mana <= MAGIA_BARATA_MANA ? 1 : 2;
+/**
+ * Quantos bichos a até `raio` tiles pedem a magia de área: as de raio 3+ pedem 2; as outras (raio 1–2 e ondas) valem
+ * com 1. Afinado no arnês (2026-11-02): com 2–3 bichos as áreas ficavam paradas contra um monstro só e o dano era o do
+ * golpe de alvo único; com 1 o feiticeiro passou de 92 para 131 abates em 4 min contra 2 monstros (Explosão de Fogo e
+ * ondas no alvo sozinho), o druida de 94 para 134 e o cavaleiro de 96 para 121 (Giro Feroz), à custa de mais poção de
+ * mana. As de raio 3+ (Inferno, Nevasca, Terremoto, Tempestades) custam 110–260 de mana e esperam 2.
+ */
+const minBichosArea = (s: SpellDef): number => ((s.target === "area_self" || s.target === "area_target") && (s.radius ?? 1) >= 3 ? 2 : 1);
 /** Raio (tiles) em volta do personagem que conta os bichos para a magia: o raio dela, ou o comprimento da onda. */
 const raioDaMagia = (s: SpellDef): number => Math.max(1, Math.min(4, s.target === "wave" ? s.length ?? 1 : s.radius ?? 1));
 
@@ -139,16 +146,18 @@ export const buffsDaVocacao = (v: Vocation): SpellDef[] => spellsFor(v).filter((
 
 /**
  * Buffs recomendados por vocação: a pressa sempre (fora de combate também, para andar a rota mais rápido); o cavaleiro
- * segura Pele de Ferro e Fúria na luta; magos e a fada, o escudo de mana na luta; druida e fada mantêm a invocação na
- * luta (v2). Acima do level, a regra é pulada.
+ * segura Pele de Ferro e Fúria na luta (medido: sempre ou sem buff rende o mesmo em bando, mas a vida mínima cai);
+ * magos e a fada mantêm o escudo de mana SEMPRE (afinado 2026-11-02: o primeiro golpe do bando chegava antes do escudo
+ * "em combate"; sempre ligado, +6 % de abates e vida mínima 20 % em vez de 7 % no lv 40); druida e fada mantêm a
+ * invocação na luta (sempre gasta 90 de mana a cada minuto andando e rendeu menos). Acima do level, a regra é pulada.
  */
 export function buffsRecomendados(v: Vocation): RegraBuff[] {
   const b = (magia: string, quando: BuffQuando): RegraBuff => ({ magia, quando });
   if (v === "knight") return [b("swift_feet", "sempre"), b("iron_skin", "combate"), b("berserk", "combate")];
   if (v === "paladin") return [b("swift_feet", "sempre")];
-  if (v === "fairy") return [b("bubble_bath", "combate"), b("swift_wings", "sempre"), b("summon_butterfly", "combate")];
-  if (v === "druid") return [b("mana_shield", "combate"), b("swift_feet", "sempre"), b("summon_wolf", "combate")];
-  return [b("mana_shield", "combate"), b("swift_feet", "sempre")];
+  if (v === "fairy") return [b("bubble_bath", "sempre"), b("swift_wings", "sempre"), b("summon_butterfly", "combate")];
+  if (v === "druid") return [b("mana_shield", "sempre"), b("swift_feet", "sempre"), b("summon_wolf", "combate")];
+  return [b("mana_shield", "sempre"), b("swift_feet", "sempre")];
 }
 
 const RESERVA_MANA: Partial<Record<Vocation, number>> = { knight: 20, paladin: 25 };
