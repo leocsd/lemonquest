@@ -1,5 +1,24 @@
 # Changelog
 
+## [Não lançado] — 2026-11-02 · Estagiário: recomendações afinadas no arnês (poção primeiro, áreas com 1 bicho, escudo sempre)
+
+Dono: "faz sentido usar a cura ao invés de pote com kina? O pote cura muito mais e a skill come tempo de skills para
+atacar" e "faça essa análise para todas as classes e skills". Grid de variantes de cura, ataque, buffs e distância por
+vocação (lv 20/40/60, duas sementes, 4 e 2 monstros, com e sem poção de mana) no `estagiarioSimKit.ts` (o simulador
+extraído de `estagiarioBalance.test.ts`); tabela na seção 8 da spec `docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md`.
+- **Poção primeiro** em todas as vocações (`curaRecomendada`): cavaleiro `poção <50 · Limpar Feridas <35 · Cura <35 ·
+  mana <25`; paladino `poção <60 · Cura Divina <35 · Cura <35 · mana <30`; magos `poção <50 · Cura <55 · mana <35`. A
+  poção cura de uma vez e não ocupa a recarga global, que fica para as magias de ataque. Medido (4 monstros, 4 min, soma
+  dos levels): cavaleiro de 112 para 156 abates, paladino de 115 para 151, com a vida mínima mais alta.
+- **Áreas com 1 bicho** (`minBichosArea`): raio 1–2 e ondas valem contra um monstro só; raio 3+ (Inferno, Nevasca,
+  Terremoto, Tempestades, Chuva de Estrelas, Onda Sagrada) esperam 2. Feiticeiro de 92 para 131 abates com 2 monstros,
+  druida de 94 para 134, cavaleiro de 96 para 121.
+- **Escudo de Mana sempre** nos magos e na fada (`buffsRecomendados`): "em combate" chegava depois do primeiro golpe do
+  bando; vida mínima do feiticeiro lv 40 de 7 % para 20 %. Lobo/Borboleta seguem em combate (sempre rende menos).
+- Ficam como estavam: distância 3 para quem atira (colado ganha em bando e perde com 2 monstros), reserva de mana
+  20/25/30, ordem área → alvo (só alvo ou só área rende 15–60 % menos), buffs do cavaleiro em combate.
+- Quem já salvou configuração própria mantém a sua: "Usar recomendado" nas abas Cura, Ataque e Buffs.
+
 ## [Não lançado] — 2026-11-02 · Estagiário v2: economia de mana, regras mais ricas e distância para quem atira
 
 Dono: "deixar o bot bem flexível, bom e otimizado para o jogo, sem perder a graça; os buffs de correr não saem

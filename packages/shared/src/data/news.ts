@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-02b",
+    date: "2 de novembro",
+    title: "Estagiário afinado",
+    items: [
+      "Recomendações novas, medidas em caça simulada: a poção de vida vira a cura principal (cura mais e deixa a recarga livre para atacar); a magia de cura fica de emergência.",
+      "Cavaleiro e paladino matam ~35% mais. Magias de área de raio 1–2 e ondas saem contra um bicho só; as grandes (Inferno, Nevasca, Terremoto, Tempestades) esperam dois.",
+      "Feiticeiro, druida e fada mantêm o Escudo de Mana o tempo todo, não só em combate.",
+      "Para pegar o novo, clique \"Usar recomendado\" nas abas Cura, Ataque e Buffs. Quem já ajustou as regras continua com as suas.",
+    ],
+  },
+  {
     id: "2026-11-02a",
     date: "2 de novembro",
     title: "Estagiário mais esperto",

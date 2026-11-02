@@ -41,6 +41,15 @@ e síncrono, erro de disco avisado uma vez, retenção de 30 dias, CLI `metricas
 limitada, some ao sair, banco em memória sem arquivos; `/metricas` só para admin). Todos os testes usam pasta temporária
 ou banco em memória (nenhum arquivo em `data/`). Sem E2E novo (nada visível para o jogador); o CI da PR roda a suíte E2E.
 
+## Resultados — Estagiário afinado (2026-11-02, segunda rodada)
+
+O simulador do teste de balanço virou o kit `server/src/systems/estagiarioSimKit.ts` (sem testes próprios; o
+`estagiarioBalance.test.ts` o importa). Grid temporário (não fica no repositório): por vocação, 8 curas × 9 ataques ×
+4–5 buffs × 4 distâncias, lv 20/40/60, duas sementes, contra 4 monstros; depois as combinações vencedoras contra 4 e 2
+monstros e sem poção de mana (~1.000 caças simuladas de 4 min). Recomendações trocadas em `shared/estagiario.ts`
+(`curaRecomendada`, `minBichosArea`, `buffsRecomendados`); `shared/src/estagiario.test.ts` (24) e o balanço (6) refeitos
+com os números novos; typecheck 3× tsc; suíte inteira: **1925 passando (154 arquivos)**. Tabela na seção 8 da spec.
+
 ## Resultados — Estagiário v2 (2026-11-02)
 
 Typecheck 3× tsc; suíte unitária inteira: **1924 passando (154 arquivos)**. Novo: `server/src/systems/estagiarioBalance.test.ts`
