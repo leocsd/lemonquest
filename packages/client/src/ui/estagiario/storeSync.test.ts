@@ -1,14 +1,14 @@
 // Envio e confirmação da configuração do Estagiário (store.ts): o transporte (items/net.ts → session.ts, que lê
 // `location` ao carregar) é trocado por um espião.
-import { C2S, estagiarioPadrao, type EstagiarioConfig, type EstagiarioEstadoMsg } from "@lemonquest/shared";
+import { C2S, DIARIO_MAX, estagiarioPadrao, type DiarioItem, type EstagiarioConfig, type EstagiarioEstadoMsg } from "@lemonquest/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sent: { type: string; msg: unknown }[] = [];
 vi.mock("../items/net.ts", () => ({ send: (type: string, msg: unknown) => { sent.push({ type, msg }); } }));
 
 const {
-  ESTAGIARIO_SEND_DELAY_MS, PENDENTE_MS, aplicarRascunho, descartarRascunho, editarRascunho, estagiarioStore, flushConfig, ligar,
-  onEstadoFromServer, rascunhoStore, rascunhoSujo, resetRascunho, salvarConfig,
+  ESTAGIARIO_SEND_DELAY_MS, PENDENTE_MS, aplicarRascunho, descartarRascunho, diarioStore, editarRascunho, estagiarioStore, flushConfig, ligar,
+  onDiarioFromServer, onEstadoFromServer, rascunhoStore, rascunhoSujo, resetRascunho, salvarConfig,
 } = await import("./store.ts");
 
 const ROTA = { nome: "Ratos", pontos: [{ x: 1, y: 1 }] };
@@ -115,5 +115,25 @@ describe("estagiário: rascunho com Aplicar", () => {
     descartarRascunho();
     expect(sujo()).toBe(false);
     expect(rascunhoStore.get()!.reservaMana).toBe(base().reservaMana);
+  });
+});
+
+describe("estagiário: diário (S2C.EstagiarioDiario, v3)", () => {
+  it("acrescenta no fim, guarda só as últimas DIARIO_MAX, 'tudo' substitui, lixo é ignorado e sala nova zera", () => {
+    resetRascunho();
+    const item = (t: number): DiarioItem => ({ t, canal: "pocao", texto: `p${t}` });
+    onDiarioFromServer({ itens: [item(1), item(2)] });
+    onDiarioFromServer({ itens: [item(3), { t: "x", canal: "pocao", texto: "" } as never, { t: 4, canal: "nada", texto: "" } as never] });
+    expect(diarioStore.get().map((i) => i.t)).toEqual([1, 2, 3]);
+    onDiarioFromServer({ itens: Array.from({ length: DIARIO_MAX + 5 }, (_, i) => item(100 + i)) });
+    expect(diarioStore.get()).toHaveLength(DIARIO_MAX);
+    expect(diarioStore.get().at(-1)!.t).toBe(100 + DIARIO_MAX + 4);
+    onDiarioFromServer({ itens: [item(7)], tudo: true });
+    expect(diarioStore.get().map((i) => i.t)).toEqual([7]);
+    onDiarioFromServer(null as never);
+    onDiarioFromServer({ itens: "x" } as never);
+    expect(diarioStore.get()).toHaveLength(1);
+    resetRascunho();
+    expect(diarioStore.get()).toEqual([]);
   });
 });

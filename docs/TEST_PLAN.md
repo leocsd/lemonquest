@@ -16,6 +16,20 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Estagiário v3, etapa 1 (2026-11-02)
+
+Typecheck 3× tsc; suíte unitária inteira: 1934 passando (154 arquivos). Novos: `shared/src/estagiario.test.ts` (+2:
+`sanitizeLigado` só com os `true`; `naoPronta` recebe cada regra que vale mas não está pronta, até a primeira pronta),
+`server/src/systems/estagiario.test.ts` (+6, 103 no arquivo: o que estava ligado volta no load depois de
+`CARENCIA_LOGIN_MS` e ligar à mão zera a carência; a rota liga a Cura e o save guarda só a escolha do jogador; diário:
+poção com o ganho e o interruptor, "esperando" com os motivos a cada 2 s e o motivo "nenhuma poção que você possa
+beber", "a Cura está desligada" a cada 10 s e nunca com a vida cheia, as últimas 50 linhas e o `tudo` ao reconectar,
+rota ligada/pausada/desligada com o motivo + buff + comida + alarme), `client/src/ui/estagiario/storeSync.test.ts` (+1:
+o store do diário acrescenta, corta em 50, `tudo` substitui, lixo é ignorado e sala nova zera). Mudados para a semântica
+nova: `estagiario.test.ts` (desligarTudo guarda o interruptor e só para; `reconectou` volta depois da carência) e
+`WorldRoom.test.ts` (queda mantém cura/ataque, reconnect reenvia o estado com eles, o `ligado` vai no save e volta no
+próximo login). Sem E2E novo: o `estagiario.spec.ts` já liga a rota (agora com a Cura junto) e o CI da PR roda.
+
 ## Resultados — cursores do tema limão (2026-11-01)
 
 Typecheck 3× tsc; suíte unitária inteira: 1900 passando (154 arquivos). Novos: `client/src/game/cursor.test.ts` (3: cursor

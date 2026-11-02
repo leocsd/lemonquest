@@ -1,12 +1,13 @@
 // Janela "Estagiário" (bot de caça; quem decide e age é o servidor, aqui só a configuração e o estado). Cabeçalho com os
-// interruptores de Cura, Ataque e Buffs, a rota rodando e o turno restante; cinco abas: Cura, Ataque, Buffs, Rota e Alarmes. Cura,
-// ataque, buffs, reserva de mana e alarmes mexem num rascunho (store.ts rascunhoStore) que só vai no "Aplicar"; ligar/desligar,
-// gravar, renomear e apagar rota vão na hora. Abre pelo 🤖 do trilho. Molde: items/LootFilterWindow.tsx.
+// interruptores de Cura, Ataque e Buffs (a rota liga os três), a rota rodando e o turno restante; seis abas: Cura, Ataque, Buffs,
+// Rota, Alarmes e Diário (v3: o que o servidor fez e por que esperou). Cura, ataque, buffs, reserva de mana e alarmes mexem
+// num rascunho (store.ts rascunhoStore) que só vai no "Aplicar"; ligar/desligar, gravar, renomear e apagar rota vão na hora.
+// Abre pelo 🤖 do trilho. Molde: items/LootFilterWindow.tsx.
 import {
-  ALARMES, DISTANCIAS, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao, buffsRecomendados,
-  curaRecomendada, spellDef, spellsFor,
-  type AlarmeTipo, type CuraAcao, type CuraQuando, type EstagiarioConfig, type EstagiarioEstadoMsg, type RegraAtaque, type RegraBuff, type RegraCura,
-  type Vocation,
+  ALARMES, DIARIO_MAX, DISTANCIAS, NOME_ROTA_MAX, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao,
+  buffsRecomendados, curaRecomendada, spellDef, spellsFor,
+  type AlarmeTipo, type CuraAcao, type CuraQuando, type DiarioCanal, type DiarioItem, type EstagiarioConfig, type EstagiarioEstadoMsg,
+  type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
 } from "@lemonquest/shared";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { groupsStore } from "../hotkeys/hotkeys.ts";
@@ -17,19 +18,26 @@ import { useWindowDrag } from "../hud/useWindowDrag.ts";
 import { meStore } from "../hud/world.ts";
 import { bindOverlay } from "../overlays.ts";
 import {
-  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, editarRascunho,
-  estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, ondeConta, QUANDO_BUFF,
-  rascunhoStore, rascunhoSujo, removerRegra, renomearRota, rotuloBuff, rotuloDistancia, salvarConfig, setRegra, turnoMostrado,
+  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, diarioStore,
+  editarRascunho, estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra, ondeConta,
+  QUANDO_BUFF, rascunhoStore, rascunhoSujo, removerRegra, renomearRota, rotuloBuff, rotuloDistancia, salvarConfig, setRegra, turnoMostrado,
 } from "./store.ts";
 import "./estagiario.css";
 
 // Esc pela pilha de sobreposições (a última janela aberta fecha primeiro), também com o foco num campo da janela.
 bindOverlay("estagiario", estagiarioOpen, (v) => v, () => closeEstagiario(), ".est-win");
 
-type Aba = "cura" | "ataque" | "buffs" | "rota" | "alarmes";
+type Aba = "cura" | "ataque" | "buffs" | "rota" | "alarmes" | "diario";
 const ABAS: { id: Aba; label: string }[] = [
   { id: "cura", label: "Cura" }, { id: "ataque", label: "Ataque" }, { id: "buffs", label: "Buffs" }, { id: "rota", label: "Rota" }, { id: "alarmes", label: "Alarmes" },
+  { id: "diario", label: "Diário" },
 ];
+
+const CANAL_LABEL: Record<DiarioCanal, string> = {
+  cura: "cura", pocao: "poção", buff: "buff", comer: "comida", rota: "rota", interruptor: "ligar", aviso: "aviso",
+};
+/** Hora local "14:05:09" de uma linha do diário. */
+export const fmtHora = (t: number): string => new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 const ALARME_LABEL: Record<AlarmeTipo, { nome: string; quando: string }> = {
   pocao: { nome: "Poção acabando", quando: "menos de 10 poções do tipo usado na cura" },
@@ -83,6 +91,7 @@ function EstagiarioDialog() {
             {aba === "buffs" && <AbaBuffs c={{ ...e.config, ...r }} voc={me.vocation} level={me.level} />}
             {aba === "rota" && <AbaRota e={e} />}
             {aba === "alarmes" && <AbaAlarmes c={{ ...e.config, ...r }} />}
+            {aba === "diario" && <AbaDiario />}
           </div>
           {rascunhoSujo(r, e.config) && (
             <div class="est-pend" role="status">
@@ -106,7 +115,10 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
   return (
     <div class="est-head">
       <div class="est-switches">
-        <Interruptor label="Cura" on={e.cura} onClick={() => ligar({ cura: !e.cura })} testid="est-cura" />
+        <Interruptor
+          label="Cura" on={e.cura} disabled={pelaRota} hint={pelaRota ? "ligada pela rota" : undefined}
+          onClick={() => ligar({ cura: !e.cura })} testid="est-cura"
+        />
         <Interruptor
           label="Ataque" on={e.ataque} disabled={pelaRota} hint={pelaRota ? "ligado pela rota" : undefined}
           onClick={() => ligar({ ataque: !e.ataque })} testid="est-ataque"
@@ -340,8 +352,8 @@ function AbaBuffs({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; level
     <div class="est-pane">
       <p class="est-note">
         Mantém os buffs (e a invocação) ativos: quando um acaba, conjura de novo (um por vez, depois da cura). "Em combate" = deu ou levou
-        dano há pouco. Só sai se depois dele ainda sobra mana para a sua cura mais cara (o escudo de mana sai sempre); "mana ≥" é uma
-        exigência a mais sua (0 = nenhuma). Acima do seu level, o buff é pulado.
+        dano há pouco. Sai sempre que a magia tem mana (a reserva de mana do ataque não segura buff); "mana ≥" é uma exigência a mais
+        sua (0 = nenhuma). Acima do seu level, o buff é pulado.
       </p>
       {c.buffs.length === 0 && <div class="est-empty">Nenhum buff.</div>}
       <ol class="est-rules">
@@ -468,6 +480,35 @@ function CampoNome({ label, value, onInput, onEnter, testid }: { label: string; 
       ref={ref} class="est-text est-grow" maxLength={NOME_ROTA_MAX} placeholder={label} aria-label={label} value={value} data-testid={testid}
       onInput={(ev) => onInput(val(ev))} onKeyDown={(ev) => { if (ev.key === "Enter") onEnter(); }}
     />
+  );
+}
+
+// ---------- Diário ----------
+
+/** As últimas decisões do servidor, a mais nova em cima (v3: "por que ele não usou pote?" se responde aqui). */
+function AbaDiario() {
+  const diario = useStore(diarioStore);
+  const linhas = useMemo(() => [...diario].reverse(), [diario]);
+  return (
+    <div class="est-pane">
+      <p class="est-note">
+        As últimas {DIARIO_MAX} decisões do Estagiário nesta sessão: cada cura, poção, buff e comida, por que ele esperou (poção em
+        recarga, magia sem mana, nenhuma poção que você possa beber), a rota e os alarmes.
+      </p>
+      {linhas.length === 0 ? (
+        <div class="est-empty">Nada ainda.</div>
+      ) : (
+        <ul class="est-diario" data-testid="est-diario">
+          {linhas.map((l: DiarioItem, i) => (
+            <li key={`${l.t}-${linhas.length - i}`} class={`est-diario-linha est-diario-${l.canal}`}>
+              <span class="est-diario-hora">{fmtHora(l.t)}</span>
+              <span class="est-diario-canal">{CANAL_LABEL[l.canal]}</span>
+              <span class="est-diario-texto">{l.texto}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

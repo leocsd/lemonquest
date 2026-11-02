@@ -91,3 +91,14 @@
 /* v2: linha opcional da regra (mana mínima, vida do alvo) e a opção de distância. */
 .est-opc { flex-basis: 100%; color: var(--hud-muted, #8b93ad); font-size: 11px; }
 .est-opc .est-num { width: 44px; padding: 1px 4px; font-size: 11px; }
+
+/* v3: diário de decisões (a mais nova em cima): hora, canal e o texto do servidor. */
+.est-diario { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; }
+.est-diario-linha { display: flex; align-items: baseline; gap: 6px; padding: 2px 4px; border-radius: 4px; }
+.est-diario-linha:nth-child(odd) { background: rgba(255, 255, 255, 0.03); }
+.est-diario-hora { flex: 0 0 auto; color: var(--hud-muted, #8b93ad); font-variant-numeric: tabular-nums; }
+.est-diario-canal { flex: 0 0 44px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--hud-gold); }
+.est-diario-texto { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.est-diario-aviso .est-diario-canal { color: #ffcf7a; }
+.est-diario-pocao .est-diario-canal { color: #ff9a92; }
+.est-diario-cura .est-diario-canal { color: #9ee6a0; }

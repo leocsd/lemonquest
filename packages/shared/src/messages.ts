@@ -5,7 +5,7 @@ import type { Hotkey } from "./hotkeys.ts";
 import type { LootFilter } from "./lootFilter.ts";
 import type { SpellGroup } from "./data/spellFamilies.ts";
 import type { PartyShareReason } from "./party.ts";
-import type { AlarmeTipo, EstagiarioConfig } from "./estagiario.ts";
+import type { AlarmeTipo, DiarioItem, EstagiarioConfig } from "./estagiario.ts";
 export type { SkillId };
 import type { EquipSlot, ItemInstance, Rarity, Stats } from "./data/items.ts";
 import type { ArenaModId, ArenaTimeRecord } from "./data/arena.ts";
@@ -126,6 +126,11 @@ export interface EstagiarioEstadoMsg {
 }
 /** S2C.EstagiarioAlarme: aviso para o jogador (som, toast e título da aba). */
 export interface EstagiarioAlarmeMsg { tipo: AlarmeTipo; texto: string }
+/**
+ * S2C.EstagiarioDiario (v3 etapa 1): linhas novas do diário de decisões (no máximo uma mensagem por tick, só quando há
+ * linha nova); `tudo` = a lista inteira (ao reconectar), que substitui a da janela.
+ */
+export interface EstagiarioDiarioMsg { itens: DiarioItem[]; tudo?: boolean }
 /** S2C.LootFilter: filtro do loot automático gravado no personagem (ao entrar, ao reconectar e após cada mudança). */
 export interface LootFilterMsg { filter: LootFilter }
 
@@ -332,6 +337,8 @@ export const S2C = {
   EstagiarioEstado: "estagiarioEstado",
   /** Alarme do Estagiário (EstagiarioAlarmeMsg): pausou ou precisa de você. */
   EstagiarioAlarme: "estagiarioAlarme",
+  /** Diário do Estagiário (EstagiarioDiarioMsg): cada cura, poção, buff e por que ele esperou. */
+  EstagiarioDiario: "estagiarioDiario",
 } as const;
 
 /** Ocorrência da agenda. Horários em ms epoch, calculados no fuso do servidor (o mesmo do agendador). */

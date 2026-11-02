@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-02c",
+    date: "2 de novembro",
+    title: "Estagiário: a Cura fica ligada e um diário explica tudo",
+    items: [
+      "Cura, Ataque e Buffs ficam salvos no personagem: ao entrar de novo ou recarregar a página, voltam como estavam (3 s depois). A rota continua ligando à mão.",
+      "Ligar a rota agora liga a Cura também, como já fazia com Ataque e Buffs. Antes a Cura nascia desligada a cada entrada, e dava para caçar sem beber poção sem perceber.",
+      "Aba nova \"Diário\" na janela: cada poção e cura com quanto recuperou, por que ele esperou (poção em recarga, nenhuma poção que você possa beber, magia sem mana), rota e alarmes.",
+      "Com a vida baixa e a Cura desligada, o diário avisa. Sem poção de vida que você possa beber, também.",
+    ],
+  },
+  {
     id: "2026-11-02b",
     date: "2 de novembro",
     title: "Estagiário afinado",

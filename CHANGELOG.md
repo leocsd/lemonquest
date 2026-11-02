@@ -1,5 +1,24 @@
 # Changelog
 
+## [Não lançado] — 2026-11-02 · Estagiário v3, etapa 1: Cura salva e ligada pela rota, diário de decisões
+
+Dono: "quando a vida abaixou muito, ele não usou pote". Leitura do banco de produção: o cavaleiro dele tinha "poção
+abaixo de 80 %" como primeira regra e 349 Poções Supremas na mochila — a única explicação era o interruptor Cura
+desligado, que voltava a desligado a cada entrada e a cada recarga da página, e que a rota não ligava. Abordagem nova
+em `docs/superpowers/specs/2026-11-02-estagiario-v3-abordagem.md` (etapas 2–4 🧭); esta é a etapa 1.
+- **Interruptores salvos** (`CharacterData.estagiario.ligado`, só os `true`): Cura, Ataque e Buffs voltam como
+  estavam ao entrar de novo ou recarregar a página, depois de 3 s de carência (`CARENCIA_LOGIN_MS`; ligar algo à mão
+  zera). Na queda ou ao fechar o cliente o Estagiário só **para** (`desligarTudo` suspende; a rota desliga e a gravação
+  se perde) e `reconectou` volta a agir. Contraria a spec de 01/11 ("desconectou: cura e ataque desligam"); aprovado.
+- **Cura ligada pela rota**, como Ataque e Buffs (`curaLigada`); o interruptor fica travado com "ligada pela rota".
+- **Diário** (aba nova na janela; `S2C.EstagiarioDiario`, 50 linhas, uma mensagem por tick com as novas; inteiro ao
+  reconectar): cada poção e cura com o ganho ("vida 42 % → poção de vida, +450"), "esperando" com os motivos (poção
+  em recarga, nenhuma poção que você possa beber, magia em recarga/sem mana/acima do level) no máximo a cada 2 s,
+  "a Cura está desligada" com a vida abaixo de uma regra a cada 10 s, buffs, comida, rota (ligada, pausada, desligada
+  com o motivo), interruptores e alarmes. É a resposta a "por que ele não usou pote?".
+- `escolherCura` ganha `naoPronta(regra)` (shared) para o diário; `sanitizeLigado`. Texto da aba Buffs corrigido (a
+  frase "sobra mana para a cura" era da v1).
+
 ## [Não lançado] — 2026-11-02 · Estagiário: recomendações afinadas no arnês (poção primeiro, áreas com 1 bicho, escudo sempre)
 
 Dono: "faz sentido usar a cura ao invés de pote com kina? O pote cura muito mais e a skill come tempo de skills para

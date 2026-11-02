@@ -20,9 +20,22 @@ export interface RegraAtaque { minBichos: number; raio: number; magia: string; m
 export type BuffQuando = "sempre" | "combate" | "fora";
 /**
  * Buff (ou invocação, v2) mantido: reconjura `magia` quando a condição dela acaba (ou a invocação some).
- * `manaMin` (%): só com mana a partir daí (ausente = sem exigência além da sobra para a cura, ver escolherBuff).
+ * `manaMin` (%): só com mana a partir daí (ausente = só a mana da própria magia, ver escolherBuff).
  */
 export interface RegraBuff { magia: string; quando: BuffQuando; manaMin?: number }
+/**
+ * v3 etapa 1 (2026-11-02, dono: "quando a vida abaixou muito, ele não usou pote" — a Cura nascia desligada a cada
+ * entrada): o que o jogador deixou ligado fica salvo no personagem e volta ao entrar de novo. A rota não (gasta turno).
+ * Só os `true` são gravados.
+ */
+export interface EstagiarioLigado { cura?: boolean; ataque?: boolean; buffs?: boolean }
+export const LIGADOS: readonly (keyof EstagiarioLigado)[] = ["cura", "ataque", "buffs"];
+/** Diário (v3 etapa 1): de onde veio cada anotação, para a janela rotular. */
+export type DiarioCanal = "cura" | "pocao" | "buff" | "comer" | "rota" | "interruptor" | "aviso";
+/** Uma linha do diário: quando (ms epoch), o canal e o texto curto em português ("vida 42% → poção de vida, +450"). */
+export interface DiarioItem { t: number; canal: DiarioCanal; texto: string }
+/** Quantas linhas o diário guarda (servidor e janela). */
+export const DIARIO_MAX = 50;
 /** `portal`: o tile do portal pisado na gravação (a rota anda até ele para atravessar de novo). */
 export interface PontoRota { x: number; y: number; portal?: boolean }
 export interface RotaCaca { nome: string; pontos: PontoRota[] }
@@ -282,13 +295,22 @@ export function avancarTurno(t: TurnoEstado | undefined, now: number, rodando: b
   return { ms: Math.round(ms), em: now };
 }
 
+/** O que o jogador deixou ligado, vindo do save (qualquer coisa que não seja `true` vale desligado). */
+export function sanitizeLigado(raw: unknown): EstagiarioLigado {
+  const r = obj(raw);
+  const out: EstagiarioLigado = {};
+  if (r) for (const k of LIGADOS) if (r[k] === true) out[k] = true;
+  return out;
+}
+
 /**
  * Cura a fazer agora: a primeira regra que vale e está pronta. `aliadoAbaixo(pct, acao)`: há colega de grupo ao
- * alcance da magia com menos de `pct`% de vida (regras "aliado"; ausente = nunca).
+ * alcance da magia com menos de `pct`% de vida (regras "aliado"; ausente = nunca). `naoPronta(regra)` (v3, diário):
+ * chamada para cada regra que vale mas cuja ação não está pronta — o servidor anota por que a cura está esperando.
  */
 export function escolherCura(
   c: { hp: number; maxHp: number; mana: number; maxMana: number }, regras: readonly RegraCura[], pronto: (a: CuraAcao) => boolean,
-  aliadoAbaixo?: (pct: number, acao: CuraAcao) => boolean,
+  aliadoAbaixo?: (pct: number, acao: CuraAcao) => boolean, naoPronta?: (r: RegraCura) => void,
 ): CuraAcao | null {
   for (const r of regras) {
     if (r.quando === "aliado") {
@@ -298,6 +320,7 @@ export function escolherCura(
       if (max <= 0 || (cur / max) * 100 >= r.abaixoDe) continue;
     }
     if (pronto(r.acao)) return r.acao;
+    naoPronta?.(r);
   }
   return null;
 }

@@ -1253,7 +1253,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (this.shuttingDown || !this.records.has(sid) || code === CloseCode.WITH_ERROR || code === CLOSE_REPLACED || code === CLOSE_TRAINING || code === CLOSE_KICKED) return; // → onLeave
     const p = this.state.players.get(sid);
     if (p) { this.movement.teleport(p, p.x, p.y); this.pauseAuto(p); } // para de andar e de escolher alvos sozinho
-    if (p) this.estagiario.desligarTudo(p); // queda (até a espera de reconexão) desliga o Estagiário; voltar não religa
+    if (p) this.estagiario.desligarTudo(p); // queda: o Estagiário para até reconectar (a rota desliga; cura/ataque/buffs voltam com ele)
     console.log(`[world] ${p?.name ?? sid} caiu (código ${code}); aguardando reconexão por ${RECONNECT_S} s`);
     const r = this.allowReconnection(client, RECONNECT_S);
     this.reconnecting.set(sid, r);
@@ -1274,7 +1274,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.quests.resend(sid);
     { const rec = this.records.get(sid), p = this.state.players.get(sid); if (rec && p) client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation)); }
     client.send(S2C.LootFilter, { filter: this.lootFilterOf(sid) } satisfies LootFilterMsg);
-    { const p = this.state.players.get(sid); if (p) client.send(S2C.EstagiarioEstado, this.estagiario.estado(p)); }
+    { const p = this.state.players.get(sid); if (p) { this.estagiario.reconectou(p); client.send(S2C.EstagiarioEstado, this.estagiario.estado(p)); } }
     this.ach.sendState(sid);
     this.party.resend(sid);
     this.trade.resend(sid);
@@ -1291,7 +1291,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const name = this.names.get(sid);
     const kicked = this.kicked.delete(sid) || code === CLOSE_KICKED || code === CLOSE_TRAINING;
     const ms = kicked ? 0 : this.lingerMs(sid, code === CloseCode.CONSENTED);
-    { const p = this.state.players.get(sid); if (p) this.estagiario.desligarTudo(p); } // fechou o cliente: desliga (também na permanência)
+    { const p = this.state.players.get(sid); if (p) this.estagiario.desligarTudo(p); } // fechou o cliente: para (também na permanência); o que estava ligado vai no save
     if (ms > 0) {
       const p = this.state.players.get(sid);
       if (p) {

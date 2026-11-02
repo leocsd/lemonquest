@@ -1,12 +1,13 @@
 // Estagiário no servidor: cura, ataque, turno, liga/desliga da rota, pausas, gravação e caminhada da rota.
 import { describe, expect, it, vi } from "vitest";
 import {
-  BUSCA_TILES, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS, estagiarioPadrao,
-  type EstagiarioConfig, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
+  BUSCA_TILES, DIARIO_MAX, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS,
+  estagiarioPadrao,
+  type EstagiarioConfig, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
   type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
-import { EstagiarioSystem } from "./estagiario.ts";
+import { CARENCIA_LOGIN_MS, DIARIO_CURA_OFF_MS, DIARIO_ESPERA_MS, EstagiarioSystem } from "./estagiario.ts";
 import { FightModeSystem } from "./fightmode.ts";
 import { MovementSystem } from "./movement.ts";
 import { def, grid, openGrid, player, world } from "./testkit.ts";
@@ -16,7 +17,7 @@ type Chamada = [string, ...unknown[]];
 interface SetupOpts {
   ratos?: { x: number; y: number }[];
   vocation?: Vocation;
-  saved?: { config?: unknown; turno?: { ms: number; em: number } };
+  saved?: { config?: unknown; turno?: { ms: number; em: number }; ligado?: unknown };
   over?: Partial<PlayerState>;
   groups?: SpellGroup[];
   /** Movimento real (MovementSystem na mesma grade) para a caminhada da rota; sem ele, um falso parado. */
@@ -77,12 +78,17 @@ function setup(o: SetupOpts = {}) {
       calls.push(["cast", id, targetId, opts]); dirs.push(pl.dir); return { ok: !falham.has(id) };
     },
   };
-  /** `bebivel`: o level/vocação deixa beber (InventorySystem.canDrink); `bebe`: o usePotion consegue. */
-  const pot = { pronta: true, bebe: true, qtd: { hp: 5, mana: 5 } as Record<QuickPotionKind, number>, bebivel: { hp: true, mana: true } as Record<QuickPotionKind, boolean>, cobertas: [] as (number | undefined)[] };
+  /** `bebivel`: o level/vocação deixa beber (InventorySystem.canDrink); `bebe`: o usePotion consegue; `cura`: quanto a de vida recupera (0 = nada muda). */
+  const pot = {
+    pronta: true, bebe: true, cura: 0, qtd: { hp: 5, mana: 5 } as Record<QuickPotionKind, number>, bebivel: { hp: true, mana: true } as Record<QuickPotionKind, boolean>,
+    cobertas: [] as (number | undefined)[],
+  };
   const potions = {
     potionReady: () => pot.pronta,
-    usePotion: (_p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean; cobrir?: number }) => {
-      calls.push(["pocao", kind, { silent: opts?.silent }]); pot.cobertas.push(opts?.cobrir); return pot.bebe;
+    usePotion: (pl: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean; cobrir?: number }) => {
+      calls.push(["pocao", kind, { silent: opts?.silent }]); pot.cobertas.push(opts?.cobrir);
+      if (pot.bebe && pot.cura && kind === "hp") pl.hp = Math.min(pl.maxHp, pl.hp + pot.cura);
+      return pot.bebe;
     },
     countPotions: (_p: PlayerState, kind: QuickPotionKind) => pot.qtd[kind],
     canDrink: (_p: PlayerState, kind: QuickPotionKind) => pot.bebivel[kind] && pot.qtd[kind] > 0,
@@ -153,10 +159,12 @@ function setup(o: SetupOpts = {}) {
   };
   const estados = () => sent.filter((s) => s.type === S2C.EstagiarioEstado).map((s) => s.msg as EstagiarioEstadoMsg);
   const notices = () => sent.filter((s) => s.type === S2C.Notice).map((s) => s.msg.text as string);
+  /** Mensagens do diário enviadas (v3). */
+  const diarios = () => sent.filter((s) => s.type === S2C.EstagiarioDiario).map((s) => s.msg as EstagiarioDiarioMsg);
   const of = (k: string) => calls.filter((c) => c[0] === k);
   const indice = (): number => (sys as any).st.get("p").indice;
   const st = (): any => (sys as any).st.get("p");
-  return { ...w, p, sys, mv, calls, of, prontas, falham, dirs, conds, pot, luta, npc, mov, combate, invoc, comida, sent, estados, notices, tick, visitados, indice, st, acompanhantes, now: () => clock };
+  return { ...w, p, sys, mv, calls, of, prontas, falham, dirs, conds, pot, luta, npc, mov, combate, invoc, comida, sent, estados, notices, diarios, tick, visitados, indice, st, acompanhantes, now: () => clock };
 }
 
 /** Config com a rota "Ratos" de 3 pontos (10,10) → (15,10) → (20,10). */
@@ -444,7 +452,7 @@ describe("Estagiário: buffs", () => {
     expect(w.of("cast").map((c) => c[1])).toEqual(["swift_feet"]);
   });
 
-  it("com a rota rodando ficam ligados (o estado mostra); desligar a rota volta ao escolhido; desligarTudo desliga", () => {
+  it("com a rota rodando ficam ligados (o estado mostra); desligar a rota volta ao escolhido; desligarTudo para de agir mas guarda o interruptor", () => {
     const w = setup({ saved: { config: comRota({ buffs: [{ magia: "swift_feet", quando: "sempre" }] }) } });
     w.prontas.add("swift_feet");
     w.sys.onToggle(w.p, { rota: "Ratos" });
@@ -456,7 +464,9 @@ describe("Estagiário: buffs", () => {
 
     w.sys.onToggle(w.p, { buffs: true });
     w.sys.desligarTudo(w.p);
-    expect(w.sys.estado(w.p).buffs).toBe(false);
+    // v3: o interruptor fica (vai no save e volta com o jogador), mas nada age até reconectar.
+    expect(w.sys.estado(w.p).buffs).toBe(true);
+    expect(w.sys.saved(w.p)).toMatchObject({ ligado: { buffs: true } });
     w.calls.length = 0;
     w.tick();
     expect(w.of("cast")).toEqual([]);
@@ -673,7 +683,7 @@ describe("Estagiário: zona de proteção, morte e desconexão", () => {
     expect(w.sys.estado(w.p).rota).toBeNull();
   });
 
-  it("onDied desliga só a rota (e avisa a morte); desligarTudo desliga tudo, sem alarme", () => {
+  it("onDied desliga só a rota (e avisa a morte); desligarTudo desliga a rota e para de agir, sem alarme; reconectou volta depois da carência", () => {
     const w = setup({ saved: { config: comRota() } });
     w.sys.onToggle(w.p, { cura: true, ataque: true });
     w.sys.onToggle(w.p, { rota: "Ratos" });
@@ -686,8 +696,47 @@ describe("Estagiário: zona de proteção, morte e desconexão", () => {
     w.sys.onToggle(w.p, { rota: "Ratos" });
     w.sys.desligarTudo(w.p);
     expect(w.p.bot).toBe(false);
-    expect(w.sys.estado(w.p)).toMatchObject({ rota: null, cura: false, ataque: false });
+    // v3: cura e ataque ficam como estavam (voltam com o jogador); só a rota desliga.
+    expect(w.sys.estado(w.p)).toMatchObject({ rota: null, cura: true, ataque: true });
     expect(w.sent.filter((s) => s.type === S2C.EstagiarioAlarme)).toEqual([]);
+    w.p.hp = 30;
+    w.calls.length = 0;
+    w.tick(1000);
+    expect(w.of("pocao")).toEqual([]); // caído: nada age
+    w.sys.reconectou(w.p);
+    w.tick(CARENCIA_LOGIN_MS - TICK_MS);
+    expect(w.of("pocao")).toEqual([]); // ainda na carência
+    w.tick(TICK_MS);
+    expect(w.of("pocao")).toHaveLength(1);
+  });
+
+  it("v3: o que estava ligado volta no load (só os true vão no save) depois de CARENCIA_LOGIN_MS; ligar algo à mão zera a carência", () => {
+    const w = setup({ over: { hp: 30 }, saved: { ligado: { cura: true, ataque: "sim" } } });
+    expect(w.sys.estado(w.p)).toMatchObject({ cura: true, ataque: false, buffs: false });
+    expect(w.sys.saved(w.p)).toEqual({ ligado: { cura: true } });
+    w.tick(CARENCIA_LOGIN_MS - TICK_MS);
+    expect(w.of("pocao")).toEqual([]);
+    w.tick(TICK_MS);
+    expect(w.of("pocao")).toHaveLength(1);
+
+    const w2 = setup({ over: { hp: 30 }, saved: { ligado: { cura: true } } });
+    w2.sys.onToggle(w2.p, { ataque: true });
+    w2.tick();
+    expect(w2.of("pocao")).toHaveLength(1);
+    expect(w2.sys.saved(w2.p)).toEqual({ ligado: { cura: true, ataque: true } });
+    w2.sys.onToggle(w2.p, { cura: false, ataque: false });
+    expect(w2.sys.saved(w2.p)).toBeUndefined();
+  });
+
+  it("v3: a rota liga a Cura (o estado mostra e a poção sai); desligar a rota volta ao escolhido, que é o que vai no save", () => {
+    const w = setup({ over: { hp: 30 }, saved: { config: comRota() } });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    expect(w.estados().at(-1)).toMatchObject({ rota: "Ratos", cura: true });
+    w.tick();
+    expect(w.of("pocao")).toEqual([["pocao", "hp", { silent: true }]]);
+    w.sys.onToggle(w.p, { rota: null });
+    expect(w.estados().at(-1)).toMatchObject({ rota: null, cura: false });
+    expect(w.sys.saved(w.p)?.ligado).toBeUndefined();
   });
 
   it("removePlayer esquece o jogador (o tick o ignora)", () => {
@@ -1644,5 +1693,88 @@ describe("Estagiário v2: manter distância", () => {
     w.mm.place(rato, w.p.x + 1, w.p.y);
     w.tick(1000);
     expect(w.p.x).toBe(x);
+  });
+});
+
+describe("Estagiário v3: diário de decisões", () => {
+  it("poção com o ganho e o interruptor; 'esperando' com os motivos no máximo a cada DIARIO_ESPERA_MS; uma mensagem por tick", () => {
+    const w = setup({ over: { hp: 30 } }); // vida 20 %: poção < 50 %, Limpar Feridas e Cura < 35 %
+    w.pot.cura = 50;
+    w.sys.onToggle(w.p, { cura: true });
+    w.tick();
+    expect(w.diarios()).toHaveLength(1);
+    expect(w.diarios()[0]!.itens.map((i) => [i.canal, i.texto])).toEqual([["interruptor", "Cura ligada"], ["pocao", "vida 20% → poção de vida, +50"]]);
+
+    w.sent.length = 0;
+    w.p.hp = 30;
+    w.pot.pronta = false; // nada pronto: as magias não estão em `prontas`
+    w.tick();
+    const esperas = () => w.diarios().flatMap((d) => d.itens).filter((i) => i.texto.includes("esperando")).map((i) => i.texto);
+    expect(esperas()).toEqual(["vida 20%: esperando (poção de vida em recarga; Limpar Feridas em recarga; Cura em recarga)"]);
+    w.tick();
+    expect(esperas()).toHaveLength(1); // mesma espera, sem repetir a cada tick
+    w.tick(DIARIO_ESPERA_MS);
+    expect(esperas()).toHaveLength(2);
+
+    // Sem poção que dê para beber, o motivo é outro.
+    w.sent.length = 0;
+    w.pot.bebivel.hp = false;
+    w.tick(DIARIO_ESPERA_MS);
+    expect(esperas().at(-1)).toBe("vida 20%: esperando (nenhuma poção de vida que você possa beber; Limpar Feridas em recarga; Cura em recarga)");
+  });
+
+  it("Cura desligada com a vida abaixo de uma regra: avisa a cada DIARIO_CURA_OFF_MS; ligada, não", () => {
+    const w = setup({ over: { hp: 30 } });
+    w.tick();
+    const avisos = () => w.sys.diario("p").filter((i) => i.texto.includes("Cura está desligada"));
+    expect(avisos().map((i) => [i.canal, i.texto])).toEqual([["aviso", "vida 20%: a Cura está desligada"]]);
+    w.tick(DIARIO_CURA_OFF_MS / 2);
+    expect(avisos()).toHaveLength(1);
+    w.tick(DIARIO_CURA_OFF_MS);
+    expect(avisos()).toHaveLength(2);
+    w.p.hp = 150; // vida cheia: nenhuma regra vale, nada a avisar
+    w.tick(DIARIO_CURA_OFF_MS);
+    expect(avisos()).toHaveLength(2);
+  });
+
+  it("guarda só as últimas DIARIO_MAX linhas; ao reconectar vai inteiro ('tudo')", () => {
+    const w = setup({ over: { hp: 30 } });
+    w.sys.onToggle(w.p, { cura: true });
+    w.tick(TICK_MS * (DIARIO_MAX + 10)); // uma poção por tick (a falsa não cura)
+    expect(w.sys.diario("p")).toHaveLength(DIARIO_MAX);
+    expect(w.sys.diario("p")[0]!.texto).toBe("vida 20% → poção de vida"); // a linha do interruptor já saiu
+    w.sent.length = 0;
+    w.sys.desligarTudo(w.p);
+    w.sys.reconectou(w.p);
+    w.tick();
+    expect(w.diarios()).toHaveLength(1);
+    expect(w.diarios()[0]).toMatchObject({ tudo: true });
+    expect(w.diarios()[0]!.itens).toHaveLength(DIARIO_MAX);
+  });
+
+  it("rota ligada/pausada/desligada (com o motivo), buff, comida e alarme entram no diário", () => {
+    const w = setup({ saved: { config: comRota({ buffs: [{ magia: "swift_feet", quando: "sempre" }] }) } });
+    w.prontas.add("swift_feet");
+    w.comida.restante = 1000;
+    w.pot.qtd = { hp: 20, mana: 20 }; // acima do mínimo do alarme de poção (ele também entraria no diário)
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.tick();
+    w.sys.manual("p");
+    w.sys.alarme(w.p, "mochila", "Estagiário: mochila cheia — o loot está ficando no chão.");
+    w.sys.onToggle(w.p, { rota: null });
+    w.tick();
+    expect(w.sys.diario("p").map((i) => `${i.canal}: ${i.texto}`)).toEqual([
+      'rota: rota "Ratos" ligada',
+      "comer: comeu: o alimentado estava acabando",
+      "buff: Pés Ligeiros conjurado",
+      "rota: rota pausada: você se mexeu",
+      "aviso: mochila cheia — o loot está ficando no chão.",
+      'rota: rota "Ratos" desligada',
+    ]);
+    // Motivos automáticos: o turno acabou.
+    const w2 = setup({ saved: { config: comRota(), turno: { ms: TICK_MS, em: 10_000 } } });
+    w2.sys.onToggle(w2.p, { rota: "Ratos" });
+    w2.tick(TICK_MS * 3);
+    expect(w2.sys.diario("p").map((i) => i.texto)).toContain('rota "Ratos" desligada: o turno acabou');
   });
 });
