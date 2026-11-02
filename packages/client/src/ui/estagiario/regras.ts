@@ -1,7 +1,8 @@
 // Edição pura da configuração do Estagiário (sem DOM nem rede, para testar no node: store.test.ts). A janela só junta os
 // pedaços; o servidor sanitiza tudo de novo (shared/estagiario.ts).
 import {
-  NOME_ROTA_MAX, REGRAS_MAX, spellDef, type AlarmeTipo, type EstagiarioConfig, type RegraAtaque, type RegraBuff, type RegraCura,
+  NOME_ROTA_MAX, REGRAS_MAX, ehInvocacao, spellDef, type AlarmeTipo, type BuffQuando, type EstagiarioConfig, type RegraAtaque, type RegraBuff, type RegraCura,
+  type SpellDef,
 } from "@lemonquest/shared";
 
 /** Regra nova de cura (vida abaixo de 50% → poção de vida), no fim; com REGRAS_MAX regras, a mesma lista. */
@@ -16,11 +17,23 @@ export function addRegraAtaque(l: readonly RegraAtaque[], magia: string): readon
   return [...l, { minBichos: 1, raio: 1, magia }];
 }
 
-/** Buff novo com `magia`, fora de combate também, no fim; sem magia, repetido ou cheia, a mesma lista. */
+/** Buff novo com `magia`, valendo sempre, no fim; sem magia, repetido ou cheia, a mesma lista. */
 export function addRegraBuff(l: readonly RegraBuff[], magia: string): readonly RegraBuff[] {
   if (l.length >= REGRAS_MAX || !magia || l.some((r) => r.magia === magia)) return l;
-  return [...l, { magia, emCombate: false }];
+  return [...l, { magia, quando: "sempre" }];
 }
+
+/** Rótulo do "quando" do buff (select da aba Buffs). */
+export const QUANDO_BUFF: readonly { id: BuffQuando; label: string }[] = [
+  { id: "sempre", label: "sempre" }, { id: "combate", label: "só em combate" }, { id: "fora", label: "só fora de combate" },
+];
+
+/** Nome do buff/invocação na lista, com "(invocação)" e o level quando acima do do jogador. */
+export const rotuloBuff = (s: SpellDef, level: number): string =>
+  `${s.name}${ehInvocacao(s) ? " (invocação)" : ""}${s.level > level ? ` (lv ${s.level})` : ""}`;
+
+/** Rótulo da opção de distância ("colado" ou "N tiles"). */
+export const rotuloDistancia = (d: number): string => (d <= 0 ? "colado" : `${d} tiles`);
 
 /** Sobe (`-1`) ou desce (`+1`) a regra `i`; nas pontas, a mesma lista. */
 export function moverRegra<T>(l: readonly T[], i: number, delta: -1 | 1): readonly T[] {

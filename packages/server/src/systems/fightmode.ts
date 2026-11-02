@@ -58,6 +58,12 @@ export class FightModeSystem {
   private readonly st = new Map<string, ChaseState>();
   /** Perseguição forçada (Estagiário caçando): age como `p.chase` ligado sem mexer na escolha salva do jogador. */
   private readonly forced = new Set<string>();
+  /**
+   * Até onde a perseguição forçada chega (tiles do alvo; 1 = colado). Quem ataca à distância com "manter distância"
+   * (Estagiário v2) para ao entrar no alcance com visão, em vez de ir até o lado do monstro. O jogador jogando à mão
+   * segue "colado" (decisão existente do jogo).
+   */
+  private readonly forcedStop = new Map<string, number>();
   private readonly now: () => number;
 
   constructor(private readonly o: FightModeOptions) {
@@ -124,15 +130,16 @@ export class FightModeSystem {
   removePlayer(id: string): void {
     this.st.delete(id);
     this.forced.delete(id);
+    this.forcedStop.delete(id);
   }
 
   /**
    * Liga/desliga a perseguição forçada: enquanto ligada, o tick persegue o alvo como se `p.chase === true`, sem mudar
    * `p.chase` (que é gravado e é a escolha do jogador quando ele mesmo joga).
    */
-  forceChase(id: string, on: boolean): void {
-    if (on) this.forced.add(id);
-    else this.forced.delete(id);
+  forceChase(id: string, on: boolean, parar = 1): void {
+    if (on) { this.forced.add(id); this.forcedStop.set(id, Math.max(1, Math.floor(parar))); }
+    else { this.forced.delete(id); this.forcedStop.delete(id); }
   }
 
   private state(id: string): ChaseState {
@@ -161,7 +168,9 @@ export class FightModeSystem {
       const s = this.state(p.id);
       if (now < s.pausedUntil) continue;
       // Perseguindo, gruda no alvo (ao lado), qualquer que seja a vocação: quem ataca à distância também chega junto.
-      if (cheb(p.x, p.y, t.x, t.y) <= 1) { s.path = null; continue; }
+      // Exceção: a perseguição forçada do Estagiário com "manter distância" para ao alcance, com visão (forcedStop).
+      const parar = this.forced.has(p.id) ? this.forcedStop.get(p.id) ?? 1 : 1;
+      if (parar <= 1 ? cheb(p.x, p.y, t.x, t.y) <= 1 : this.inReach(p, t, parar)) { s.path = null; continue; }
       this.stepToward(p, s, p.targetId, t, now);
     }
   }

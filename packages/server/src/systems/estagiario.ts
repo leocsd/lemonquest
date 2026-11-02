@@ -1,14 +1,16 @@
-// Estagiário (spec docs/superpowers/specs/2026-11-01-estagiario-design.md): o bot de caça do próprio jogo. O cérebro
-// fica aqui no servidor (a aba do navegador adormece em segundo plano, justamente no caso AFK) e age pelas APIs dos
-// sistemas que já existem: magias, poções, busca de alvo/perseguição, caminho (A*) e o acompanhante visível. As regras
-// puras (sanitização, turno, escolha de cura/ataque, gravação de rota) estão em shared/estagiario.ts.
+// Estagiário (spec docs/superpowers/specs/2026-11-01-estagiario-design.md; v2 em
+// docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md): o bot de caça do próprio jogo. O cérebro fica aqui no
+// servidor (a aba do navegador adormece em segundo plano, justamente no caso AFK) e age pelas APIs dos sistemas que já
+// existem: magias, poções, comida, busca de alvo/perseguição, caminho (A*) e o acompanhante visível. As regras puras
+// (sanitização, turno, escolha de cura/ataque/buff/recuo, gravação de rota) estão em shared/estagiario.ts.
 import {
-  BUSCA_TILES, DIR_DELTA, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TURNO_AVISO_MS, alarmeLigado, avancarTurno, dirFromDelta,
-  escolherAtaque, escolherBuff, escolherCura, estagiarioPadrao, fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId,
-  novaGravacao, pickFromFamily, resolveFamily, sanitizeEstagiario, spellDef,
+  BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIR_DELTA, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C,
+  TURNO_AVISO_MS, alarmeLigado, avancarTurno, dirFromDelta, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao,
+  fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
+  resolveFamily, sanitizeEstagiario, spellDef,
   type AlarmeTipo, type ConditionId, type CuraAcao, type EstagiarioAlarmeMsg, type EstagiarioConfig, type EstagiarioConfigMsg,
   type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao,
-  type NoticeMsg, type PontoRota, type QuickPotionKind, type SpellGroup, type TurnoEstado,
+  type NoticeMsg, type PontoRota, type QuickPotionKind, type SpellDef, type SpellGroup, type TurnoEstado,
 } from "@lemonquest/shared";
 import type { CharacterData } from "../persistence/types.ts";
 import type { PlayerState } from "../state.ts";
@@ -19,8 +21,10 @@ import { waveTiles } from "./spells.ts";
 
 /** Intervalo do estado periódico com a rota rodando (o cliente mostra o turno restante). */
 export const ESTADO_PERIODICO_MS = 10_000;
-/** Busca de alvo no máximo a cada 400 ms (= AUTO_SCAN_MS do ataque automático): varrer os monstros a cada tick pesa. */
+/** Com alvo, procura um mais perto no máximo a cada 400 ms (= AUTO_SCAN_MS do ataque automático): varrer os monstros a cada tick pesa. */
 const BUSCA_MS = 400;
+/** Sem alvo, a cada 100 ms: o bicho que entra no alcance é visto em até 0,1 s (era até 0,4 s de espera parado). */
+const BUSCA_SEM_ALVO_MS = 100;
 const AVISO_TURNO = "O turno do Estagiário acabou por hoje.";
 const AVISO_PZ = "Saia da zona de proteção para ligar a rota.";
 /** Caminho até o ponto recalculado no máximo a cada 300 ms (= CHASE_REPATH_MS da perseguição): A* a cada tick pesa. */
@@ -36,10 +40,14 @@ export const JOGADOR_REARMA_MS = 60_000;
 export const PONTOS_TRAVADOS_MAX = 5;
 /** Rota gravada que termina a mais que isto do começo: avisa que, no fim, ela volta andando ao primeiro ponto. */
 export const ROTA_FIM_LONGE = 6;
-/** Por quanto tempo o painel mostra "ponto travado"/"alvo inalcançável" depois de acontecer. */
+/** Por quanto tempo o painel mostra "ponto travado"/"alvo inalcançável"/"mantendo distância" depois de acontecer. */
 const MOTIVO_MS = 5000;
 /** Mudança de motivo/ponto manda o estado, no máximo uma vez por este intervalo. */
 const MOTIVO_ENVIO_MS = 1000;
+/** Tenta comer no máximo a cada 2 s (a comida tem recarga própria de 1 s; sem comida na mochila não vale varrer a cada tick). */
+export const COMER_INTERVALO_MS = 2000;
+/** Luta que começa até isto depois da anterior acabar continua a mesma para o recuo (a origem não anda com o personagem). */
+export const LUTA_EMENDADA_MS = 3000;
 const AVISO_LONGE = "Você está longe demais da rota: chegue perto do caminho gravado.";
 const AVISO_TRAVADA = `O Estagiário não consegue seguir a rota (${PONTOS_TRAVADOS_MAX} pontos travados seguidos): rota desligada.`;
 
@@ -48,7 +56,9 @@ export interface EstagiarioOptions {
   /** Condições ativas (ConditionSystem): o buff só é reconjurado quando a condição dele acabou. */
   conditions: { has(targetId: string, id: ConditionId): boolean };
   potions: {
-    potionReady(p: PlayerState, now?: number): boolean; usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean }): boolean;
+    potionReady(p: PlayerState, now?: number): boolean;
+    /** `cobrir`: a menor poção que recupera isso (v2), em vez da maior. */
+    usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean; cobrir?: number }): boolean;
     /** Só as poções que o level e a vocação deixam beber (o alarme de poção acabando). */
     countPotions(p: PlayerState, kind: QuickPotionKind): number;
     /** Há poção do tipo que dá para beber (a regra de poção só vale assim; senão a cura seguinte). */
@@ -56,7 +66,8 @@ export interface EstagiarioOptions {
   };
   fight: {
     nearestTarget(p: PlayerState, reach: number, ignorar?: (id: string) => boolean): string;
-    forceChase(id: string, on: boolean): void;
+    /** `parar`: a perseguição forçada para a esta distância do alvo (1 = colado; v2 "manter distância"). */
+    forceChase(id: string, on: boolean, parar?: number): void;
     resume(id: string): void;
   };
   monsters: Pick<MonsterManager, "wild" | "all" | "inPz" | "monsterAt" | "isMonsterAt" | "los" | "grid">;
@@ -71,6 +82,18 @@ export interface EstagiarioOptions {
   sameParty?: (a: string, b: string) => boolean;
   /** Tile de portal de verdade (PortalSystem): só um salto a partir dele vira ponto de portal na gravação. */
   isPortalTile?: (x: number, y: number) => boolean;
+  /** Em combate (deu/levou dano há pouco; CombatSystem.inCombat): os buffs "em combate"/"fora". Ausente = tem alvo monstro. */
+  inCombat?: (id: string, now: number) => boolean;
+  /** Invocações vivas do jogador (SummonSystem.ownedBy): a regra de invocação espera elas sumirem. Ausente = 0. */
+  invocacoes?: (id: string) => number;
+  /** Quanto falta do "alimentado" (FoodSystem.remainingMs): come quando está acabando. Ausente = não come. */
+  alimentadoMs?: (id: string, now: number) => number;
+  /** Come a primeira comida da mochila (InventorySystem.eatAny). */
+  comer?: (p: PlayerState) => boolean;
+  /** Colegas de grupo (sem o próprio): as regras de cura "aliado". Ausente = nenhum. */
+  aliados?: (p: PlayerState) => Iterable<PlayerState>;
+  /** Alcance do ataque básico (arma/vocação): "manter distância" só vale acima de 1. Ausente = 1 (colado). */
+  attackRange?: (p: PlayerState) => number;
   now?: () => number;
 }
 
@@ -108,13 +131,20 @@ interface Estado {
   progressoEm: number;
   /** Pontos pulados por travados desde o último ponto alcançado (PONTOS_TRAVADOS_MAX → desliga a rota). */
   travados: number;
-  /** Até quando o painel mostra "ponto travado" / "alvo inalcançável". */
+  /** Até quando o painel mostra "ponto travado" / "alvo inalcançável" / "mantendo distância" / "alvo fora do alcance" / "guardando mana". */
   travadoAte: number;
   inalcancavelAte: number;
+  recuandoAte: number;
+  foraAlcanceAte: number;
+  semManaBuffAte: number;
   /** Motivo e ponto do último estado enviado (mudou → manda de novo, no máximo a cada MOTIVO_ENVIO_MS). */
   motivoEnviado: string;
   /** Havia alvo vivo no tick anterior: ao matar, a rota retoma pelo ponto mais próximo. */
   lutando: boolean;
+  /** Onde a luta atual (ou a cadeia de lutas emendadas) começou (v2): recuando, nunca mais que RECUO_MAX_TILES dali. */
+  lutaOrigem: Point | null;
+  /** Quando a última luta acabou (LUTA_EMENDADA_MS). */
+  lutaFimEm: number;
   /**
    * Alvo (monstro) acompanhado: menor distância, vida e o relógio de "luta sem progresso" (alvo travado → larga). O
    * relógio só recomeça quando um alvo perde vida, o alvo atual chega mais perto ou a luta começa: trocar de alvo não o
@@ -136,6 +166,12 @@ interface Estado {
   emPz: boolean;
   estadoEm: number;
   buscaEm: number;
+  /** Última tentativa de comer (COMER_INTERVALO_MS). */
+  comeuEm: number;
+  /** Alvo novo fora da rota: retomar a perseguição assim que o jogador ficar parado (sem tecla, clique nem passo). */
+  retomar: boolean;
+  /** Distância de parada mandada à perseguição forçada (reenvia só quando muda). */
+  pararEnviado: number;
   avisos: Avisos;
 }
 
@@ -156,10 +192,10 @@ export class EstagiarioSystem {
     this.st.set(p.id, {
       config, turno: avancarTurno(saved?.turno, now, false), cura: false, ataque: false, buffs: false, rota: null, indice: 0,
       caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
-      inalcancavelAte: 0, motivoEnviado: "", lutando: false,
+      inalcancavelAte: 0, recuandoAte: 0, foraAlcanceAte: 0, semManaBuffAte: 0, motivoEnviado: "", lutando: false, lutaOrigem: null, lutaFimEm: 0,
       alvoId: "", alvoAnterior: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
-      pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, avisos: avisosNovos(),
+      pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, comeuEm: 0, retomar: false, pararEnviado: 0, avisos: avisosNovos(),
     });
   }
 
@@ -325,9 +361,12 @@ export class EstagiarioSystem {
     if (p.targetId && !this.o.monsters.wild(p.targetId) && this.ehJogador(p.targetId)) return "mirando um jogador";
     if (s.rota && now < s.travadoAte) return "ponto travado, pulando";
     if (now < s.inalcancavelAte) return "alvo inalcançável (ignorado 30 s)";
+    if (now < s.recuandoAte) return "mantendo distância";
     if (!this.o.monsters.wild(p.targetId)) return "sem alvo por perto";
+    if (now < s.foraAlcanceAte) return "alvo fora do alcance";
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
-    if (s.config.ataque.length && manaPct < s.config.reservaMana) return "reserva de mana";
+    if (s.config.ataque.length && !s.config.ataque.some((r) => manaPct >= pisoDeMana(r, s.config.reservaMana))) return "reserva de mana";
+    if (this.buffsLigados(s) && now < s.semManaBuffAte) return "sem mana para o buff";
     return "";
   }
 
@@ -369,6 +408,8 @@ export class EstagiarioSystem {
     // No máximo uma cura por tick; o ataque vem depois (a recarga global de magia separa os dois quando os dois são magia).
     // Buff só num tick sem cura (uma ação por tick entre os dois: a cura tem prioridade e o buff espera o próximo).
     const curou = s.cura && this.curar(p, s, now);
+    // Comer não mexe em recarga de magia nem de poção: vai junto com o que mais houver no tick.
+    if (s.cura && s.config.comer) this.comer(p, s, now);
     if (!curou && this.buffsLigados(s)) this.buffar(p, s, now);
     if (this.ataqueLigado(s)) this.atacar(p, s, now);
     // Depois do ataque: o alvo escolhido neste tick já segura a caminhada (não dá um passo da rota para o lado errado).
@@ -452,6 +493,9 @@ export class EstagiarioSystem {
       if (pausa === "") { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
     }
     if (!this.rodando(s)) return;
+    // A distância de parada pode mudar (Aplicar, troca de arma): reenvia só quando muda.
+    const parar = this.pararEm(p, s);
+    if (parar !== s.pararEnviado) { s.pararEnviado = parar; this.o.fight.forceChase(p.id, true, parar); }
     this.acertar(s, now);
     if (s.turno.ms <= 0) {
       this.pararRota(p, s, now);
@@ -466,34 +510,54 @@ export class EstagiarioSystem {
    * Uma ação de cura (magia ou poção) se alguma regra vale; devolve se agiu. A poção só conta se dá para beber (level e
    * vocação: com só a Grande lv 30 na mochila a regra de poção ganhava todo tick, falhava em silêncio e a magia da
    * regra seguinte nunca saía). Ação que falha mesmo assim (magia recusada, poção recusada) tenta a regra seguinte.
+   * v2: a poção é a menor que cobre o que falta; a regra "aliado" olha a vida dos colegas de grupo ao alcance da magia.
    */
   private curar(p: PlayerState, s: Estado, now: number): boolean {
     const falhou = new Set<CuraAcao>();
     const pronto = (a: CuraAcao) => !falhou.has(a) && ("magia" in a
       ? this.o.spells.ready(p, a.magia, now)
       : this.o.potions.potionReady(p, now) && this.o.potions.canDrink(p, a.pocao));
+    const aliadoAbaixo = (pct: number, a: CuraAcao): boolean => {
+      if (!("magia" in a) || !this.o.aliados) return false;
+      const raio = spellDef(a.magia)?.radius ?? 3;
+      for (const q of this.o.aliados(p)) if (q.hp > 0 && q.maxHp > 0 && cheb(p.x, p.y, q.x, q.y) <= raio && (q.hp / q.maxHp) * 100 < pct) return true;
+      return false;
+    };
     for (let k = 0; k < s.config.cura.length; k++) {
-      const acao = escolherCura(p, s.config.cura, pronto);
+      const acao = escolherCura(p, s.config.cura, pronto, aliadoAbaixo);
       if (!acao) return false;
       const ok = "magia" in acao
         ? this.o.spells.cast(p, acao.magia, undefined, { silent: true }).ok
-        : this.o.potions.usePotion(p, acao.pocao, { silent: true });
+        : this.o.potions.usePotion(p, acao.pocao, { silent: true, cobrir: acao.pocao === "hp" ? p.maxHp - p.hp : p.maxMana - p.mana });
       if (ok) return true;
       falhou.add(acao);
     }
     return false;
   }
 
-  /** Reconjura o primeiro buff da lista que acabou (regras em escolherBuff); no máximo um por tick. */
+  /** Come quando o "alimentado" está acabando (COMER_ANTES_MS), no máximo uma tentativa por COMER_INTERVALO_MS. */
+  private comer(p: PlayerState, s: Estado, now: number): void {
+    if (!this.o.alimentadoMs || !this.o.comer || now - s.comeuEm < COMER_INTERVALO_MS) return;
+    if (this.o.alimentadoMs(p.id, now) >= COMER_ANTES_MS) return;
+    s.comeuEm = now;
+    this.o.comer(p);
+  }
+
+  /** Reconjura o primeiro buff (ou invocação) da lista que acabou (regras em escolherBuff); no máximo um por tick. */
   private buffar(p: PlayerState, s: Estado, now: number): void {
     if (!s.config.buffs.length) return;
-    const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
-    const comAlvo = !!this.o.monsters.wild(p.targetId);
-    const magia = escolherBuff(
-      s.config.buffs, (c) => this.o.conditions.has(p.id, c as ConditionId), comAlvo, manaPct, s.config.reservaMana,
-      (id) => this.o.spells.ready(p, id, now),
-    );
-    if (magia) this.o.spells.cast(p, magia, undefined, { silent: true });
+    const ctx = {
+      ativo: (c: ConditionId) => this.o.conditions.has(p.id, c),
+      invocado: () => (this.o.invocacoes?.(p.id) ?? 0) > 0,
+      emCombate: this.o.inCombat ? this.o.inCombat(p.id, now) : !!this.o.monsters.wild(p.targetId),
+      mana: p.mana, maxMana: p.maxMana,
+      pronto: (id: string) => this.o.spells.ready(p, id, now),
+    };
+    const magia = escolherBuff(s.config.buffs, ctx);
+    if (magia) { this.o.spells.cast(p, magia, undefined, { silent: true }); return; }
+    // Nada saiu: se a mana mínima da regra (ou a mana da própria magia) é o que segura, o painel explica.
+    const pronta = (id: string) => this.o.spells.ready(p, id, now) || this.o.spells.ready({ ...p, mana: Number.MAX_SAFE_INTEGER } as PlayerState, id, now);
+    if (escolherBuff(s.config.buffs, { ...ctx, mana: Number.MAX_SAFE_INTEGER, maxMana: Number.MAX_SAFE_INTEGER, pronto: pronta })) s.semManaBuffAte = now + MOTIVO_MS;
   }
 
   private atacar(p: PlayerState, s: Estado, now: number): void {
@@ -503,38 +567,62 @@ export class EstagiarioSystem {
     // Sempre o bicho mais perto (2026-11-01, dono): procura também com alvo vivo e troca se achar um estritamente mais
     // perto (empate fica no atual, para não pular de um para outro). Com a rota pausada à mão, só se o próprio jogador
     // ligou o Ataque: ligado só pela rota, o jogador está no controle e o bot não escolhe alvo por ele.
-    if (now - s.buscaEm >= BUSCA_MS && (s.ataque || this.rodando(s))) {
+    if (now - s.buscaEm >= (mm.wild(p.targetId) ? BUSCA_MS : BUSCA_SEM_ALVO_MS) && (s.ataque || this.rodando(s))) {
       s.buscaEm = now;
       const id = this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignoradoEm(s, m, now));
       const cur = mm.wild(p.targetId), nxt = id ? mm.wild(id) : undefined;
       if (id && id !== p.targetId && (!cur || (nxt && cheb(p.x, p.y, nxt.s.x, nxt.s.y) < cheb(p.x, p.y, cur.s.x, cur.s.y)))) {
         p.targetId = id;
-        // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador está
-        // jogando à mão: retomar cancelaria a pausa de 1,5 s que o Move/WalkTo acabou de pôr na perseguição.
+        // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador pode
+        // estar andando à mão: retomar agora cancelaria a pausa de 1,5 s que todo Move/WalkTo põe na perseguição; fica
+        // marcado para retomar assim que ele parar (abaixo).
         if (this.rodando(s)) this.o.fight.resume(p.id);
+        else s.retomar = true;
       }
     }
-    if (!mm.wild(p.targetId)) return;
+    // Jogador parado (sem tecla, clique nem passo em curso) com alvo novo: a perseguição (a escolha dele, p.chase) retoma
+    // já, em vez de esperar o resto da pausa de 1,5 s do último passo à mão — era o "delay para seguir o bicho na
+    // primeira vez que o vê" (dono, 2026-11-02).
+    if (s.retomar) {
+      if (!mm.wild(p.targetId)) s.retomar = false;
+      else if (this.o.movement.isIdle(p, now)) { this.o.fight.resume(p.id); s.retomar = false; }
+    }
+    const alvo = mm.wild(p.targetId);
+    if (!alvo) return;
     if (!s.config.ataque.length) return;
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
-    if (manaPct < s.config.reservaMana) return;
+    // Nenhuma regra com mana no piso dela (o dela ou a reserva geral): nem resolve nem conta.
+    if (!s.config.ataque.some((r) => manaPct >= pisoDeMana(r, s.config.reservaMana))) return;
     // Magia resolvida uma vez por tick (os grupos do jogador também: lê o save), e os bichos contados uma vez por
     // magia e raio, só se alguma regra tem magia pronta. O resultado é o mesmo de escolherAtaque sem o cache.
+    // v2: magia de alvo (ou área no alvo) só conta como pronta com o alvo no alcance e à vista — antes o Golpe Brutal
+    // (alcance 1) era escolhido com o alvo longe, a conjuração falhava em silêncio e a Investida (alcance 4) não saía.
+    const dAlvo = cheb(p.x, p.y, alvo.s.x, alvo.s.y);
+    let visao: boolean | null = null;
+    const alcanca = (sp: SpellDef): boolean => {
+      if (!needsTarget(sp)) return true;
+      if (dAlvo > (sp.range ?? DEFAULT_SPELL_RANGE)) return false;
+      return (visao ??= mm.los(p.x, p.y, alvo.s.x, alvo.s.y));
+    };
     let grupos: readonly SpellGroup[] | null = null;
     const resolvidas = new Map<string, string | null>();
+    const resolverCom = (id: string, filtro: (sp: SpellDef) => boolean): string | null => {
+      if (!isFamilyId(id)) { const sp = spellDef(id); return sp && this.o.spells.ready(p, id, now) && filtro(sp) ? id : null; }
+      const f = resolveFamily(id, (grupos ??= this.o.spellGroups(p)), p.vocation);
+      return f ? pickFromFamily(f, p.level, (sp) => this.o.spells.ready(p, sp.id, now) && filtro(sp))?.id ?? null : null;
+    };
     const resolver = (id: string): string | null => {
       let r = resolvidas.get(id);
       if (r !== undefined) return r;
-      if (!isFamilyId(id)) r = this.o.spells.ready(p, id, now) ? id : null;
-      else {
-        const f = resolveFamily(id, (grupos ??= this.o.spellGroups(p)), p.vocation);
-        r = f ? pickFromFamily(f, p.level, (sp) => this.o.spells.ready(p, sp.id, now))?.id ?? null : null;
-      }
+      r = resolverCom(id, alcanca);
       resolvidas.set(id, r);
       return r;
     };
-    if (!s.config.ataque.some((r) => resolver(r.magia))) return;
-    const alvo = mm.wild(p.targetId)!;
+    if (!s.config.ataque.some((r) => resolver(r.magia))) {
+      // Pronta, mas só fora do alcance: o painel explica ("alvo fora do alcance") enquanto a perseguição aproxima.
+      if (s.config.ataque.some((r) => resolverCom(r.magia, () => true))) s.foraAlcanceAte = now + MOTIVO_MS;
+      return;
+    }
     const contagem = new Map<string, number>();
     const bichosEm = (raio: number, magia: string) => {
       const sp = spellDef(magia);
@@ -545,7 +633,8 @@ export class EstagiarioSystem {
       contagem.set(chave, n);
       return n;
     };
-    const magia = escolherAtaque(s.config.ataque, bichosEm, manaPct, s.config.reservaMana, resolver);
+    const alvoPct = alvo.s.maxHp > 0 ? (alvo.s.hp / alvo.s.maxHp) * 100 : 100;
+    const magia = escolherAtaque(s.config.ataque, bichosEm, manaPct, s.config.reservaMana, resolver, alvoPct);
     if (!magia) return;
     // A onda sai para onde o jogador olha (o último passo): vira para o alvo antes, senão ela varre o lado errado.
     if (spellDef(magia)?.target === "wave") {
@@ -581,20 +670,30 @@ export class EstagiarioSystem {
   // --- rota ---------------------------------------------------------------------------------------------------------
 
   /**
-   * Um passo da rota (tick, rota rodando). Com alvo vivo não anda (a perseguição forçada aproxima); ao matar, retoma
-   * pelo ponto mais próximo. Chegou ao ponto → o seguinte (circuito); ponto de portal: pisar nele teleporta para o
-   * ponto seguinte, que conta como alcançado. Sem chegar mais perto por PONTO_TRAVADO_MS (inalcançável, ocupado, fora
-   * do mapa) → pula. O passo é o da perseguição (FightModeSystem.stepToward): A* recalculado no máximo a cada
-   * CAMINHO_MS ou quando o ponto muda, um `follow` por vez.
+   * Um passo da rota (tick, rota rodando). Com alvo vivo não anda (a perseguição forçada aproxima; com "manter
+   * distância", recua um passo de quem encosta); ao matar, retoma pelo ponto mais próximo. Chegou ao ponto → o seguinte
+   * (circuito); ponto de portal: pisar nele teleporta para o ponto seguinte, que conta como alcançado. Sem chegar mais
+   * perto por PONTO_TRAVADO_MS (inalcançável, ocupado, fora do mapa) → pula. O passo é o da perseguição
+   * (FightModeSystem.stepToward): A* recalculado no máximo a cada CAMINHO_MS ou quando o ponto muda, um `follow` por vez.
    */
   private andar(p: PlayerState, s: Estado, now: number): void {
     const rota = this.rotaDe(s, s.rota!);
     if (!rota) return;
     const pts = rota.pontos, n = pts.length;
-    if (this.alvoVivo(p) && !this.alvoTravado(p, s, now)) { s.lutando = true; s.caminho = null; return; }
+    if (this.alvoVivo(p) && !this.alvoTravado(p, s, now)) {
+      if (!s.lutando) {
+        s.lutando = true;
+        // Lutas emendadas (outro bicho logo depois do abate) são uma só para o recuo: senão a origem andava junto com
+        // o personagem e quem mantém distância ia parar a 20 tiles da rota.
+        if (!s.lutaOrigem || now - s.lutaFimEm > LUTA_EMENDADA_MS) s.lutaOrigem = { x: p.x, y: p.y };
+      }
+      s.caminho = null;
+      this.recuar(p, s, now);
+      return;
+    }
     // Sem luta: o relógio de "luta sem progresso" começa do zero na próxima (o alvo anterior não conta mais).
     if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
-    if (s.lutando) { s.lutando = false; this.irPara(s, indiceMaisProximo(pts, p), now); }
+    if (s.lutando) { s.lutando = false; s.lutaFimEm = now; this.irPara(s, indiceMaisProximo(pts, p), now); }
     if (s.indice < 0 || s.indice >= n) this.irPara(s, 0, now);
     // Ponto com alguém parado em cima (monstro, outro jogador): ao lado já conta, senão cada volta perdia
     // PONTO_TRAVADO_MS ali. O de portal precisa ser pisado (é ele que leva ao outro lado).
@@ -616,6 +715,41 @@ export class EstagiarioSystem {
       return;
     }
     this.passo(p, s, alvo, now);
+  }
+
+  /**
+   * "Manter distância" (v2, decisão do dono): com a rota rodando, quem ataca à distância recua um passo quando um
+   * monstro corpo a corpo encosta — para um vizinho livre que mantém o alvo no alcance e à vista e fica a até
+   * RECUO_MAX_TILES de onde a luta começou (escolherRecuo). Nunca na PZ; monstro à distância não faz recuar. O ataque
+   * básico e as magias continuam saindo andando (o combate só olha distância, visão e recarga).
+   */
+  private recuar(p: PlayerState, s: Estado, now: number): void {
+    const alcance = this.o.attackRange?.(p) ?? 1;
+    if (s.config.distancia <= 0 || alcance <= 1) return;
+    const mm = this.o.monsters;
+    const alvo = mm.wild(p.targetId);
+    if (!alvo || mm.inPz(p.x, p.y) || !this.o.movement.isIdle(p, now)) return;
+    const ameacas: Point[] = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const m = mm.monsterAt(p.x + dx, p.y + dy);
+      if (m && !m.s.ownerId && m.s.hp > 0 && !m.def.invulnerable && !m.def.stationary && m.def.attackRange <= 1) ameacas.push({ x: m.s.x, y: m.s.y });
+    }
+    if (!ameacas.length) return;
+    const t = escolherRecuo({
+      pos: p, alvo: alvo.s, ameacas, distancia: Math.min(s.config.distancia, alcance), alcance, origem: s.lutaOrigem ?? p,
+      livre: (x, y) => mm.grid.isWalkable(x, y) && !mm.isMonsterAt(x, y) && !mm.inPz(x, y) && !this.ocupado(p, { x, y }),
+      visao: (x, y) => mm.los(x, y, alvo.s.x, alvo.s.y),
+    });
+    if (!t) return;
+    const dir = dirFromDelta(t.x - p.x, t.y - p.y);
+    if (dir !== null && this.o.movement.follow(p, dir, now) === "ok") s.recuandoAte = now + MOTIVO_MS;
+  }
+
+  /** Distância a que a perseguição forçada para: a opção "manter distância", limitada ao alcance do ataque (1 = colado). */
+  private pararEm(p: PlayerState, s: Estado): number {
+    const alcance = this.o.attackRange?.(p) ?? 1;
+    return s.config.distancia > 0 && alcance > 1 ? Math.min(s.config.distancia, alcance) : 1;
   }
 
   /** Há outra criatura (monstro, inclusive o acompanhante, ou outro jogador) parada no tile do ponto. */
@@ -750,21 +884,25 @@ export class EstagiarioSystem {
     this.acertar(s, now);
     if (s.turno.ms <= 0) { this.notice(p, AVISO_TURNO); return; }
     const ja = !!s.rota;
+    const parar = this.pararEm(p, s);
     // Trocou de rota durante a pausa: a pausa acaba aqui, então a perseguição forçada volta.
-    if (ja && s.pausa !== "") this.o.fight.forceChase(p.id, true);
+    if (ja && s.pausa !== "") this.o.fight.forceChase(p.id, true, parar);
     s.rota = rota.nome;
     this.irPara(s, i0, now);
     s.travados = 0;
     s.travadoAte = 0;
     s.lutando = false;
+    s.lutaOrigem = null;
+    s.lutaFimEm = 0;
     s.pausa = "";
     s.pausaAte = 0;
     s.emPz = false;
     s.estadoEm = now;
+    s.pararEnviado = parar;
     if (ja) return; // trocou de rota: o resto já está ligado
     s.avisos = avisosNovos(); // rota nova: o que já estava no limite avisa de novo
     p.bot = true;
-    this.o.fight.forceChase(p.id, true);
+    this.o.fight.forceChase(p.id, true, parar);
     this.o.companions.spawnCompanion(p, now);
   }
 
@@ -776,8 +914,13 @@ export class EstagiarioSystem {
     s.alvoId = "";
     s.alvoAnterior = "";
     s.inalcancavelAte = 0;
+    s.recuandoAte = 0;
+    s.lutaOrigem = null;
+    s.lutaFimEm = 0;
     s.pausa = "";
     s.pausaAte = 0;
+    s.pararEnviado = 0;
+    s.retomar = false;
     p.bot = false;
     this.o.fight.forceChase(p.id, false);
     this.o.companions.despawnCompanion(p.id);
@@ -785,10 +928,14 @@ export class EstagiarioSystem {
 
   private mudarPausa(id: string, s: Estado, pausa: EstagiarioPausa, now: number): void {
     this.acertar(s, now);
-    // Na pausa o jogador está no controle: a perseguição forçada o arrastaria de volta ao alvo durante os 10 s.
-    if ((s.pausa === "") !== (pausa === "")) this.o.fight.forceChase(id, pausa === "");
-    s.pausa = pausa;
     const p = this.jogador(id);
+    // Na pausa o jogador está no controle: a perseguição forçada o arrastaria de volta ao alvo durante os 10 s.
+    if ((s.pausa === "") !== (pausa === "")) {
+      const parar = p ? this.pararEm(p, s) : 1;
+      s.pararEnviado = pausa === "" ? parar : 0;
+      this.o.fight.forceChase(id, pausa === "", parar);
+    }
+    s.pausa = pausa;
     if (p) this.enviarEstado(p, now);
   }
 

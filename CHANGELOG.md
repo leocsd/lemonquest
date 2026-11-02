@@ -1,5 +1,50 @@
 # Changelog
 
+## [Não lançado] — 2026-11-02 · Estagiário v2: economia de mana, regras mais ricas e distância para quem atira
+
+Dono: "deixar o bot bem flexível, bom e otimizado para o jogo, sem perder a graça; os buffs de correr não saem
+enquanto tem outro buff; otimizar para todas as classes". Análise medida com os sistemas reais e a estratégia em
+`docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md` (fases 1–3; só a prioridade de alvo ficou 🧭).
+- **Buffs fora da reserva do ataque** (`shared/estagiario.ts` `escolherBuff`): a reserva de mana do ataque segurava
+  todo buff menos o Escudo de Mana; sem poção de mana a mana vive abaixo dela (86–97 % do tempo medido), então o Pés
+  Ligeiros ficava ativo 13 % do tempo enquanto o Escudo seguia saindo — o sintoma relatado. Agora o buff só exige a
+  própria mana e a "mana ≥ X %" opcional da regra. Medido: Pés Ligeiros ativo ≥ 95 % do tempo sem poção de mana.
+- **Curas recomendadas corrigidas**: a Cura comum tinha limiar acima da cura própria (70 contra 55/60) e entre os dois
+  só ela saía — 70 de mana por 11 % da vida no cavaleiro, que bebia 59 poções de mana em 4 min e não sobrava mana nem
+  recarga para atacar. Cavaleiro: `poção <35 · Limpar Feridas <60 · Cura <60 · mana <25`; paladino: `Cura Divina <60 ·
+  Cura <60`; magos: `Cura <55`. Golpe Giratório (8 de mana) vale com **1 bicho**. Medido (4 monstros, 4 min):
+  cavaleiro lv 40 de 25 para **44 abates** e de 51 para **28 poções de mana**; paladino lv 60 de 18 para 32 abates e de
+  15 para 10 poções. Quem já salvou configuração própria mantém a antiga: "Usar recomendado" nas abas Cura e Ataque.
+- **Resolvedor com alcance e visão**: magia de alvo só conta como pronta com o alvo ao alcance e à vista; a rotação
+  passa à regra seguinte (a Investida sai quando o Golpe Brutal não alcança). Zero conjurações falhas por alcance.
+- **Poção que cobre a falta** (`pickPotionFor`, `usePotion({ cobrir })`): a menor poção que recupera o que falta, em
+  vez da maior (o cavaleiro jogava fora dois terços da Poção de Mana Grande). Q/E continuam com a maior.
+- **Regras mais ricas** (aba Ataque e Buffs): `mana ≥ X %` por regra de ataque (troca a reserva geral só ali, para cima
+  ou para baixo) e `alvo com ≥ X % de vida` (poupa a magia grande no bicho quase morto); buff com `sempre / só em
+  combate / só fora de combate` ("em combate" = deu ou levou dano há 6 s, não "tem alvo") e `mana ≥ X %`.
+- **Invocação mantida** (druida/fada): Invocar Lobo / Amiguinha Borboleta entram na aba Buffs; reconjura quando a
+  invocação some (recomendado: em combate).
+- **Comer sozinho** (aba Cura, padrão ligado): com a Cura ligada, come a primeira comida da mochila quando o
+  "alimentado" tem menos de 1 min (`InventorySystem.eatAny`).
+- **Cura em grupo por aliado** (druida/fada): regra `Aliado abaixo de X %` → Cura em Grupo / Cantiga de Ninar quando
+  um colega de grupo ao alcance está abaixo do limiar.
+- **Manter distância** (decisão do dono): opção na aba Ataque para paladino, feiticeiro, druida e fada (padrão
+  **3 tiles**; o cavaleiro não vê). Com a rota rodando, a perseguição forçada para a essa distância com visão
+  (`FightModeSystem.forceChase(id, on, parar)`) e o bot recua um passo quando um monstro corpo a corpo encosta
+  (`escolherRecuo`: vizinho livre, longe de todas as ameaças, alvo no alcance e à vista, até 6 tiles de onde a cadeia
+  de lutas começou; nunca na PZ nem na pausa manual; monstro à distância não faz recuar). Medido: paladino e magos
+  gastam 45–60 % da cura de antes; abates iguais ou maiores, menos nos magos em bando de 4 (espalham o bando).
+- **Motivos novos** no cabeçalho: "mantendo distância", "alvo fora do alcance", "sem mana para o buff".
+- **Sem atraso para seguir o bicho** (dono: "o boneco ainda tem um delay para seguir o bicho na primeira vez que o
+  vê"): sem alvo a busca passa a cada 100 ms (era 400) e, fora da rota (só o Ataque ligado, ou a rota pausada à mão),
+  o alvo novo retoma a perseguição assim que o jogador fica parado — todo `Move`/`WalkTo` pausa a perseguição por
+  1,5 s, e antes o bot não retomava para não cancelar essa pausa, então o primeiro passo atrás do monstro esperava o
+  resto dela. Com o jogador ainda andando (tecla, clique ou passo em curso) a pausa continua valendo.
+- **Teste de balanço** `server/systems/estagiarioBalance.test.ts`: as quatro vocações nos lv 20/40/60 contra 4 monstros
+  da faixa com os sistemas reais, com e sem poção de mana, contra a configuração recomendada de antes; as metas viram
+  asserções (Pés Ligeiros ≥ 90 %/60 %, poções de mana ≤ 75 % de antes, cura dos atiradores ≤ 80 %, ≥ 25 abates,
+  zero falhas de alcance, ninguém morre). `LEMONQUEST_SIM_OUT`/`_TRACE`/`_EXTRA` gravam o relatório para calibrar.
+
 ## [Não lançado] — 2026-11-01 · Pegar do chão arrastando de longe e largar sem confirmação
 
 Dono: "tem hora que eu não consigo puxar o item do chão", "se estiver longe, quero que ele vá para perto do loot" e "não

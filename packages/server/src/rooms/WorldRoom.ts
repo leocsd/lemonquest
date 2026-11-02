@@ -422,6 +422,13 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       players: () => this.state.players.values(), send,
       sameParty: (a, b) => this.party.sameParty(a, b),
       isPortalTile: (x, y) => this.portals.isPortalTile(x, y),
+      // v2: buffs "em combate" pela condição de combate, invocação mantida, comer sozinho, cura em grupo e distância.
+      inCombat: (id, now) => this.combat.inCombat(id, now),
+      invocacoes: (id) => this.summons.ownedBy(id).length,
+      alimentadoMs: (id, now) => this.food.remainingMs(id, now),
+      comer: (p) => this.inventory.eatAny(p, { silent: true }),
+      aliados: (p) => this.party.membersOf(p.id).filter((id) => id !== p.id).map(getPlayer).filter((q): q is PlayerState => !!q),
+      attackRange: (p) => this.combat.attackOf(p).range,
     });
     this.combat.hooks = {
       xpMult: () => this.events?.xpMult() ?? 1,

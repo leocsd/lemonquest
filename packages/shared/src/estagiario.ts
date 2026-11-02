@@ -1,16 +1,28 @@
-// Estagiário (2026-11-01, spec docs/superpowers/specs/2026-11-01-estagiario-design.md): bot de caça do próprio jogo.
+// Estagiário (2026-11-01, spec docs/superpowers/specs/2026-11-01-estagiario-design.md; v2 em
+// docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md): bot de caça do próprio jogo.
 // Aqui só as regras puras (o servidor decide e age em server/systems/estagiario.ts; o cliente só configura).
 import { castableBy, familiesFor, type SpellGroup } from "./data/spellFamilies.ts";
-import { spellDef, spellsFor, type SpellDef } from "./data/spells.ts";
+import { spellDef, spellsFor, type ConditionId, type SpellDef } from "./data/spells.ts";
 import type { QuickPotionKind } from "./itemRules.ts";
 import type { Vocation } from "./types.ts";
 
 export type CuraAcao = { magia: string } | { pocao: QuickPotionKind };
-export interface RegraCura { quando: "vida" | "mana"; abaixoDe: number; acao: CuraAcao }
-/** Conta os monstros selvagens a até `raio` tiles; com `minBichos` ou mais, conjura `magia` (magia, família ou grupo). */
-export interface RegraAtaque { minBichos: number; raio: number; magia: string }
-/** Buff mantido ativo: reconjura `magia` quando a condição dela acaba; `emCombate` = só com um monstro vivo de alvo. */
-export interface RegraBuff { magia: string; emCombate: boolean }
+/** `aliado` (v2): um colega de grupo a até o raio da magia abaixo de `abaixoDe`% → cura em grupo (só magia "party"). */
+export type CuraQuando = "vida" | "mana" | "aliado";
+export interface RegraCura { quando: CuraQuando; abaixoDe: number; acao: CuraAcao }
+/**
+ * Conta os monstros selvagens a até `raio` tiles; com `minBichos` ou mais, conjura `magia` (magia, família ou grupo).
+ * v2: `manaMin` (%) substitui a reserva geral só nesta regra (ausente = a reserva geral); `vidaAlvoMin` (%) não gasta a
+ * magia num alvo com menos vida que isso (ausente = qualquer vida).
+ */
+export interface RegraAtaque { minBichos: number; raio: number; magia: string; manaMin?: number; vidaAlvoMin?: number }
+/** Quando o buff vale: sempre, só em combate (deu/levou dano há pouco) ou só fora dele. */
+export type BuffQuando = "sempre" | "combate" | "fora";
+/**
+ * Buff (ou invocação, v2) mantido: reconjura `magia` quando a condição dela acaba (ou a invocação some).
+ * `manaMin` (%): só com mana a partir daí (ausente = sem exigência além da sobra para a cura, ver escolherBuff).
+ */
+export interface RegraBuff { magia: string; quando: BuffQuando; manaMin?: number }
 /** `portal`: o tile do portal pisado na gravação (a rota anda até ele para atravessar de novo). */
 export interface PontoRota { x: number; y: number; portal?: boolean }
 export interface RotaCaca { nome: string; pontos: PontoRota[] }
@@ -20,13 +32,20 @@ export interface EstagiarioConfig {
   ataque: RegraAtaque[];
   /** Buffs mantidos ativos (2026-11-01, pedido do dono), na ordem. */
   buffs: RegraBuff[];
-  /** Abaixo desta % de mana não conjura magia de ataque (sobra para a cura). */
+  /** Abaixo desta % de mana não conjura magia de ataque (sobra para a cura). Só o ataque: buff tem a própria regra. */
   reservaMana: number;
   rotas: RotaCaca[];
   /** Alarmes desligados pelo jogador (ausente/true = ligado). "morte" não desliga. */
   alarmes: Partial<Record<AlarmeTipo, boolean>>;
   /** % de vida do alarme "vidaBaixa". */
   vidaAlarme: number;
+  /** v2: come sozinho quando o "alimentado" está acabando (com a Cura ligada). */
+  comer: boolean;
+  /**
+   * v2 (decisão do dono, 2026-11-02): com a rota rodando, quem ataca à distância para de perseguir a esta distância do
+   * alvo e recua um passo quando um monstro corpo a corpo encosta. 0 = colado (o cavaleiro); 2–4 tiles.
+   */
+  distancia: number;
 }
 /** Turno restante (ms) e o instante da última conta; a recarga é calculada ao ler (`avancarTurno`). */
 export interface TurnoEstado { ms: number; em: number }
@@ -47,38 +66,51 @@ export const TURNO_AVISO_MS = 5 * 60_000;
 /** Alcance de busca de alvo (= AUTO_SEEK_DIST do ataque automático). */
 export const BUSCA_TILES = 12;
 export const ALARMES: readonly AlarmeTipo[] = ["pocao", "vidaBaixa", "jogador", "atacado", "privada", "turno", "mochila", "morte"];
+/** Distâncias que a opção "manter distância" aceita (0 = colado). */
+export const DISTANCIAS: readonly number[] = [0, 2, 3, 4];
+/** Recuando, nunca mais longe que isto de onde a luta começou (a rota não deriva para outro spawn). */
+export const RECUO_MAX_TILES = 6;
+/** Come quando o "alimentado" tem menos que isto pela frente. */
+export const COMER_ANTES_MS = 60_000;
+/** Magia de área "barata": vale com um bicho só (o Golpe Giratório, 8 de mana, 2,2× o ataque básico). */
+export const MAGIA_BARATA_MANA = 10;
 
 const int = (v: unknown, lo: number, hi: number, dflt: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : dflt;
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
 const cleanNome = (raw: unknown): string =>
   typeof raw === "string" ? raw.replace(/[\p{C}]/gu, "").replace(/\s+/g, " ").trim().slice(0, NOME_ROTA_MAX).trim() : "";
+/** Campo opcional em % (0 ou inválido = ausente). */
+const pctOpcional = (v: unknown): number | undefined => { const n = int(v, 0, 100, 0); return n > 0 ? n : undefined; };
 
 const curaDaVocacao = (v: Vocation): string => (v === "fairy" ? "fairy_kiss" : "light_heal");
 
 /**
- * Cura recomendada por vocação (2026-11-01, pedido do dono): poção forte primeiro na vida baixa; depois a cura própria
- * da vocação (Limpar Feridas do cavaleiro, Cura Divina do paladino — só saem quando o level libera; antes disso a regra
- * é pulada e vale a seguinte); a Cura comum; e a poção de mana. Magos curam mais com a Cura (magic level alto).
+ * Cura recomendada por vocação: poção forte primeiro na vida baixa; a cura própria da vocação (Limpar Feridas do
+ * cavaleiro, Cura Divina do paladino) e a Cura comum NO MESMO limiar — a Cura só sai enquanto a própria está trancada
+ * pelo level (antes era 70 % contra 55/60 %, e entre os dois limiares só a Cura saía: 70 de mana por 11 % da vida no
+ * cavaleiro, que bebia 51 poções de mana em 4 min e não sobrava mana nem recarga para atacar; v2, 2026-11-02); e a
+ * poção de mana. Magos curam mais com a Cura (magic level alto) e aguentam o limiar mais baixo.
  */
 export function curaRecomendada(v: Vocation): RegraCura[] {
   const hp = (abaixoDe: number): RegraCura => ({ quando: "vida", abaixoDe, acao: { pocao: "hp" } });
   const mp = (abaixoDe: number): RegraCura => ({ quando: "mana", abaixoDe, acao: { pocao: "mana" } });
   const magia = (abaixoDe: number, id: string): RegraCura => ({ quando: "vida", abaixoDe, acao: { magia: id } });
-  if (v === "knight") return [hp(35), magia(55, "wound_cleansing"), magia(70, "light_heal"), mp(25)];
-  if (v === "paladin") return [hp(35), magia(60, "divine_healing"), magia(70, "light_heal"), mp(35)];
-  return [hp(35), magia(65, curaDaVocacao(v)), mp(35)];
+  if (v === "knight") return [hp(35), magia(60, "wound_cleansing"), magia(60, "light_heal"), mp(25)];
+  if (v === "paladin") return [hp(35), magia(60, "divine_healing"), magia(60, "light_heal"), mp(30)];
+  return [hp(35), magia(55, curaDaVocacao(v)), mp(35)];
 }
 
-/** Quantos bichos a até `raio` tiles pedem a magia de área: as de raio 3+ pedem 3; as menores, 2. */
-const minBichosArea = (s: SpellDef): number => (s.target === "area_self" && (s.radius ?? 1) >= 3 ? 3 : 2);
+/** Quantos bichos a até `raio` tiles pedem a magia de área: as de raio 3+ pedem 3; as baratas valem com 1; as outras, 2. */
+const minBichosArea = (s: SpellDef): number =>
+  s.target === "area_self" && (s.radius ?? 1) >= 3 ? 3 : s.mana <= MAGIA_BARATA_MANA ? 1 : 2;
 /** Raio (tiles) em volta do personagem que conta os bichos para a magia: o raio dela, ou o comprimento da onda. */
 const raioDaMagia = (s: SpellDef): number => Math.max(1, Math.min(4, s.target === "wave" ? s.length ?? 1 : s.radius ?? 1));
 
 /**
  * Ataque recomendado por vocação, magia por magia (2026-11-01, pedido do dono: "por skill, área e alvo, e a quantidade
  * de tiles que cada uma pega"): cada magia de dano em área (em volta, no alvo ou onda) vira uma regra com o raio dela e
- * 2–3 bichos, da mais forte (level maior) para a mais fraca; a última regra é a tecla inteligente "no alvo" da vocação,
+ * 1–3 bichos, da mais forte (level maior) para a mais fraca; a última regra é a tecla inteligente "no alvo" da vocação,
  * que solta o golpe de alvo único mais forte pronto (do level 1 em diante). Magias acima do level são puladas sozinhas.
  */
 export function ataqueRecomendado(v: Vocation): RegraAtaque[] {
@@ -99,23 +131,30 @@ export function ataqueRecomendado(v: Vocation): RegraAtaque[] {
  */
 export const ehBuff = (s: SpellDef): boolean =>
   (s.target === "self" || s.target === "party") && !!s.condition && !s.damage && !s.heal && !s.summon;
+/** Invocação (v2): entra na aba Buffs como "manter invocado" (Invocar Lobo, Amiguinha Borboleta). */
+export const ehInvocacao = (s: SpellDef): boolean => !!s.summon;
 
-/** Buffs que a vocação pode escolher, do level menor para o maior. */
-export const buffsDaVocacao = (v: Vocation): SpellDef[] => spellsFor(v).filter(ehBuff);
+/** Buffs e invocações que a vocação pode escolher, do level menor para o maior. */
+export const buffsDaVocacao = (v: Vocation): SpellDef[] => spellsFor(v).filter((s) => ehBuff(s) || ehInvocacao(s));
 
 /**
  * Buffs recomendados por vocação: a pressa sempre (fora de combate também, para andar a rota mais rápido); o cavaleiro
- * segura Pele de Ferro e Fúria na luta; magos e a fada, o escudo de mana na luta. Acima do level, a regra é pulada.
+ * segura Pele de Ferro e Fúria na luta; magos e a fada, o escudo de mana na luta; druida e fada mantêm a invocação na
+ * luta (v2). Acima do level, a regra é pulada.
  */
 export function buffsRecomendados(v: Vocation): RegraBuff[] {
-  const b = (magia: string, emCombate: boolean): RegraBuff => ({ magia, emCombate });
-  if (v === "knight") return [b("swift_feet", false), b("iron_skin", true), b("berserk", true)];
-  if (v === "paladin") return [b("swift_feet", false)];
-  if (v === "fairy") return [b("bubble_bath", true), b("swift_wings", false)];
-  return [b("mana_shield", true), b("swift_feet", false)];
+  const b = (magia: string, quando: BuffQuando): RegraBuff => ({ magia, quando });
+  if (v === "knight") return [b("swift_feet", "sempre"), b("iron_skin", "combate"), b("berserk", "combate")];
+  if (v === "paladin") return [b("swift_feet", "sempre")];
+  if (v === "fairy") return [b("bubble_bath", "combate"), b("swift_wings", "sempre"), b("summon_butterfly", "combate")];
+  if (v === "druid") return [b("mana_shield", "combate"), b("swift_feet", "sempre"), b("summon_wolf", "combate")];
+  return [b("mana_shield", "combate"), b("swift_feet", "sempre")];
 }
 
 const RESERVA_MANA: Partial<Record<Vocation, number>> = { knight: 20, paladin: 25 };
+
+/** Distância padrão da opção "manter distância": o cavaleiro luta colado; os outros a 3 tiles (decisão do dono). */
+export const distanciaPadrao = (v: Vocation): number => (v === "knight" ? 0 : 3);
 
 export function estagiarioPadrao(v: Vocation): EstagiarioConfig {
   return {
@@ -126,12 +165,14 @@ export function estagiarioPadrao(v: Vocation): EstagiarioConfig {
     rotas: [],
     alarmes: {},
     vidaAlarme: 25,
+    comer: true,
+    distancia: distanciaPadrao(v),
   };
 }
 
 function regraCura(raw: unknown, v: Vocation): RegraCura | null {
   const r = obj(raw);
-  if (!r || (r.quando !== "vida" && r.quando !== "mana")) return null;
+  if (!r || (r.quando !== "vida" && r.quando !== "mana" && r.quando !== "aliado")) return null;
   const a = obj(r.acao);
   if (!a) return null;
   let acao: CuraAcao | null = null;
@@ -140,6 +181,8 @@ function regraCura(raw: unknown, v: Vocation): RegraCura | null {
     const s = spellDef(a.magia);
     if (s?.heal && s.vocations.includes(v)) acao = { magia: s.id };
   }
+  // Aliado: só cura em grupo (a regra olha a vida dos colegas; poção e cura própria não os alcançam).
+  if (r.quando === "aliado" && (!acao || !("magia" in acao) || spellDef(acao.magia)?.target !== "party")) return null;
   return acao ? { quando: r.quando, abaixoDe: int(r.abaixoDe, 1, 99, 50), acao } : null;
 }
 
@@ -148,14 +191,24 @@ function regraAtaque(raw: unknown, v: Vocation, groups: readonly SpellGroup[]): 
   if (!r || typeof r.magia !== "string" || !castableBy(r.magia, v, groups)) return null;
   const s = spellDef(r.magia);
   if (s && (!s.damage || s.heal)) return null; // magia solta: só de dano (família/grupo já são de ataque)
-  return { minBichos: int(r.minBichos, 1, 8, 1), raio: int(r.raio, 1, 4, 1), magia: r.magia };
+  const out: RegraAtaque = { minBichos: int(r.minBichos, 1, 8, 1), raio: int(r.raio, 1, 4, 1), magia: r.magia };
+  const manaMin = pctOpcional(r.manaMin), vidaAlvoMin = pctOpcional(r.vidaAlvoMin);
+  if (manaMin !== undefined) out.manaMin = manaMin;
+  if (vidaAlvoMin !== undefined) out.vidaAlvoMin = vidaAlvoMin;
+  return out;
 }
 
 function regraBuff(raw: unknown, v: Vocation): RegraBuff | null {
   const r = obj(raw);
   if (!r || typeof r.magia !== "string") return null;
   const s = spellDef(r.magia);
-  return s && s.vocations.includes(v) && ehBuff(s) ? { magia: s.id, emCombate: r.emCombate === true } : null;
+  if (!s || !s.vocations.includes(v) || !(ehBuff(s) || ehInvocacao(s))) return null;
+  // `emCombate` é o formato salvo antes da v2 (true = só em combate).
+  const quando: BuffQuando = r.quando === "combate" || r.quando === "fora" || r.quando === "sempre" ? r.quando : r.emCombate === true ? "combate" : "sempre";
+  const out: RegraBuff = { magia: s.id, quando };
+  const manaMin = pctOpcional(r.manaMin);
+  if (manaMin !== undefined) out.manaMin = manaMin;
+  return out;
 }
 
 function rota(raw: unknown): RotaCaca | null {
@@ -205,6 +258,9 @@ export function sanitizeEstagiario(raw: unknown, v: Vocation, groups: readonly S
     rotas,
     alarmes,
     vidaAlarme: int(r.vidaAlarme, 1, 99, 25),
+    comer: r.comer !== false,
+    // Sem o campo (configuração de antes da v2): o padrão da vocação; valor fora da lista também.
+    distancia: typeof r.distancia === "number" && DISTANCIAS.includes(r.distancia) ? r.distancia : distanciaPadrao(v),
   };
 }
 
@@ -217,52 +273,121 @@ export function avancarTurno(t: TurnoEstado | undefined, now: number, rodando: b
   return { ms: Math.round(ms), em: now };
 }
 
+/**
+ * Cura a fazer agora: a primeira regra que vale e está pronta. `aliadoAbaixo(pct, acao)`: há colega de grupo ao
+ * alcance da magia com menos de `pct`% de vida (regras "aliado"; ausente = nunca).
+ */
 export function escolherCura(
   c: { hp: number; maxHp: number; mana: number; maxMana: number }, regras: readonly RegraCura[], pronto: (a: CuraAcao) => boolean,
+  aliadoAbaixo?: (pct: number, acao: CuraAcao) => boolean,
 ): CuraAcao | null {
   for (const r of regras) {
-    const [cur, max] = r.quando === "vida" ? [c.hp, c.maxHp] : [c.mana, c.maxMana];
-    if (max <= 0 || (cur / max) * 100 >= r.abaixoDe) continue;
+    if (r.quando === "aliado") {
+      if (!aliadoAbaixo?.(r.abaixoDe, r.acao)) continue;
+    } else {
+      const [cur, max] = r.quando === "vida" ? [c.hp, c.maxHp] : [c.mana, c.maxMana];
+      if (max <= 0 || (cur / max) * 100 >= r.abaixoDe) continue;
+    }
     if (pronto(r.acao)) return r.acao;
   }
   return null;
 }
 
+/** Mana (%) abaixo da qual a regra de ataque não conjura: a dela (`manaMin`) ou a reserva geral. */
+export const pisoDeMana = (r: RegraAtaque, reservaMana: number): number => r.manaMin ?? reservaMana;
+
 /**
- * Ataque a conjurar: a primeira regra com magia pronta (`resolver`: família/grupo → a magia) e bichos suficientes.
- * Resolve antes de contar: a contagem depende da magia resolvida (onda conta nos tiles da onda; área no alvo, em volta
- * do alvo) e uma regra sem magia pronta nem precisa contar.
+ * Ataque a conjurar: a primeira regra com mana no piso dela, alvo com vida bastante, magia pronta (`resolver`:
+ * família/grupo → a magia) e bichos suficientes. Resolve antes de contar: a contagem depende da magia resolvida (onda
+ * conta nos tiles da onda; área no alvo, em volta do alvo) e uma regra sem magia pronta nem precisa contar.
  */
 export function escolherAtaque(
   regras: readonly RegraAtaque[], bichosEm: (raio: number, magia: string) => number, manaPct: number, reservaMana: number,
-  resolver: (magia: string) => string | null,
+  resolver: (magia: string) => string | null, alvoPct = 100,
 ): string | null {
-  if (manaPct < reservaMana) return null;
   for (const r of regras) {
+    if (manaPct < pisoDeMana(r, reservaMana) || alvoPct < (r.vidaAlvoMin ?? 0)) continue;
     const id = resolver(r.magia);
     if (id && bichosEm(r.raio, id) >= r.minBichos) return id;
   }
   return null;
 }
 
+export interface ContextoBuff {
+  /** Condição ativa no jogador (o buff só é reconjurado quando a dele acabou). */
+  ativo(condicao: ConditionId): boolean;
+  /** Há invocação viva do jogador (a regra de invocação espera ela sumir). */
+  invocado(): boolean;
+  /** Deu ou levou dano há pouco (regras "combate"/"fora"). */
+  emCombate: boolean;
+  mana: number;
+  maxMana: number;
+  /** Pronta: level, recarga própria e global e a mana da própria magia (SpellSystem.ready). */
+  pronto(magia: string): boolean;
+}
+
 /**
- * Buff a conjurar agora: o primeiro da lista cuja condição não está ativa, que vale fora de combate (ou há alvo), que
- * respeita a reserva de mana (menos o escudo de mana, que é de sobrevivência) e está pronto.
+ * Buff a conjurar agora: o primeiro da lista cujo efeito não está ativo, que vale no momento (sempre / em combate / fora),
+ * com a mana mínima da regra (se houver) e pronto. v2: a reserva de mana do ATAQUE não segura mais os buffs — era ela que
+ * deixava o Pés Ligeiros parado enquanto o Escudo de Mana, a única exceção, seguia saindo. Também não se exige "sobra
+ * para uma cura": medido, isso recriava o mesmo problema sem poção de mana (cavaleiro e paladino vivem com a mana no
+ * chão e o Pés Ligeiros ficava ativo 13 % do tempo), e os buffs custam uma fração da regeneração (20–60 de mana a cada
+ * 15–30 s). Quem quiser segurar um buff caro põe `manaMin` nele.
  */
-export function escolherBuff(
-  regras: readonly RegraBuff[], ativo: (condicao: string) => boolean, comAlvo: boolean, manaPct: number, reservaMana: number,
-  pronto: (magia: string) => boolean,
-): string | null {
+export function escolherBuff(regras: readonly RegraBuff[], ctx: ContextoBuff): string | null {
+  const manaPct = ctx.maxMana > 0 ? (ctx.mana / ctx.maxMana) * 100 : 0;
   for (const r of regras) {
     const s = spellDef(r.magia);
-    if (!s?.condition || (r.emCombate && !comAlvo) || ativo(s.condition.id)) continue;
-    if (s.condition.id !== "manashield" && manaPct < reservaMana) continue;
-    if (pronto(s.id)) return s.id;
+    if (!s || (!s.condition && !s.summon)) continue;
+    if ((r.quando === "combate" && !ctx.emCombate) || (r.quando === "fora" && ctx.emCombate)) continue;
+    if (s.summon ? ctx.invocado() : ctx.ativo(s.condition!.id)) continue;
+    if (r.manaMin !== undefined && manaPct < r.manaMin) continue;
+    if (ctx.pronto(s.id)) return s.id;
   }
   return null;
 }
 
 const cheb = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+
+export interface Recuo {
+  pos: { x: number; y: number };
+  alvo: { x: number; y: number };
+  /** Monstros corpo a corpo encostados (é deles que se recua). */
+  ameacas: readonly { x: number; y: number }[];
+  /** Onde se quer ficar do alvo (a opção "manter distância", já limitada ao alcance). */
+  distancia: number;
+  /** O alvo tem de continuar a até isto (o alcance do ataque). */
+  alcance: number;
+  /** Onde a luta começou: nunca mais que RECUO_MAX_TILES dali. */
+  origem: { x: number; y: number };
+  /** Tile andável e livre (sem criatura, fora da PZ). */
+  livre(x: number, y: number): boolean;
+  /** Do tile dá para ver o alvo. */
+  visao(x: number, y: number): boolean;
+}
+
+/**
+ * Para onde recuar um passo (v2, "manter distância"): o vizinho livre que sai de perto de TODAS as ameaças (a pelo menos
+ * 2 tiles), mantém o alvo no alcance e à vista e não passa de RECUO_MAX_TILES da origem da luta. Entre os que servem:
+ * o mais longe das ameaças; depois o que fica a até `distancia` do alvo (a perseguição não puxa de volta); depois o
+ * mais perto dessa distância; por fim o passo reto (a diagonal demora 1,4×). null = encurralado: fica e luta.
+ */
+export function escolherRecuo(r: Recuo): { x: number; y: number } | null {
+  let best: { x: number; y: number } | null = null, bestKey: number[] = [];
+  // Comparação lexicográfica: a primeira posição diferente decide (maior ganha).
+  const melhor = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i]! > b[i]!; return false; };
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (!dx && !dy) continue;
+    const t = { x: r.pos.x + dx, y: r.pos.y + dy };
+    const dAlvo = cheb(t, r.alvo);
+    if (dAlvo < 1 || dAlvo > r.alcance || cheb(t, r.origem) > RECUO_MAX_TILES || !r.livre(t.x, t.y) || !r.visao(t.x, t.y)) continue;
+    const longe = Math.min(3, ...r.ameacas.map((a) => cheb(t, a)));
+    if (longe < 2) continue; // ainda encostado em alguma ameaça: não adianta
+    const key = [longe, dAlvo <= r.distancia ? 1 : 0, -Math.abs(dAlvo - r.distancia), dx && dy ? 0 : 1];
+    if (!best || melhor(key, bestKey)) { best = t; bestKey = key; }
+  }
+  return best;
+}
 
 export function indiceMaisProximo(pontos: readonly PontoRota[], pos: { x: number; y: number }): number {
   let best = -1, bestD = Infinity;

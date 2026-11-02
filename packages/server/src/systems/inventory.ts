@@ -6,7 +6,7 @@
 import { randomBytes } from "node:crypto";
 import {
   BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
-  instanceStats, levelNeeded, pickQuickPotion, potionAmount, refineLevel, vocationFits,
+  instanceStats, levelNeeded, pickPotionFor, pickQuickPotion, potionAmount, refineLevel, vocationFits,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
   type ItemKind, type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionKind, type QuickPotionMsg, type Rarity, type SkillId,
   type SortContainerMsg, type StatId, type Stats, type UseItemMsg, type Vocation,
@@ -545,16 +545,31 @@ export class InventorySystem {
    * Bebe a melhor poção de vida/mana que o level permite (a mesma escolha de Q/E). Devolve se bebeu. `silent`: sem os
    * avisos de "sem poção"/"em recarga"/level — o Estagiário tenta a cada tick e não pode encher a tela do dono.
    */
-  usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean }): boolean {
+  usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean; cobrir?: number }): boolean {
     const inv = this.inv.get(p.id);
     if (!inv) return false;
     const silent = !!opts?.silent;
-    const { index, needLevel } = pickQuickPotion(inv.backpack, kind, p.level, this.defs, p.vocation);
+    // `cobrir` (Estagiário v2): a menor poção que recupera isso, em vez da maior (o cavaleiro bebia a Grande de 900 de
+    // mana numa barra de 245).
+    const { index, needLevel } = opts?.cobrir !== undefined
+      ? pickPotionFor(inv.backpack, kind, p.level, opts.cobrir, this.defs, p.vocation)
+      : pickQuickPotion(inv.backpack, kind, p.level, this.defs, p.vocation);
     if (index < 0) {
       if (!silent) this.warn(p, needLevel ? MSG.level(needLevel) : kind === "hp" ? MSG.noHp : MSG.noMana);
       return false;
     }
     return this.useAt(p, inv, index, silent);
+  }
+
+  /**
+   * Come a primeira comida da mochila que o level deixa (Estagiário v2, "comer sozinho"). Devolve se comeu; sem comida,
+   * satisfeito ou em recarga, false (em silêncio com `silent`).
+   */
+  eatAny(p: PlayerState, opts?: { silent?: boolean }): boolean {
+    const inv = this.inv.get(p.id);
+    if (!inv) return false;
+    const i = inv.backpack.findIndex((it) => { const d = it ? this.defs(it.defId) : undefined; return !!d?.use?.food && levelNeeded(d, p.level) === 0; });
+    return i >= 0 && this.useAt(p, inv, i, !!opts?.silent);
   }
 
   /** A recarga única das poções (vida e mana dividem a mesma) já passou? */

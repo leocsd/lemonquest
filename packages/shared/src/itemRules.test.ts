@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blendFood, levelNeeded, pickQuickPotion, potionAmount, stackTarget } from "./itemRules.ts";
+import { blendFood, levelNeeded, pickPotionFor, pickQuickPotion, potionAmount, stackTarget } from "./itemRules.ts";
 import { FOOD_MAX_MS, ITEMS, itemDef, type ItemDef, type ItemInstance, type Rarity } from "./data/items.ts";
 
 const inst = (defId: string, count = 1, rarity: Rarity = "common") => ({ uid: defId + count, defId, count, rarity, bonuses: [] }) as ItemInstance;
@@ -131,5 +131,25 @@ describe("poções por vocação (como no Tibia)", () => {
     expect(pickQuickPotion(bp, "mana", 100, itemDef, "knight")).toEqual({ index: -1, needLevel: 0 });
     expect(pickQuickPotion(bp, "hp", 100, itemDef)).toEqual({ index: 0, needLevel: 0 });
     expect(itemDef("health_potion_supreme")).toMatchObject({ level: 110, vocations: ["knight"], use: { heal: 800, cooldownMs: 2000 } });
+  });
+});
+
+describe("poção do Estagiário (a menor que cobre a falta)", () => {
+  const bp = [inst("health_potion_large"), inst("health_potion"), inst("mana_potion_large"), inst("mana_potion"), inst("mana_potion_medium")];
+
+  it("a menor que cobre o que falta; nenhuma cobre: a maior; sem falta: a maior", () => {
+    expect(pickPotionFor(bp, "hp", 30, 50, itemDef).index).toBe(1); // 60 cobre 50
+    expect(pickPotionFor(bp, "hp", 30, 61, itemDef).index).toBe(0); // só a Grande (450) cobre
+    expect(pickPotionFor(bp, "hp", 30, 9999, itemDef).index).toBe(0); // nenhuma cobre: a maior
+    expect(pickPotionFor(bp, "mana", 30, 200, itemDef).index).toBe(4); // Média (350), não a Grande (900) nem a comum (120)
+    expect(pickPotionFor(bp, "mana", 30, 100, itemDef).index).toBe(3);
+    expect(pickPotionFor(bp, "mana", 30, 0, itemDef)).toEqual(pickQuickPotion(bp, "mana", 30, itemDef));
+  });
+
+  it("respeita level e vocação como Q/E: a Grande (lv 30) não entra no lv 10; sem poção permitida, o mesmo needLevel", () => {
+    expect(pickPotionFor(bp, "mana", 10, 500, itemDef).index).toBe(3); // só a comum (lv 1) é permitida
+    expect(pickPotionFor([inst("health_potion_large")], "hp", 10, 10, itemDef)).toEqual({ index: -1, needLevel: 30 });
+    expect(pickPotionFor([inst("health_potion_strong")], "hp", 60, 10, itemDef, "sorcerer").index).toBe(-1);
+    expect(pickPotionFor([inst("health_potion_strong")], "hp", 60, 10, itemDef, "knight").index).toBe(0);
   });
 });
