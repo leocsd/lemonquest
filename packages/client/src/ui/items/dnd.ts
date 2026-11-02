@@ -1,6 +1,6 @@
 // Arrastar e soltar com pointer events entre mochila, equipamento, depot e o chão do mundo.
 // Os slots declaram `data-loc="bp:3" | "eq:helmet" | "dp:12"`. O alvo é achado com elementFromPoint ao soltar.
-// Soltar fora dos painéis (sobre o mundo) = largar no chão naquele tile (raro ou melhor pede confirmação). Arrastar um item
+// Soltar fora dos painéis (sobre o mundo) = largar no chão naquele tile, sem confirmação. Arrastar um item
 // do chão (WorldScene → beginGroundPress) até um slot = pegar; até outro tile do mundo = mover no chão.
 import {
   BACKPACK_SIZE, DEPOT_SIZE, EQUIP_SLOTS, refinedName, type EquipSlot, type ItemDef, type ItemInstance, type ItemLocation,
@@ -9,10 +9,9 @@ import { createStore } from "../hud/store.ts";
 import { playersStore, selectMe } from "../hud/world.ts";
 import { npcStore } from "../npc/npc.ts";
 import { closeDialog, openDialog } from "./dialogs.ts";
-import { dropConfirmText, needsDropConfirm } from "./dropConfirm.ts";
-import { dropAtPointer, moveGroundAtPointer, pickupItem } from "./ground.ts";
+import { dropAtPointer, moveGroundAtPointer, pickupFromDrag } from "./ground.ts";
 import { defOf, inventoryStore, moveItem } from "./inventory.ts";
-import { canEquip, rarityLabel } from "./itemInfo.ts";
+import { canEquip } from "./itemInfo.ts";
 import { itemTipStore } from "./tipStore.ts";
 
 /** Origem do arrasto: um slot ou um item do chão (id do servidor). */
@@ -194,7 +193,7 @@ function drop(d: DragState, x: number, y: number, shift: boolean) {
     if (slot) {
       const to = parseLoc(slot.dataset.loc);
       if (!to || !d.valid.has(locKey(to))) return;
-      if (to.where === "backpack" || to.where === "equip") pickupItem(from.id, to);
+      if (to.where === "backpack" || to.where === "equip") pickupFromDrag(from.id, to);
       return;
     }
     if (target?.closest(PANEL_SEL)) return;
@@ -219,20 +218,15 @@ function drop(d: DragState, x: number, y: number, shift: boolean) {
     return;
   }
   if (target?.closest(PANEL_SEL)) return;
-  // Soltou fora dos painéis: larga no chão (tile sob o mouse; o servidor decide se cai lá ou no seu tile).
-  // Pilha (mais de 1): escolhe a quantidade na barrinha (começa em tudo) — a barrinha já é a confirmação.
-  // Item único raro ou melhor: pergunta antes (a fresta entre trilho e coluna engolia arrastos por engano).
+  // Soltou fora dos painéis: larga no chão (tile sob o mouse; o servidor decide se cai lá ou no seu tile), na hora e
+  // sem confirmação (dono: "não quero a tela de confirmação quando eu for dropar"). Pilha vai inteira; Shift + arrastar
+  // escolhe a quantidade, igual a mover entre slots.
   if (from.where === "depot") return;
-  const name = d.def ? refinedName(d.def, d.inst) : "item";
-  if (d.inst.count > 1) {
+  if (shift && d.inst.count > 1) {
+    const name = d.def ? refinedName(d.def, d.inst) : "item";
     openDialog({
       kind: "count", title: `Largar ${name}`, verb: "Largar", max: d.inst.count, initial: d.inst.count,
       onConfirm: (n) => { closeDialog(); dropAtPointer(from, x, y, n); },
-    });
-  } else if (needsDropConfirm(d.inst)) {
-    openDialog({
-      kind: "confirm", title: `Largar ${name}`, text: dropConfirmText(name, rarityLabel(d.inst.rarity)), verb: "Largar",
-      onConfirm: () => { closeDialog(); dropAtPointer(from, x, y); },
     });
   } else dropAtPointer(from, x, y);
 }

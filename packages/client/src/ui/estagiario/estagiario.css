@@ -10,11 +10,11 @@
 
 /* Interruptor: botão com "trilho" à esquerda (role=switch). */
 .est-switch {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; font: inherit; font-size: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; font: inherit; font-size: 12px; cursor: var(--cur-mao);
   color: var(--hud-muted); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--hud-line); border-radius: 12px;
 }
 .est-switch:hover:not(:disabled) { color: var(--hud-text); background: rgba(255, 255, 255, 0.09); }
-.est-switch:disabled { cursor: default; }
+.est-switch:disabled { cursor: var(--cur-padrao); }
 .est-knob { position: relative; width: 24px; height: 13px; border-radius: 7px; background: #2a3042; transition: background 120ms; }
 .est-knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 9px; height: 9px; border-radius: 50%; background: #8b93ad; transition: transform 120ms, background 120ms; }
 .est-switch.on { color: var(--hud-text); border-color: rgba(120, 200, 110, 0.5); }
@@ -25,7 +25,7 @@
 
 .est-tabs { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 1px solid var(--hud-line); }
 .est-tab {
-  padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer; color: var(--hud-muted); background: none;
+  padding: 4px 12px; font: inherit; font-size: 12px; cursor: var(--cur-mao); color: var(--hud-muted); background: none;
   border: 1px solid transparent; border-bottom: 0; border-radius: 5px 5px 0 0; margin-bottom: -1px;
 }
 .est-tab:hover { color: var(--hud-text); }
@@ -52,12 +52,12 @@
 .est-sel:focus-visible, .est-num:focus-visible, .est-text:focus-visible { outline: 1px solid rgba(255, 212, 71, 0.6); }
 
 .est-btn, .est-mini {
-  font: inherit; cursor: pointer; color: var(--hud-text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--hud-line); border-radius: 4px;
+  font: inherit; cursor: var(--cur-mao); color: var(--hud-text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--hud-line); border-radius: 4px;
 }
 .est-btn { padding: 3px 12px; font-size: 12px; align-self: flex-start; }
 .est-mini { padding: 1px 7px; font-size: 11px; color: var(--hud-muted); }
 .est-btn:hover:not(:disabled), .est-mini:hover:not(:disabled) { color: var(--hud-text); background: rgba(255, 255, 255, 0.11); }
-.est-btn:disabled, .est-mini:disabled { opacity: 0.4; cursor: default; }
+.est-btn:disabled, .est-mini:disabled { opacity: 0.4; cursor: var(--cur-padrao); }
 .est-del:hover:not(:disabled) { color: #ff9a92; border-color: rgba(217, 83, 79, 0.5); }
 .est-stop { color: #ffd0a0; border-color: rgba(217, 164, 65, 0.5); }
 

@@ -6,7 +6,7 @@
 .train-hint { margin: 0; font-size: 11px; color: var(--hud-faint); text-align: center; }
 .train-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .train-skill {
-  width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 7px 9px; cursor: pointer;
+  width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 7px 9px; cursor: var(--cur-mao);
   font: inherit; color: var(--hud-text); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px;
 }
 .train-skill:hover { border-color: var(--hud-gold); background: rgba(217, 164, 65, 0.1); }

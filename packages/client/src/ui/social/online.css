@@ -27,7 +27,7 @@
 /* Botões: quadrados de 22 px com a moldura do HUD; o ícone herda a cor (currentColor). */
 .online-actions { display: flex; gap: 3px; flex: none; }
 .online-btn {
-  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; cursor: var(--cur-mao);
   color: var(--hud-muted); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--hud-line); border-radius: 4px;
   transition: color 120ms, border-color 120ms, background 120ms;
 }

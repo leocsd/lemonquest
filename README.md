@@ -23,8 +23,8 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Atacar / soltar alvo | clique (esquerdo ou direito) na criatura |
 | Mirar o bicho mais próximo / trocar pro próximo | `Espaço` (cicla pela lista de Batalha; ignora jogadores) |
 | Falar com NPC | clique no NPC |
-| Largar item no chão | arraste da mochila/equipamento para o mundo (até 3 tiles; pilhas abrem uma barrinha para escolher a quantidade) |
-| Pegar item do chão | clique direito, duplo clique ou `Ctrl`+clique no item (ou arraste para a mochila) |
+| Largar item no chão | arraste da mochila/equipamento para o mundo (até 3 tiles; larga na hora, sem confirmação; a pilha vai inteira, e `Shift` durante o arraste abre a barrinha para escolher a quantidade) |
+| Pegar item do chão | clique direito, duplo clique ou `Ctrl`+clique no item (ou arraste para a mochila); longe, o personagem anda até o item e pega ao chegar |
 | Olhar (detalhes de criatura, jogador, NPC, baú ou item do chão) | os dois botões do mouse juntos, ou `Shift`+clique |
 | Mover item no chão | arraste o item para outro tile (até 3 tiles de você, linha livre; longe, o personagem anda até o item e move ao chegar; numa pilha, aperte `Shift` **depois** de começar a arrastar para escolher quanto — `Shift`+clique é olhar) |
 | Magias da barra | `1`–`0` por padrão (ou digite as palavras mágicas no chat, ex.: `exura`). Só aparece o que o seu level já libera |

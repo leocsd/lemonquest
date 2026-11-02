@@ -15,7 +15,7 @@
 .arena-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .arena-btn { padding: 4px 12px; height: 26px; }
 .arena-btn.primary { border-color: rgba(217, 164, 65, 0.6); color: var(--hud-gold) !important; }
-.arena-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.arena-btn:disabled { opacity: 0.45; cursor: var(--cur-proibido); }
 .arena-btn.done { color: #7fd88f !important; border-color: rgba(127, 216, 143, 0.5); opacity: 1; }
 .arena-lobbies { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .arena-lobby { display: flex; align-items: center; gap: 8px; padding: 5px 6px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }

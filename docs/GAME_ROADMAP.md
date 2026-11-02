@@ -13,6 +13,16 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Cursores do tema limão (2026-11-01)
+
+Pedido do dono: "mude o cursor do mouse… coloque na temática, todas as opções".
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| CU-1 | 12 cursores em pixel art (`tools/cursors/generate.mjs` → `client/src/ui/cursors/*.png` + `cursors.css`) e todo `cursor:` do CSS do cliente pelas variáveis | ✅ (2026-11-01) | `ui/cursors/cursors.test.ts` |
+| CU-3 | Arrastar item do chão para um slot de longe: anda até o item e pega (antes o servidor recusava em silêncio); largar no mundo sem confirmação, pilha inteira (Shift escolhe) | ✅ (2026-11-01) | `dropConfirm.test.ts` ajustado; typecheck; E2E `ground.spec` no CI |
+| CU-2 | Canvas do mundo pelo que o clique faria (espada, balão, mão, pegar; lupa com Shift) | ✅ (2026-11-01) | `game/cursor.test.ts`; olhar à mão no navegador |
+
 ## Métricas e logs (2026-11-01)
 
 Pedido do dono ("2 clients abertos estão comendo 2 GB de RAM… criar um metrics e logs") e decisão: leve, sem serviço

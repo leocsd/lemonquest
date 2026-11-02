@@ -29,7 +29,7 @@
 .ex-person-lv { font-size: 10.5px; color: #9aa6c8; font-variant-numeric: tabular-nums; }
 .ex-crown { color: var(--hud-gold, #d9a441); font-size: 11px; }
 .ex-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
-.ex-tab .quest-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ex-tab .quest-btn:disabled { opacity: 0.45; cursor: var(--cur-proibido); }
 .ex-tab .quest-btn.danger { color: #ff9a8f !important; border-color: rgba(230, 90, 80, 0.7); }
 
 /* Formulário (só na janela do NPC): campos em grade, destino ocupa a linha inteira. */

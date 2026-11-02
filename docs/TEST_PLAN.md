@@ -16,6 +16,17 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — cursores do tema limão (2026-11-01)
+
+Typecheck 3× tsc; suíte unitária inteira: 1900 passando (154 arquivos). Novos: `client/src/game/cursor.test.ts` (3: cursor
+pelo que o clique faria, criatura vence item no chão, Shift vira lupa só sobre alguma coisa) e
+`client/src/ui/cursors/cursors.test.ts` (3: PNG 32×32 com hotspot dentro e variável no CSS para cada cursor, os 6 do
+canvas existem, nenhum CSS do cliente com cursor do sistema ou variável inexistente). Build do cliente conferido: as
+variáveis saem com as imagens embutidas (`data:image/png`). Sem E2E novo (cursor não aparece em captura do Playwright);
+conferir à mão no navegador. Pegar do chão arrastando de longe e largar sem confirmação: `dropConfirm.test.ts` ficou só
+com a venda (as regras de confirmação de largar saíram); o arrasto longe reaproveita o `pickupGround` já coberto pelo E2E
+`ground.spec` (o CI da PR roda).
+
 ## Resultados — métricas e logs (2026-11-01)
 
 Typecheck 3× tsc; suíte unitária inteira: 1892 passando (151 arquivos). Arquivos novos: `shared/src/metrics.test.ts`

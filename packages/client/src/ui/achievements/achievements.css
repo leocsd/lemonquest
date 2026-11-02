@@ -1,7 +1,7 @@
 /* Janelas de conquistas (J) e ranking (R) + cadeados da janela de roupas */
 .ach-win, .rank-win { top: 72px; left: max(8px, calc(50% - 230px)); width: min(460px, 96vw); max-height: min(78vh, 640px); }
 .hud-card.ach-win, .hud-card.rank-win { background: rgba(17, 20, 28, 0.96); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
-.ach-win .win-title, .rank-win .win-title { cursor: default; }
+.ach-win .win-title, .rank-win .win-title { cursor: var(--cur-padrao); }
 .ach-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 4px; }
 .ach-points { font-size: 13px; color: var(--hud-muted); display: flex; flex-direction: column; line-height: 1.2; }
 .ach-points-line { display: flex; align-items: baseline; gap: 4px; }
@@ -14,7 +14,7 @@
 }
 .ach-filters, .rank-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 12px 8px; }
 .ach-filter {
-  font: inherit; font-size: 12px; padding: 3px 9px; cursor: pointer; border-radius: 4px;
+  font: inherit; font-size: 12px; padding: 3px 9px; cursor: var(--cur-mao); border-radius: 4px;
   background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); color: var(--hud-muted) !important;
 }
 .ach-filter:hover { border-color: var(--hud-line-hi); color: var(--hud-text) !important; }
@@ -60,7 +60,7 @@
 .outfit-cell.locked canvas { filter: grayscale(1) brightness(0.7); }
 .outfit-cell { position: relative; }
 .outfit-lock { position: absolute; top: 3px; right: 3px; color: var(--hud-gold); filter: drop-shadow(0 1px 0 #000); }
-.outfit-addon.locked { cursor: not-allowed; opacity: 0.6; }
+.outfit-addon.locked { cursor: var(--cur-proibido); opacity: 0.6; }
 .outfit-addon.locked .outfit-addon-name { color: var(--hud-faint); }
 .outfit-req { font-size: 11px; color: var(--hud-gold); }
-.outfit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.outfit-btn:disabled { opacity: 0.45; cursor: var(--cur-proibido); }

@@ -2,11 +2,11 @@
    duas linhas); em tela estreita cede ao espaço livre à esquerda da barra lateral. */
 .npc-window { left: 24px; top: 72px; width: min(440px, calc(100vw - var(--hud-right, 0px) - 48px)); max-height: calc(100vh - 150px); }
 .hud-card.npc-window { background: rgba(17, 20, 28, 0.93); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
-.npc-title { cursor: default; }
+.npc-title { cursor: var(--cur-padrao); }
 .npc-title > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--hud-text); text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 600; }
 .npc-gold { flex: none; font-size: 12px; margin-right: 2px; }
 .npc-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 10px; min-height: 0; overflow-y: auto; }
-.npc-say { position: relative; padding: 7px 10px; font-size: 13px; line-height: 1.45; color: #d9d7cc; cursor: pointer; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; min-height: 18px; }
+.npc-say { position: relative; padding: 7px 10px; font-size: 13px; line-height: 1.45; color: #d9d7cc; cursor: var(--cur-mao); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px; min-height: 18px; }
 .npc-say-rest { visibility: hidden; }
 /* Abas inteiras numa linha; se não couberem, a sobra vai para a linha de baixo (nunca o rótulo partido no meio). */
 .npc-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--hud-line); padding-bottom: 6px; }
@@ -25,7 +25,7 @@
 .shop-main { flex: 1; min-width: 0; }
 .shop-name { font-size: 13px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; } /* nome longo quebra em 2 linhas ("Poção de Vida Média" ≠ "…de Mana Média") */
 .shop-lv { font-size: 10px; color: #ff7a6b; white-space: nowrap; }
-.shop-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--hud-muted); cursor: pointer; user-select: none; }
+.shop-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--hud-muted); cursor: var(--cur-mao); user-select: none; }
 .shop-filter small { color: var(--hud-faint); }
 .shop-price { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--hud-gold); font-variant-numeric: tabular-nums; }
 .shop-price small { color: var(--hud-muted); font-size: 11px; }
@@ -36,7 +36,7 @@
 .qty input::-webkit-inner-spin-button, .qty input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .qty .qty-preset { width: auto; padding: 0 5px; font-size: 11px; }
 .shop-btn { padding: 4px 10px; height: 26px; }
-.shop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.shop-btn:disabled { opacity: 0.4; cursor: var(--cur-proibido); }
 .shop-btn.danger { border-color: rgba(230, 90, 80, 0.7); color: #ff9a8f !important; }
 .sell-all { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; font-size: 12px; }
 .sell-all b { color: var(--hud-gold); }

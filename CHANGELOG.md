@@ -1,5 +1,31 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · Pegar do chão arrastando de longe e largar sem confirmação
+
+Dono: "tem hora que eu não consigo puxar o item do chão", "se estiver longe, quero que ele vá para perto do loot" e "não
+quero a tela de confirmação quando eu for dropar um item".
+- **Bug**: arrastar um item do chão até a mochila/equipamento mandava "pegar" na hora, mas o servidor só aceita a 1 tile
+  e recusa longe em silêncio: com o item a 2+ tiles, nada acontecia. Agora o arrasto passa pelo mesmo caminho do clique
+  direito (`pickupGround` da cena, pela ponte `pickup` de `ui/items/ground.ts`): perto pega já; longe, o personagem anda
+  até o lado do item e pega ao chegar, no slot onde o item foi solto.
+- **Largar**: soltar no mundo larga na hora. Sai o "tem certeza?" de raro/épico/lendário/refinado e a barrinha que abria
+  sozinha para pilhas (a pilha vai inteira; `Shift` durante o arraste escolhe a quantidade, como entre slots).
+  `needsDropConfirm`/`dropConfirmText` saíram de `dropConfirm.ts` (fica só a confirmação da venda de item refinado).
+
+## [Não lançado] — 2026-11-01 · Cursores do mouse no tema limão
+
+Dono: "mude o cursor do mouse no lemon quest, coloque na temática, todas as opções". Doze cursores em pixel art própria
+(grade 16×16 com contorno, 32×32 na tela), gerados por `tools/cursors/generate.mjs` junto com `ui/cursors/cursors.css`
+(variáveis `--cur-<nome>` com a palavra-chave do sistema como reserva): padrão (seta de limão com folha), mão, atacar
+(espada com cabo de limão), falar (balão), pegar e segurar (mão aberta e fechada), olhar (lupa), ajuda (seta com "?"),
+proibido (fatia de limão cortada), mira, redimensionar e texto.
+- **HUD e telas**: todo `cursor:` do CSS do cliente virou `var(--cur-…)`; a página, links, campos de texto e campos
+  desabilitados ganharam regras de base. `cursors.test.ts` falha se algum CSS voltar a usar o cursor do sistema.
+- **Mundo** (`game/cursor.ts` + `WorldScene`): o canvas segue o que o clique faria ali: criatura = espada, NPC = balão,
+  estátua/baú/alavanca e outro jogador = mão, item no chão = mão de pegar; segurando Shift (Shift + clique = olhar) vira
+  lupa sobre qualquer coisa. Antes só NPC/item mostravam a mão do sistema e a criatura nem mudava.
+- Fora do tema de propósito: a tela de carregamento (antes do CSS do jogo) e as páginas de ranking e wiki.
+
 ## [Não lançado] — 2026-11-01 · Sai o app de desktop
 
 Dono: "remova esse negócio de client app, não tá dando certo". Sai o pacote `packages/desktop` (Tauri), o workflow de
