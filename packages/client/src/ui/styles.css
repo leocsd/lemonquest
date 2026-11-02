@@ -266,9 +266,6 @@ html[data-contrast="high"] ::-webkit-scrollbar-thumb { background-color: rgba(25
 .conn-card h2 { margin: 0; font-size: 22px; color: #d9a441; }
 .conn-card p { margin: 0; font-size: 15px; color: #c9ccd8; }
 .login-notice { margin: 0; font-size: 12px; color: #7f8496; text-align: center; border-top: 1px solid #2c3242; padding-top: 10px; }
-.login-app { margin: 6px 0 0; font-size: 12px; color: #7f8496; text-align: center; }
-.login-app a { color: #c9d05a; text-decoration: underline; text-underline-offset: 2px; }
-.login-app a:hover { color: #e6ec7a; }
 
 /* ---------- Recuperar senha / excluir personagem ---------- */
 .field input.reset-code { letter-spacing: 3px; text-transform: uppercase; font-variant-numeric: tabular-nums; }

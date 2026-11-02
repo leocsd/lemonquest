@@ -68,15 +68,6 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
-    id: "2026-10-31a",
-    date: "31 de outubro",
-    title: "Agora tem app de desktop",
-    items: [
-      "Baixe o app na tela de login (Windows, Mac ou Linux): ícone na área de trabalho, janela só do jogo e nenhuma tecla brigando com o navegador.",
-      "O app abre direto no servidor do escritório e pergunta quando sair versão nova dele. O jogo no navegador continua igual.",
-    ],
-  },
-  {
     id: "2026-10-28h",
     date: "28 de outubro",
     title: "Loot automático com filtros",

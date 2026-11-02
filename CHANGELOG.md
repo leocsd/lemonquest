@@ -1,5 +1,12 @@
 # Changelog
 
+## [Não lançado] — 2026-11-01 · Sai o app de desktop
+
+Dono: "remova esse negócio de client app, não tá dando certo". Sai o pacote `packages/desktop` (Tauri), o workflow de
+Release `app.yml`, o job `cargo` da CI, os scripts `app:dev`/`app:build`, a sonda `appInfo` e o link "Baixar o app" da
+tela de login, e a novidade "Agora tem app de desktop". O jogo volta a ser só no navegador. O campo `app` das métricas
+continua aceitando `desktop` (um app já instalado ainda abre a página do servidor e se identifica). Servidor intacto.
+
 ## [Não lançado] — 2026-11-01 · Métricas e logs (clientes e servidor, /metricas, arquivos JSONL)
 
 Dono: "2 clients abertos estão comendo 2 GB de RAM… não é melhor criar um metrics e logs para o game de uma vez?" e,

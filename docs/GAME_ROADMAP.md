@@ -63,7 +63,10 @@ modo Seguir na hora e andar saindo do modo Seguir.
 | CB-4 | Leitura de balanço aplicada ("atualize tudo"): Lasca de Gelo do druida, Flecha Paralisante de controle, bênção pelo estágio da morte, armas Carmesim lv 85, loot dos chefes regionais, Espírito de Chama, Poção de Mana Forte, poções das missões lv 80+, Galho Seco | ✅ (2026-11-01) | `vocationBalance`, `arena`, `spells`, `items`, `quests`, `combatFormulas` |
 | CB-5 | Resto da leitura: `spells.test.ts` pela potência real (tabela regerada), peças regionais não dominam a referência do slot (Calças Antichama, Boné de Visitante, Calça Impermeável, Amuleto de Rubi), Kappa do Lodo com mais XP e loot, Protótipo e Fornalha com peças do tier 7 | ✅ (2026-11-01) | `spells.test.ts`, `items.test.ts`; script de loot por vida |
 
-## App de desktop (2026-10-31)
+## App de desktop (2026-10-31) — removido em 2026-11-01
+
+Dono: "remova esse negócio de client app, não tá dando certo". Pacote `packages/desktop`, workflows e link da tela de
+login saíram; o jogo é só no navegador. A tabela abaixo fica como histórico.
 
 Spec: [superpowers/specs/2026-10-31-app-desktop-tauri-design.md](superpowers/specs/2026-10-31-app-desktop-tauri-design.md).
 Decisões do dono: casca que carrega o jogo do servidor; Windows + macOS + Linux; Tauri 2; instaladores e `latest.json`
