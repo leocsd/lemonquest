@@ -60,12 +60,14 @@ import { applySetOutfit, loadOutfit } from "../systems/outfit.ts";
 import { AchievementSystem, setActiveAchievements } from "../systems/achievements.ts";
 import { PartySystem } from "../systems/party.ts";
 import { ErrorLog, runSafe, runSteps } from "../systems/safe.ts";
+import { MetricsSystem } from "../systems/metrics.ts";
+import { MetricsFiles, metricsDirFor } from "../persistence/metricsFiles.ts";
 import { PlayTelemetry, summarizePlay } from "../systems/telemetry.ts";
 import { crownWeek, type ChampionHost } from "../systems/weeklyChampion.ts";
 import { crownArenaWeek } from "../systems/arenaChampion.ts";
 import { claimOnline, consumeToken, createResetCode, releaseOnline, type AuthData } from "../persistence/auth.ts";
 import {
-  addAccountTone, getAccountTones, getCharacterByName, getKv, listRankingRows, nameKey, loadGroundRows, replaceGroundRows, saveCharacter, setKv, transaction,
+  addAccountTone, currentDbFile, getAccountTones, getCharacterByName, getKv, listRankingRows, nameKey, loadGroundRows, replaceGroundRows, saveCharacter, setKv, transaction,
 } from "../persistence/db.ts";
 import { PerSecond } from "../persistence/ratelimit.ts";
 import type { CharacterRecord } from "../persistence/types.ts";
@@ -99,6 +101,8 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
   [C2S.EstagiarioConfig]: 2, [C2S.EstagiarioToggle]: 5, [C2S.EstagiarioGravar]: 2,
   // Vínculo do ClickUp: cada pedido é uma ida ao ClickUp (e há limite próprio de tentativas no ClickUpSystem).
   [C2S.WorkLink]: 1, [C2S.WorkUnlink]: 1,
+  // Desempenho do cliente: 1 a cada 60 s; o MetricsSystem ainda descarta os que vierem a menos de 20 s do anterior.
+  [C2S.ClientPerf]: 1,
 };
 /** Intervalo mínimo entre gravações "jogador + chão" depois de largar/pegar item (ver saveTransfers). */
 export const TRANSFER_SAVE_MS = 1000;
@@ -162,6 +166,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private materialRequest!: MaterialRequestSystem;
   private refine!: RefineSystem;
   private perf = { n: 0, sum: 0, max: 0, since: Date.now() };
+  /** Métricas e logs (/metricas, linhas [metrica], arquivos JSONL em metricas/). */
+  private metrics: MetricsSystem | null = null;
   /** Duração do autosave (todos os jogadores) desde o último log de desempenho. */
   private savePerf = { n: 0, sum: 0, max: 0 };
   /** Tempo jogado, mortes e ouro por level (gravado em CharacterData.play; resumo no /status). */
@@ -616,6 +622,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       resetCode: (account, by) => createResetCode(account, by),
       devTp: (pl) => isDevAdmin(pl.name),
       status: () => [...this.statusLines(), this.clickup.statusLine()],
+      metricas: (nome) => this.metrics?.lines(nome) ?? ["Métricas indisponíveis."],
       work: { link: (name, uid) => this.clickup.link(name, uid), list: () => this.clickup.linkList() },
       events: {
         ids: () => WEEKLY_EVENTS.map((e) => e.id),
@@ -716,6 +723,20 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<unknown>(C2S.WorkUnlink, (p) => this.clickup.unlink(p.id, p.name));
     this.on<unknown>(C2S.AchievementsRequest, (p) => { this.ach.sendState(p.id); });
 
+    // Métricas: arquivos ao lado do banco em uso (banco em memória = sem arquivos); erros isolados viram erro_sistema.
+    const metricsDir = metricsDirFor(currentDbFile());
+    this.metrics = new MetricsSystem({
+      world: () => {
+        let bots = 0;
+        for (const pl of this.state.players.values()) if (pl.bot) bots++;
+        return { online: this.state.players.size, monstros: this.monsters.size, chao: this.ground.size, bots };
+      },
+      files: metricsDir ? new MetricsFiles(metricsDir) : null,
+    });
+    if (metricsDir) console.log(`[lemonquest] métricas em ${metricsDir}`);
+    this.errors.onReport = (key) => this.metrics?.erro(key);
+    this.on<unknown>(C2S.ClientPerf, (p, m) => { this.metrics?.clientReport(p.id, p.name, m); });
+
     const players = () => this.state.players.values();
     this.steps = [
       ["pvp", () => this.pvp.tick(this.tickNow, players())],
@@ -759,6 +780,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["ground", () => this.ground.tick(this.tickNow)],
       ["inventory.flush", () => this.inventory.flush()],
       ["transfers", () => this.saveTransfers()],
+      ["metrics", () => this.metrics?.step(this.tickNow)],
     ];
 
     this.setSimulationInterval(() => this.tick(), TICK_MS);
@@ -791,6 +813,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const s = this.perf;
     s.n++; s.sum += ms; if (ms > s.max) s.max = ms;
     this.tickRing[this.tickRingN++ % this.tickRing.length] = ms;
+    // Fora da lista de passos porque precisa da duração do tick inteiro; isolado do mesmo jeito.
+    if (this.metrics) runSafe("metrics.tick", () => this.metrics!.onTick(ms), this.errors);
     if (now - s.since < PERF_LOG_MS) return;
     const sv = this.savePerf;
     if (DEV || s.max > PERF_PROD_MIN_MAX_MS || sv.max > PERF_PROD_MIN_MAX_MS) {
@@ -1367,6 +1391,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["party", () => this.party.removePlayer(sid)],
         ["social", () => { const pl = this.state.players.get(sid); if (pl) this.social.onLeave(pl); }],
         ["telemetry", () => this.telemetry.removePlayer(sid)],
+        ["metrics", () => this.metrics?.removePlayer(sid)],
       ];
       for (const [k, fn] of steps) runSafe(`saída/${k}`, fn, this.errors);
       this.throttle.clearPrefix(`${sid}:`);
@@ -1384,6 +1409,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const n = this.saveAll();
     this.ground.flush();
     this.excursions?.flushNow(); // mural coalescido (1×/s): grava o último segundo
+    runSafe("metrics.flush", () => this.metrics?.flushSync(), this.errors);
     console.log(`[world] desligando: ${n} personagem(ns) salvo(s)`);
     super.onBeforeShutdown();
   }
@@ -1392,6 +1418,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.saveAll();
     this.ground.flush();
     this.excursions?.flushNow();
+    runSafe("metrics.flush", () => this.metrics?.flushSync(), this.errors);
     if (liveWorld === this) { liveWorld = null; setActiveAchievements(null); }
   }
 
@@ -1401,6 +1428,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.onMessage(type, (c: Client, m: T) => {
       const p = this.state.players.get(c.sessionId);
       if (!p) return;
+      this.metrics?.onMessage(); // msgs/s das métricas: conta também as que o limite descarta (é a carga que chegou)
       if (limit !== undefined && !this.throttle.allow(`${c.sessionId}:${type}`, limit)) return;
       fn(p, m, c);
     });
@@ -1512,6 +1540,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const ms = performance.now() - t0;
     const s = this.savePerf;
     s.n++; s.sum += ms; if (ms > s.max) s.max = ms;
+    this.metrics?.onAutosave(ms);
     return n;
   }
 }

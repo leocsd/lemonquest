@@ -13,6 +13,21 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Métricas e logs (2026-11-01)
+
+Pedido do dono ("2 clients abertos estão comendo 2 GB de RAM… criar um metrics e logs") e decisão: leve, sem serviço
+externo, consulta por comando e **só arquivos** (nada no banco). Spec:
+[superpowers/specs/2026-11-01-metricas-logs-design.md](superpowers/specs/2026-11-01-metricas-logs-design.md).
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| MT-1 | `C2S.ClientPerf` (FPS médio/mínimo, heap, texturas, objetos, app, tempo aberto): validação no `shared`, limite 1/s + 1 a cada 20 s, cliente manda aos 30 s e a cada 60 s | ✅ (2026-11-01) | `shared/metrics.test.ts`, `client/ui/perf/perf.test.ts`, `WorldRoom.test.ts` |
+| MT-2 | Amostra do servidor a cada 30 s (RSS, heap, CPU %, tick médio/máx/p95, online, monstros, chão, Estagiários, msgs/s, autosave) com anel de 24 h | ✅ (2026-11-01) | `server/systems/metrics.test.ts` |
+| MT-3 | Linhas `[metrica]` limitadas (tick_lento, cliente_pesado, servidor_memoria, erro_sistema, resumo) | ✅ (2026-11-01) | `server/systems/metrics.test.ts` |
+| MT-4 | Arquivos JSONL por dia em `metricas/` (servidor, clientes, eventos), gravação em lote fora do tick, retenção de 30 dias | ✅ (2026-11-01) | `server/persistence/metricsFiles.test.ts` |
+| MT-5 | `/metricas [nome]` (admin) e `npm run admin -- metricas [dias]` | ✅ (2026-11-01) | `admin.test.ts`, `WorldRoom.test.ts`, `metricsFiles.test.ts` (CLI), `metrics.test.ts` (formatação) |
+| MT-6 | Painel com gráficos (o "painel web de admin" segue ⛔) | 🧭 depende de decisão do dono | — |
+
 ## Estagiário (2026-11-01)
 
 Bot de caça dentro do jogo, executado pelo servidor. Spec:

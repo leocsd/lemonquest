@@ -132,6 +132,7 @@ Edite `docker-compose.yml` (seção `environment`) e rode `docker compose up -d`
 | `LEMONQUEST_TRUST_PROXY` | vazio | Só atrás do Caddy **com a 2567 fechada** (`"uniquelocal"`): o limite de login por IP usa o IP real do jogador. |
 | `LEMONQUEST_DEV_COMMANDS` | desligado | `"1"` liga /level, /item etc. para os admins — só fora de produção (no container, que roda em produção, nunca liga).; o ambiente de dev do servidor (passo 11) liga. |
 | `LEMONQUEST_SERVE_CLIENT` | desligado | `"1"` faz o servidor entregar o cliente buildado fora de produção (usado pelo ambiente de dev do passo 11). |
+| `LEMONQUEST_METRICS_DIR` | `/app/data/metricas` | Pasta dos arquivos de métricas (JSON Lines por dia, 30 dias). O padrão já cai no volume `docker-data/`. |
 | `LEMONQUEST_BACKUP_COPY_DIR` | vazio | Pasta para uma **cópia extra** de cada backup (outro disco/NAS). Veja o passo 5. |
 | `LEMONQUEST_CLICKUP_TOKEN` | vazio | Token pessoal do ClickUp (só leitura) que liga o "Chegou!", as barras de sprint, a aba "Na obra" e as conquistas de tarefas ([README](../../README.md#clickup-no-jogo-opcional)). O `docker-compose.yml` já repassa a variável: só crie um `.env` ao lado dele com `LEMONQUEST_CLICKUP_TOKEN=pk_...` e rode `docker compose up -d` (**nunca** escreva o token no compose; o `.env` não vai para o git). O container precisa de saída para `api.clickup.com` (HTTPS). |
 | `LEMONQUEST_CLICKUP_POLL_MIN` | `5` | Minutos entre leituras do ClickUp (1 a 60). |
@@ -189,7 +190,7 @@ O código fica em `github.com/leocsd/lemonquest` (privado). No servidor:
 
 Coloque o seu personagem em `LEMONQUEST_ADMINS` (seção `environment`) e rode `docker compose up -d`. No jogo, digite no
 chat: `/online`, `/kick <nome> [motivo]`, `/mute <nome> <minutos>`, `/unmute <nome>`, `/anuncio <texto>`, `/tp <nome>`,
-`/resetsenha <conta>`, `/status`, `/evento <nome> [minutos]`, `/desbloquear <nome> <roupa|addon|título>`,
+`/resetsenha <conta>`, `/status`, `/metricas [nome]`, `/evento <nome> [minutos]`, `/desbloquear <nome> <roupa|addon|título>`,
 `/vincular <personagem> <apelido|id do ClickUp|nenhum>` (detalhes no
 [README principal](../../README.md#administradores)). Tudo fica no log com `[admin]`:
 `docker compose logs | grep "\[admin\]"`.
@@ -201,6 +202,7 @@ chat: `/online`, `/kick <nome> [motivo]`, `/mute <nome> <minutos>`, `/unmute <no
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs deleted     # personagens excluídos
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs telemetria  # progressão por faixa e vocação, skills reais e causas de morte (só leitura)
+docker compose exec -u node lemonquest node packages/server/dist/admin.mjs metricas 7  # resumo diário das métricas (lê /app/data/metricas; padrão 7 dias)
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs create-account <conta>                              # conta nova sem senha + código de recuperação
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs create-character <conta> "<nome>" <vocação> [m|f]  # personagem na conta (vocações: knight, paladin, sorcerer, druid e a oculta fairy)
 ```
@@ -209,6 +211,16 @@ Conta com espaço no nome: use aspas (`reset-password "Time Azul"`). O `-u node`
 O código aparece no terminal (vale 24 h, uso único); a pessoa usa em "Esqueci minha senha" na tela de login.
 A **Fada** (`fairy`) só nasce pelo `create-character` (a tela de criação não a oferece): por exemplo,
 `create-account gabi` seguido de `create-character gabi "Fada Gabi" fairy f`, e o código de recuperação vai para a pessoa.
+
+**Métricas e logs** (detalhes no [README principal](../../README.md#métricas-e-logs)): os arquivos JSON Lines ficam em
+`/app/data/metricas/` no container, ou seja, `docker-data/metricas/` no host (`servidor-`, `clientes-` e
+`eventos-AAAA-MM-DD.jsonl`; 30 dias). Exemplos no host:
+
+```bash
+docker compose logs lemonquest | grep '\[metrica\]'    # eventos no log (tick_lento, cliente_pesado, servidor_memoria, erro_sistema, resumo)
+tail -n 5 docker-data/metricas/servidor-$(date +%F).jsonl             # últimas amostras do servidor (a cada 30 s)
+jq -r '[.nome, .app, .heapMb, .texMb, .fpsMin] | @tsv' docker-data/metricas/clientes-$(date +%F).jsonl
+```
 
 **Personagens excluídos** pelos jogadores ficam guardados na tabela `deleted_characters` (linha inteira: level, itens,
 depot, posição). Para restaurar à mão: pare o jogo, abra o banco com `sqlite3` e copie a linha de volta para `characters`

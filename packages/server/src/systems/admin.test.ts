@@ -328,6 +328,19 @@ describe("/status", () => {
   });
 });
 
+describe("/metricas", () => {
+  it("admin vê as linhas (com nome = histórico daquele cliente); jogador comum não tem o comando", () => {
+    const { ctx, replies, ps } = fakeCtx();
+    const calls: (string | undefined)[] = [];
+    ctx.metricas = (nome) => { calls.push(nome); return nome ? [`histórico de ${nome}`] : ["servidor", "clientes"]; };
+    expect(handleAdminCommand(ps[0], "/metricas", ctx)).toBe(true);
+    expect(handleAdminCommand(ps[0], "/metricas Ana Maria", ctx)).toBe(true);
+    expect(replies()).toEqual(["servidor", "clientes", "histórico de Ana Maria"]);
+    expect(calls).toEqual([undefined, "Ana Maria"]);
+    expect(handleAdminCommand(ps[1], "/metricas", ctx)).toBe(false);
+  });
+});
+
 describe("/agenda e /evento de leitura (todos)", () => {
   const events = { ids: () => ["mare_de_tesouros"], start: vi.fn(() => "ok"), stop: vi.fn(() => true), status: () => ["Nenhum evento em andamento.", "Próximo agendado: X."] };
 

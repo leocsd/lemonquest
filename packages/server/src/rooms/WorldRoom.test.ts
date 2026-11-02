@@ -765,3 +765,50 @@ describe("WorldRoom: robustez (morte, caveira vermelha, recompensas, permanênci
     expect(r.partyLootId(a, m.x, m.y)).toBeUndefined();
   });
 });
+
+describe("WorldRoom: métricas", () => {
+  const msg = (r: any, c: any, type: string, m: unknown) => r.onMessageEvents.emit(type, c, m);
+  const perf = { fps: 58, fpsMin: 40, heapMb: 320, texMb: 150, objetos: 900, app: "web", uptimeS: 120 };
+  const notices = (c: any) => c.send.mock.calls.filter(([t]: any[]) => t === S2C.Notice).map(([, m]: any[]) => m.text as string);
+
+  it("ClientPerf: validado, 1 por segundo no MESSAGE_LIMITS e no máximo 1 a cada 20 s; some ao sair; banco em memória não grava arquivos", () => {
+    expect(MESSAGE_LIMITS[C2S.ClientPerf]).toBe(1);
+    const r = makeRoom();
+    expect(r.metrics.files).toBeNull();
+    createAccount("Mia", "h", "s", "knight");
+    const c = fakeClient(r, "m1");
+    r.onJoin(c, {}, auth("Mia"));
+    msg(r, c, C2S.ClientPerf, { ...perf, app: "android" }); // inválido: descartado
+    expect(r.metrics.clientRows()).toEqual([]);
+    r.throttle.clearPrefix("m1:"); // o inválido gastou a vez deste segundo
+    msg(r, c, C2S.ClientPerf, perf);
+    expect(r.metrics.clientRows()).toEqual([expect.objectContaining({ nome: "Mia", heapMb: 320 })]);
+    msg(r, c, C2S.ClientPerf, { ...perf, heapMb: 999 }); // mesmo segundo: limite do tipo
+    r.throttle.clearPrefix("m1:");
+    msg(r, c, C2S.ClientPerf, { ...perf, heapMb: 998 }); // passou do limite por segundo, mas a menos de 20 s do anterior
+    expect(r.metrics.clientRows()).toEqual([expect.objectContaining({ nome: "Mia", heapMb: 320 })]);
+    r.onLeave(c, 4000);
+    expect(r.metrics.clientRows()).toEqual([]);
+  });
+
+  it("/metricas só para admin; mostra o servidor e os clientes", () => {
+    vi.stubEnv("LEMONQUEST_ADMINS", "Leo");
+    try {
+      const r = makeRoom();
+      createAccount("Leo", "h", "s", "knight");
+      createAccount("Bia", "h", "s", "knight");
+      const cl = fakeClient(r, "l1"), cb = fakeClient(r, "b1");
+      r.onJoin(cl, {}, auth("Leo"));
+      r.onJoin(cb, {}, auth("Bia"));
+      msg(r, cb, C2S.ClientPerf, perf);
+      expect(r.chatHooks.command(r.state.players.get("b1"), "/metricas")).toBe(false);
+      expect(r.chatHooks.command(r.state.players.get("l1"), "/metricas")).toBe(true);
+      const lines = notices(cl);
+      expect(lines.some((l: string) => l.startsWith("Servidor agora: RSS"))).toBe(true);
+      expect(lines.some((l: string) => l.startsWith("2 online"))).toBe(true);
+      expect(lines.some((l: string) => l.startsWith("Bia · web · heap 320 MB"))).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
