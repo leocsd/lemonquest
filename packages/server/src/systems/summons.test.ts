@@ -127,6 +127,24 @@ describe("acompanhante do Estagiário", () => {
     expect(cheb(c.s.x, c.s.y, w.p.x, w.p.y)).toBe(2); // parou: fica a 2 tiles, sem colar no boneco
   });
 
+  it("fica sempre atrás do dono: 2 tiles contra a direção em que ele olha (vira junto; andando, termina atrás)", () => {
+    const w = setup();
+    w.p.x = 10; w.p.y = 10; w.p.dir = Dir.N;
+    const c = w.summons.spawnCompanion(w.p, w.now())!;
+    w.run(3000);
+    expect([c.s.x, c.s.y]).toEqual([10, 12]); // dono olhando para o norte: ao sul
+    w.p.dir = Dir.W;
+    w.run(3000);
+    expect([c.s.x, c.s.y]).toEqual([12, 10]); // virou para o oeste: contorna para o leste
+    // Andando para o leste: termina 2 tiles a oeste do dono.
+    w.p.dir = Dir.E;
+    const passo = stepDuration(w.p.level, Dir.E, 100, 100);
+    let acc = 0;
+    w.run(passo * 8, () => { acc += TICK_MS; if (acc >= passo && w.p.x < 16) { acc -= passo; w.p.x++; } });
+    w.run(2000);
+    expect([c.s.x, c.s.y]).toEqual([w.p.x - 2, w.p.y]);
+  });
+
   it("reconjurar o Lobo não apaga o acompanhante; despawnCompanion e despawnOwner o removem", () => {
     const w = setup();
     const c = w.summons.spawnCompanion(w.p, w.now())!;
