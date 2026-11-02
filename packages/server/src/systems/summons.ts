@@ -16,12 +16,15 @@ export const SUMMON_FOLLOW_DIST = 3;
 /** Só procura/persegue alvos a até esta distância do dono. */
 export const SUMMON_FIGHT_DIST = 8;
 /**
- * Acompanhante do Estagiário: anda atrás do dono quando passa disto (tiles)... Com a velocidade do dono (stepBaseMs),
- * 1 basta: ele encosta e anda colado, sem ficar para trás (com 2 ele largava um passo atrás e, com pressa, teleportava).
+ * Acompanhante do Estagiário: anda atrás do dono quando passa disto (tiles) e para ao chegar nessa distância. 2 = fica a
+ * 1–2 tiles, sem colar no boneco (dono, 2026-11-01: "está colando… pode ficar 1 ou 2 tiles distante"). Com a velocidade
+ * do dono (stepBaseMs) ele não fica para trás nem teleporta (antes, com 260 ms fixos, largava e teleportava).
  */
-export const COMPANION_FOLLOW_DIST = 1;
+export const COMPANION_FOLLOW_DIST = 2;
 /** ...e reaparece ao lado dele quando passa disto (teleporte, portal, escada): não tenta atravessar o mapa a pé. */
 export const COMPANION_WARP_DIST = 6;
+/** Passo do acompanhante = passo do dono × isto (um pouco mais rápido, para alcançar andando). */
+export const COMPANION_STEP_FACTOR = 0.85;
 
 const RING: Dir[] = [Dir.S, Dir.E, Dir.W, Dir.N, Dir.SE, Dir.SW, Dir.NE, Dir.NW];
 
@@ -168,7 +171,9 @@ export class SummonSystem {
     m.s.targetId = "";
     // Mesma velocidade do dono (level e pressa/lentidão; diagonal e chão o tryStep aplica): o def.stepMs fixo o deixava
     // para trás, e passando de COMPANION_WARP_DIST ele "teleportava" (pedido do dono, 2026-11-01).
-    m.stepBaseMs = stepDuration(owner.level, Dir.S, 100, owner.speedPct ?? 100);
+    // 15% mais rápido que o dono: com a mesma velocidade ele não recuperava a distância andando (ficava 3–4 tiles atrás);
+    // assim, parado ele fica a 2 tiles e andando a 2–3, sem colar.
+    m.stepBaseMs = Math.round(stepDuration(owner.level, Dir.S, 100, owner.speedPct ?? 100) * COMPANION_STEP_FACTOR);
     const d = cheb(owner.x, owner.y, m.s.x, m.s.y);
     if (d > COMPANION_WARP_DIST) { // só reserva: teleporte/portal/escada do dono
       const t = this.freeTilesAround(owner.x, owner.y, 1)[0] ?? { x: owner.x, y: owner.y };
@@ -176,15 +181,46 @@ export class SummonSystem {
       m.path = null;
       return;
     }
-    if (d <= COMPANION_FOLLOW_DIST) { m.path = null; return; }
-    const goal = { x: owner.x, y: owner.y };
-    if (now >= m.nextThinkAt) {
-      m.nextThinkAt = now + THINK_MS;
+    // Sempre atrás do dono (dono, 2026-11-01: "quero que ele fique sempre atrás"), a COMPANION_FOLLOW_DIST tiles contra a
+    // direção em que ele olha. Sem tile livre atrás: o jeito antigo (anda até ficar a COMPANION_FOLLOW_DIST do dono).
+    const atras = this.behindTile(m, owner);
+    if (!atras) {
+      if (d <= COMPANION_FOLLOW_DIST) { m.path = null; return; }
+      const goal = { x: owner.x, y: owner.y };
       const moved = cheb(goal.x, goal.y, m.pathGoal.x, m.pathGoal.y);
       if (!m.path || m.path.length === 0 || moved >= 1) computePath(m, w, goal, now, true);
+      if (now < m.stepEndsAt) return;
+      if (!followPath(m, w, now, goal)) greedyStep(m, w, goal, now, false);
+      return;
     }
+    if (m.s.x === atras.x && m.s.y === atras.y) { m.path = null; return; }
+    // Recalcula assim que o destino muda (o dono andou ou virou), sem esperar o THINK_MS: o caminho é curto.
+    const moved = cheb(atras.x, atras.y, m.pathGoal.x, m.pathGoal.y);
+    if (!m.path || m.path.length === 0 || moved >= 1) computePath(m, w, atras, now, false);
     if (now < m.stepEndsAt) return;
-    if (!followPath(m, w, now, goal)) greedyStep(m, w, goal, now, false);
+    if (followPath(m, w, now)) return;
+    // Sem caminho (ou o passo falhou): colado no destino, um passo direto; senão, aproxima.
+    const dir = cheb(m.s.x, m.s.y, atras.x, atras.y) === 1 ? dirFromDelta(atras.x - m.s.x, atras.y - m.s.y) : null;
+    if (dir === null || !w.tryStep(m, dir, now)) greedyStep(m, w, atras, now, false);
+  }
+
+  /**
+   * Tile atrás do dono: COMPANION_FOLLOW_DIST casas contra a direção em que ele olha; bloqueado → 1 casa atrás → as
+   * diagonais de trás. O próprio tile do acompanhante conta como livre. null = nada livre atrás.
+   */
+  private behindTile(m: Monster, owner: PlayerState): Point | null {
+    const w = this.o.monsters;
+    const f = DIR_DELTA[owner.dir as Dir] ?? DIR_DELTA[Dir.S];
+    const bx = -Math.sign(f.dx), by = -Math.sign(f.dy);
+    const px = -by, py = bx; // perpendicular (para os lados de trás)
+    const n = COMPANION_FOLLOW_DIST;
+    const cand: [number, number][] = [[n * bx, n * by], [bx, by], [n * bx + px, n * by + py], [n * bx - px, n * by - py], [bx + px, by + py], [bx - px, by - py]];
+    for (const [ox, oy] of cand) {
+      const x = owner.x + ox, y = owner.y + oy;
+      if (x === m.s.x && y === m.s.y) return { x, y };
+      if ((ox || oy) && w.grid.isWalkable(x, y) && !w.blockedForMonster(x, y)) return { x, y };
+    }
+    return null;
   }
 
   private pickTarget(m: Monster, owner: PlayerState): Monster | undefined {
