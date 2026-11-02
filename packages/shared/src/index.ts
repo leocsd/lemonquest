@@ -43,3 +43,4 @@ export * from "./worldIndex.ts";
 export * from "./data/excursions.ts";
 export * from "./online.ts";
 export * from "./estagiario.ts";
+export * from "./metrics.ts";

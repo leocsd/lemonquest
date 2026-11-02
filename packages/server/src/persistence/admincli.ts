@@ -3,26 +3,30 @@
 //   Docker: docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 // Abre a base em LEMONQUEST_DB (ou data/lemonquest.db). Pode rodar com o servidor ligado (SQLite WAL + busy_timeout).
 import crypto from "node:crypto";
+import path from "node:path";
 import { ADDON_BITS, MAX_CHARACTERS_PER_ACCOUNT, VOCATIONS, isSex, type Sex, type Vocation } from "@lemonquest/shared";
 import {
-  closeDb, countCharacters, createAccount, createCharacter, findAccount, getCharacterByName, initDb, listDeletedCharacters, listRankingRows,
+  DATA_DIR, closeDb, countCharacters, createAccount, createCharacter, findAccount, getCharacterByName, initDb, listDeletedCharacters, listRankingRows,
 } from "./db.ts";
 import { deathReport, skillReport, summarizePlay, vocationReport } from "../systems/telemetry.ts";
 import { starterKit } from "../systems/inventory.ts";
+import { metricsDirFor, readMetricsRows, METRICS_RETENTION_DAYS } from "./metricsFiles.ts";
+import { resumoDiasLines } from "../systems/metricsFormat.ts";
 import { createResetCode, formatResetCode, isPlainNewName, normalizeAccount, normalizeName } from "./auth.ts";
 
 export interface CliIO { out: (line: string) => void; err: (line: string) => void }
 
-const COMMANDS = ["reset-password", "deleted", "telemetria", "create-account", "create-character"];
+const COMMANDS = ["reset-password", "deleted", "telemetria", "metricas", "create-account", "create-character"];
 const USAGE = [
   "Uso:",
   "  npm run admin -- reset-password <conta>   gera um código de recuperação de senha (8 caracteres, 24 h, uso único)",
   "  npm run admin -- deleted                  lista os personagens excluídos (arquivo deleted_characters)",
   "  npm run admin -- telemetria               progressão medida por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h), skills reais e causas de morte",
+  "  npm run admin -- metricas [dias]          resumo diário das métricas (servidor: mín/méd/máx; clientes por personagem: heap, texturas, fps mín) dos últimos N dias (padrão 7), lido dos arquivos em metricas/",
   "  npm run admin -- create-account <conta>   cria uma conta SEM senha e imprime o código de recuperação (24 h): a pessoa escolhe a senha em \"Esqueci minha senha\"",
   "  npm run admin -- create-character <conta> <nome> <vocação> [m|f]",
   `                                            cria um personagem na conta (nome com espaço entre aspas), com o kit inicial. Vocações: ${VOCATIONS.join(", ")} — a fairy (Fada) é a oculta, que a tela de criação não oferece`,
-  "Base: LEMONQUEST_DB (padrão: data/lemonquest.db).",
+  "Base: LEMONQUEST_DB (padrão: data/lemonquest.db). Métricas: LEMONQUEST_METRICS_DIR (padrão: a pasta metricas/ ao lado da base).",
 ];
 
 /**
@@ -70,6 +74,22 @@ function createCharacterCli(args: string[], io: CliIO): number {
   return 0;
 }
 
+/** metricas [dias]: lê servidor-*.jsonl e clientes-*.jsonl dos últimos N dias e imprime o resumo de cada dia. */
+function metricasCli(args: string[], io: CliIO, dbFile?: string, now = Date.now()): number {
+  const dias = args[0] === undefined ? 7 : Number(args[0]);
+  if (!Number.isInteger(dias) || dias < 1 || dias > METRICS_RETENTION_DAYS) {
+    io.err(`Uso: npm run admin -- metricas [dias] (1 a ${METRICS_RETENTION_DAYS}; padrão 7)`);
+    return 1;
+  }
+  const dir = metricsDirFor(dbFile ?? process.env.LEMONQUEST_DB ?? path.join(DATA_DIR, "lemonquest.db"));
+  if (!dir) { io.err("Sem pasta de métricas (base em memória): defina LEMONQUEST_METRICS_DIR."); return 1; }
+  const lines = resumoDiasLines(readMetricsRows(dir, "servidor", dias, now), readMetricsRows(dir, "clientes", dias, now));
+  io.out(`Métricas em ${dir} (últimos ${dias} dia(s)):`);
+  if (!lines.length) io.out("Nenhuma métrica gravada nesse período.");
+  for (const l of lines) io.out(l);
+  return 0;
+}
+
 /** Executa um comando. Devolve o código de saída. `dbFile` (testes) sobrepõe LEMONQUEST_DB. */
 export async function runAdminCli(args: string[], io: CliIO = { out: console.log, err: console.error }, dbFile?: string): Promise<number> {
   const [cmd, ...rest] = args;
@@ -82,6 +102,8 @@ export async function runAdminCli(args: string[], io: CliIO = { out: console.log
     for (const l of USAGE) io.err(l);
     return 1;
   }
+  // Métricas vêm dos arquivos JSONL, não do banco: nem abre a base.
+  if (cmd === "metricas") return metricasCli(rest, io, dbFile);
   initDb(dbFile);
   try {
     if (cmd === "create-account") return await createAccountCli(rest, io);

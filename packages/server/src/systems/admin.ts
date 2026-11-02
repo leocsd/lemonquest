@@ -4,6 +4,7 @@
 //   /kick <nome> [motivo] · /mute <nome> <minutos> · /unmute <nome> · /anuncio <texto>
 //   /online · /resetsenha <conta> · /tp <nome> · /desbloquear <nome> <roupa|addon|título>
 //   /vincular <personagem> <apelido|id do ClickUp|nenhum> (conquistas de tarefas do ClickUp; sem argumentos lista)
+//   /status · /metricas [nome] (servidor agora, última hora e clientes; com nome, o histórico curto daquele cliente)
 // Toda ação é logada no console com o prefixo [admin].
 // Exceção de leitura (ciclo 17): /agenda e /evento sem poder de admin respondem a qualquer jogador (só leem a agenda).
 import { S2C, WORK_NICKS, resolveUnlockArg, unlockText, workUserByNick, type AnnounceMsg, type FeedMsg, type NoticeMsg } from "@lemonquest/shared";
@@ -23,7 +24,7 @@ export const MAX_KICK_REASON_BYTES = 100;
 /** Este personagem é admin? (vale em produção; não depende de LEMONQUEST_DEV_COMMANDS). */
 export const isAdmin = (name: string, env: Env = process.env): boolean => devAdmins(env).has(nameKey(name));
 
-export const ADMIN_COMMANDS = ["/kick", "/mute", "/unmute", "/anuncio", "/online", "/resetsenha", "/tp", "/desbloquear", "/status", "/evento", "/vincular"] as const;
+export const ADMIN_COMMANDS = ["/kick", "/mute", "/unmute", "/anuncio", "/online", "/resetsenha", "/tp", "/desbloquear", "/status", "/metricas", "/evento", "/vincular"] as const;
 
 export interface AdminContext {
   send: (sessionId: string, type: string, msg: unknown) => void;
@@ -51,6 +52,8 @@ export interface AdminContext {
   work?: { link: (charName: string, userId: string | null) => void; list: () => [string, { name: string; since: number }][] };
   /** Linhas do /status (números do servidor). */
   status?: () => string[];
+  /** Linhas do /metricas (systems/metrics.ts): sem nome = servidor e clientes; com nome = histórico daquele cliente. */
+  metricas?: (nome?: string) => string[];
   env?: Env;
   now?: () => number;
   log?: (line: string) => void;
@@ -225,6 +228,11 @@ export function handleAdminCommand(p: PlayerState, text: string, ctx: AdminConte
     }
     case "/status": {
       for (const l of ctx.status?.() ?? ["Status indisponível."]) reply(l);
+      break;
+    }
+    case "/metricas": {
+      const nome = words.join(" ");
+      for (const l of ctx.metricas?.(nome || undefined) ?? ["Métricas indisponíveis."]) reply(l);
       break;
     }
     case "/online": {

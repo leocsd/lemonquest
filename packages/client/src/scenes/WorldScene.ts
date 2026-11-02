@@ -7,6 +7,7 @@ import {
   type GroundItemView, type MonsterView, type LootMsg, type MoveMsg, type NpcOpenMsg, type NpcSayMsg, type PlayerView, type TurnMsg, type WalkToMsg, type XpGainMsg,
 } from "@lemonquest/shared";
 import { session } from "../session.ts";
+import { countObjects, startPerfReporter, type TexSource } from "../ui/perf/perf.ts";
 import { Actor, createCharacterAnims, SPEECH_COLOR_PARTY, type ActorDeps } from "../game/actor.ts";
 import { CombatFx, KIND_COLOR } from "../game/combatFx.ts";
 import { damageText } from "../game/damageText.ts";
@@ -102,6 +103,8 @@ export class WorldScene extends Phaser.Scene {
   private pcam!: PixelCamera;
 
   private room: Room | null = null;
+  /** Relatório de desempenho (C2S.ClientPerf) desta sala; para ao sair dela. */
+  private stopPerf: (() => void) | null = null;
   private myId = "";
   private actors = new Map<string, Actor>();
   private known = new Map<string, Known>();
@@ -377,6 +380,20 @@ export class WorldScene extends Phaser.Scene {
     msg<DiedMsg>(S2C.Died, (m) => this.onDied(m.killerName, m.lostXp, m));
     msg<CreatureDiedMsg>(S2C.CreatureDied, (m) => this.onCreatureDied(m));
     room.onLeave(() => { if (this.room === room) this.unbindRoom(); });
+    this.startPerf(room);
+  }
+
+  /** Métricas do cliente para o admin (/metricas): FPS, heap, texturas e objetos; o primeiro 30 s depois de entrar. */
+  private startPerf(room: Room) {
+    this.stopPerf?.();
+    const textures = this.textures;
+    this.stopPerf = startPerfReporter({
+      fps: () => this.game.loop.actualFps,
+      *textures() { for (const t of Object.values(textures.list)) yield* (t.source as unknown as TexSource[]); },
+      objetos: () => countObjects(this.children.list),
+      app: () => ((window as { __lemonApp?: unknown }).__lemonApp ? "desktop" : "web"),
+      uptimeMs: () => performance.now(),
+    }, (m) => { if (this.room === room) room.send(C2S.ClientPerf, m); });
   }
 
   /** Fala do canal geral (amarelo) ou do grupo (azul) aparece sobre a cabeça de quem falou (estilo Tibia). */
@@ -414,6 +431,8 @@ export class WorldScene extends Phaser.Scene {
     this.ground?.clear();
     this.pendingGround = null;
     clearBattleEntries("monsters");
+    this.stopPerf?.();
+    this.stopPerf = null;
     this.room = null;
   }
 

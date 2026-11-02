@@ -155,6 +155,9 @@ export interface AccountRow {
 }
 
 let db: DatabaseSync | null = null;
+/** Caminho da base aberta (":memory:" nos testes); null = ainda não abriu. As métricas gravam ao lado dela. */
+let dbTarget: string | null = null;
+export const currentDbFile = (): string | null => dbTarget;
 
 function migrate(d: DatabaseSync) {
   const cur = (d.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
@@ -190,6 +193,7 @@ export function initDb(file?: string): DatabaseSync {
   d.exec("PRAGMA busy_timeout = 3000");
   migrate(d);
   db = d;
+  dbTarget = target;
   return d;
 }
 
