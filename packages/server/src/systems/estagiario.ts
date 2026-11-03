@@ -1,16 +1,20 @@
 // Estagiário (spec docs/superpowers/specs/2026-11-01-estagiario-design.md; v2 em
-// docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md): o bot de caça do próprio jogo. O cérebro fica aqui no
+// docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md; v3 em
+// docs/superpowers/specs/2026-11-02-estagiario-v3-abordagem.md): o bot de caça do próprio jogo. O cérebro fica aqui no
 // servidor (a aba do navegador adormece em segundo plano, justamente no caso AFK) e age pelas APIs dos sistemas que já
 // existem: magias, poções, comida, busca de alvo/perseguição, caminho (A*) e o acompanhante visível. As regras puras
 // (sanitização, turno, escolha de cura/ataque/buff/recuo, gravação de rota) estão em shared/estagiario.ts.
 import {
-  BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIR_DELTA, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C,
-  TURNO_AVISO_MS, alarmeLigado, avancarTurno, dirFromDelta, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao,
+  BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIARIO_MAX, DIR_DELTA, Dir, ESPERAR_MAX_MS, ESPERAR_PERTO_TILES, ESPERAR_TILES, PAUSA_MANUAL_MS,
+  POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, SEGUIR_MAX_TILES, SEGUIR_SUMIU_MS,
+  TURNO_AVISO_MS, alarmeLigado, avancarTurno, compactar, configEfetiva, curaEmGrupo, curaEstimada, curasProprias, decidirCura, dirFromDelta,
+  ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao,
   fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
-  resolveFamily, sanitizeEstagiario, spellDef,
-  type AlarmeTipo, type ConditionId, type CuraAcao, type EstagiarioAlarmeMsg, type EstagiarioConfig, type EstagiarioConfigMsg,
-  type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao,
-  type NoticeMsg, type PontoRota, type QuickPotionKind, type SpellDef, type SpellGroup, type TurnoEstado,
+  resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef,
+  type AlarmeTipo, type ConditionId, type CuraAcao, type DiarioCanal, type DiarioItem, type EstagiarioAlarmeMsg, type EstagiarioConfig,
+  type EstagiarioConfigMsg, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioLigado,
+  type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao, type NoticeMsg, type PontoRota, type QuickPotionKind, type RegraCura,
+  type SituacaoCura, type SpellDef, type SpellGroup, type TurnoEstado,
 } from "@lemonquest/shared";
 import type { CharacterData } from "../persistence/types.ts";
 import type { PlayerState } from "../state.ts";
@@ -48,6 +52,11 @@ const MOTIVO_ENVIO_MS = 1000;
 export const COMER_INTERVALO_MS = 2000;
 /** Luta que começa até isto depois da anterior acabar continua a mesma para o recuo (a origem não anda com o personagem). */
 export const LUTA_EMENDADA_MS = 3000;
+/** v3: ao entrar (ou reconectar) com algo ligado, espera isto antes de agir — o cliente ainda está carregando o mundo. */
+export const CARENCIA_LOGIN_MS = 3000;
+/** Diário: "esperando" (uma regra vale e nada está pronto) no máximo a cada 2 s; "a Cura está desligada" a cada 10 s. */
+export const DIARIO_ESPERA_MS = 2000;
+export const DIARIO_CURA_OFF_MS = 10_000;
 const AVISO_LONGE = "Você está longe demais da rota: chegue perto do caminho gravado.";
 const AVISO_TRAVADA = `O Estagiário não consegue seguir a rota (${PONTOS_TRAVADOS_MAX} pontos travados seguidos): rota desligada.`;
 
@@ -61,6 +70,8 @@ export interface EstagiarioOptions {
     usePotion(p: PlayerState, kind: QuickPotionKind, opts?: { silent?: boolean; cobrir?: number }): boolean;
     /** Só as poções que o level e a vocação deixam beber (o alarme de poção acabando). */
     countPotions(p: PlayerState, kind: QuickPotionKind): number;
+    /** v3: quanto recupera a poção que `usePotion({ cobrir: falta })` beberia (0 = nenhuma bebível). Ausente = 0 se não dá para beber, senão `falta`. */
+    potionAmount?(p: PlayerState, kind: QuickPotionKind, falta: number): number;
     /** Há poção do tipo que dá para beber (a regra de poção só vale assim; senão a cura seguinte). */
     canDrink(p: PlayerState, kind: QuickPotionKind): boolean;
   };
@@ -69,6 +80,9 @@ export interface EstagiarioOptions {
     /** `parar`: a perseguição forçada para a esta distância do alvo (1 = colado; v2 "manter distância"). */
     forceChase(id: string, on: boolean, parar?: number): void;
     resume(id: string): void;
+    /** v3 (caçar com amigo): anda atrás do colega sem alvo; com alvo, a perseguição forçada manda (cancelFollow). */
+    follow(p: PlayerState, id: string): void;
+    cancelFollow(p: PlayerState): void;
   };
   monsters: Pick<MonsterManager, "wild" | "all" | "inPz" | "monsterAt" | "isMonsterAt" | "los" | "grid">;
   /** Caminhada da rota (Task 5). */
@@ -111,7 +125,10 @@ interface Avisos {
 const avisosNovos = (): Avisos => ({ pocao: new Set(), vidaBaixa: false, jogadores: new Map(), turno: false, atacadoAte: 0, mochilaAte: 0 });
 
 interface Estado {
+  /** O que o jogador configurou (vai no save e no estado ao cliente). */
   config: EstagiarioConfig;
+  /** v3: o que o tick usa (`configEfetiva`): no modo simples, o recomendado da vocação com a reserva do perfil. */
+  efetiva: EstagiarioConfig;
   /** Guardado só nas transições (rodando ↔ parado) e a cada tick com a rota rodando; parado, a recarga é calculada ao ler. */
   turno: TurnoEstado;
   cura: boolean;
@@ -173,6 +190,25 @@ interface Estado {
   /** Distância de parada mandada à perseguição forçada (reenvia só quando muda). */
   pararEnviado: number;
   avisos: Avisos;
+  /** v3: caiu/fechou o cliente: nada age até reconectar (cura, ataque e buffs ficam como estavam, para o save). */
+  suspenso: boolean;
+  /** v3: até quando não age depois de entrar/reconectar com algo ligado (CARENCIA_LOGIN_MS); ligar algo à mão zera. */
+  carenciaAte: number;
+  /** v3: o diário (as últimas DIARIO_MAX linhas), as ainda não enviadas (vão numa mensagem no fim do tick) e se vai inteiro. */
+  diario: DiarioItem[];
+  diarioNovos: DiarioItem[];
+  diarioTudo: boolean;
+  /** Última linha "esperando" e última "a Cura está desligada" (DIARIO_ESPERA_MS / DIARIO_CURA_OFF_MS). */
+  esperaAnotadaEm: number;
+  curaOffAnotadaEm: number;
+  /** v3 (caçar com amigo): id e nome do colega de grupo seguido (exclui a rota: um ou outro). */
+  seguindo: string | null;
+  seguindoNome: string;
+  /** Desde quando o colega está a mais de SEGUIR_MAX_TILES ou sem caminho (0 = perto); SEGUIR_SUMIU_MS desliga. */
+  colegaLongeDesde: number;
+  /** Líder com rota esperando um seguidor longe: desde quando e quem (0/"" = ninguém). */
+  esperandoDesde: number;
+  esperandoQuem: string;
 }
 
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
@@ -185,29 +221,47 @@ export class EstagiarioSystem {
     this.now = o.now ?? Date.now;
   }
 
-  /** Entrada no mundo: config salva (limpa de novo: pode ser de outra versão ou de outra vocação) e o turno. Nada liga. */
+  /**
+   * Entrada no mundo: config salva (limpa de novo: pode ser de outra versão ou de outra vocação), o turno e, desde a v3,
+   * o que o jogador deixou ligado (cura/ataque/buffs voltam como estavam, depois de CARENCIA_LOGIN_MS; a rota nunca).
+   */
   load(p: PlayerState, saved: CharacterData["estagiario"]): void {
     const now = this.now();
     const config = saved?.config ? sanitizeEstagiario(saved.config, p.vocation, this.o.spellGroups(p)) : estagiarioPadrao(p.vocation);
+    const ligado = sanitizeLigado(saved?.ligado);
+    const algo = !!(ligado.cura || ligado.ataque || ligado.buffs);
     this.st.set(p.id, {
-      config, turno: avancarTurno(saved?.turno, now, false), cura: false, ataque: false, buffs: false, rota: null, indice: 0,
+      config, efetiva: configEfetiva(config, p.vocation),
+      turno: avancarTurno(saved?.turno, now, false), cura: !!ligado.cura, ataque: !!ligado.ataque, buffs: !!ligado.buffs, rota: null, indice: 0,
       caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
       inalcancavelAte: 0, recuandoAte: 0, foraAlcanceAte: 0, semManaBuffAte: 0, motivoEnviado: "", lutando: false, lutaOrigem: null, lutaFimEm: 0,
       alvoId: "", alvoAnterior: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
       pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, comeuEm: 0, retomar: false, pararEnviado: 0, avisos: avisosNovos(),
+      suspenso: false, carenciaAte: algo ? now + CARENCIA_LOGIN_MS : 0, diario: [], diarioNovos: [], diarioTudo: false, esperaAnotadaEm: 0, curaOffAnotadaEm: 0,
+      seguindo: null, seguindoNome: "", colegaLongeDesde: 0, esperandoDesde: 0, esperandoQuem: "",
     });
   }
 
-  /** Para `rec.data.estagiario`: só o que difere do padrão (config padrão e turno cheio não são gravados). */
+  /**
+   * Para `rec.data.estagiario`: só o que difere do padrão (config padrão, turno cheio e nada ligado não são gravados;
+   * v3: a config vai compacta — o preset pelo nome, as listas só se mexidas). `ligado` guarda a escolha do jogador, não
+   * o que a rota liga por tabela.
+   */
   saved(p: PlayerState): CharacterData["estagiario"] {
     const s = this.st.get(p.id);
     if (!s) return undefined;
     const turno = this.acertar(s, this.now());
     const out: NonNullable<CharacterData["estagiario"]> = {};
-    if (JSON.stringify(s.config) !== JSON.stringify(estagiarioPadrao(p.vocation))) out.config = s.config;
+    const config = compactar(s.config, p.vocation);
+    if (Object.keys(config).length) out.config = config;
     if (turno.ms < avancarTurno(undefined, 0, false).ms) out.turno = { ...turno };
-    return out.config || out.turno ? out : undefined;
+    const ligado: EstagiarioLigado = {};
+    if (s.cura) ligado.cura = true;
+    if (s.ataque) ligado.ataque = true;
+    if (s.buffs) ligado.buffs = true;
+    if (ligado.cura || ligado.ataque || ligado.buffs) out.ligado = ligado;
+    return out.config || out.turno || out.ligado ? out : undefined;
   }
 
   /** Há estado carregado para o jogador (o save não apaga o campo de quem ainda não entrou). */
@@ -219,8 +273,9 @@ export class EstagiarioSystem {
     if (!s || !obj(m) || !obj(m.config)) return;
     const rotasAntes = JSON.stringify(s.config.rotas);
     s.config = sanitizeEstagiario(m.config, p.vocation, this.o.spellGroups(p));
+    s.efetiva = configEfetiva(s.config, p.vocation);
     const rota = s.rota && this.rotaDe(s, s.rota);
-    if (s.rota && !rota) this.pararRota(p, s);
+    if (s.rota && !rota) this.pararRota(p, s, this.now(), "a rota foi apagada");
     // Os pontos podem ter mudado: só então recomeça do ponto mais próximo (o Aplicar de uma regra de cura não pode
     // jogar fora o caminho e o progresso da rota rodando).
     else if (rota && JSON.stringify(s.config.rotas) !== rotasAntes) this.irPara(s, indiceMaisProximo(rota.pontos, p), this.now());
@@ -230,12 +285,84 @@ export class EstagiarioSystem {
   onToggle(p: PlayerState, m: EstagiarioToggleMsg): void {
     const s = this.st.get(p.id);
     if (!s || !obj(m)) return;
-    if (typeof m.cura === "boolean") s.cura = m.cura;
-    if (typeof m.ataque === "boolean") s.ataque = m.ataque;
-    if (typeof m.buffs === "boolean") s.buffs = m.buffs;
-    if (m.rota === null) this.pararRota(p, s);
+    const now = this.now();
+    const liga = (k: "cura" | "ataque" | "buffs", ligou: string, desligou: string) => {
+      const v = m[k];
+      if (typeof v !== "boolean" || v === s[k]) return;
+      s[k] = v;
+      this.anotar(s, now, "interruptor", v ? ligou : desligou);
+    };
+    liga("cura", "Cura ligada", "Cura desligada");
+    liga("ataque", "Ataque ligado", "Ataque desligado");
+    liga("buffs", "Buffs ligados", "Buffs desligados");
+    // Quem liga à mão quer agora: a carência de entrada não vale mais.
+    s.carenciaAte = 0;
+    if (m.rota === null) this.pararRota(p, s, now);
     else if (typeof m.rota === "string") this.ligarRota(p, s, m.rota);
+    if (m.seguir === null) this.pararSeguir(p, s, now);
+    else if (typeof m.seguir === "string") this.ligarSeguir(p, s, m.seguir);
     this.enviarEstado(p);
+  }
+
+  /**
+   * Caçar com amigo (v3): segue um colega do MESMO grupo (decisão do dono), matando o que aparece e preferindo o alvo
+   * dele; gasta turno, com crachá e acompanhante como a rota (um ou outro: ligar o seguir desliga a rota).
+   */
+  private ligarSeguir(p: PlayerState, s: Estado, id: string): void {
+    if (p.hp <= 0 || id === p.id) return;
+    if (s.grav) { this.notice(p, "Pare a gravação antes de seguir alguém."); return; }
+    const c = this.jogador(id);
+    if (!c || c.hp <= 0) { this.notice(p, "Esse jogador não está por aqui."); return; }
+    if (!this.o.sameParty?.(p.id, id)) { this.notice(p, "Só dá para seguir um colega do seu grupo."); return; }
+    if (cheb(p.x, p.y, c.x, c.y) > SEGUIR_MAX_TILES) { this.notice(p, `Chegue perto de ${c.name} para seguir.`); return; }
+    const now = this.now();
+    this.acertar(s, now);
+    if (s.turno.ms <= 0) { this.notice(p, AVISO_TURNO); return; }
+    if (s.rota) this.pararRota(p, s, now, `trocou para seguir ${c.name}`);
+    const ja = !!s.seguindo;
+    s.seguindo = id;
+    s.seguindoNome = c.name;
+    s.colegaLongeDesde = 0;
+    s.lutando = false;
+    s.lutaOrigem = null;
+    s.lutaFimEm = 0;
+    s.pausa = "";
+    s.pausaAte = 0;
+    s.estadoEm = now;
+    this.anotar(s, now, "rota", `seguindo ${c.name}`);
+    const parar = this.pararEm(p, s);
+    s.pararEnviado = parar;
+    this.o.fight.forceChase(p.id, true, parar);
+    if (ja) return; // trocou de colega: o resto já está ligado
+    s.avisos = avisosNovos();
+    p.bot = true;
+    this.o.companions.spawnCompanion(p, now);
+  }
+
+  /** `motivo` (diário e alarme "colega"): por que parou de seguir; sem ele, foi o jogador. */
+  private pararSeguir(p: PlayerState, s: Estado, now = this.now(), motivo?: string, alarme = false): void {
+    if (!s.seguindo) return;
+    this.acertar(s, now);
+    this.anotar(s, now, "rota", `parou de seguir ${s.seguindoNome}${motivo ? `: ${motivo}` : ""}`);
+    if (alarme) this.alarme(p, "colega", `Estagiário: parou de seguir ${s.seguindoNome} (${motivo}).`);
+    s.seguindo = null;
+    s.seguindoNome = "";
+    s.colegaLongeDesde = 0;
+    s.ignorados.clear();
+    s.alvoId = "";
+    s.alvoAnterior = "";
+    s.inalcancavelAte = 0;
+    s.recuandoAte = 0;
+    s.lutaOrigem = null;
+    s.lutaFimEm = 0;
+    s.pausa = "";
+    s.pausaAte = 0;
+    s.pararEnviado = 0;
+    s.retomar = false;
+    p.bot = false;
+    this.o.fight.cancelFollow(p);
+    this.o.fight.forceChase(p.id, false);
+    this.o.companions.despawnCompanion(p.id);
   }
 
   /**
@@ -247,8 +374,9 @@ export class EstagiarioSystem {
     const s = this.st.get(p.id);
     if (!s || !obj(m)) return;
     if (m.acao === "iniciar") {
-      // A rota andando seria gravada por cima de si mesma.
+      // A rota andando (ou o seguir) seria gravada por cima de si mesma.
       if (s.rota) this.notice(p, "Desligue a rota para gravar outra.");
+      else if (s.seguindo) this.notice(p, "Pare de seguir para gravar uma rota.");
       // Recomeçar jogaria fora os pontos já andados (clique duplo no botão, por exemplo).
       else if (s.grav) this.notice(p, "Já está gravando.");
       else { s.grav = novaGravacao(p); s.gravPos = { x: p.x, y: p.y }; }
@@ -258,10 +386,10 @@ export class EstagiarioSystem {
     this.enviarEstado(p);
   }
 
-  /** Movimento manual (setas ou clique no chão): a rota pausa por PAUSA_MANUAL_MS, renovada a cada comando. */
+  /** Movimento manual (setas ou clique no chão): a rota (ou o seguir) pausa por PAUSA_MANUAL_MS, renovada a cada comando. */
   manual(id: string): void {
     const s = this.st.get(id);
-    if (!s?.rota) return;
+    if (!s?.rota && !s?.seguindo) return;
     const now = this.now();
     s.pausaAte = now + PAUSA_MANUAL_MS;
     if (s.pausa === "") this.mudarPausa(id, s, "manual", now);
@@ -273,11 +401,13 @@ export class EstagiarioSystem {
    */
   onDied(p: PlayerState): void {
     const s = this.st.get(p.id);
-    if (!s?.rota && !s?.grav) return;
+    if (!s?.rota && !s?.seguindo && !s?.grav) return;
     s.grav = null;
-    // Antes de desligar: o alarme só vale se a rota estava ligada (sem ela o jogador não estava fora do teclado).
+    // Antes de desligar: o alarme só vale se a rota (ou o seguir) estava ligada (sem ela o jogador não estava fora do teclado).
     if (s.rota) this.alarme(p, "morte", "Estagiário: você morreu. A rota foi desligada.");
-    this.pararRota(p, s);
+    if (s.seguindo) this.alarme(p, "morte", `Estagiário: você morreu. Parou de seguir ${s.seguindoNome}.`);
+    this.pararRota(p, s, this.now(), "você morreu");
+    this.pararSeguir(p, s, this.now(), "você morreu");
     this.enviarEstado(p);
   }
 
@@ -314,27 +444,67 @@ export class EstagiarioSystem {
    */
   desligarRota(p: PlayerState, aviso?: string): void {
     const s = this.st.get(p.id);
-    if (!s?.rota) return;
-    this.pararRota(p, s);
+    if (!s?.rota && !s?.seguindo) return;
+    this.pararRota(p, s, this.now(), "Coliseu");
+    this.pararSeguir(p, s, this.now(), "Coliseu");
     if (aviso) this.notice(p, aviso);
     this.enviarEstado(p);
   }
 
-  /** Caiu a conexão ou saiu: tudo desliga (sem ninguém no cliente o Estagiário não trabalha). Ao voltar, nada religa. */
+  /**
+   * Caiu a conexão ou saiu: nada age até reconectar (sem ninguém no cliente o Estagiário não trabalha). v3: cura, ataque
+   * e buffs ficam como estavam — vão no save e voltam com o jogador (`reconectou` ou o próximo `load`); a rota desliga e
+   * a gravação se perde.
+   */
   desligarTudo(p: PlayerState): void {
     const s = this.st.get(p.id);
     if (!s) return;
-    s.cura = false;
-    s.ataque = false;
-    s.buffs = false;
+    s.suspenso = true;
     s.grav = null;
-    this.pararRota(p, s);
+    this.pararRota(p, s, this.now(), "você saiu do jogo");
+    this.pararSeguir(p, s, this.now(), "você saiu do jogo");
   }
 
+  /**
+   * Reconectou (WorldRoom.onReconnect): volta a agir depois da carência, com o que estava ligado. O diário vai inteiro
+   * de novo: o que chegou durante a queda se perdeu no cliente.
+   */
+  reconectou(p: PlayerState): void {
+    const s = this.st.get(p.id);
+    if (!s) return;
+    s.suspenso = false;
+    s.carenciaAte = this.now() + CARENCIA_LOGIN_MS;
+    s.diarioNovos = [];
+    s.diarioTudo = true;
+  }
+
+  /** Alarme para o jogador (se ele não o desligou) e a linha no diário (sempre: é o histórico do que aconteceu). */
   alarme(p: PlayerState, tipo: AlarmeTipo, texto: string): void {
     const s = this.st.get(p.id);
-    if (!s || !alarmeLigado(s.config, tipo)) return;
+    if (!s) return;
+    this.anotar(s, this.now(), "aviso", texto.replace(/^Estagiário: /, ""));
+    if (!alarmeLigado(s.config, tipo)) return;
     this.o.send(p.id, S2C.EstagiarioAlarme, { tipo, texto } satisfies EstagiarioAlarmeMsg);
+  }
+
+  /** Linha nova no diário (as últimas DIARIO_MAX ficam); vai ao cliente no fim do tick (`enviarDiario`). */
+  private anotar(s: Estado, now: number, canal: DiarioCanal, texto: string): void {
+    const item: DiarioItem = { t: now, canal, texto };
+    s.diario.push(item);
+    if (s.diario.length > DIARIO_MAX) s.diario.splice(0, s.diario.length - DIARIO_MAX);
+    s.diarioNovos.push(item);
+  }
+
+  private enviarDiario(p: PlayerState, s: Estado): void {
+    const msg: EstagiarioDiarioMsg = s.diarioTudo ? { itens: [...s.diario], tudo: true } : { itens: s.diarioNovos };
+    s.diarioNovos = [];
+    s.diarioTudo = false;
+    this.o.send(p.id, S2C.EstagiarioDiario, msg);
+  }
+
+  /** O diário até agora (testes e o estado inicial). */
+  diario(id: string): readonly DiarioItem[] {
+    return this.st.get(id)?.diario ?? [];
   }
 
   estado(p: PlayerState): EstagiarioEstadoMsg {
@@ -342,12 +512,13 @@ export class EstagiarioSystem {
     const now = this.now();
     if (!s) {
       return {
-        config: estagiarioPadrao(p.vocation), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0,
-        turnoMs: avancarTurno(undefined, now, false).ms, motivo: "", ponto: null,
+        config: estagiarioPadrao(p.vocation), cura: false, ataque: false, buffs: false, rota: null, seguindo: null, pausa: "", gravando: false,
+        pontosGravados: 0, turnoMs: avancarTurno(undefined, now, false).ms, motivo: "", ponto: null,
       };
     }
     return {
-      config: s.config, cura: s.cura, ataque: this.ataqueLigado(s), buffs: this.buffsLigados(s), rota: s.rota, pausa: s.pausa,
+      config: s.config, cura: this.curaLigada(s), ataque: this.ataqueLigado(s), buffs: this.buffsLigados(s), rota: s.rota,
+      seguindo: s.seguindo ? { id: s.seguindo, nome: s.seguindoNome } : null, pausa: s.pausa,
       gravando: !!s.grav, pontosGravados: s.grav?.pontos.length ?? 0, turnoMs: avancarTurno(s.turno, now, this.rodando(s)).ms,
       motivo: this.motivo(p, s, now), ponto: this.ponto(s),
     };
@@ -355,8 +526,11 @@ export class EstagiarioSystem {
 
   /** Por que o Estagiário não está agindo agora (curto, para o cabeçalho da janela); "" = tudo certo ou nada ligado. */
   private motivo(p: PlayerState, s: Estado, now: number): string {
-    if (s.rota && s.pausa === "manual") return "pausado: você está jogando";
-    if (s.rota && s.pausa === "npc") return "pausado: conversa com NPC";
+    const caca = !!s.rota || !!s.seguindo;
+    if (caca && s.pausa === "manual") return "pausado: você está jogando";
+    if (caca && s.pausa === "npc") return "pausado: conversa com NPC";
+    if (s.rota && s.esperandoDesde > 0) return `esperando ${s.esperandoQuem}`;
+    if (s.seguindo && s.colegaLongeDesde) return `${s.seguindoNome} está longe`;
     if (!this.ataqueLigado(s) || p.hp <= 0) return "";
     if (p.targetId && !this.o.monsters.wild(p.targetId) && this.ehJogador(p.targetId)) return "mirando um jogador";
     if (s.rota && now < s.travadoAte) return "ponto travado, pulando";
@@ -365,7 +539,7 @@ export class EstagiarioSystem {
     if (!this.o.monsters.wild(p.targetId)) return "sem alvo por perto";
     if (now < s.foraAlcanceAte) return "alvo fora do alcance";
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
-    if (s.config.ataque.length && !s.config.ataque.some((r) => manaPct >= pisoDeMana(r, s.config.reservaMana))) return "reserva de mana";
+    if (s.efetiva.ataque.length && !s.efetiva.ataque.some((r) => manaPct >= pisoDeMana(r, s.efetiva.reservaMana))) return "reserva de mana";
     if (this.buffsLigados(s) && now < s.semManaBuffAte) return "sem mana para o buff";
     return "";
   }
@@ -386,7 +560,10 @@ export class EstagiarioSystem {
   tick(now: number): void {
     for (const p of this.o.players()) {
       const s = this.st.get(p.id);
-      if (s) this.tickPlayer(p, s, now);
+      if (!s) continue;
+      this.tickPlayer(p, s, now);
+      // Linhas do diário deste tick (e as de fora dele: ligar/desligar, alarme) numa mensagem só.
+      if (s.diarioTudo || s.diarioNovos.length) this.enviarDiario(p, s);
     }
   }
 
@@ -399,21 +576,27 @@ export class EstagiarioSystem {
   private tickPlayer(p: PlayerState, s: Estado, now: number): void {
     if (s.grav) this.gravar(p, s, now);
     if (s.rota) this.tickRota(p, s, now);
+    else if (s.seguindo) this.tickSeguir(p, s, now);
     if (p.hp > 0) this.agir(p, s, now);
     // O cabeçalho mostra o motivo e o ponto atual: mudou → estado (no máximo um por segundo; o resto vai no periódico).
-    if ((s.rota || s.ataque) && now - s.estadoEm >= MOTIVO_ENVIO_MS && this.chaveMotivo(p, s, now) !== s.motivoEnviado) this.enviarEstado(p, now);
+    if ((s.rota || s.seguindo || s.ataque) && now - s.estadoEm >= MOTIVO_ENVIO_MS && this.chaveMotivo(p, s, now) !== s.motivoEnviado) this.enviarEstado(p, now);
   }
 
   private agir(p: PlayerState, s: Estado, now: number): void {
-    // No máximo uma cura por tick; o ataque vem depois (a recarga global de magia separa os dois quando os dois são magia).
-    // Buff só num tick sem cura (uma ação por tick entre os dois: a cura tem prioridade e o buff espera o próximo).
-    const curou = s.cura && this.curar(p, s, now);
+    // Sem ninguém no cliente (queda) ou ainda carregando o mundo (carência de entrada): nada.
+    if (s.suspenso || now < s.carenciaAte) return;
+    // v3: a Cura também liga pela rota (como o ataque e os buffs); desligada com a vida baixa, o diário diz.
+    const cura = this.curaLigada(s);
+    if (!cura) this.avisarCuraDesligada(p, s, now);
+    // v3 (canais): a poção e a magia de cura são recargas diferentes e saem no mesmo tick; o ataque vem depois (a recarga
+    // global de magia o separa da cura por magia). Buff só num tick sem magia de cura (a mesma recarga; a cura vem antes).
+    const curou = cura ? this.curar(p, s, now) : { pocao: false, magia: false };
     // Comer não mexe em recarga de magia nem de poção: vai junto com o que mais houver no tick.
-    if (s.cura && s.config.comer) this.comer(p, s, now);
-    if (!curou && this.buffsLigados(s)) this.buffar(p, s, now);
+    if (cura && s.efetiva.comer) this.comer(p, s, now);
+    if (!curou.magia && this.buffsLigados(s)) this.buffar(p, s, now);
     if (this.ataqueLigado(s)) this.atacar(p, s, now);
     // Depois do ataque: o alvo escolhido neste tick já segura a caminhada (não dá um passo da rota para o lado errado).
-    if (this.rodando(s)) { this.vigiar(p, s, now); this.andar(p, s, now); }
+    if (this.rodando(s)) { this.vigiar(p, s, now); if (s.rota) this.andar(p, s, now); else this.andarSeguindo(p, s, now); }
   }
 
   /**
@@ -422,9 +605,9 @@ export class EstagiarioSystem {
    */
   private vigiar(p: PlayerState, s: Estado, now: number): void {
     const a = s.avisos;
-    for (const r of s.config.cura) {
-      if (!("pocao" in r.acao)) continue;
-      const kind = r.acao.pocao;
+    // Poções que a cura usa: no modo simples as duas; no avançado, as das regras.
+    const kinds = new Set<QuickPotionKind>(s.config.modo === "simples" ? ["hp", "mana"] : s.efetiva.cura.flatMap((r) => ("pocao" in r.acao ? [r.acao.pocao] : [])));
+    for (const kind of kinds) {
       const n = this.o.potions.countPotions(p, kind);
       if (n >= POCAO_ALARME_MIN) a.pocao.delete(kind);
       else if (!a.pocao.has(kind)) {
@@ -480,17 +663,13 @@ export class EstagiarioSystem {
     const pz = this.o.monsters.inPz(p.x, p.y);
     const entrou = pz && !s.emPz;
     s.emPz = pz;
-    if (entrou) { this.pararRota(p, s, now); this.enviarEstado(p); return; }
+    if (entrou) { this.pararRota(p, s, now, "zona de proteção"); this.enviarEstado(p); return; }
     // O acompanhante saiu do mundo com a rota ligada (o Coliseu tira tudo do dono, por exemplo): volta ao lado do dono.
     if (p.hp > 0 && !pz && !this.o.companions.companionOf(p.id)) this.o.companions.spawnCompanion(p, now);
-    const pausa: EstagiarioPausa = this.o.npcOpen(p.id) ? "npc" : now < s.pausaAte ? "manual" : "";
-    if (pausa !== s.pausa) {
-      this.mudarPausa(p.id, s, pausa, now);
+    if (this.acompanharPausa(p, s, now)) {
       // Na pausa o jogador andou à mão (ou foi ao NPC): ao voltar, segue do ponto mais perto de onde ele está.
       const rota = this.rotaDe(s, s.rota!);
-      if (pausa === "" && rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
-      // O alvo não foi acompanhado durante a pausa: sem isto, o relógio parado o daria por travado no primeiro tick.
-      if (pausa === "") { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
+      if (rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
     }
     if (!this.rodando(s)) return;
     // A distância de parada pode mudar (Aplicar, troca de arma): reenvia só quando muda.
@@ -498,7 +677,47 @@ export class EstagiarioSystem {
     if (parar !== s.pararEnviado) { s.pararEnviado = parar; this.o.fight.forceChase(p.id, true, parar); }
     this.acertar(s, now);
     if (s.turno.ms <= 0) {
-      this.pararRota(p, s, now);
+      this.pararRota(p, s, now, "o turno acabou");
+      this.notice(p, AVISO_TURNO);
+      this.enviarEstado(p);
+      return;
+    }
+    if (now - s.estadoEm >= ESTADO_PERIODICO_MS) this.enviarEstado(p, now);
+  }
+
+  /** Pausa por NPC aberto ou movimento manual (rota e seguir): aplica a transição; devolve true quando a pausa acabou. */
+  private acompanharPausa(p: PlayerState, s: Estado, now: number): boolean {
+    const pausa: EstagiarioPausa = this.o.npcOpen(p.id) ? "npc" : now < s.pausaAte ? "manual" : "";
+    if (pausa === s.pausa) return false;
+    this.mudarPausa(p.id, s, pausa, now);
+    // O alvo não foi acompanhado durante a pausa: sem isto, o relógio parado o daria por travado no primeiro tick.
+    if (pausa === "") { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
+    return pausa === "";
+  }
+
+  /**
+   * Caçar com amigo, a cada tick: o colega tem de continuar vivo, no jogo, no grupo e a até SEGUIR_MAX_TILES (longe por
+   * SEGUIR_SUMIU_MS desliga, com alarme "colega"); a zona de proteção não desliga (o colega foi ao depot e volta). Gasta
+   * turno como a rota.
+   */
+  private tickSeguir(p: PlayerState, s: Estado, now: number): void {
+    const c = this.jogador(s.seguindo!);
+    const desliga = (motivo: string) => { this.pararSeguir(p, s, now, motivo, true); this.enviarEstado(p); };
+    if (!c) { desliga(`${s.seguindoNome} saiu do jogo`); return; }
+    if (c.hp <= 0) { desliga(`${s.seguindoNome} morreu`); return; }
+    if (!this.o.sameParty?.(p.id, c.id)) { desliga(`${s.seguindoNome} não está mais no seu grupo`); return; }
+    if (cheb(p.x, p.y, c.x, c.y) > SEGUIR_MAX_TILES) {
+      if (!s.colegaLongeDesde) s.colegaLongeDesde = now;
+      else if (now - s.colegaLongeDesde >= SEGUIR_SUMIU_MS) { desliga(`${s.seguindoNome} sumiu`); return; }
+    } else s.colegaLongeDesde = 0;
+    if (p.hp > 0 && !this.o.monsters.inPz(p.x, p.y) && !this.o.companions.companionOf(p.id)) this.o.companions.spawnCompanion(p, now);
+    this.acompanharPausa(p, s, now);
+    if (!this.rodando(s)) return;
+    const parar = this.pararEm(p, s);
+    if (parar !== s.pararEnviado) { s.pararEnviado = parar; this.o.fight.forceChase(p.id, true, parar); }
+    this.acertar(s, now);
+    if (s.turno.ms <= 0) {
+      this.pararSeguir(p, s, now, "o turno acabou");
       this.notice(p, AVISO_TURNO);
       this.enviarEstado(p);
       return;
@@ -507,32 +726,171 @@ export class EstagiarioSystem {
   }
 
   /**
-   * Uma ação de cura (magia ou poção) se alguma regra vale; devolve se agiu. A poção só conta se dá para beber (level e
-   * vocação: com só a Grande lv 30 na mochila a regra de poção ganhava todo tick, falhava em silêncio e a magia da
-   * regra seguinte nunca saía). Ação que falha mesmo assim (magia recusada, poção recusada) tenta a regra seguinte.
-   * v2: a poção é a menor que cobre o que falta; a regra "aliado" olha a vida dos colegas de grupo ao alcance da magia.
+   * Seguindo: com alvo vivo, a perseguição forçada manda (o seguir do FightMode é cancelado, senão ele ganharia da
+   * perseguição) e o recuo de "manter distância" vale; sem alvo, anda atrás do colega.
    */
-  private curar(p: PlayerState, s: Estado, now: number): boolean {
+  private andarSeguindo(p: PlayerState, s: Estado, now: number): void {
+    if (this.alvoVivo(p) && !this.alvoTravado(p, s, now)) {
+      if (p.followId) this.o.fight.cancelFollow(p);
+      if (!s.lutando) {
+        s.lutando = true;
+        if (!s.lutaOrigem || now - s.lutaFimEm > LUTA_EMENDADA_MS) s.lutaOrigem = { x: p.x, y: p.y };
+      }
+      this.recuar(p, s, now);
+      return;
+    }
+    if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
+    if (s.lutando) { s.lutando = false; s.lutaFimEm = now; }
+    if (p.followId !== s.seguindo) this.o.fight.follow(p, s.seguindo!);
+  }
+
+  /** Quem está seguindo `id` (vivos e no jogo): o líder com rota espera por eles. */
+  private seguidoresDe(id: string): PlayerState[] {
+    const out: PlayerState[] = [];
+    for (const q of this.o.players()) if (q.hp > 0 && this.st.get(q.id)?.seguindo === id) out.push(q);
+    return out;
+  }
+
+  /**
+   * Líder com rota (decisão do dono: "espera"): para de andar enquanto um seguidor vivo está a mais de ESPERAR_TILES
+   * (volta quando todos estão a até ESPERAR_PERTO_TILES), no máximo ESPERAR_MAX_MS por vez — um seguidor preso atrás de
+   * uma cerca não pode prender a rota para sempre. Devolve true enquanto espera.
+   */
+  private esperarSeguidores(p: PlayerState, s: Estado, now: number): boolean {
+    const seg = this.seguidoresDe(p.id);
+    const limpar = () => { s.esperandoDesde = 0; s.esperandoQuem = ""; };
+    if (!seg.length) { limpar(); return false; }
+    // Histerese: começa a esperar com alguém a mais de ESPERAR_TILES; só volta (ou pode esperar de novo) com todos perto.
+    if (seg.every((q) => cheb(p.x, p.y, q.x, q.y) <= ESPERAR_PERTO_TILES)) { limpar(); return false; }
+    if (s.esperandoDesde < 0) return false; // já desistiu desta espera
+    if (!s.esperandoDesde) {
+      const longe = seg.find((q) => cheb(p.x, p.y, q.x, q.y) > ESPERAR_TILES);
+      if (!longe) return false;
+      s.esperandoDesde = now;
+      s.esperandoQuem = longe.name;
+      this.anotar(s, now, "rota", `esperando ${longe.name}`);
+    }
+    if (now - s.esperandoDesde >= ESPERAR_MAX_MS) {
+      this.anotar(s, now, "rota", `cansou de esperar ${s.esperandoQuem}: segue a rota`);
+      s.esperandoDesde = -1;
+      s.esperandoQuem = "";
+      return false;
+    }
+    return true;
+  }
+
+  /** Há colega de grupo ao alcance da magia com menos de `pct`% de vida (regras "aliado" e a cura em grupo do modo simples). */
+  private aliadoAbaixo(p: PlayerState, magia: string, pct: number): boolean {
+    if (!this.o.aliados) return false;
+    const raio = spellDef(magia)?.radius ?? 3;
+    for (const q of this.o.aliados(p)) if (q.hp > 0 && q.maxHp > 0 && cheb(p.x, p.y, q.x, q.y) <= raio && (q.hp / q.maxHp) * 100 < pct) return true;
+    return false;
+  }
+
+  /**
+   * Cura deste tick, um canal por recarga (v3 etapa 2): a poção (vida ou mana) e a magia de cura (ou de grupo) são
+   * recargas diferentes e saem juntas; devolve o que saiu. Modo simples: a política `decidirCura` com o perfil. Modo
+   * avançado: as regras de poção e as de magia são duas listas, cada uma com "a primeira que vale e está pronta". A
+   * poção só conta se dá para beber (level e vocação). Ação recusada vai ao diário e, no avançado, tenta a regra seguinte.
+   */
+  private curar(p: PlayerState, s: Estado, now: number): { pocao: boolean; magia: boolean } {
+    if (s.config.modo === "simples") return this.curarSimples(p, s, now);
     const falhou = new Set<CuraAcao>();
     const pronto = (a: CuraAcao) => !falhou.has(a) && ("magia" in a
       ? this.o.spells.ready(p, a.magia, now)
       : this.o.potions.potionReady(p, now) && this.o.potions.canDrink(p, a.pocao));
-    const aliadoAbaixo = (pct: number, a: CuraAcao): boolean => {
-      if (!("magia" in a) || !this.o.aliados) return false;
-      const raio = spellDef(a.magia)?.radius ?? 3;
-      for (const q of this.o.aliados(p)) if (q.hp > 0 && q.maxHp > 0 && cheb(p.x, p.y, q.x, q.y) <= raio && (q.hp / q.maxHp) * 100 < pct) return true;
+    const aliado = (pct: number, a: CuraAcao): boolean => "magia" in a && this.aliadoAbaixo(p, a.magia, pct);
+    const esperando: RegraCura[] = [];
+    const canal = (regras: RegraCura[]): boolean => {
+      for (let k = 0; k < regras.length; k++) {
+        const antes = esperando.length;
+        const acao = escolherCura(p, regras, pronto, aliado, (r) => esperando.push(r));
+        if (!acao) return false;
+        esperando.length = antes; // o que ficou antes da escolhida não é espera
+        if (this.executarCura(p, s, now, acao, this.situacao(p, regras.find((r) => r.acao === acao)!))) return true;
+        falhou.add(acao);
+      }
       return false;
     };
-    for (let k = 0; k < s.config.cura.length; k++) {
-      const acao = escolherCura(p, s.config.cura, pronto, aliadoAbaixo);
-      if (!acao) return false;
-      const ok = "magia" in acao
-        ? this.o.spells.cast(p, acao.magia, undefined, { silent: true }).ok
-        : this.o.potions.usePotion(p, acao.pocao, { silent: true, cobrir: acao.pocao === "hp" ? p.maxHp - p.hp : p.maxMana - p.mana });
-      if (ok) return true;
-      falhou.add(acao);
-    }
-    return false;
+    const pocao = canal(s.efetiva.cura.filter((r) => "pocao" in r.acao));
+    const magia = canal(s.efetiva.cura.filter((r) => "magia" in r.acao));
+    if (esperando.length) this.anotarEspera(p, s, now, this.situacao(p, esperando[0]!), esperando.map((r) => this.porQueNaoPronta(p, r, now)));
+    return { pocao, magia };
+  }
+
+  /** Modo simples: monta a situação (poções, magias de cura até o level, grupo, escudo) e executa a decisão da política. */
+  private curarSimples(p: PlayerState, s: Estado, now: number): { pocao: boolean; magia: boolean } {
+    const falta = Math.max(0, p.maxHp - p.hp), faltaMana = Math.max(0, p.maxMana - p.mana);
+    const pronta = this.o.potions.potionReady(p, now);
+    const recupera = (k: QuickPotionKind, f: number) =>
+      this.o.potions.potionAmount ? this.o.potions.potionAmount(p, k, f) : this.o.potions.canDrink(p, k) ? Math.max(1, f) : 0;
+    const grupo = curaEmGrupo(p.vocation, p.level);
+    const sit: SituacaoCura = {
+      hp: p.hp, maxHp: p.maxHp, mana: p.mana, maxMana: p.maxMana,
+      pocao: { hp: { pronta, recupera: recupera("hp", falta) }, mana: { pronta, recupera: recupera("mana", faltaMana) } },
+      magias: curasProprias(p.vocation, p.level).map((m) => ({ id: m.id, pronta: this.o.spells.ready(p, m.id, now), cura: curaEstimada(m.heal, p.level, p.magicLevel ?? 0), mana: m.mana })),
+      grupo: grupo ? { id: grupo.id, pronta: this.o.spells.ready(p, grupo.id, now), aliadoBaixo: this.aliadoAbaixo(p, grupo.id, s.config.perfil.conforto) } : undefined,
+      escudoDeMana: this.o.conditions.has(p.id, "manashield"),
+    };
+    const d = decidirCura(sit, s.config.perfil);
+    const pct = (cur: number, max: number) => (max > 0 ? Math.round((cur / max) * 100) : 0);
+    const situacao = d.pocao === "mana" && !d.magia ? `mana ${pct(p.mana, p.maxMana)}%` : `vida ${pct(p.hp, p.maxHp)}%`;
+    const pocao = d.pocao !== null && this.executarCura(p, s, now, { pocao: d.pocao }, d.pocao === "mana" ? `mana ${pct(p.mana, p.maxMana)}%` : `vida ${pct(p.hp, p.maxHp)}%`);
+    const magia = d.magia !== null && this.executarCura(p, s, now, { magia: d.magia }, d.magia === grupo?.id && sit.grupo?.aliadoBaixo ? `aliado abaixo de ${s.config.perfil.conforto}%` : `vida ${pct(p.hp, p.maxHp)}%`);
+    if (d.motivos.length) this.anotarEspera(p, s, now, situacao, d.motivos);
+    return { pocao, magia };
+  }
+
+  /** Executa a poção ou a magia e anota no diário (com o ganho); false se foi recusada. */
+  private executarCura(p: PlayerState, s: Estado, now: number, acao: CuraAcao, situacao: string): boolean {
+    const hpAntes = p.hp, manaAntes = p.mana;
+    const ok = "magia" in acao
+      ? this.o.spells.cast(p, acao.magia, undefined, { silent: true }).ok
+      : this.o.potions.usePotion(p, acao.pocao, { silent: true, cobrir: acao.pocao === "hp" ? p.maxHp - p.hp : p.maxMana - p.mana });
+    if (ok) {
+      const ganho = "pocao" in acao && acao.pocao === "mana" ? p.mana - manaAntes : p.hp - hpAntes;
+      this.anotar(s, now, "magia" in acao ? "cura" : "pocao", `${situacao} → ${this.nomeDaAcao(acao)}${ganho > 0 ? `, +${ganho}` : ""}`);
+    } else this.anotar(s, now, "aviso", `${situacao}: ${this.nomeDaAcao(acao)} recusada`);
+    return ok;
+  }
+
+  /** Diário: "esperando" com os motivos, no máximo a cada DIARIO_ESPERA_MS. */
+  private anotarEspera(_p: PlayerState, s: Estado, now: number, situacao: string, motivos: string[]): void {
+    if (now - s.esperaAnotadaEm < DIARIO_ESPERA_MS) return;
+    s.esperaAnotadaEm = now;
+    this.anotar(s, now, "cura", `${situacao}: esperando (${motivos.join("; ")})`);
+  }
+
+  /** "vida 42%" / "mana 18%" / "aliado abaixo de 50%": o que fez a regra valer. */
+  private situacao(p: PlayerState, r: RegraCura): string {
+    const pct = (cur: number, max: number) => (max > 0 ? Math.round((cur / max) * 100) : 0);
+    if (r.quando === "aliado") return `aliado abaixo de ${r.abaixoDe}%`;
+    return r.quando === "vida" ? `vida ${pct(p.hp, p.maxHp)}%` : `mana ${pct(p.mana, p.maxMana)}%`;
+  }
+
+  private nomeDaAcao(a: CuraAcao): string {
+    return "pocao" in a ? (a.pocao === "hp" ? "poção de vida" : "poção de mana") : spellDef(a.magia)?.name ?? a.magia;
+  }
+
+  /** Por que a ação da regra não saiu agora (diário): sem poção que dê para beber, recarga, level ou mana. */
+  private porQueNaoPronta(p: PlayerState, r: RegraCura, now: number): string {
+    const nome = this.nomeDaAcao(r.acao);
+    if ("pocao" in r.acao) return this.o.potions.canDrink(p, r.acao.pocao) ? `${nome} em recarga` : `nenhuma ${nome} que você possa beber`;
+    const def = spellDef(r.acao.magia);
+    if (def && def.level > p.level) return `${nome} acima do seu level`;
+    // Pronta com mana infinita = só a mana segura; senão é a recarga (própria ou global).
+    if (this.o.spells.ready({ ...p, mana: Number.MAX_SAFE_INTEGER } as PlayerState, r.acao.magia, now)) return `${nome} sem mana`;
+    return `${nome} em recarga`;
+  }
+
+  /** Cura desligada com a vida abaixo do conforto (ou de alguma regra de vida): o diário diz, no máximo a cada DIARIO_CURA_OFF_MS. */
+  private avisarCuraDesligada(p: PlayerState, s: Estado, now: number): void {
+    if (p.maxHp <= 0 || now - s.curaOffAnotadaEm < DIARIO_CURA_OFF_MS) return;
+    const pct = (p.hp / p.maxHp) * 100;
+    const vale = s.config.modo === "simples" ? pct < s.config.perfil.conforto : s.efetiva.cura.some((r) => r.quando === "vida" && pct < r.abaixoDe);
+    if (!vale) return;
+    s.curaOffAnotadaEm = now;
+    this.anotar(s, now, "aviso", `vida ${Math.round(pct)}%: a Cura está desligada`);
   }
 
   /** Come quando o "alimentado" está acabando (COMER_ANTES_MS), no máximo uma tentativa por COMER_INTERVALO_MS. */
@@ -540,12 +898,12 @@ export class EstagiarioSystem {
     if (!this.o.alimentadoMs || !this.o.comer || now - s.comeuEm < COMER_INTERVALO_MS) return;
     if (this.o.alimentadoMs(p.id, now) >= COMER_ANTES_MS) return;
     s.comeuEm = now;
-    this.o.comer(p);
+    if (this.o.comer(p)) this.anotar(s, now, "comer", "comeu: o alimentado estava acabando");
   }
 
   /** Reconjura o primeiro buff (ou invocação) da lista que acabou (regras em escolherBuff); no máximo um por tick. */
   private buffar(p: PlayerState, s: Estado, now: number): void {
-    if (!s.config.buffs.length) return;
+    if (!s.efetiva.buffs.length) return;
     const ctx = {
       ativo: (c: ConditionId) => this.o.conditions.has(p.id, c),
       invocado: () => (this.o.invocacoes?.(p.id) ?? 0) > 0,
@@ -553,11 +911,17 @@ export class EstagiarioSystem {
       mana: p.mana, maxMana: p.maxMana,
       pronto: (id: string) => this.o.spells.ready(p, id, now),
     };
-    const magia = escolherBuff(s.config.buffs, ctx);
-    if (magia) { this.o.spells.cast(p, magia, undefined, { silent: true }); return; }
+    const magia = escolherBuff(s.efetiva.buffs, ctx);
+    if (magia) {
+      if (this.o.spells.cast(p, magia, undefined, { silent: true }).ok) {
+        const def = spellDef(magia);
+        this.anotar(s, now, "buff", `${def?.name ?? magia} ${def && ehInvocacao(def) ? "invocado" : "conjurado"}`);
+      }
+      return;
+    }
     // Nada saiu: se a mana mínima da regra (ou a mana da própria magia) é o que segura, o painel explica.
     const pronta = (id: string) => this.o.spells.ready(p, id, now) || this.o.spells.ready({ ...p, mana: Number.MAX_SAFE_INTEGER } as PlayerState, id, now);
-    if (escolherBuff(s.config.buffs, { ...ctx, mana: Number.MAX_SAFE_INTEGER, maxMana: Number.MAX_SAFE_INTEGER, pronto: pronta })) s.semManaBuffAte = now + MOTIVO_MS;
+    if (escolherBuff(s.efetiva.buffs, { ...ctx, mana: Number.MAX_SAFE_INTEGER, maxMana: Number.MAX_SAFE_INTEGER, pronto: pronta })) s.semManaBuffAte = now + MOTIVO_MS;
   }
 
   private atacar(p: PlayerState, s: Estado, now: number): void {
@@ -569,9 +933,11 @@ export class EstagiarioSystem {
     // ligou o Ataque: ligado só pela rota, o jogador está no controle e o bot não escolhe alvo por ele.
     if (now - s.buscaEm >= (mm.wild(p.targetId) ? BUSCA_MS : BUSCA_SEM_ALVO_MS) && (s.ataque || this.rodando(s))) {
       s.buscaEm = now;
-      const id = this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignoradoEm(s, m, now));
+      // Caçando com amigo (decisão do dono): o alvo do colega vem primeiro, se está ao alcance da busca; senão o mais perto.
+      const doColega = s.seguindo ? this.alvoDoColega(p, s, now) : "";
+      const id = doColega || this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignoradoEm(s, m, now));
       const cur = mm.wild(p.targetId), nxt = id ? mm.wild(id) : undefined;
-      if (id && id !== p.targetId && (!cur || (nxt && cheb(p.x, p.y, nxt.s.x, nxt.s.y) < cheb(p.x, p.y, cur.s.x, cur.s.y)))) {
+      if (id && id !== p.targetId && (id === doColega || !cur || (nxt && cheb(p.x, p.y, nxt.s.x, nxt.s.y) < cheb(p.x, p.y, cur.s.x, cur.s.y)))) {
         p.targetId = id;
         // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador pode
         // estar andando à mão: retomar agora cancelaria a pausa de 1,5 s que todo Move/WalkTo põe na perseguição; fica
@@ -589,10 +955,10 @@ export class EstagiarioSystem {
     }
     const alvo = mm.wild(p.targetId);
     if (!alvo) return;
-    if (!s.config.ataque.length) return;
+    if (!s.efetiva.ataque.length) return;
     const manaPct = p.maxMana > 0 ? (p.mana / p.maxMana) * 100 : 0;
     // Nenhuma regra com mana no piso dela (o dela ou a reserva geral): nem resolve nem conta.
-    if (!s.config.ataque.some((r) => manaPct >= pisoDeMana(r, s.config.reservaMana))) return;
+    if (!s.efetiva.ataque.some((r) => manaPct >= pisoDeMana(r, s.efetiva.reservaMana))) return;
     // Magia resolvida uma vez por tick (os grupos do jogador também: lê o save), e os bichos contados uma vez por
     // magia e raio, só se alguma regra tem magia pronta. O resultado é o mesmo de escolherAtaque sem o cache.
     // v2: magia de alvo (ou área no alvo) só conta como pronta com o alvo no alcance e à vista — antes o Golpe Brutal
@@ -618,9 +984,9 @@ export class EstagiarioSystem {
       resolvidas.set(id, r);
       return r;
     };
-    if (!s.config.ataque.some((r) => resolver(r.magia))) {
+    if (!s.efetiva.ataque.some((r) => resolver(r.magia))) {
       // Pronta, mas só fora do alcance: o painel explica ("alvo fora do alcance") enquanto a perseguição aproxima.
-      if (s.config.ataque.some((r) => resolverCom(r.magia, () => true))) s.foraAlcanceAte = now + MOTIVO_MS;
+      if (s.efetiva.ataque.some((r) => resolverCom(r.magia, () => true))) s.foraAlcanceAte = now + MOTIVO_MS;
       return;
     }
     const contagem = new Map<string, number>();
@@ -634,7 +1000,7 @@ export class EstagiarioSystem {
       return n;
     };
     const alvoPct = alvo.s.maxHp > 0 ? (alvo.s.hp / alvo.s.maxHp) * 100 : 100;
-    const magia = escolherAtaque(s.config.ataque, bichosEm, manaPct, s.config.reservaMana, resolver, alvoPct);
+    const magia = escolherAtaque(s.efetiva.ataque, bichosEm, manaPct, s.efetiva.reservaMana, resolver, alvoPct);
     if (!magia) return;
     // A onda sai para onde o jogador olha (o último passo): vira para o alvo antes, senão ela varre o lado errado.
     if (spellDef(magia)?.target === "wave") {
@@ -691,6 +1057,9 @@ export class EstagiarioSystem {
       this.recuar(p, s, now);
       return;
     }
+    // Líder com seguidor longe (decisão do dono: "espera"): fica, lutando e curando, até ele chegar; o relógio de ponto
+    // travado não anda enquanto isso.
+    if (this.esperarSeguidores(p, s, now)) { s.progressoEm = now; s.caminho = null; return; }
     // Sem luta: o relógio de "luta sem progresso" começa do zero na próxima (o alvo anterior não conta mais).
     if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
     if (s.lutando) { s.lutando = false; s.lutaFimEm = now; this.irPara(s, indiceMaisProximo(pts, p), now); }
@@ -709,12 +1078,20 @@ export class EstagiarioSystem {
     else if (now - s.progressoEm >= PONTO_TRAVADO_MS) {
       // Muitos pontos travados seguidos: a rota não tem como andar daqui (parede nova, rota de outro lugar) e só
       // gastaria o turno parada.
-      if (++s.travados >= PONTOS_TRAVADOS_MAX) { this.pararRota(p, s, now); this.notice(p, AVISO_TRAVADA); this.enviarEstado(p, now); return; }
+      if (++s.travados >= PONTOS_TRAVADOS_MAX) { this.pararRota(p, s, now, `${PONTOS_TRAVADOS_MAX} pontos travados seguidos`); this.notice(p, AVISO_TRAVADA); this.enviarEstado(p, now); return; }
       s.travadoAte = now + MOTIVO_MS;
       this.irPara(s, this.depoisDoTravado(pts, s.indice), now);
       return;
     }
     this.passo(p, s, alvo, now);
+  }
+
+  /** O monstro selvagem que o colega seguido está atacando, se está a até BUSCA_TILES e não foi largado; senão "". */
+  private alvoDoColega(p: PlayerState, s: Estado, now: number): string {
+    const c = this.jogador(s.seguindo!);
+    const m = c?.targetId ? this.o.monsters.wild(c.targetId) : undefined;
+    if (!m || m.s.hp <= 0 || cheb(p.x, p.y, m.s.x, m.s.y) > BUSCA_TILES || this.ignoradoEm(s, m.s.id, now)) return "";
+    return m.s.id;
   }
 
   /**
@@ -725,7 +1102,7 @@ export class EstagiarioSystem {
    */
   private recuar(p: PlayerState, s: Estado, now: number): void {
     const alcance = this.o.attackRange?.(p) ?? 1;
-    if (s.config.distancia <= 0 || alcance <= 1) return;
+    if (s.efetiva.distancia <= 0 || alcance <= 1) return;
     const mm = this.o.monsters;
     const alvo = mm.wild(p.targetId);
     if (!alvo || mm.inPz(p.x, p.y) || !this.o.movement.isIdle(p, now)) return;
@@ -737,7 +1114,7 @@ export class EstagiarioSystem {
     }
     if (!ameacas.length) return;
     const t = escolherRecuo({
-      pos: p, alvo: alvo.s, ameacas, distancia: Math.min(s.config.distancia, alcance), alcance, origem: s.lutaOrigem ?? p,
+      pos: p, alvo: alvo.s, ameacas, distancia: Math.min(s.efetiva.distancia, alcance), alcance, origem: s.lutaOrigem ?? p,
       livre: (x, y) => mm.grid.isWalkable(x, y) && !mm.isMonsterAt(x, y) && !mm.inPz(x, y) && !this.ocupado(p, { x, y }),
       visao: (x, y) => mm.los(x, y, alvo.s.x, alvo.s.y),
     });
@@ -749,7 +1126,7 @@ export class EstagiarioSystem {
   /** Distância a que a perseguição forçada para: a opção "manter distância", limitada ao alcance do ataque (1 = colado). */
   private pararEm(p: PlayerState, s: Estado): number {
     const alcance = this.o.attackRange?.(p) ?? 1;
-    return s.config.distancia > 0 && alcance > 1 ? Math.min(s.config.distancia, alcance) : 1;
+    return s.efetiva.distancia > 0 && alcance > 1 ? Math.min(s.efetiva.distancia, alcance) : 1;
   }
 
   /** Há outra criatura (monstro, inclusive o acompanhante, ou outro jogador) parada no tile do ponto. */
@@ -883,11 +1260,14 @@ export class EstagiarioSystem {
     if (cheb(p.x, p.y, p0.x, p0.y) > PATH_MAX_DIST) { this.notice(p, AVISO_LONGE); return; }
     this.acertar(s, now);
     if (s.turno.ms <= 0) { this.notice(p, AVISO_TURNO); return; }
+    // Um ou outro: a rota no lugar do seguir.
+    if (s.seguindo) this.pararSeguir(p, s, now, `trocou para a rota "${rota.nome}"`);
     const ja = !!s.rota;
     const parar = this.pararEm(p, s);
     // Trocou de rota durante a pausa: a pausa acaba aqui, então a perseguição forçada volta.
     if (ja && s.pausa !== "") this.o.fight.forceChase(p.id, true, parar);
     s.rota = rota.nome;
+    this.anotar(s, now, "rota", `rota "${rota.nome}" ligada`);
     this.irPara(s, i0, now);
     s.travados = 0;
     s.travadoAte = 0;
@@ -906,9 +1286,11 @@ export class EstagiarioSystem {
     this.o.companions.spawnCompanion(p, now);
   }
 
-  private pararRota(p: PlayerState, s: Estado, now = this.now()): void {
+  /** `motivo` (diário): por que desligou ("o turno acabou", "você morreu"...); sem ele, foi o jogador. */
+  private pararRota(p: PlayerState, s: Estado, now = this.now(), motivo?: string): void {
     if (!s.rota) return;
     this.acertar(s, now); // fecha a conta do turno no estado em que estava (rodando ou pausada)
+    this.anotar(s, now, "rota", `rota "${s.rota}" desligada${motivo ? `: ${motivo}` : ""}`);
     s.rota = null;
     s.ignorados.clear();
     s.alvoId = "";
@@ -936,16 +1318,21 @@ export class EstagiarioSystem {
       this.o.fight.forceChase(id, pausa === "", parar);
     }
     s.pausa = pausa;
+    this.anotar(s, now, "rota", pausa === "manual" ? "rota pausada: você se mexeu" : pausa === "npc" ? "rota pausada: conversa com NPC" : "rota retomada");
     if (p) this.enviarEstado(p, now);
   }
 
   // --- auxiliares ---------------------------------------------------------------------------------------------------
 
-  private rodando(s: Estado): boolean { return !!s.rota && s.pausa === ""; }
+  /** Caçando (rota ou seguindo um colega) e sem pausa. */
+  private rodando(s: Estado): boolean { return (!!s.rota || !!s.seguindo) && s.pausa === ""; }
 
-  private ataqueLigado(s: Estado): boolean { return s.ataque || !!s.rota; }
+  /** v3: a Cura liga pela rota (e pelo seguir) como o ataque e os buffs (a rota sem cura foi o "não usou pote" do dono). */
+  private curaLigada(s: Estado): boolean { return s.cura || !!s.rota || !!s.seguindo; }
 
-  private buffsLigados(s: Estado): boolean { return s.buffs || !!s.rota; }
+  private ataqueLigado(s: Estado): boolean { return s.ataque || !!s.rota || !!s.seguindo; }
+
+  private buffsLigados(s: Estado): boolean { return s.buffs || !!s.rota || !!s.seguindo; }
 
   /** Atualiza o turno até `now` no estado atual (gastando se a rota roda, recarregando se não). */
   private acertar(s: Estado, now: number): TurnoEstado {

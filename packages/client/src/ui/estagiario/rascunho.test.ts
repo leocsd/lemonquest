@@ -119,3 +119,16 @@ describe("rascunho v2: campos opcionais, comer e distância", () => {
     expect(rascunhoSujo({ ...extrairRascunho(c), comer: false }, c)).toBe(true);
   });
 });
+
+describe("rascunho v3: perfil do modo simples", () => {
+  it("limitarRascunho: com preset os números ficam como vieram; sem preset entram nas faixas e o conforto fica acima da emergência", () => {
+    const c = srv();
+    const r = extrairRascunho(c);
+    expect(limitarRascunho({ ...r, preset: "seguro", perfil: { emergencia: 999, conforto: -1, reserva: NaN } }, c).perfil).toEqual({ emergencia: 999, conforto: -1, reserva: NaN });
+    expect(limitarRascunho({ ...r, preset: null, perfil: { emergencia: 999, conforto: -1, reserva: NaN } }, c).perfil)
+      .toEqual({ emergencia: 60, conforto: 65, reserva: c.perfil.reserva });
+    expect(limitarRascunho({ ...r, preset: null, perfil: { emergencia: 30, conforto: 70, reserva: 10 } }, c).perfil).toEqual({ emergencia: 30, conforto: 70, reserva: 10 });
+    expect(rascunhoSujo({ ...r, modo: "avancado" }, c)).toBe(true);
+    expect(rascunhoSujo({ ...r, preset: null }, c)).toBe(true);
+  });
+});

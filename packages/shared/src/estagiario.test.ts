@@ -4,12 +4,19 @@ import {
   ALARMES, BUSCA_TILES, DISTANCIAS, NOME_ROTA_MAX, PONTOS_MAX, RECUO_MAX_TILES, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS,
   alarmeLigado, ataqueRecomendado, avancarTurno, buffsDaVocacao, buffsRecomendados, curaRecomendada, distanciaPadrao, ehBuff, ehInvocacao,
   escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao, fecharGravacao, gravarPasso,
-  indiceMaisProximo, novaGravacao, pisoDeMana, sanitizeEstagiario, type ContextoBuff, type Recuo, type RegraCura,
+  indiceMaisProximo, novaGravacao, pisoDeMana, sanitizeEstagiario, sanitizeLigado, type ContextoBuff, type Recuo, type RegraCura,
 } from "./estagiario.ts";
 
 const VOCS = ["knight", "paladin", "sorcerer", "druid", "fairy"] as const;
 
 describe("estagiário: configuração", () => {
+  it("sanitizeLigado (v3): só os true contam; lixo, lista ou nada valem desligado", () => {
+    expect(sanitizeLigado({ cura: true, ataque: "sim", buffs: 1, rota: true })).toEqual({ cura: true });
+    expect(sanitizeLigado({ cura: true, ataque: true, buffs: true })).toEqual({ cura: true, ataque: true, buffs: true });
+    expect(sanitizeLigado(undefined)).toEqual({});
+    expect(sanitizeLigado([true])).toEqual({});
+  });
+
   it("padrão = recomendado da vocação: poção como cura principal, a cura própria e a Cura de emergência no MESMO limiar, poção de mana; come; distância por vocação; sem rotas", () => {
     const c = estagiarioPadrao("knight");
     expect(c.cura).toEqual([
@@ -237,6 +244,18 @@ describe("estagiário: decisões", () => {
     expect(escolherCura(c(80, 90), regras, () => true)).toBeNull();
     expect(escolherCura(c(30, 10), regras, () => false)).toBeNull();
     expect(escolherCura({ hp: 0, maxHp: 0, mana: 0, maxMana: 0 }, regras, () => true)).toBeNull(); // sem máximo: nada
+  });
+
+  it("cura: naoPronta (v3, diário) recebe cada regra que vale mas não está pronta, até a primeira pronta", () => {
+    const vistas: RegraCura[] = [];
+    expect(escolherCura(c(30, 10), regras, () => false, undefined, (r) => vistas.push(r))).toBeNull();
+    expect(vistas).toEqual(regras); // as três valem (vida 30 % < 35 e < 70; mana 10 % < 40)
+    vistas.length = 0;
+    expect(escolherCura(c(30, 10), regras, (a) => "magia" in a, undefined, (r) => vistas.push(r))).toEqual({ magia: "light_heal" });
+    expect(vistas).toEqual([regras[0]]); // a poção não estava pronta; a magia saiu e a de mana nem foi olhada
+    vistas.length = 0;
+    expect(escolherCura(c(80, 90), regras, () => false, undefined, (r) => vistas.push(r))).toBeNull();
+    expect(vistas).toEqual([]); // nenhuma vale: nada a explicar
   });
 
   it("cura 'aliado': vale pelo colega abaixo do limiar, não pela própria vida; sem o avaliador, nunca", () => {

@@ -5,7 +5,7 @@ import type { Hotkey } from "./hotkeys.ts";
 import type { LootFilter } from "./lootFilter.ts";
 import type { SpellGroup } from "./data/spellFamilies.ts";
 import type { PartyShareReason } from "./party.ts";
-import type { AlarmeTipo, EstagiarioConfig } from "./estagiario.ts";
+import type { AlarmeTipo, DiarioItem, EstagiarioConfig } from "./estagiario.ts";
 export type { SkillId };
 import type { EquipSlot, ItemInstance, Rarity, Stats } from "./data/items.ts";
 import type { ArenaModId, ArenaTimeRecord } from "./data/arena.ts";
@@ -109,8 +109,11 @@ export const C2S = {
 export interface SetLootFilterMsg { filter: LootFilter }
 /** C2S.EstagiarioConfig: a configuração inteira (o servidor sanitiza e devolve em S2C.EstagiarioEstado). */
 export interface EstagiarioConfigMsg { config: EstagiarioConfig }
-/** C2S.EstagiarioToggle: só o que vier definido muda; `rota` = nome da rota a rodar, null = parar. */
-export interface EstagiarioToggleMsg { cura?: boolean; ataque?: boolean; buffs?: boolean; rota?: string | null }
+/**
+ * C2S.EstagiarioToggle: só o que vier definido muda; `rota` = nome da rota a rodar, null = parar; `seguir` (v3,
+ * "caçar com amigo") = id do colega de grupo a seguir, null = parar de seguir.
+ */
+export interface EstagiarioToggleMsg { cura?: boolean; ataque?: boolean; buffs?: boolean; rota?: string | null; seguir?: string | null }
 /** C2S.EstagiarioGravar: grava a rota andando; "parar" salva com `nome`. */
 export interface EstagiarioGravarMsg { acao: "iniciar" | "parar" | "descartar"; nome?: string }
 /** Por que a rota está pausada: "" = rodando/desligada, "manual" = o jogador mexeu, "npc" = janela de NPC aberta. */
@@ -118,6 +121,8 @@ export type EstagiarioPausa = "" | "manual" | "npc";
 /** S2C.EstagiarioEstado: tudo que o painel do Estagiário mostra. */
 export interface EstagiarioEstadoMsg {
   config: EstagiarioConfig; cura: boolean; ataque: boolean; buffs: boolean; rota: string | null;
+  /** v3: colega de grupo que o Estagiário está seguindo (caça junto), ou null. Exclui a rota (um ou outro). */
+  seguindo: { id: string; nome: string } | null;
   pausa: EstagiarioPausa; gravando: boolean; pontosGravados: number; turnoMs: number;
   /** Por que o Estagiário não está agindo agora, curto e em português ("" = tudo certo): "sem alvo por perto" etc. */
   motivo: string;
@@ -126,6 +131,11 @@ export interface EstagiarioEstadoMsg {
 }
 /** S2C.EstagiarioAlarme: aviso para o jogador (som, toast e título da aba). */
 export interface EstagiarioAlarmeMsg { tipo: AlarmeTipo; texto: string }
+/**
+ * S2C.EstagiarioDiario (v3 etapa 1): linhas novas do diário de decisões (no máximo uma mensagem por tick, só quando há
+ * linha nova); `tudo` = a lista inteira (ao reconectar), que substitui a da janela.
+ */
+export interface EstagiarioDiarioMsg { itens: DiarioItem[]; tudo?: boolean }
 /** S2C.LootFilter: filtro do loot automático gravado no personagem (ao entrar, ao reconectar e após cada mudança). */
 export interface LootFilterMsg { filter: LootFilter }
 
@@ -332,6 +342,8 @@ export const S2C = {
   EstagiarioEstado: "estagiarioEstado",
   /** Alarme do Estagiário (EstagiarioAlarmeMsg): pausou ou precisa de você. */
   EstagiarioAlarme: "estagiarioAlarme",
+  /** Diário do Estagiário (EstagiarioDiarioMsg): cada cura, poção, buff e por que ele esperou. */
+  EstagiarioDiario: "estagiarioDiario",
 } as const;
 
 /** Ocorrência da agenda. Horários em ms epoch, calculados no fuso do servidor (o mesmo do agendador). */

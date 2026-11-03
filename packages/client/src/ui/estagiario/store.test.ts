@@ -1,7 +1,7 @@
-import { REGRAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, estagiarioPadrao, type RegraAtaque, type RegraBuff, type RegraCura } from "@lemonquest/shared";
+import { PRESETS, REGRAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, estagiarioPadrao, type RegraAtaque, type RegraBuff, type RegraCura } from "@lemonquest/shared";
 import { describe, expect, it } from "vitest";
 import {
-  addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, apagarRota, fmtPonto, fmtTurno, moverRegra, ondeConta, removerRegra, renomearRota,
+  PRESET_LABEL, addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, apagarRota, descricaoPerfil, fmtPonto, fmtTurno, moverRegra, ondeConta, removerRegra, renomearRota,
   setRegra, turnoMostrado,
 } from "./regras.ts";
 
@@ -121,5 +121,18 @@ describe("cabeçalho e rótulos do Estagiário", () => {
     expect(fmtPonto({ i: 0, n: 12 })).toBe("ponto 1/12");
     expect(fmtPonto({ i: 11, n: 12 })).toBe("ponto 12/12");
     expect(fmtPonto(null)).toBe("");
+  });
+});
+
+describe("aba Perfil (v3)", () => {
+  it("descricaoPerfil explica os três números (vazio aparece como 0); PRESET_LABEL cobre os presets", () => {
+    const [emerg, conf, mana] = descricaoPerfil({ emergencia: 30, conforto: 60, reserva: 25 });
+    expect(emerg).toContain("abaixo de 30%");
+    expect(conf).toContain("entre 30% e 60%");
+    expect(conf).toContain("60% do que falta");
+    expect(mana).toContain("abaixo de 25%");
+    expect(mana).toContain("abaixo de 60%"); // com o escudo, a poção de mana vale abaixo do conforto
+    expect(descricaoPerfil({ emergencia: NaN, conforto: NaN, reserva: NaN })[0]).toContain("abaixo de 0%");
+    for (const p of PRESETS) expect(PRESET_LABEL[p].nome.length).toBeGreaterThan(0);
   });
 });

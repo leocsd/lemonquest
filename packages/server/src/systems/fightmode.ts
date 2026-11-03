@@ -106,6 +106,14 @@ export class FightModeSystem {
     this.notice(p, `Você está seguindo ${t.name}.`);
   }
 
+  /** Segue `id` sem aviso nem limite de distância (o Estagiário caçando com um colega: ele mesmo confere o colega). */
+  follow(p: PlayerState, id: string): void {
+    if (!id || id === p.id || p.followId === id) return;
+    p.followId = id;
+    const s = this.st.get(p.id);
+    if (s) s.path = null;
+  }
+
   /** Para de seguir (movimento manual, novo alvo de ataque, Esc). */
   cancelFollow(p: PlayerState): void {
     if (!p.followId) return;
