@@ -1,7 +1,8 @@
 // Edição pura da configuração do Estagiário (sem DOM nem rede, para testar no node: store.test.ts). A janela só junta os
 // pedaços; o servidor sanitiza tudo de novo (shared/estagiario.ts).
 import {
-  NOME_ROTA_MAX, REGRAS_MAX, ehInvocacao, spellDef, type AlarmeTipo, type BuffQuando, type EstagiarioConfig, type RegraAtaque, type RegraBuff, type RegraCura,
+  COBERTURA_MAGIA, NOME_ROTA_MAX, REGRAS_MAX, ehInvocacao, spellDef, type AlarmeTipo, type BuffQuando, type EstagiarioConfig, type Perfil, type Preset,
+  type RegraAtaque, type RegraBuff, type RegraCura,
   type SpellDef,
 } from "@lemonquest/shared";
 
@@ -105,3 +106,22 @@ export function ondeConta(magia: string): string {
 
 /** Ponto da rota em que o Estagiário está ("ponto 3/12"); sem rota, "". */
 export const fmtPonto = (p: { i: number; n: number } | null): string => (p ? `ponto ${p.i + 1}/${p.n}` : "");
+
+// ---------- Perfil (v3, modo simples) ----------
+
+/** Nome e dica de cada preset (aba Perfil). */
+export const PRESET_LABEL: Record<Preset, { nome: string; dica: string }> = {
+  seguro: { nome: "Seguro", dica: "cura cedo e guarda mais mana: menos risco, mais poção" },
+  equilibrado: { nome: "Equilibrado", dica: "o recomendado: rende como as regras medidas, sem morrer" },
+  agressivo: { nome: "Agressivo", dica: "cura tarde e gasta a mana no ataque: mais abates por poção, vida mínima mais baixa" },
+};
+
+/** O que o Estagiário faz com os três números (texto da aba Perfil; número vazio aparece como 0). */
+export function descricaoPerfil(p: Perfil): string[] {
+  const n = (v: number) => (Number.isFinite(v) ? v : 0);
+  return [
+    `Vida abaixo de ${n(p.emergencia)}%: poção e magia de cura juntas, o que estiver pronto.`,
+    `Vida entre ${n(p.emergencia)}% e ${n(p.conforto)}%: a magia, se ela cobre pelo menos ${Math.round(COBERTURA_MAGIA * 100)}% do que falta sem furar a reserva; senão a poção.`,
+    `Mana abaixo de ${n(p.reserva)}%: poção de mana e nenhuma magia de ataque. Com o Escudo de Mana, a poção de mana já vale abaixo de ${n(p.conforto)}%.`,
+  ];
+}

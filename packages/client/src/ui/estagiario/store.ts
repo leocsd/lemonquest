@@ -5,7 +5,8 @@
 // (items/lootFilter.ts): mostra na hora e espera ESTAGIARIO_SEND_DELAY_MS sem cliques para mandar uma mensagem só.
 // As funções de edição puras ficam em regras.ts e rascunho.ts (testadas no node, sem a rede).
 import {
-  C2S, type EstagiarioConfig, type EstagiarioConfigMsg, type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioToggleMsg,
+  C2S, DIARIO_MAX, type DiarioItem, type EstagiarioConfig, type EstagiarioConfigMsg, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg,
+  type EstagiarioGravarMsg, type EstagiarioToggleMsg,
 } from "@lemonquest/shared";
 import { createStore } from "../hud/store.ts";
 import { send } from "../items/net.ts";
@@ -16,7 +17,23 @@ export const estagiarioOpen = createStore(false);
 export const ESTAGIARIO_SEND_DELAY_MS = 300;
 /** O que a janela mostra e edita nas abas Cura, Ataque, Buffs e Alarmes (null = ainda sem estado do servidor). */
 export const rascunhoStore = createStore<Rascunho | null>(null);
+/** Diário de decisões (v3, S2C.EstagiarioDiario): as últimas DIARIO_MAX linhas, da mais velha para a mais nova. */
+export const diarioStore = createStore<readonly DiarioItem[]>([]);
 let pendente: Pendente | null = null;
+
+const CANAIS = new Set(["cura", "pocao", "buff", "comer", "rota", "interruptor", "aviso"]);
+const itemValido = (x: unknown): x is DiarioItem => {
+  const o = x as DiarioItem | null;
+  return !!o && typeof o === "object" && typeof o.t === "number" && typeof o.texto === "string" && CANAIS.has(o.canal);
+};
+
+/** S2C.EstagiarioDiario: linhas novas no fim (as mais velhas saem além de DIARIO_MAX); `tudo` substitui a lista. */
+export function onDiarioFromServer(m: EstagiarioDiarioMsg): void {
+  if (!m || typeof m !== "object" || !Array.isArray(m.itens)) return;
+  const novos = m.itens.filter(itemValido);
+  const lista = m.tudo ? novos : [...diarioStore.get(), ...novos];
+  diarioStore.set(lista.length > DIARIO_MAX ? lista.slice(lista.length - DIARIO_MAX) : lista);
+}
 
 let version = 0, sentVersion = 0, recebidoEm = 0;
 /** Quando chegou o último estado (o turno da janela anda a partir daí: regras.ts turnoMostrado). */
@@ -95,10 +112,11 @@ export function descartarRascunho(): void {
   rascunhoStore.set(cur ? extrairRascunho(cur.config) : null);
 }
 
-/** Sala nova (outro personagem): rascunho de antes não vale; o próximo estado do servidor recria. */
+/** Sala nova (outro personagem): rascunho e diário de antes não valem; o próximo estado do servidor recria. */
 export function resetRascunho(): void {
   pendente = null;
   rascunhoStore.set(null);
+  diarioStore.set([]);
 }
 
 export function toggleEstagiario(): void {

@@ -37,6 +37,7 @@ import { challengesOpen, challengesReady, toggleChallenges } from "../challenges
 function estagiarioResumo(e: EstagiarioEstadoMsg | null): string {
   if (!e) return "Bot de caça: cura, ataque e rota";
   if (e.rota) return `Rota "${e.rota}"${e.pausa ? " (pausada)" : ""} · turno ${fmtTurno(e.turnoMs)}`;
+  if (e.seguindo) return `Seguindo ${e.seguindo.nome}${e.pausa ? " (pausado)" : ""} · turno ${fmtTurno(e.turnoMs)}`;
   if (e.gravando) return `Gravando rota… ${e.pontosGravados} pontos`;
   const on = [e.cura && "cura", e.ataque && "ataque"].filter(Boolean).join(" e ");
   return on ? `Ligado: ${on} · turno ${fmtTurno(e.turnoMs)}` : `Desligado · turno ${fmtTurno(e.turnoMs)}`;

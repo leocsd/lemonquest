@@ -41,7 +41,8 @@ grupos de magia (`spellFamilies.ts`), pathfinding e a estrutura das invocações
   de monstro, nem de jogador, nem de magia em área), nunca ataca, não dá XP, não entra na battle list, bloqueia o tile.
   Anda atrás do dono a 1–2 tiles; se ficar a mais de 6 tiles ou o dono atravessar um portal, reaparece ao lado dele.
 - **Persistência**: campo opcional `CharacterData.estagiario` (como `lootFilter`): configuração, rotas e o estado do
-  turno. Ausente = padrão (nada ligado, turno cheio).
+  turno. Ausente = padrão (nada ligado, turno cheio). **v3 (2026-11-02, etapa 1)**: também `ligado` (Cura, Ataque e
+  Buffs voltam como estavam ao entrar; a rota não) — ver `2026-11-02-estagiario-v3-abordagem.md`.
 - **Protocolo** (`shared/messages.ts`, validação no servidor e limite em `MESSAGE_LIMITS`):
   - C2S `EstagiarioConfig` (salvar configuração: regras de cura, de ataque, alarmes, rotas renomeadas/apagadas);
   - C2S `EstagiarioToggle` (`{ cura?: boolean; ataque?: boolean; rota?: string | null }`);
@@ -122,7 +123,7 @@ Aviso no cliente: som curto, toast e o título da janela/ícone do app piscando 
 | Turno acabou | desliga | continuam |
 | Entrou na zona de proteção (templo, depot) | desliga | continuam |
 | Entrou ou saiu de uma partida do Coliseu | desliga (com aviso) | continuam |
-| Desconectou / fechou o cliente | desliga | desligam |
+| Desconectou / fechou o cliente | desliga | ~~desligam~~ v3 (2026-11-02): param até reconectar e voltam como estavam (salvos no personagem) |
 | Moveu manualmente | pausa 10 s | continuam |
 | Janela de NPC aberta | pausa | continuam |
 

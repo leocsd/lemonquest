@@ -1,8 +1,9 @@
 // Estagiário (2026-11-01, spec docs/superpowers/specs/2026-11-01-estagiario-design.md; v2 em
-// docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md): bot de caça do próprio jogo.
+// docs/superpowers/specs/2026-11-02-estagiario-v2-estrategia.md; v3 em
+// docs/superpowers/specs/2026-11-02-estagiario-v3-abordagem.md): bot de caça do próprio jogo.
 // Aqui só as regras puras (o servidor decide e age em server/systems/estagiario.ts; o cliente só configura).
 import { castableBy, familiesFor, type SpellGroup } from "./data/spellFamilies.ts";
-import { spellDef, spellsFor, type ConditionId, type SpellDef } from "./data/spells.ts";
+import { spellDef, spellMana, spellsFor, type ConditionId, type SpellDef } from "./data/spells.ts";
 import type { QuickPotionKind } from "./itemRules.ts";
 import type { Vocation } from "./types.ts";
 
@@ -20,14 +21,51 @@ export interface RegraAtaque { minBichos: number; raio: number; magia: string; m
 export type BuffQuando = "sempre" | "combate" | "fora";
 /**
  * Buff (ou invocação, v2) mantido: reconjura `magia` quando a condição dela acaba (ou a invocação some).
- * `manaMin` (%): só com mana a partir daí (ausente = sem exigência além da sobra para a cura, ver escolherBuff).
+ * `manaMin` (%): só com mana a partir daí (ausente = só a mana da própria magia, ver escolherBuff).
  */
 export interface RegraBuff { magia: string; quando: BuffQuando; manaMin?: number }
+/**
+ * v3 etapa 1 (2026-11-02, dono: "quando a vida abaixou muito, ele não usou pote" — a Cura nascia desligada a cada
+ * entrada): o que o jogador deixou ligado fica salvo no personagem e volta ao entrar de novo. A rota não (gasta turno).
+ * Só os `true` são gravados.
+ */
+export interface EstagiarioLigado { cura?: boolean; ataque?: boolean; buffs?: boolean }
+export const LIGADOS: readonly (keyof EstagiarioLigado)[] = ["cura", "ataque", "buffs"];
+/** Diário (v3 etapa 1): de onde veio cada anotação, para a janela rotular. */
+export type DiarioCanal = "cura" | "pocao" | "buff" | "comer" | "rota" | "interruptor" | "aviso";
+/** Uma linha do diário: quando (ms epoch), o canal e o texto curto em português ("vida 42% → poção de vida, +450"). */
+export interface DiarioItem { t: number; canal: DiarioCanal; texto: string }
+/** Quantas linhas o diário guarda (servidor e janela). */
+export const DIARIO_MAX = 50;
 /** `portal`: o tile do portal pisado na gravação (a rota anda até ele para atravessar de novo). */
 export interface PontoRota { x: number; y: number; portal?: boolean }
 export interface RotaCaca { nome: string; pontos: PontoRota[] }
-export type AlarmeTipo = "pocao" | "vidaBaixa" | "jogador" | "atacado" | "privada" | "turno" | "mochila" | "morte";
+/** `colega` (v3, caçar com amigo): o colega seguido morreu, saiu do grupo, saiu do jogo ou sumiu — o seguir desligou. */
+export type AlarmeTipo = "pocao" | "vidaBaixa" | "jogador" | "atacado" | "privada" | "turno" | "mochila" | "morte" | "colega";
+/**
+ * v3 etapa 3: "simples" = um perfil de três números mais o recomendado da vocação (as listas de regras ficam guardadas
+ * para o modo avançado); "avancado" = as listas de regras, como na v2.
+ */
+export type Modo = "simples" | "avancado";
+/** Perfil por nome: o save guarda só o nome, então a versão atual do preset vale na hora (sem "configuração antiga"). */
+export type Preset = "seguro" | "equilibrado" | "agressivo";
+export const PRESETS: readonly Preset[] = ["seguro", "equilibrado", "agressivo"];
+/**
+ * Os três números do modo simples (% de vida/mana): abaixo de `emergencia`, poção e magia de cura saem juntas; entre a
+ * emergência e `conforto`, a melhor cobertura por custo (a magia se cobre ≥ COBERTURA_MAGIA do que falta sem furar a
+ * reserva, senão a poção); abaixo de `reserva` de mana, poção de mana e nenhuma magia de ataque.
+ */
+export interface Perfil { emergencia: number; conforto: number; reserva: number }
+export const PERFIL_LIMITES = { emergencia: { lo: 5, hi: 60 }, conforto: { lo: 10, hi: 90 }, reserva: { lo: 0, hi: 60 } } as const;
+/** O conforto fica pelo menos isto acima da emergência (senão a faixa do meio some). */
+export const CONFORTO_ACIMA = 5;
 export interface EstagiarioConfig {
+  /** v3: qual parte desta configuração o tick usa (ver `configEfetiva`). */
+  modo: Modo;
+  /** v3: null = os deslizadores do jogador (`perfil` próprio); com nome, `perfil` vem do preset e não é gravado. */
+  preset: Preset | null;
+  /** v3: os números do modo simples. */
+  perfil: Perfil;
   cura: RegraCura[];
   ataque: RegraAtaque[];
   /** Buffs mantidos ativos (2026-11-01, pedido do dono), na ordem. */
@@ -65,7 +103,17 @@ export const POCAO_ALARME_MIN = 10;
 export const TURNO_AVISO_MS = 5 * 60_000;
 /** Alcance de busca de alvo (= AUTO_SEEK_DIST do ataque automático). */
 export const BUSCA_TILES = 12;
-export const ALARMES: readonly AlarmeTipo[] = ["pocao", "vidaBaixa", "jogador", "atacado", "privada", "turno", "mochila", "morte"];
+export const ALARMES: readonly AlarmeTipo[] = ["pocao", "vidaBaixa", "jogador", "atacado", "privada", "turno", "mochila", "morte", "colega"];
+/**
+ * Caçar com amigo (v3, decisões do dono em 2026-11-02: gasta turno; só no mesmo grupo; o seguidor prefere o alvo do
+ * colega; o líder com rota espera). O colega a mais que isto (ou sem caminho) por SEGUIR_SUMIU_MS desliga o seguir.
+ */
+export const SEGUIR_MAX_TILES = 15;
+export const SEGUIR_SUMIU_MS = 10_000;
+/** Líder com rota: espera um seguidor vivo a mais de ESPERAR_TILES (volta a andar quando todos estão a até ESPERAR_PERTO_TILES), no máximo ESPERAR_MAX_MS por vez. */
+export const ESPERAR_TILES = 8;
+export const ESPERAR_PERTO_TILES = 4;
+export const ESPERAR_MAX_MS = 30_000;
 /** Distâncias que a opção "manter distância" aceita (0 = colado). */
 export const DISTANCIAS: readonly number[] = [0, 2, 3, 4];
 /** Recuando, nunca mais longe que isto de onde a luta começou (a rota não deriva para outro spawn). */
@@ -165,8 +213,38 @@ const RESERVA_MANA: Partial<Record<Vocation, number>> = { knight: 20, paladin: 2
 /** Distância padrão da opção "manter distância": o cavaleiro luta colado; os outros a 3 tiles (decisão do dono). */
 export const distanciaPadrao = (v: Vocation): number => (v === "knight" ? 0 : 3);
 
+/**
+ * Presets do modo simples por vocação (emergência / conforto / reserva de mana, em %). Partem dos limiares medidos na
+ * v2 (poção a 50/60 %, cura própria a 35 %, reserva 25/30/35) e foram conferidos no arnês de balanço
+ * (estagiarioBalance.test.ts: o equilibrado rende como as regras recomendadas da v2, o seguro mantém a vida mínima
+ * mais alta, o agressivo gasta menos poção).
+ */
+const PERFIS: Record<Preset, { knight: Perfil; paladin: Perfil; mago: Perfil }> = {
+  seguro: { knight: { emergencia: 40, conforto: 65, reserva: 35 }, paladin: { emergencia: 40, conforto: 70, reserva: 40 }, mago: { emergencia: 40, conforto: 65, reserva: 45 } },
+  equilibrado: { knight: { emergencia: 30, conforto: 50, reserva: 25 }, paladin: { emergencia: 30, conforto: 60, reserva: 30 }, mago: { emergencia: 30, conforto: 55, reserva: 35 } },
+  // Magos: a reserva fica em 30 (com 25 o escudo ficava sem mana e a vida mínima caía a 5 % no lv 40/60 — o bando bate
+  // de uma vez quando ele cai); a agressividade está nos limiares de cura.
+  agressivo: { knight: { emergencia: 20, conforto: 40, reserva: 20 }, paladin: { emergencia: 20, conforto: 50, reserva: 25 }, mago: { emergencia: 25, conforto: 45, reserva: 30 } },
+};
+export const perfilDoPreset = (preset: Preset, v: Vocation): Perfil => ({ ...PERFIS[preset][v === "knight" ? "knight" : v === "paladin" ? "paladin" : "mago"] });
+
+/** Perfil próprio vindo do save ou do cliente: números nas faixas, conforto pelo menos CONFORTO_ACIMA acima da emergência. */
+export function sanitizePerfil(raw: unknown, v: Vocation): Perfil {
+  const d = perfilDoPreset("equilibrado", v), r = obj(raw);
+  const L = PERFIL_LIMITES;
+  const emergencia = int(r?.emergencia, L.emergencia.lo, L.emergencia.hi, d.emergencia);
+  return {
+    emergencia,
+    conforto: Math.max(emergencia + CONFORTO_ACIMA, int(r?.conforto, L.conforto.lo, L.conforto.hi, d.conforto)),
+    reserva: int(r?.reserva, L.reserva.lo, L.reserva.hi, d.reserva),
+  };
+}
+
 export function estagiarioPadrao(v: Vocation): EstagiarioConfig {
   return {
+    modo: "simples",
+    preset: "equilibrado",
+    perfil: perfilDoPreset("equilibrado", v),
     cura: curaRecomendada(v),
     ataque: ataqueRecomendado(v),
     buffs: buffsRecomendados(v),
@@ -258,11 +336,22 @@ export function sanitizeEstagiario(raw: unknown, v: Vocation, groups: readonly S
   const alarmes: Partial<Record<AlarmeTipo, boolean>> = {};
   const a = obj(r.alarmes);
   if (a) for (const t of ALARMES) if (t !== "morte" && a[t] === false) alarmes[t] = false;
+  const cura = Array.isArray(r.cura) ? list(r.cura, (e) => regraCura(e, v), REGRAS_MAX) : curaRecomendada(v);
+  const ataque = Array.isArray(r.ataque) ? list(r.ataque, (e) => regraAtaque(e, v, groups), REGRAS_MAX) : ataqueRecomendado(v);
+  // Sem a lista no que veio salvo (configuração de antes dos buffs): vale o recomendado; lista vazia fica vazia.
+  const listaBuffs = Array.isArray(r.buffs) ? buffs : buffsRecomendados(v);
+  // v3: save sem `modo` (de antes da v3) — quem nunca mexeu nas listas entra no modo simples; quem personalizou fica no
+  // avançado com as suas regras (e pode escolher o simples na aba Perfil).
+  const recomendadas = JSON.stringify([cura, ataque, listaBuffs]) === JSON.stringify([curaRecomendada(v), ataqueRecomendado(v), buffsRecomendados(v)]);
+  const modo: Modo = r.modo === "avancado" || r.modo === "simples" ? r.modo : recomendadas ? "simples" : "avancado";
+  const preset: Preset | null = (PRESETS as readonly unknown[]).includes(r.preset) ? (r.preset as Preset) : r.preset === null && obj(r.perfil) ? null : "equilibrado";
   return {
-    cura: Array.isArray(r.cura) ? list(r.cura, (e) => regraCura(e, v), REGRAS_MAX) : estagiarioPadrao(v).cura,
-    ataque: Array.isArray(r.ataque) ? list(r.ataque, (e) => regraAtaque(e, v, groups), REGRAS_MAX) : ataqueRecomendado(v),
-    // Sem a lista no que veio salvo (configuração de antes dos buffs): vale o recomendado; lista vazia fica vazia.
-    buffs: Array.isArray(r.buffs) ? buffs : buffsRecomendados(v),
+    modo,
+    preset,
+    perfil: preset ? perfilDoPreset(preset, v) : sanitizePerfil(r.perfil, v),
+    cura,
+    ataque,
+    buffs: listaBuffs,
     reservaMana: int(r.reservaMana, 0, 90, RESERVA_MANA[v] ?? 30),
     rotas,
     alarmes,
@@ -271,6 +360,103 @@ export function sanitizeEstagiario(raw: unknown, v: Vocation, groups: readonly S
     // Sem o campo (configuração de antes da v2): o padrão da vocação; valor fora da lista também.
     distancia: typeof r.distancia === "number" && DISTANCIAS.includes(r.distancia) ? r.distancia : distanciaPadrao(v),
   };
+}
+
+/**
+ * v3: o que vai no save — só o que difere do padrão da vocação. O preset vai pelo nome (os números dele não), as
+ * listas de regras só quando mexidas. `modo` vai sempre que algo mais vai (o save de antes da v3 não o tinha, e a
+ * leitura o deduz das listas; com ele gravado a escolha do jogador vale mesmo com listas personalizadas no simples).
+ */
+export function compactar(c: EstagiarioConfig, v: Vocation): Partial<EstagiarioConfig> {
+  const d = estagiarioPadrao(v);
+  const out: Record<string, unknown> = {};
+  const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  if (c.preset !== d.preset) out.preset = c.preset;
+  if (c.preset === null) out.perfil = c.perfil;
+  for (const k of ["cura", "ataque", "buffs", "rotas", "alarmes"] as const) if (!igual(c[k], d[k])) out[k] = c[k];
+  for (const k of ["reservaMana", "vidaAlarme", "comer", "distancia"] as const) if (c[k] !== d[k]) out[k] = c[k];
+  if (c.modo !== d.modo || Object.keys(out).length) out.modo = c.modo;
+  return out as Partial<EstagiarioConfig>;
+}
+
+/**
+ * v3: a configuração que o tick usa. No modo simples, o recomendado da vocação com a reserva de mana do perfil (a cura
+ * em si é a política `decidirCura`; a lista de cura recomendada fica só para o alarme de poção); as listas guardadas
+ * são do modo avançado e não valem.
+ */
+export function configEfetiva(c: EstagiarioConfig, v: Vocation): EstagiarioConfig {
+  if (c.modo !== "simples") return c;
+  return { ...c, cura: curaRecomendada(v), ataque: ataqueRecomendado(v), buffs: buffsRecomendados(v), reservaMana: c.perfil.reserva, distancia: distanciaPadrao(v) };
+}
+
+/** Cura esperada da magia (a fórmula de evalSpellFormula sem a variação), para a política do modo simples. */
+export const curaEstimada = (f: { base: number; perLevel: number; perMagic: number }, level: number, magicLevel: number): number =>
+  Math.max(0, Math.round(f.base + level * f.perLevel + magicLevel * f.perMagic));
+
+/** Magias de cura própria da vocação até o level, com o custo de mana no level (a política do modo simples). */
+export const curasProprias = (v: Vocation, level: number): { id: string; mana: number; heal: NonNullable<SpellDef["heal"]> }[] =>
+  spellsFor(v).filter((s) => s.heal && s.target === "self" && s.level <= level).map((s) => ({ id: s.id, mana: spellMana(s, level), heal: s.heal! }));
+/** A cura em grupo da vocação até o level (druida/fada), se houver. */
+export const curaEmGrupo = (v: Vocation, level: number): SpellDef | undefined => spellsFor(v).find((s) => s.heal && s.target === "party" && s.level <= level);
+
+/** A magia cobre pelo menos isto do que falta para ser a escolha na faixa de conforto (senão a poção). */
+export const COBERTURA_MAGIA = 0.6;
+
+export interface SituacaoCura {
+  hp: number; maxHp: number; mana: number; maxMana: number;
+  /** Por tipo: a recarga passou (`pronta`) e quanto recupera a poção que seria bebida (0 = nenhuma que o level/vocação deixem). */
+  pocao: Record<QuickPotionKind, { pronta: boolean; recupera: number }>;
+  /** Magias de cura própria até o level: prontas (recarga e mana), a cura esperada e o custo. */
+  magias: readonly { id: string; pronta: boolean; cura: number; mana: number }[];
+  /** Cura em grupo (druida/fada): pronta e se há colega ao alcance abaixo do conforto. */
+  grupo?: { id: string; pronta: boolean; aliadoBaixo: boolean };
+  /** Escudo de Mana ativo: o dano vai na mana, então a mana é a vida. */
+  escudoDeMana: boolean;
+}
+/** Um canal por recarga: a poção (vida ou mana) e a magia saem no mesmo tick; `motivos` é o que segurou (diário). */
+export interface DecisaoCura { pocao: QuickPotionKind | null; magia: string | null; motivos: string[] }
+
+/**
+ * Política de cura do modo simples (v3 etapa 3; canais da etapa 2): abaixo da emergência, poção e a magia de cura mais
+ * forte pronta saem juntas; entre a emergência e o conforto, a magia se cobre ≥ COBERTURA_MAGIA do que falta e ainda
+ * sobra a reserva de mana (o mago: a Cura cobre bem e a mana sobra), senão a poção (o cavaleiro: o Limpar Feridas cobre
+ * pouco e a poção cura de uma vez), senão a magia que estiver pronta. Colega abaixo do conforto: a cura em grupo, quando
+ * a magia não foi precisa para si. Mana abaixo da reserva: poção de mana, se o canal de poção não está servindo a vida;
+ * com o Escudo de Mana a mana é a vida (limiar = conforto) e, na emergência de mana, a poção de mana passa na frente da
+ * de vida a não ser que a vida também esteja na emergência.
+ */
+export function decidirCura(s: SituacaoCura, perfil: Perfil): DecisaoCura {
+  const pct = s.maxHp > 0 ? (s.hp / s.maxHp) * 100 : 100;
+  const manaPct = s.maxMana > 0 ? (s.mana / s.maxMana) * 100 : 100;
+  const falta = Math.max(0, s.maxHp - s.hp);
+  const motivos: string[] = [];
+  let pocao: QuickPotionKind | null = null, magia: string | null = null;
+  const temPocao = (k: QuickPotionKind) => s.pocao[k].pronta && s.pocao[k].recupera > 0;
+  const semPocao = (k: QuickPotionKind) => {
+    const nome = k === "hp" ? "poção de vida" : "poção de mana";
+    motivos.push(s.pocao[k].recupera > 0 ? `${nome} em recarga` : `nenhuma ${nome} que você possa beber`);
+  };
+  const nome = (id: string) => spellDef(id)?.name ?? id;
+  const semMagia = () => { if (s.magias.length) motivos.push(`${s.magias.map((m) => nome(m.id)).join(" e ")} em recarga ou sem mana`); };
+  const melhor = [...s.magias].filter((m) => m.pronta).sort((a, b) => b.cura - a.cura)[0];
+  if (pct < perfil.emergencia) {
+    if (temPocao("hp")) pocao = "hp"; else semPocao("hp");
+    if (melhor) magia = melhor.id; else semMagia();
+  } else if (pct < perfil.conforto) {
+    const cobre = melhor && falta > 0 ? Math.min(melhor.cura, falta) / falta : 0;
+    const sobra = melhor && s.maxMana > 0 ? ((s.mana - melhor.mana) / s.maxMana) * 100 : 0;
+    if (melhor && cobre >= COBERTURA_MAGIA && sobra >= perfil.reserva) magia = melhor.id;
+    else if (temPocao("hp")) pocao = "hp";
+    else if (melhor) magia = melhor.id;
+    else { semPocao("hp"); semMagia(); }
+  }
+  if (s.grupo?.aliadoBaixo && !magia) {
+    if (s.grupo.pronta) magia = s.grupo.id; else motivos.push(`${nome(s.grupo.id)} em recarga ou sem mana`);
+  }
+  const limiar = s.escudoDeMana ? perfil.conforto : perfil.reserva;
+  if (manaPct < limiar && pocao === null) { if (temPocao("mana")) pocao = "mana"; else semPocao("mana"); }
+  if (s.escudoDeMana && manaPct < perfil.emergencia && pocao === "hp" && pct >= perfil.emergencia && temPocao("mana")) pocao = "mana";
+  return { pocao, magia, motivos };
 }
 
 export const alarmeLigado = (c: EstagiarioConfig, t: AlarmeTipo): boolean => t === "morte" || c.alarmes[t] !== false;
@@ -282,13 +468,22 @@ export function avancarTurno(t: TurnoEstado | undefined, now: number, rodando: b
   return { ms: Math.round(ms), em: now };
 }
 
+/** O que o jogador deixou ligado, vindo do save (qualquer coisa que não seja `true` vale desligado). */
+export function sanitizeLigado(raw: unknown): EstagiarioLigado {
+  const r = obj(raw);
+  const out: EstagiarioLigado = {};
+  if (r) for (const k of LIGADOS) if (r[k] === true) out[k] = true;
+  return out;
+}
+
 /**
  * Cura a fazer agora: a primeira regra que vale e está pronta. `aliadoAbaixo(pct, acao)`: há colega de grupo ao
- * alcance da magia com menos de `pct`% de vida (regras "aliado"; ausente = nunca).
+ * alcance da magia com menos de `pct`% de vida (regras "aliado"; ausente = nunca). `naoPronta(regra)` (v3, diário):
+ * chamada para cada regra que vale mas cuja ação não está pronta — o servidor anota por que a cura está esperando.
  */
 export function escolherCura(
   c: { hp: number; maxHp: number; mana: number; maxMana: number }, regras: readonly RegraCura[], pronto: (a: CuraAcao) => boolean,
-  aliadoAbaixo?: (pct: number, acao: CuraAcao) => boolean,
+  aliadoAbaixo?: (pct: number, acao: CuraAcao) => boolean, naoPronta?: (r: RegraCura) => void,
 ): CuraAcao | null {
   for (const r of regras) {
     if (r.quando === "aliado") {
@@ -298,6 +493,7 @@ export function escolherCura(
       if (max <= 0 || (cur / max) * 100 >= r.abaixoDe) continue;
     }
     if (pronto(r.acao)) return r.acao;
+    naoPronta?.(r);
   }
   return null;
 }

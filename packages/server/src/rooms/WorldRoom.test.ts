@@ -459,7 +459,7 @@ describe("WorldRoom: Estagiário", () => {
     expect(estados(c2)[0].config.reservaMana).toBe(50);
   });
 
-  it("queda desliga tudo (sem religar na volta); o reconnect reenvia o estado; o turno gasto é salvo", () => {
+  it("queda para o Estagiário (cura e ataque ficam, v3) e o reconnect reenvia o estado com eles; o turno gasto e o ligado vão no save e voltam no próximo login", () => {
     const r = makeRoom();
     createAccount("Rita", "h", "s", "knight");
     const c = fakeClient(r, "r1");
@@ -468,14 +468,24 @@ describe("WorldRoom: Estagiário", () => {
     r.estagiario.onToggle(p, { cura: true, ataque: true });
     vi.spyOn(r, "allowReconnection").mockImplementation(() => Object.assign(new Promise(() => {}), { reject: vi.fn() }) as any);
     r.onDrop(c, 1006);
-    expect(r.estagiario.estado(p)).toMatchObject({ cura: false, ataque: false, rota: null });
+    expect(r.estagiario.estado(p)).toMatchObject({ cura: true, ataque: true, rota: null });
+    expect(r.estagiario.st.get("r1").suspenso).toBe(true); // nada age sem ninguém no cliente
     c.send.mockClear();
     r.onReconnect(c);
-    expect(estados(c)).toEqual([expect.objectContaining({ cura: false, ataque: false })]);
+    expect(estados(c)).toEqual([expect.objectContaining({ cura: true, ataque: true })]);
+    expect(r.estagiario.st.get("r1").suspenso).toBe(false);
 
     r.estagiario.st.get("r1").turno = { ms: 1000, em: Date.now() };
     r.saveAll();
     expect(getCharacterByName("Rita")!.data.estagiario?.turno?.ms).toBeLessThan(TURNO_MAX_MS);
+    expect(getCharacterByName("Rita")!.data.estagiario?.ligado).toEqual({ cura: true, ataque: true });
+
+    // Saiu de vez: o save da saída guarda o ligado e o próximo login já entra com ele (o estado inicial mostra).
+    r.onLeave(c, 4000);
+    expect(getCharacterByName("Rita")!.data.estagiario?.ligado).toEqual({ cura: true, ataque: true });
+    const c2 = fakeClient(r, "r2");
+    r.onJoin(c2, {}, auth("Rita"));
+    expect(estados(c2)).toEqual([expect.objectContaining({ cura: true, ataque: true, rota: null })]);
   });
 });
 

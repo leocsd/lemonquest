@@ -16,6 +16,55 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Estagiário: caçar com amigo e a janela repensada (2026-11-02)
+
+Typecheck 3× tsc; suíte unitária inteira verde. `server/src/systems/estagiario.test.ts` ganha "caçar com amigo" (+5, 108
+no arquivo): só colega do grupo, vivo e a até 15 tiles (crachá, acompanhante, perseguição forçada, estado com quem); sem
+alvo anda atrás (follow) e com alvo a perseguição manda, o alvo do colega vem antes do mais perto e o follow volta ao
+matar; desliga com alarme "colega" quando ele morre, fica longe por 10 s ou sai do jogo, e o seguir gasta turno; um ou
+outro com a rota, morte e queda param, gravar não começa seguindo; o líder com rota espera o seguidor longe (motivo
+"esperando"), volta quando ele chega e desiste depois de 30 s. O falso `fight` ganhou `follow`/`cancelFollow` e o
+`sameParty` ficou simétrico. E2E novo `e2e/estagiarioGrupo.spec.ts` (dois clientes; o CI da PR roda): sem grupo a aba
+Rota mostra o aviso, grupo pelo clique direito, "Seguir" liga o crachá, o colega teleporta 5 tiles e o seguidor chega ao
+lado em até 20 s, "Parar de seguir" tira o crachá. A janela repensada não tem teste de tela próprio (ids de teste
+mantidos: `est-cura`, `est-ataque`, `est-buffs`, `est-ponto`, `est-motivo`, `est-ligar-*`, `est-desligar`, `est-gravar`,
+`est-parar`, `est-preset-*`, `est-modo`, `est-diario`; novos: `est-estado`, `est-parar-tudo`, `est-seguir-<nome>`,
+`est-parar-seguir`, `est-sem-grupo`, `est-diario-<filtro>`).
+
+## Resultados — Estagiário v3, etapas 2–4 (2026-11-02)
+
+Typecheck 3× tsc; suíte unitária inteira verde (ver o total na seção abaixo, mais os novos). Novo arquivo
+`shared/src/estagiarioV3.test.ts` (11: presets por vocação ordenados e o padrão simples/equilibrado; `sanitizePerfil`
+nas faixas com o conforto acima da emergência; `sanitizeEstagiario` com modo explícito, inferido das listas no save de
+antes da v3, preset inválido/null; `compactar` vazio no padrão, preset pelo nome, números próprios, listas só mexidas,
+ida e volta pelo sanitize; `configEfetiva`; `curaEstimada`/`curasProprias`/`curaEmGrupo`; `decidirCura` em tabela:
+emergência com poção e magia juntas, conforto por cobertura ≥ 60 % e reserva, mana, Escudo de Mana, cura em grupo).
+`server/src/systems/estagiario.test.ts`: o arnês de teste passa a carregar no modo avançado (`modo` na opção) para as
+regras continuarem valendo; teste dos canais (poção e magia no mesmo tick; sem poção, a de mana e a magia), save compacto
+com preset e números próprios. `estagiarioBalance.test.ts` reescrito: modo simples equilibrado (padrão), sem poção de
+mana, seguro, agressivo, v2 avançado e antes — 8 asserções (sem falhas de alcance; sem mortes nos três presets; haste;
+cura sem engolir mana; distância; rendimento; equilibrado ≥ 90 % da v2 por vocação; seguro com a vida mínima maior no
+cavaleiro/paladino e na soma geral, agressivo ≥ 90 % do equilibrado). Resultado medido (soma lv 20/40/60, 4 monstros,
+4 min): abates cavaleiro 159 (v2 154, antes 78), paladino 153 (147, 112), feiticeiro 143 (128, 135), druida 132 (137,
+119); vida mínima (soma dos levels) seguro × equilibrado: cavaleiro 154 × 123, paladino 161 × 134, feiticeiro 96 × 108,
+druida 144 × 96. Cliente: `rascunho.test.ts` (+1: perfil com preset passa como veio, sem preset entra nas faixas e o
+conforto fica acima da emergência; modo/preset sujam o rascunho) e `store.test.ts` (+1: `descricaoPerfil`,
+`PRESET_LABEL`). Sem E2E novo (o `estagiario.spec.ts` liga a rota, agora no modo simples); o CI da PR roda.
+
+## Resultados — Estagiário v3, etapa 1 (2026-11-02)
+
+Typecheck 3× tsc; suíte unitária inteira: 1934 passando (154 arquivos). Novos: `shared/src/estagiario.test.ts` (+2:
+`sanitizeLigado` só com os `true`; `naoPronta` recebe cada regra que vale mas não está pronta, até a primeira pronta),
+`server/src/systems/estagiario.test.ts` (+6, 103 no arquivo: o que estava ligado volta no load depois de
+`CARENCIA_LOGIN_MS` e ligar à mão zera a carência; a rota liga a Cura e o save guarda só a escolha do jogador; diário:
+poção com o ganho e o interruptor, "esperando" com os motivos a cada 2 s e o motivo "nenhuma poção que você possa
+beber", "a Cura está desligada" a cada 10 s e nunca com a vida cheia, as últimas 50 linhas e o `tudo` ao reconectar,
+rota ligada/pausada/desligada com o motivo + buff + comida + alarme), `client/src/ui/estagiario/storeSync.test.ts` (+1:
+o store do diário acrescenta, corta em 50, `tudo` substitui, lixo é ignorado e sala nova zera). Mudados para a semântica
+nova: `estagiario.test.ts` (desligarTudo guarda o interruptor e só para; `reconectou` volta depois da carência) e
+`WorldRoom.test.ts` (queda mantém cura/ataque, reconnect reenvia o estado com eles, o `ligado` vai no save e volta no
+próximo login). Sem E2E novo: o `estagiario.spec.ts` já liga a rota (agora com a Cura junto) e o CI da PR roda.
+
 ## Resultados — cursores do tema limão (2026-11-01)
 
 Typecheck 3× tsc; suíte unitária inteira: 1900 passando (154 arquivos). Novos: `client/src/game/cursor.test.ts` (3: cursor
