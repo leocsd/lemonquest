@@ -117,7 +117,7 @@ export function startUiTest(): void {
   // Estagiário: o "servidor" guarda o estado e devolve como o de verdade (S2C.EstagiarioEstado), sem sanitizar.
   const est: EstagiarioEstadoMsg = {
     config: { ...estagiarioPadrao(voc), rotas: [{ nome: "Ratos do esgoto", pontos: [{ x: 10, y: 10 }, { x: 14, y: 10 }, { x: 14, y: 16 }] }] },
-    cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 95 * 60_000,
+    cura: false, ataque: false, buffs: false, rota: null, seguindo: null, pausa: "", gravando: false, pontosGravados: 0, turnoMs: 95 * 60_000,
     motivo: "", ponto: null,
   };
   let gravTimer = 0;

@@ -5,7 +5,8 @@
 // existem: magias, poções, comida, busca de alvo/perseguição, caminho (A*) e o acompanhante visível. As regras puras
 // (sanitização, turno, escolha de cura/ataque/buff/recuo, gravação de rota) estão em shared/estagiario.ts.
 import {
-  BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIARIO_MAX, DIR_DELTA, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C,
+  BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIARIO_MAX, DIR_DELTA, Dir, ESPERAR_MAX_MS, ESPERAR_PERTO_TILES, ESPERAR_TILES, PAUSA_MANUAL_MS,
+  POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, SEGUIR_MAX_TILES, SEGUIR_SUMIU_MS,
   TURNO_AVISO_MS, alarmeLigado, avancarTurno, compactar, configEfetiva, curaEmGrupo, curaEstimada, curasProprias, decidirCura, dirFromDelta,
   ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao,
   fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
@@ -79,6 +80,9 @@ export interface EstagiarioOptions {
     /** `parar`: a perseguição forçada para a esta distância do alvo (1 = colado; v2 "manter distância"). */
     forceChase(id: string, on: boolean, parar?: number): void;
     resume(id: string): void;
+    /** v3 (caçar com amigo): anda atrás do colega sem alvo; com alvo, a perseguição forçada manda (cancelFollow). */
+    follow(p: PlayerState, id: string): void;
+    cancelFollow(p: PlayerState): void;
   };
   monsters: Pick<MonsterManager, "wild" | "all" | "inPz" | "monsterAt" | "isMonsterAt" | "los" | "grid">;
   /** Caminhada da rota (Task 5). */
@@ -197,6 +201,14 @@ interface Estado {
   /** Última linha "esperando" e última "a Cura está desligada" (DIARIO_ESPERA_MS / DIARIO_CURA_OFF_MS). */
   esperaAnotadaEm: number;
   curaOffAnotadaEm: number;
+  /** v3 (caçar com amigo): id e nome do colega de grupo seguido (exclui a rota: um ou outro). */
+  seguindo: string | null;
+  seguindoNome: string;
+  /** Desde quando o colega está a mais de SEGUIR_MAX_TILES ou sem caminho (0 = perto); SEGUIR_SUMIU_MS desliga. */
+  colegaLongeDesde: number;
+  /** Líder com rota esperando um seguidor longe: desde quando e quem (0/"" = ninguém). */
+  esperandoDesde: number;
+  esperandoQuem: string;
 }
 
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
@@ -227,6 +239,7 @@ export class EstagiarioSystem {
       grav: null, gravPos: { x: p.x, y: p.y },
       pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, comeuEm: 0, retomar: false, pararEnviado: 0, avisos: avisosNovos(),
       suspenso: false, carenciaAte: algo ? now + CARENCIA_LOGIN_MS : 0, diario: [], diarioNovos: [], diarioTudo: false, esperaAnotadaEm: 0, curaOffAnotadaEm: 0,
+      seguindo: null, seguindoNome: "", colegaLongeDesde: 0, esperandoDesde: 0, esperandoQuem: "",
     });
   }
 
@@ -286,7 +299,70 @@ export class EstagiarioSystem {
     s.carenciaAte = 0;
     if (m.rota === null) this.pararRota(p, s, now);
     else if (typeof m.rota === "string") this.ligarRota(p, s, m.rota);
+    if (m.seguir === null) this.pararSeguir(p, s, now);
+    else if (typeof m.seguir === "string") this.ligarSeguir(p, s, m.seguir);
     this.enviarEstado(p);
+  }
+
+  /**
+   * Caçar com amigo (v3): segue um colega do MESMO grupo (decisão do dono), matando o que aparece e preferindo o alvo
+   * dele; gasta turno, com crachá e acompanhante como a rota (um ou outro: ligar o seguir desliga a rota).
+   */
+  private ligarSeguir(p: PlayerState, s: Estado, id: string): void {
+    if (p.hp <= 0 || id === p.id) return;
+    if (s.grav) { this.notice(p, "Pare a gravação antes de seguir alguém."); return; }
+    const c = this.jogador(id);
+    if (!c || c.hp <= 0) { this.notice(p, "Esse jogador não está por aqui."); return; }
+    if (!this.o.sameParty?.(p.id, id)) { this.notice(p, "Só dá para seguir um colega do seu grupo."); return; }
+    if (cheb(p.x, p.y, c.x, c.y) > SEGUIR_MAX_TILES) { this.notice(p, `Chegue perto de ${c.name} para seguir.`); return; }
+    const now = this.now();
+    this.acertar(s, now);
+    if (s.turno.ms <= 0) { this.notice(p, AVISO_TURNO); return; }
+    if (s.rota) this.pararRota(p, s, now, `trocou para seguir ${c.name}`);
+    const ja = !!s.seguindo;
+    s.seguindo = id;
+    s.seguindoNome = c.name;
+    s.colegaLongeDesde = 0;
+    s.lutando = false;
+    s.lutaOrigem = null;
+    s.lutaFimEm = 0;
+    s.pausa = "";
+    s.pausaAte = 0;
+    s.estadoEm = now;
+    this.anotar(s, now, "rota", `seguindo ${c.name}`);
+    const parar = this.pararEm(p, s);
+    s.pararEnviado = parar;
+    this.o.fight.forceChase(p.id, true, parar);
+    if (ja) return; // trocou de colega: o resto já está ligado
+    s.avisos = avisosNovos();
+    p.bot = true;
+    this.o.companions.spawnCompanion(p, now);
+  }
+
+  /** `motivo` (diário e alarme "colega"): por que parou de seguir; sem ele, foi o jogador. */
+  private pararSeguir(p: PlayerState, s: Estado, now = this.now(), motivo?: string, alarme = false): void {
+    if (!s.seguindo) return;
+    this.acertar(s, now);
+    this.anotar(s, now, "rota", `parou de seguir ${s.seguindoNome}${motivo ? `: ${motivo}` : ""}`);
+    if (alarme) this.alarme(p, "colega", `Estagiário: parou de seguir ${s.seguindoNome} (${motivo}).`);
+    s.seguindo = null;
+    s.seguindoNome = "";
+    s.colegaLongeDesde = 0;
+    s.ignorados.clear();
+    s.alvoId = "";
+    s.alvoAnterior = "";
+    s.inalcancavelAte = 0;
+    s.recuandoAte = 0;
+    s.lutaOrigem = null;
+    s.lutaFimEm = 0;
+    s.pausa = "";
+    s.pausaAte = 0;
+    s.pararEnviado = 0;
+    s.retomar = false;
+    p.bot = false;
+    this.o.fight.cancelFollow(p);
+    this.o.fight.forceChase(p.id, false);
+    this.o.companions.despawnCompanion(p.id);
   }
 
   /**
@@ -298,8 +374,9 @@ export class EstagiarioSystem {
     const s = this.st.get(p.id);
     if (!s || !obj(m)) return;
     if (m.acao === "iniciar") {
-      // A rota andando seria gravada por cima de si mesma.
+      // A rota andando (ou o seguir) seria gravada por cima de si mesma.
       if (s.rota) this.notice(p, "Desligue a rota para gravar outra.");
+      else if (s.seguindo) this.notice(p, "Pare de seguir para gravar uma rota.");
       // Recomeçar jogaria fora os pontos já andados (clique duplo no botão, por exemplo).
       else if (s.grav) this.notice(p, "Já está gravando.");
       else { s.grav = novaGravacao(p); s.gravPos = { x: p.x, y: p.y }; }
@@ -309,10 +386,10 @@ export class EstagiarioSystem {
     this.enviarEstado(p);
   }
 
-  /** Movimento manual (setas ou clique no chão): a rota pausa por PAUSA_MANUAL_MS, renovada a cada comando. */
+  /** Movimento manual (setas ou clique no chão): a rota (ou o seguir) pausa por PAUSA_MANUAL_MS, renovada a cada comando. */
   manual(id: string): void {
     const s = this.st.get(id);
-    if (!s?.rota) return;
+    if (!s?.rota && !s?.seguindo) return;
     const now = this.now();
     s.pausaAte = now + PAUSA_MANUAL_MS;
     if (s.pausa === "") this.mudarPausa(id, s, "manual", now);
@@ -324,11 +401,13 @@ export class EstagiarioSystem {
    */
   onDied(p: PlayerState): void {
     const s = this.st.get(p.id);
-    if (!s?.rota && !s?.grav) return;
+    if (!s?.rota && !s?.seguindo && !s?.grav) return;
     s.grav = null;
-    // Antes de desligar: o alarme só vale se a rota estava ligada (sem ela o jogador não estava fora do teclado).
+    // Antes de desligar: o alarme só vale se a rota (ou o seguir) estava ligada (sem ela o jogador não estava fora do teclado).
     if (s.rota) this.alarme(p, "morte", "Estagiário: você morreu. A rota foi desligada.");
+    if (s.seguindo) this.alarme(p, "morte", `Estagiário: você morreu. Parou de seguir ${s.seguindoNome}.`);
     this.pararRota(p, s, this.now(), "você morreu");
+    this.pararSeguir(p, s, this.now(), "você morreu");
     this.enviarEstado(p);
   }
 
@@ -365,8 +444,9 @@ export class EstagiarioSystem {
    */
   desligarRota(p: PlayerState, aviso?: string): void {
     const s = this.st.get(p.id);
-    if (!s?.rota) return;
+    if (!s?.rota && !s?.seguindo) return;
     this.pararRota(p, s, this.now(), "Coliseu");
+    this.pararSeguir(p, s, this.now(), "Coliseu");
     if (aviso) this.notice(p, aviso);
     this.enviarEstado(p);
   }
@@ -382,6 +462,7 @@ export class EstagiarioSystem {
     s.suspenso = true;
     s.grav = null;
     this.pararRota(p, s, this.now(), "você saiu do jogo");
+    this.pararSeguir(p, s, this.now(), "você saiu do jogo");
   }
 
   /**
@@ -431,12 +512,13 @@ export class EstagiarioSystem {
     const now = this.now();
     if (!s) {
       return {
-        config: estagiarioPadrao(p.vocation), cura: false, ataque: false, buffs: false, rota: null, pausa: "", gravando: false, pontosGravados: 0,
-        turnoMs: avancarTurno(undefined, now, false).ms, motivo: "", ponto: null,
+        config: estagiarioPadrao(p.vocation), cura: false, ataque: false, buffs: false, rota: null, seguindo: null, pausa: "", gravando: false,
+        pontosGravados: 0, turnoMs: avancarTurno(undefined, now, false).ms, motivo: "", ponto: null,
       };
     }
     return {
-      config: s.config, cura: this.curaLigada(s), ataque: this.ataqueLigado(s), buffs: this.buffsLigados(s), rota: s.rota, pausa: s.pausa,
+      config: s.config, cura: this.curaLigada(s), ataque: this.ataqueLigado(s), buffs: this.buffsLigados(s), rota: s.rota,
+      seguindo: s.seguindo ? { id: s.seguindo, nome: s.seguindoNome } : null, pausa: s.pausa,
       gravando: !!s.grav, pontosGravados: s.grav?.pontos.length ?? 0, turnoMs: avancarTurno(s.turno, now, this.rodando(s)).ms,
       motivo: this.motivo(p, s, now), ponto: this.ponto(s),
     };
@@ -444,8 +526,11 @@ export class EstagiarioSystem {
 
   /** Por que o Estagiário não está agindo agora (curto, para o cabeçalho da janela); "" = tudo certo ou nada ligado. */
   private motivo(p: PlayerState, s: Estado, now: number): string {
-    if (s.rota && s.pausa === "manual") return "pausado: você está jogando";
-    if (s.rota && s.pausa === "npc") return "pausado: conversa com NPC";
+    const caca = !!s.rota || !!s.seguindo;
+    if (caca && s.pausa === "manual") return "pausado: você está jogando";
+    if (caca && s.pausa === "npc") return "pausado: conversa com NPC";
+    if (s.rota && s.esperandoDesde > 0) return `esperando ${s.esperandoQuem}`;
+    if (s.seguindo && s.colegaLongeDesde) return `${s.seguindoNome} está longe`;
     if (!this.ataqueLigado(s) || p.hp <= 0) return "";
     if (p.targetId && !this.o.monsters.wild(p.targetId) && this.ehJogador(p.targetId)) return "mirando um jogador";
     if (s.rota && now < s.travadoAte) return "ponto travado, pulando";
@@ -491,9 +576,10 @@ export class EstagiarioSystem {
   private tickPlayer(p: PlayerState, s: Estado, now: number): void {
     if (s.grav) this.gravar(p, s, now);
     if (s.rota) this.tickRota(p, s, now);
+    else if (s.seguindo) this.tickSeguir(p, s, now);
     if (p.hp > 0) this.agir(p, s, now);
     // O cabeçalho mostra o motivo e o ponto atual: mudou → estado (no máximo um por segundo; o resto vai no periódico).
-    if ((s.rota || s.ataque) && now - s.estadoEm >= MOTIVO_ENVIO_MS && this.chaveMotivo(p, s, now) !== s.motivoEnviado) this.enviarEstado(p, now);
+    if ((s.rota || s.seguindo || s.ataque) && now - s.estadoEm >= MOTIVO_ENVIO_MS && this.chaveMotivo(p, s, now) !== s.motivoEnviado) this.enviarEstado(p, now);
   }
 
   private agir(p: PlayerState, s: Estado, now: number): void {
@@ -510,7 +596,7 @@ export class EstagiarioSystem {
     if (!curou.magia && this.buffsLigados(s)) this.buffar(p, s, now);
     if (this.ataqueLigado(s)) this.atacar(p, s, now);
     // Depois do ataque: o alvo escolhido neste tick já segura a caminhada (não dá um passo da rota para o lado errado).
-    if (this.rodando(s)) { this.vigiar(p, s, now); this.andar(p, s, now); }
+    if (this.rodando(s)) { this.vigiar(p, s, now); if (s.rota) this.andar(p, s, now); else this.andarSeguindo(p, s, now); }
   }
 
   /**
@@ -580,14 +666,10 @@ export class EstagiarioSystem {
     if (entrou) { this.pararRota(p, s, now, "zona de proteção"); this.enviarEstado(p); return; }
     // O acompanhante saiu do mundo com a rota ligada (o Coliseu tira tudo do dono, por exemplo): volta ao lado do dono.
     if (p.hp > 0 && !pz && !this.o.companions.companionOf(p.id)) this.o.companions.spawnCompanion(p, now);
-    const pausa: EstagiarioPausa = this.o.npcOpen(p.id) ? "npc" : now < s.pausaAte ? "manual" : "";
-    if (pausa !== s.pausa) {
-      this.mudarPausa(p.id, s, pausa, now);
+    if (this.acompanharPausa(p, s, now)) {
       // Na pausa o jogador andou à mão (ou foi ao NPC): ao voltar, segue do ponto mais perto de onde ele está.
       const rota = this.rotaDe(s, s.rota!);
-      if (pausa === "" && rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
-      // O alvo não foi acompanhado durante a pausa: sem isto, o relógio parado o daria por travado no primeiro tick.
-      if (pausa === "") { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
+      if (rota) this.irPara(s, indiceMaisProximo(rota.pontos, p), now);
     }
     if (!this.rodando(s)) return;
     // A distância de parada pode mudar (Aplicar, troca de arma): reenvia só quando muda.
@@ -601,6 +683,100 @@ export class EstagiarioSystem {
       return;
     }
     if (now - s.estadoEm >= ESTADO_PERIODICO_MS) this.enviarEstado(p, now);
+  }
+
+  /** Pausa por NPC aberto ou movimento manual (rota e seguir): aplica a transição; devolve true quando a pausa acabou. */
+  private acompanharPausa(p: PlayerState, s: Estado, now: number): boolean {
+    const pausa: EstagiarioPausa = this.o.npcOpen(p.id) ? "npc" : now < s.pausaAte ? "manual" : "";
+    if (pausa === s.pausa) return false;
+    this.mudarPausa(p.id, s, pausa, now);
+    // O alvo não foi acompanhado durante a pausa: sem isto, o relógio parado o daria por travado no primeiro tick.
+    if (pausa === "") { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
+    return pausa === "";
+  }
+
+  /**
+   * Caçar com amigo, a cada tick: o colega tem de continuar vivo, no jogo, no grupo e a até SEGUIR_MAX_TILES (longe por
+   * SEGUIR_SUMIU_MS desliga, com alarme "colega"); a zona de proteção não desliga (o colega foi ao depot e volta). Gasta
+   * turno como a rota.
+   */
+  private tickSeguir(p: PlayerState, s: Estado, now: number): void {
+    const c = this.jogador(s.seguindo!);
+    const desliga = (motivo: string) => { this.pararSeguir(p, s, now, motivo, true); this.enviarEstado(p); };
+    if (!c) { desliga(`${s.seguindoNome} saiu do jogo`); return; }
+    if (c.hp <= 0) { desliga(`${s.seguindoNome} morreu`); return; }
+    if (!this.o.sameParty?.(p.id, c.id)) { desliga(`${s.seguindoNome} não está mais no seu grupo`); return; }
+    if (cheb(p.x, p.y, c.x, c.y) > SEGUIR_MAX_TILES) {
+      if (!s.colegaLongeDesde) s.colegaLongeDesde = now;
+      else if (now - s.colegaLongeDesde >= SEGUIR_SUMIU_MS) { desliga(`${s.seguindoNome} sumiu`); return; }
+    } else s.colegaLongeDesde = 0;
+    if (p.hp > 0 && !this.o.monsters.inPz(p.x, p.y) && !this.o.companions.companionOf(p.id)) this.o.companions.spawnCompanion(p, now);
+    this.acompanharPausa(p, s, now);
+    if (!this.rodando(s)) return;
+    const parar = this.pararEm(p, s);
+    if (parar !== s.pararEnviado) { s.pararEnviado = parar; this.o.fight.forceChase(p.id, true, parar); }
+    this.acertar(s, now);
+    if (s.turno.ms <= 0) {
+      this.pararSeguir(p, s, now, "o turno acabou");
+      this.notice(p, AVISO_TURNO);
+      this.enviarEstado(p);
+      return;
+    }
+    if (now - s.estadoEm >= ESTADO_PERIODICO_MS) this.enviarEstado(p, now);
+  }
+
+  /**
+   * Seguindo: com alvo vivo, a perseguição forçada manda (o seguir do FightMode é cancelado, senão ele ganharia da
+   * perseguição) e o recuo de "manter distância" vale; sem alvo, anda atrás do colega.
+   */
+  private andarSeguindo(p: PlayerState, s: Estado, now: number): void {
+    if (this.alvoVivo(p) && !this.alvoTravado(p, s, now)) {
+      if (p.followId) this.o.fight.cancelFollow(p);
+      if (!s.lutando) {
+        s.lutando = true;
+        if (!s.lutaOrigem || now - s.lutaFimEm > LUTA_EMENDADA_MS) s.lutaOrigem = { x: p.x, y: p.y };
+      }
+      this.recuar(p, s, now);
+      return;
+    }
+    if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
+    if (s.lutando) { s.lutando = false; s.lutaFimEm = now; }
+    if (p.followId !== s.seguindo) this.o.fight.follow(p, s.seguindo!);
+  }
+
+  /** Quem está seguindo `id` (vivos e no jogo): o líder com rota espera por eles. */
+  private seguidoresDe(id: string): PlayerState[] {
+    const out: PlayerState[] = [];
+    for (const q of this.o.players()) if (q.hp > 0 && this.st.get(q.id)?.seguindo === id) out.push(q);
+    return out;
+  }
+
+  /**
+   * Líder com rota (decisão do dono: "espera"): para de andar enquanto um seguidor vivo está a mais de ESPERAR_TILES
+   * (volta quando todos estão a até ESPERAR_PERTO_TILES), no máximo ESPERAR_MAX_MS por vez — um seguidor preso atrás de
+   * uma cerca não pode prender a rota para sempre. Devolve true enquanto espera.
+   */
+  private esperarSeguidores(p: PlayerState, s: Estado, now: number): boolean {
+    const seg = this.seguidoresDe(p.id);
+    const limpar = () => { s.esperandoDesde = 0; s.esperandoQuem = ""; };
+    if (!seg.length) { limpar(); return false; }
+    // Histerese: começa a esperar com alguém a mais de ESPERAR_TILES; só volta (ou pode esperar de novo) com todos perto.
+    if (seg.every((q) => cheb(p.x, p.y, q.x, q.y) <= ESPERAR_PERTO_TILES)) { limpar(); return false; }
+    if (s.esperandoDesde < 0) return false; // já desistiu desta espera
+    if (!s.esperandoDesde) {
+      const longe = seg.find((q) => cheb(p.x, p.y, q.x, q.y) > ESPERAR_TILES);
+      if (!longe) return false;
+      s.esperandoDesde = now;
+      s.esperandoQuem = longe.name;
+      this.anotar(s, now, "rota", `esperando ${longe.name}`);
+    }
+    if (now - s.esperandoDesde >= ESPERAR_MAX_MS) {
+      this.anotar(s, now, "rota", `cansou de esperar ${s.esperandoQuem}: segue a rota`);
+      s.esperandoDesde = -1;
+      s.esperandoQuem = "";
+      return false;
+    }
+    return true;
   }
 
   /** Há colega de grupo ao alcance da magia com menos de `pct`% de vida (regras "aliado" e a cura em grupo do modo simples). */
@@ -757,9 +933,11 @@ export class EstagiarioSystem {
     // ligou o Ataque: ligado só pela rota, o jogador está no controle e o bot não escolhe alvo por ele.
     if (now - s.buscaEm >= (mm.wild(p.targetId) ? BUSCA_MS : BUSCA_SEM_ALVO_MS) && (s.ataque || this.rodando(s))) {
       s.buscaEm = now;
-      const id = this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignoradoEm(s, m, now));
+      // Caçando com amigo (decisão do dono): o alvo do colega vem primeiro, se está ao alcance da busca; senão o mais perto.
+      const doColega = s.seguindo ? this.alvoDoColega(p, s, now) : "";
+      const id = doColega || this.o.fight.nearestTarget(p, BUSCA_TILES, (m) => this.ignoradoEm(s, m, now));
       const cur = mm.wild(p.targetId), nxt = id ? mm.wild(id) : undefined;
-      if (id && id !== p.targetId && (!cur || (nxt && cheb(p.x, p.y, nxt.s.x, nxt.s.y) < cheb(p.x, p.y, cur.s.x, cur.s.y)))) {
+      if (id && id !== p.targetId && (id === doColega || !cur || (nxt && cheb(p.x, p.y, nxt.s.x, nxt.s.y) < cheb(p.x, p.y, cur.s.x, cur.s.y)))) {
         p.targetId = id;
         // Com a rota rodando, persegue já. Fora dela (só o ataque ligado, ou a rota pausada pelo jogador) o jogador pode
         // estar andando à mão: retomar agora cancelaria a pausa de 1,5 s que todo Move/WalkTo põe na perseguição; fica
@@ -879,6 +1057,9 @@ export class EstagiarioSystem {
       this.recuar(p, s, now);
       return;
     }
+    // Líder com seguidor longe (decisão do dono: "espera"): fica, lutando e curando, até ele chegar; o relógio de ponto
+    // travado não anda enquanto isso.
+    if (this.esperarSeguidores(p, s, now)) { s.progressoEm = now; s.caminho = null; return; }
     // Sem luta: o relógio de "luta sem progresso" começa do zero na próxima (o alvo anterior não conta mais).
     if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
     if (s.lutando) { s.lutando = false; s.lutaFimEm = now; this.irPara(s, indiceMaisProximo(pts, p), now); }
@@ -903,6 +1084,14 @@ export class EstagiarioSystem {
       return;
     }
     this.passo(p, s, alvo, now);
+  }
+
+  /** O monstro selvagem que o colega seguido está atacando, se está a até BUSCA_TILES e não foi largado; senão "". */
+  private alvoDoColega(p: PlayerState, s: Estado, now: number): string {
+    const c = this.jogador(s.seguindo!);
+    const m = c?.targetId ? this.o.monsters.wild(c.targetId) : undefined;
+    if (!m || m.s.hp <= 0 || cheb(p.x, p.y, m.s.x, m.s.y) > BUSCA_TILES || this.ignoradoEm(s, m.s.id, now)) return "";
+    return m.s.id;
   }
 
   /**
@@ -1071,6 +1260,8 @@ export class EstagiarioSystem {
     if (cheb(p.x, p.y, p0.x, p0.y) > PATH_MAX_DIST) { this.notice(p, AVISO_LONGE); return; }
     this.acertar(s, now);
     if (s.turno.ms <= 0) { this.notice(p, AVISO_TURNO); return; }
+    // Um ou outro: a rota no lugar do seguir.
+    if (s.seguindo) this.pararSeguir(p, s, now, `trocou para a rota "${rota.nome}"`);
     const ja = !!s.rota;
     const parar = this.pararEm(p, s);
     // Trocou de rota durante a pausa: a pausa acaba aqui, então a perseguição forçada volta.
@@ -1133,14 +1324,15 @@ export class EstagiarioSystem {
 
   // --- auxiliares ---------------------------------------------------------------------------------------------------
 
-  private rodando(s: Estado): boolean { return !!s.rota && s.pausa === ""; }
+  /** Caçando (rota ou seguindo um colega) e sem pausa. */
+  private rodando(s: Estado): boolean { return (!!s.rota || !!s.seguindo) && s.pausa === ""; }
 
-  /** v3: a Cura liga pela rota como o ataque e os buffs (a rota sem cura foi o "não usou pote" do dono). */
-  private curaLigada(s: Estado): boolean { return s.cura || !!s.rota; }
+  /** v3: a Cura liga pela rota (e pelo seguir) como o ataque e os buffs (a rota sem cura foi o "não usou pote" do dono). */
+  private curaLigada(s: Estado): boolean { return s.cura || !!s.rota || !!s.seguindo; }
 
-  private ataqueLigado(s: Estado): boolean { return s.ataque || !!s.rota; }
+  private ataqueLigado(s: Estado): boolean { return s.ataque || !!s.rota || !!s.seguindo; }
 
-  private buffsLigados(s: Estado): boolean { return s.buffs || !!s.rota; }
+  private buffsLigados(s: Estado): boolean { return s.buffs || !!s.rota || !!s.seguindo; }
 
   /** Atualiza o turno até `now` no estado atual (gastando se a rota roda, recarregando se não). */
   private acertar(s: Estado, now: number): TurnoEstado {

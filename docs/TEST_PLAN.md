@@ -16,6 +16,21 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Estagiário: caçar com amigo e a janela repensada (2026-11-02)
+
+Typecheck 3× tsc; suíte unitária inteira verde. `server/src/systems/estagiario.test.ts` ganha "caçar com amigo" (+5, 108
+no arquivo): só colega do grupo, vivo e a até 15 tiles (crachá, acompanhante, perseguição forçada, estado com quem); sem
+alvo anda atrás (follow) e com alvo a perseguição manda, o alvo do colega vem antes do mais perto e o follow volta ao
+matar; desliga com alarme "colega" quando ele morre, fica longe por 10 s ou sai do jogo, e o seguir gasta turno; um ou
+outro com a rota, morte e queda param, gravar não começa seguindo; o líder com rota espera o seguidor longe (motivo
+"esperando"), volta quando ele chega e desiste depois de 30 s. O falso `fight` ganhou `follow`/`cancelFollow` e o
+`sameParty` ficou simétrico. E2E novo `e2e/estagiarioGrupo.spec.ts` (dois clientes; o CI da PR roda): sem grupo a aba
+Rota mostra o aviso, grupo pelo clique direito, "Seguir" liga o crachá, o colega teleporta 5 tiles e o seguidor chega ao
+lado em até 20 s, "Parar de seguir" tira o crachá. A janela repensada não tem teste de tela próprio (ids de teste
+mantidos: `est-cura`, `est-ataque`, `est-buffs`, `est-ponto`, `est-motivo`, `est-ligar-*`, `est-desligar`, `est-gravar`,
+`est-parar`, `est-preset-*`, `est-modo`, `est-diario`; novos: `est-estado`, `est-parar-tudo`, `est-seguir-<nome>`,
+`est-parar-seguir`, `est-sem-grupo`, `est-diario-<filtro>`).
+
 ## Resultados — Estagiário v3, etapas 2–4 (2026-11-02)
 
 Typecheck 3× tsc; suíte unitária inteira verde (ver o total na seção abaixo, mais os novos). Novo arquivo

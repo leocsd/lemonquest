@@ -109,8 +109,11 @@ export const C2S = {
 export interface SetLootFilterMsg { filter: LootFilter }
 /** C2S.EstagiarioConfig: a configuração inteira (o servidor sanitiza e devolve em S2C.EstagiarioEstado). */
 export interface EstagiarioConfigMsg { config: EstagiarioConfig }
-/** C2S.EstagiarioToggle: só o que vier definido muda; `rota` = nome da rota a rodar, null = parar. */
-export interface EstagiarioToggleMsg { cura?: boolean; ataque?: boolean; buffs?: boolean; rota?: string | null }
+/**
+ * C2S.EstagiarioToggle: só o que vier definido muda; `rota` = nome da rota a rodar, null = parar; `seguir` (v3,
+ * "caçar com amigo") = id do colega de grupo a seguir, null = parar de seguir.
+ */
+export interface EstagiarioToggleMsg { cura?: boolean; ataque?: boolean; buffs?: boolean; rota?: string | null; seguir?: string | null }
 /** C2S.EstagiarioGravar: grava a rota andando; "parar" salva com `nome`. */
 export interface EstagiarioGravarMsg { acao: "iniciar" | "parar" | "descartar"; nome?: string }
 /** Por que a rota está pausada: "" = rodando/desligada, "manual" = o jogador mexeu, "npc" = janela de NPC aberta. */
@@ -118,6 +121,8 @@ export type EstagiarioPausa = "" | "manual" | "npc";
 /** S2C.EstagiarioEstado: tudo que o painel do Estagiário mostra. */
 export interface EstagiarioEstadoMsg {
   config: EstagiarioConfig; cura: boolean; ataque: boolean; buffs: boolean; rota: string | null;
+  /** v3: colega de grupo que o Estagiário está seguindo (caça junto), ou null. Exclui a rota (um ou outro). */
+  seguindo: { id: string; nome: string } | null;
   pausa: EstagiarioPausa; gravando: boolean; pontosGravados: number; turnoMs: number;
   /** Por que o Estagiário não está agindo agora, curto e em português ("" = tudo certo): "sem alvo por perto" etc. */
   motivo: string;

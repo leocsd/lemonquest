@@ -40,7 +40,8 @@ export const DIARIO_MAX = 50;
 /** `portal`: o tile do portal pisado na gravação (a rota anda até ele para atravessar de novo). */
 export interface PontoRota { x: number; y: number; portal?: boolean }
 export interface RotaCaca { nome: string; pontos: PontoRota[] }
-export type AlarmeTipo = "pocao" | "vidaBaixa" | "jogador" | "atacado" | "privada" | "turno" | "mochila" | "morte";
+/** `colega` (v3, caçar com amigo): o colega seguido morreu, saiu do grupo, saiu do jogo ou sumiu — o seguir desligou. */
+export type AlarmeTipo = "pocao" | "vidaBaixa" | "jogador" | "atacado" | "privada" | "turno" | "mochila" | "morte" | "colega";
 /**
  * v3 etapa 3: "simples" = um perfil de três números mais o recomendado da vocação (as listas de regras ficam guardadas
  * para o modo avançado); "avancado" = as listas de regras, como na v2.
@@ -102,7 +103,17 @@ export const POCAO_ALARME_MIN = 10;
 export const TURNO_AVISO_MS = 5 * 60_000;
 /** Alcance de busca de alvo (= AUTO_SEEK_DIST do ataque automático). */
 export const BUSCA_TILES = 12;
-export const ALARMES: readonly AlarmeTipo[] = ["pocao", "vidaBaixa", "jogador", "atacado", "privada", "turno", "mochila", "morte"];
+export const ALARMES: readonly AlarmeTipo[] = ["pocao", "vidaBaixa", "jogador", "atacado", "privada", "turno", "mochila", "morte", "colega"];
+/**
+ * Caçar com amigo (v3, decisões do dono em 2026-11-02: gasta turno; só no mesmo grupo; o seguidor prefere o alvo do
+ * colega; o líder com rota espera). O colega a mais que isto (ou sem caminho) por SEGUIR_SUMIU_MS desliga o seguir.
+ */
+export const SEGUIR_MAX_TILES = 15;
+export const SEGUIR_SUMIU_MS = 10_000;
+/** Líder com rota: espera um seguidor vivo a mais de ESPERAR_TILES (volta a andar quando todos estão a até ESPERAR_PERTO_TILES), no máximo ESPERAR_MAX_MS por vez. */
+export const ESPERAR_TILES = 8;
+export const ESPERAR_PERTO_TILES = 4;
+export const ESPERAR_MAX_MS = 30_000;
 /** Distâncias que a opção "manter distância" aceita (0 = colado). */
 export const DISTANCIAS: readonly number[] = [0, 2, 3, 4];
 /** Recuando, nunca mais longe que isto de onde a luta começou (a rota não deriva para outro spawn). */

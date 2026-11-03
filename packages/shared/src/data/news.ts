@@ -14,8 +14,10 @@ export const NEWS: readonly NewsEntry[] = [
   {
     id: "2026-11-02c",
     date: "2 de novembro",
-    title: "Estagiário v3: modo simples, Cura que fica ligada e um diário",
+    title: "Estagiário v3: caçar com amigo, modo simples, Cura que fica ligada e um diário",
     items: [
+      "Caçar com amigo: na aba Rota, \"Seguir\" num colega do seu grupo. O Estagiário anda atrás dele, bate no mesmo bicho e para se ele morrer, sair do grupo ou sumir. Quem lidera com rota espera você.",
+      "Janela nova: o que está rodando e por que parou em primeiro lugar, botão \"Parar\", turno em barra, perfis em cartões, Diário com filtros e um contador do que chegou.",
       "Aba nova \"Perfil\": escolha Seguro, Equilibrado ou Agressivo (feitos para a sua vocação) ou ajuste três números: emergência, conforto e reserva de mana. O resto é o recomendado.",
       "Poção e magia de cura saem juntas quando a vida despenca (são recargas diferentes). Entre a emergência e o conforto, ele usa a magia se ela cobre o que falta; senão a poção.",
       "Quem já tinha regras próprias continua no modo avançado com elas (abas Cura, Ataque e Buffs). Para experimentar o simples, desligue \"Modo avançado\" na aba Perfil.",

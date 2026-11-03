@@ -15,8 +15,10 @@ import { itemsFor, type SpellItem } from "../hotkeys/spellsModel.ts";
 import { useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { useWindowDrag } from "../hud/useWindowDrag.ts";
+import { vocationMeta } from "../hud/vocations.ts";
 import { meStore } from "../hud/world.ts";
 import { bindOverlay } from "../overlays.ts";
+import { partyStore } from "../party/party.ts";
 import {
   addRegraAtaque, addRegraBuff, addRegraCura, alternarAlarme, aplicarRascunho, apagarRota, closeEstagiario, descartarRascunho, descricaoPerfil,
   diarioStore, editarRascunho, estadoRecebidoEm, estagiarioOpen, estagiarioStore, fmtPonto, fmtTurno, gravar, LIMITES, lerNumero, ligar, moverRegra,
@@ -51,9 +53,20 @@ const ALARME_LABEL: Record<AlarmeTipo, { nome: string; quando: string }> = {
   turno: { nome: "Turno acabando", quando: "faltam 5 min de turno" },
   mochila: { nome: "Mochila cheia", quando: "o loot não coube e ficou no chão" },
   morte: { nome: "Você morreu", quando: "sempre avisa (não desliga)" },
+  colega: { nome: "Colega seguido", quando: "ele morreu, saiu do grupo, saiu do jogo ou sumiu: parou de seguir" },
 };
 
 const PAUSA_LABEL: Record<string, string> = { manual: "pausada: você se mexeu", npc: "pausada: conversa com NPC" };
+
+/** Filtros do Diário (chips): quais canais cada um mostra; "tudo" = todos. */
+type Filtro = "tudo" | "cura" | "rota" | "buff" | "aviso";
+const FILTROS: readonly { id: Filtro; label: string; canais: readonly DiarioCanal[] }[] = [
+  { id: "tudo", label: "Tudo", canais: [] },
+  { id: "cura", label: "Cura e poção", canais: ["cura", "pocao"] },
+  { id: "rota", label: "Rota", canais: ["rota", "interruptor"] },
+  { id: "buff", label: "Buffs e comida", canais: ["buff", "comer"] },
+  { id: "aviso", label: "Avisos", canais: ["aviso"] },
+];
 
 const val = (e: Event) => (e.currentTarget as HTMLInputElement | HTMLSelectElement).value;
 
@@ -74,6 +87,11 @@ function EstagiarioDialog() {
   const abas = simples ? ABAS.filter((a) => !ABAS_REGRAS.includes(a.id)) : ABAS;
   // Voltou ao modo simples com uma aba de regras aberta: ela some, o Perfil fica.
   useEffect(() => { if (simples && ABAS_REGRAS.includes(aba)) setAba("perfil"); }, [simples, aba]);
+  // Linhas do diário que chegaram desde a última vez que a aba foi vista: um contador na aba.
+  const diario = useStore(diarioStore);
+  const [vistoAte, setVistoAte] = useState(0);
+  useEffect(() => { if (aba === "diario" && diario.length) setVistoAte(diario[diario.length - 1]!.t); }, [aba, diario]);
+  const novas = aba === "diario" ? 0 : diario.filter((i) => i.t > vistoAte).length;
   return (
     <div ref={drag.ref} class={`hud-card hud-window est-win${drag.dragging ? " dragging" : ""}`} style={drag.style} role="dialog" aria-label="Estagiário">
       <div class="win-title" onPointerDown={drag.onTitleDown}>
@@ -89,7 +107,10 @@ function EstagiarioDialog() {
               <button
                 key={a.id} role="tab" aria-selected={aba === a.id} class={`est-tab${aba === a.id ? " active" : ""}`}
                 onClick={() => setAba(a.id)} data-testid={`est-tab-${a.id}`}
-              >{a.label}</button>
+              >
+                {a.label}
+                {a.id === "diario" && novas > 0 && <span class="est-tab-badge" aria-label={`${novas} linhas novas`}>{novas > 9 ? "9+" : novas}</span>}
+              </button>
             ))}
           </div>
           <div class="est-body">
@@ -119,33 +140,54 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   const turno = turnoMostrado(e, estadoRecebidoEm(), now, TURNO_MAX_MS, TURNO_RECARGA);
-  const pelaRota = e.rota !== null;
+  // Caçando = rota ou seguindo um colega: os três interruptores ficam ligados por tabela.
+  const cacando = e.rota !== null || e.seguindo !== null;
+  const porQue = e.rota !== null ? "pela rota" : e.seguindo ? "pelo colega" : "";
+  const estado = e.rota !== null
+    ? { cls: "on", texto: <>Rota <b>{e.rota}</b></> }
+    : e.seguindo
+      ? { cls: "on", texto: <>Seguindo <b>{e.seguindo.nome}</b></> }
+      : e.gravando ? { cls: "rec", texto: <>Gravando rota…</> } : { cls: "", texto: <>Parado</> };
+  const sub = cacando ? (e.pausa ? PAUSA_LABEL[e.pausa] ?? "pausada" : "rodando") : null;
+  const pct = Math.max(0, Math.min(100, (turno / TURNO_MAX_MS) * 100));
   return (
     <div class="est-head">
+      <div class="est-state">
+        <span class={`est-state-dot${estado.cls ? ` ${estado.cls}` : ""}`} aria-hidden="true" />
+        <div class="est-state-text">
+          <span class="est-state-main" data-testid="est-estado">
+            {estado.texto}
+            {sub && <span class="est-state-sub"> · {sub}</span>}
+            {e.rota !== null && e.ponto && <span class="est-ponto" data-testid="est-ponto"> · {fmtPonto(e.ponto)}</span>}
+          </span>
+          {/* Por que não está agindo agora (o pausado já aparece ao lado do estado). */}
+          {e.motivo && !e.motivo.startsWith("pausado") && <span class="est-motivo" role="status" data-testid="est-motivo">{e.motivo}</span>}
+        </div>
+        {cacando && (
+          <button class="est-btn est-stop" onClick={() => ligar(e.rota !== null ? { rota: null } : { seguir: null })} data-testid="est-parar-tudo">
+            Parar
+          </button>
+        )}
+        <div class="est-turno" data-tip="Turno de caça" data-tip-sub="Gasta com a rota ou seguindo um colega; recarrega 5 min por hora (máx. 2 h)">
+          <span class="est-turno-bar" role="progressbar" aria-label="Turno restante" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
+            <span class="est-turno-fill" style={{ width: `${pct}%` }} />
+          </span>
+          <span class="est-turno-num">{fmtTurno(turno)}</span>
+        </div>
+      </div>
       <div class="est-switches">
         <Interruptor
-          label="Cura" on={e.cura} disabled={pelaRota} hint={pelaRota ? "ligada pela rota" : undefined}
+          label="Cura" on={e.cura} disabled={cacando} hint={cacando ? `ligada ${porQue}` : undefined}
           onClick={() => ligar({ cura: !e.cura })} testid="est-cura"
         />
         <Interruptor
-          label="Ataque" on={e.ataque} disabled={pelaRota} hint={pelaRota ? "ligado pela rota" : undefined}
+          label="Ataque" on={e.ataque} disabled={cacando} hint={cacando ? `ligado ${porQue}` : undefined}
           onClick={() => ligar({ ataque: !e.ataque })} testid="est-ataque"
         />
         <Interruptor
-          label="Buffs" on={e.buffs} disabled={pelaRota} hint={pelaRota ? "ligado pela rota" : undefined}
+          label="Buffs" on={e.buffs} disabled={cacando} hint={cacando ? `ligados ${porQue}` : undefined}
           onClick={() => ligar({ buffs: !e.buffs })} testid="est-buffs"
         />
-      </div>
-      <div class="est-status">
-        <span class={`est-rota-now${pelaRota ? " on" : ""}`}>
-          {pelaRota ? <>Rota <b>{e.rota}</b>{e.pausa ? ` · ${PAUSA_LABEL[e.pausa] ?? "pausada"}` : " · rodando"}</> : e.gravando ? "Gravando rota…" : "Sem rota"}
-          {pelaRota && e.ponto && <span class="est-ponto" data-testid="est-ponto"> · {fmtPonto(e.ponto)}</span>}
-        </span>
-        {/* Por que não está agindo agora (o pausado já aparece ao lado da rota). */}
-        {e.motivo && !e.motivo.startsWith("pausado") && <span class="est-motivo" role="status" data-testid="est-motivo">{e.motivo}</span>}
-        <span class="est-turno" data-tip="Turno de rota de caça" data-tip-sub="Gasta só com a rota rodando; recarrega 5 min por hora (máx. 2 h)">
-          Turno {fmtTurno(turno)}
-        </span>
       </div>
     </div>
   );
@@ -196,55 +238,74 @@ function AbaPerfil({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
   const setPerfil = (patch: Partial<Perfil>) => editarRascunho({ preset: null, perfil: { ...c.perfil, ...patch } });
   return (
     <div class="est-pane">
-      <div class="est-row">
-        <Interruptor label="Modo avançado" on={!simples} onClick={() => editarRascunho({ modo: simples ? "avancado" : "simples" })} testid="est-modo" />
-        <span class="est-note">
-          {simples ? "Três números e o ataque, os buffs e a distância recomendados da sua vocação." : "Valem as regras das abas Cura, Ataque e Buffs; o perfil fica guardado."}
-        </span>
-      </div>
-      {simples && (
+      {simples ? (
         <>
-          <div class="est-presets" role="radiogroup" aria-label="Perfil">
-            {PRESETS.map((pr) => (
-              <button
-                key={pr} role="radio" aria-checked={c.preset === pr} class={`est-preset${c.preset === pr ? " on" : ""}`}
-                onClick={() => editarRascunho({ preset: pr, perfil: perfilDoPreset(pr, voc) })} data-tip={PRESET_LABEL[pr].nome} data-tip-sub={PRESET_LABEL[pr].dica}
-                data-testid={`est-preset-${pr}`}
-              >{PRESET_LABEL[pr].nome}</button>
-            ))}
-            {c.preset === null && <span class="est-preset on" data-testid="est-preset-proprio">Números seus</span>}
-          </div>
-          <Deslizador label="Emergência" lim={LIMITES.emergencia} value={c.perfil.emergencia} onValor={(v) => setPerfil({ emergencia: v })} testid="est-emergencia" />
-          <Deslizador label="Conforto" lim={LIMITES.conforto} value={c.perfil.conforto} onValor={(v) => setPerfil({ conforto: v })} testid="est-conforto" />
-          <Deslizador label="Reserva de mana" lim={LIMITES.reserva} value={c.perfil.reserva} onValor={(v) => setPerfil({ reserva: v })} testid="est-reserva" />
-          <ul class="est-perfil-desc" data-testid="est-perfil-desc">
-            {descricaoPerfil(c.perfil).map((t) => <li key={t} class="est-note">{t}</li>)}
-          </ul>
-          <p class="est-note">
-            {c.preset ? "Com um perfil escolhido o jogo guarda só o nome: quando o perfil melhora, você recebe a versão nova sozinho. " : "Números seus ficam como estão. "}
-            A poção e a magia de cura são recargas diferentes e saem juntas quando precisa.
-          </p>
-          <div class="est-row">
-            <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" />
-            <span class="est-note">com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando</span>
-          </div>
+          <section class="est-section">
+            <h4 class="est-h">Perfil de caça</h4>
+            <div class="est-presets" role="radiogroup" aria-label="Perfil">
+              {PRESETS.map((pr) => (
+                <button
+                  key={pr} role="radio" aria-checked={c.preset === pr} class={`est-preset${c.preset === pr ? " on" : ""}`}
+                  onClick={() => editarRascunho({ preset: pr, perfil: perfilDoPreset(pr, voc) })} data-testid={`est-preset-${pr}`}
+                >
+                  <span class="est-preset-nome">{PRESET_LABEL[pr].nome}{pr === "equilibrado" && <span class="est-badge">padrão</span>}</span>
+                  <span class="est-preset-dica">{PRESET_LABEL[pr].dica}</span>
+                </button>
+              ))}
+              {c.preset === null && (
+                <span class="est-preset on est-preset-proprio" data-testid="est-preset-proprio">
+                  <span class="est-preset-nome">Números seus</span>
+                  <span class="est-preset-dica">escolha um perfil para voltar ao recomendado</span>
+                </span>
+              )}
+            </div>
+          </section>
+          <section class="est-section">
+            <h4 class="est-h">Ajuste fino</h4>
+            <Deslizador label="Emergência" lim={LIMITES.emergencia} value={c.perfil.emergencia} onValor={(v) => setPerfil({ emergencia: v })} testid="est-emergencia" />
+            <Deslizador label="Conforto" lim={LIMITES.conforto} value={c.perfil.conforto} onValor={(v) => setPerfil({ conforto: v })} testid="est-conforto" />
+            <Deslizador label="Reserva de mana" lim={LIMITES.reserva} value={c.perfil.reserva} onValor={(v) => setPerfil({ reserva: v })} testid="est-reserva" />
+            <ul class="est-perfil-desc" data-testid="est-perfil-desc">
+              {descricaoPerfil(c.perfil).map((t) => <li key={t}>{t}</li>)}
+            </ul>
+            <p class="est-note">
+              {c.preset ? "Com um perfil escolhido o jogo guarda só o nome: quando o perfil melhora, você recebe a versão nova sozinho. " : "Números seus ficam como estão. "}
+              Ataque, buffs e distância são os recomendados da sua vocação. A poção e a magia de cura são recargas diferentes e saem juntas quando precisa.
+            </p>
+          </section>
+          <section class="est-section">
+            <div class="est-row">
+              <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" />
+              <span class="est-note">com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando</span>
+            </div>
+          </section>
         </>
+      ) : (
+        <section class="est-section">
+          <h4 class="est-h">Modo avançado</h4>
+          <p class="est-note">Valem as regras das abas Cura, Ataque e Buffs. O perfil do modo simples fica guardado para quando você voltar.</p>
+        </section>
       )}
+      <div class="est-row est-modo-row">
+        <Interruptor label="Modo avançado" on={!simples} onClick={() => editarRascunho({ modo: simples ? "avancado" : "simples" })} testid="est-modo" />
+        <span class="est-note">{simples ? "Prefere montar as regras uma a uma? As abas Cura, Ataque e Buffs aparecem." : "Desligue para voltar ao perfil de três números."}</span>
+      </div>
     </div>
   );
 }
 
 /** Deslizador com o número ao lado (os dois mexem no mesmo valor do rascunho; a faixa só vale no Aplicar). */
 function Deslizador({ label, lim, value, onValor, testid }: { label: string; lim: { lo: number; hi: number }; value: number; onValor: (v: number) => void; testid: string }) {
+  const v = Number.isFinite(value) ? value : lim.lo;
   return (
     <div class="est-slider">
       <span class="est-slider-label">{label}</span>
       <input
-        type="range" min={lim.lo} max={lim.hi} step={1} value={Number.isFinite(value) ? value : lim.lo} aria-label={label}
+        type="range" min={lim.lo} max={lim.hi} step={1} value={v} aria-label={label} style={{ "--pct": `${((v - lim.lo) / (lim.hi - lim.lo)) * 100}%` }}
         onInput={(ev) => onValor(Number(val(ev)))} data-testid={testid}
       />
       <CampoNumero label={`${label} (%)`} lim={lim} value={value} onValor={onValor} />
-      <span>%</span>
+      <span class="est-note">%</span>
     </div>
   );
 }
@@ -481,13 +542,18 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
     salvarConfig(next);
     setRenomear(null);
   };
+  const party = useStore(partyStore);
+  const me = useStore(meStore);
+  const colegas = party ? party.members.filter((m) => m.id !== me?.id) : [];
   return (
     <div class="est-pane">
+      <section class="est-section">
+      <h4 class="est-h">Rotas gravadas</h4>
       <p class="est-note">
-        Grave andando pela caça. Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê (ataque ligado), pega o loot pelo
-        seu loot automático e volta ao começo no fim. Gasta turno; se você se mexer, pausa 10 s.
+        Grave andando pela caça. Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê, pega o loot pelo seu loot
+        automático e volta ao começo no fim. Gasta turno; se você se mexer, pausa 10 s.
       </p>
-      {c.rotas.length === 0 && !e.gravando && <div class="est-empty">Nenhuma rota gravada.</div>}
+      {c.rotas.length === 0 && !e.gravando && <div class="est-empty">Nenhuma rota gravada ainda. Aperte "Gravar" e ande pela caça.</div>}
       <ul class="est-routes">
         {c.rotas.map((r) => {
           const ativa = e.rota === r.nome;
@@ -533,13 +599,46 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
         </div>
       ) : (
         <div class="est-row">
-          <button class="est-btn" onClick={() => gravar({ acao: "iniciar" })} disabled={e.rota !== null} data-testid="est-gravar" data-tip={e.rota !== null ? "Desligue a rota para gravar outra" : undefined}>
+          <button
+            class="est-btn" onClick={() => gravar({ acao: "iniciar" })} disabled={e.rota !== null || e.seguindo !== null} data-testid="est-gravar"
+            data-tip={e.rota !== null ? "Desligue a rota para gravar outra" : e.seguindo ? "Pare de seguir para gravar" : undefined}
+          >
             ● Gravar
           </button>
           <span class="est-note">{c.rotas.length}/{ROTAS_MAX} rotas{c.rotas.length >= ROTAS_MAX ? " (salvar com o nome de uma existente substitui)" : ""}</span>
         </div>
       )}
       {erro && <div class="est-err" role="alert">{erro}</div>}
+      </section>
+      <section class="est-section">
+        <h4 class="est-h">Caçar com um colega</h4>
+        <p class="est-note">
+          O Estagiário anda atrás de um colega do seu grupo, mata o que aparece (o alvo dele primeiro) e para se ele morrer, sair do grupo
+          ou sumir. Gasta turno como a rota. Quem lidera com uma rota espera você chegar.
+        </p>
+        {!party ? (
+          <div class="est-empty" data-testid="est-sem-grupo">Você não está num grupo. Clique com o botão direito num colega e escolha "Convidar para o grupo".</div>
+        ) : colegas.length === 0 ? (
+          <div class="est-empty">Só você no grupo por enquanto.</div>
+        ) : (
+          <ul class="est-routes">
+            {colegas.map((m) => {
+              const seguindo = e.seguindo?.id === m.id;
+              const v = vocationMeta(m.vocation);
+              return (
+                <li key={m.id} class={`est-route est-colega${seguindo ? " on" : ""}`}>
+                  <img class="est-colega-face" src={v.faceset} alt="" width={19} height={19} />
+                  <span class="est-route-name">{m.name}</span>
+                  <span class="est-route-pts"><span style={{ color: v.color }}>{v.label}</span> · lv {m.level}</span>
+                  {seguindo
+                    ? <button class="est-btn est-stop" onClick={() => ligar({ seguir: null })} data-testid="est-parar-seguir">Parar de seguir</button>
+                    : <button class="est-btn" onClick={() => ligar({ seguir: m.id })} disabled={e.gravando} data-testid={`est-seguir-${m.name}`}>Seguir</button>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -561,21 +660,30 @@ function CampoNome({ label, value, onInput, onEnter, testid }: { label: string; 
 /** As últimas decisões do servidor, a mais nova em cima (v3: "por que ele não usou pote?" se responde aqui). */
 function AbaDiario() {
   const diario = useStore(diarioStore);
-  const linhas = useMemo(() => [...diario].reverse(), [diario]);
+  const [filtro, setFiltro] = useState<Filtro>("tudo");
+  const canais = FILTROS.find((f) => f.id === filtro)?.canais ?? [];
+  const linhas = useMemo(() => [...diario].reverse().filter((l) => !canais.length || canais.includes(l.canal)), [diario, filtro]);
   return (
     <div class="est-pane">
       <p class="est-note">
         As últimas {DIARIO_MAX} decisões do Estagiário nesta sessão: cada cura, poção, buff e comida, por que ele esperou (poção em
         recarga, magia sem mana, nenhuma poção que você possa beber), a rota e os alarmes.
       </p>
+      <div class="est-chips" role="radiogroup" aria-label="Mostrar">
+        {FILTROS.map((f) => (
+          <button key={f.id} role="radio" aria-checked={filtro === f.id} class={`est-chip${filtro === f.id ? " on" : ""}`} onClick={() => setFiltro(f.id)} data-testid={`est-diario-${f.id}`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
       {linhas.length === 0 ? (
-        <div class="est-empty">Nada ainda.</div>
+        <div class="est-empty">{diario.length === 0 ? "Nada ainda. Ligue a Cura, o Ataque ou uma rota e as decisões aparecem aqui." : "Nada neste filtro."}</div>
       ) : (
         <ul class="est-diario" data-testid="est-diario">
           {linhas.map((l: DiarioItem, i) => (
             <li key={`${l.t}-${linhas.length - i}`} class={`est-diario-linha est-diario-${l.canal}`}>
               <span class="est-diario-hora">{fmtHora(l.t)}</span>
-              <span class="est-diario-canal">{CANAL_LABEL[l.canal]}</span>
+              <span class="est-diario-canal"><span class="est-diario-dot" aria-hidden="true" />{CANAL_LABEL[l.canal]}</span>
               <span class="est-diario-texto">{l.texto}</span>
             </li>
           ))}

@@ -153,3 +153,43 @@ número ao lado; a faixa vale no Aplicar: emergência 5–60, conforto 10–90 e
 0–60), a descrição do que o bot faz com os números (`descricaoPerfil`) e "Comer sozinho". As abas Cura, Ataque e Buffs
 só aparecem no avançado (voltar ao simples com uma delas aberta cai no Perfil). O rascunho (`Rascunho`) ganha `modo`,
 `preset` e `perfil`; mexer num deslizador zera o preset (senão o servidor guardaria os números do preset, não os seus).
+
+## 10. Caçar com amigo (2026-11-02)
+
+Dono: "Tem como colocar alguma opção para caçar com amigo?". A base já existia (grupo com XP compartilhada e loot
+dividido; "Seguir um jogador" pelo clique direito; o Estagiário já olhava o grupo na cura em grupo e no alarme de jogador
+perto). Decisões do dono: **gasta turno** como a rota (é caça sem ninguém no teclado, com crachá e acompanhante); **só no
+mesmo grupo** (onde XP e loot já se dividem); o seguidor **prefere o alvo do colega** (se ao alcance da busca; senão o
+mais perto); o **líder com rota espera**.
+
+- **Protocolo**: `EstagiarioToggleMsg.seguir` (id do colega | null); `EstagiarioEstadoMsg.seguindo { id, nome } | null`;
+  alarme novo `colega`.
+- **Servidor** (`ligarSeguir` / `pararSeguir` / `tickSeguir` / `andarSeguindo`): validações (vivo, no jogo, mesmo grupo,
+  a até `SEGUIR_MAX_TILES` = 15, turno, não gravando); liga como a rota (crachá, acompanhante, perseguição forçada com
+  "manter distância"), um ou outro (a rota desliga o seguir e vice-versa). Sem alvo, `fight.follow` (o seguir do
+  FightMode, sem aviso); com alvo vivo, `cancelFollow` — senão o seguir ganharia da perseguição no tick do FightMode — e
+  o recuo de "manter distância" vale. Para com alarme se o colega morre, sai do grupo, sai do jogo ou fica a mais de 15
+  tiles por `SEGUIR_SUMIU_MS` = 10 s (motivo "Fulano está longe" enquanto isso); morrer, cair e o Coliseu também param;
+  a zona de proteção não (o colega foi ao depot e volta). Pausa por movimento manual/NPC como a rota
+  (`acompanharPausa`, comum às duas). `alvoDoColega`: o monstro selvagem que o colega mira, a até `BUSCA_TILES`, não
+  largado, vence o "mais perto".
+- **Líder espera** (`esperarSeguidores`, chamado em `andar` antes da progressão dos pontos): com seguidores vivos do
+  grupo a mais de `ESPERAR_TILES` = 8, a rota para de andar (segue lutando e curando) até todos estarem a até
+  `ESPERAR_PERTO_TILES` = 4; desiste depois de `ESPERAR_MAX_MS` = 30 s por vez (um seguidor preso não prende a rota) e
+  só espera de novo depois de todos chegarem perto; o relógio de "ponto travado" não anda enquanto espera. Motivo
+  "esperando Fulano"; diário "esperando" / "cansou de esperar".
+- **Cliente**: seção "Caçar com um colega" na aba Rota (lista do grupo com retrato, vocação e level; Seguir / Parar de
+  seguir; sem grupo, o aviso explica o convite pelo clique direito); cabeçalho "Seguindo Fulano"; resumo no trilho.
+- Fica para depois (ES-17): voltar a pé depois de um teleporte do colega; a espera em comboio de três.
+
+## 11. A janela repensada (dono: "uma interfacezinha melhor com as melhores práticas de ui/ux")
+
+Princípios aplicados (`estagiario.css`, `EstagiarioWindow.tsx`): hierarquia — o estado (o que roda, pausa, ponto, motivo)
+é a primeira linha do cabeçalho, com o botão **Parar** ao lado e o turno como barra de progresso com números
+tabulares; os interruptores vêm embaixo com a dica "ligada pela rota / pelo colega". Seções com título em cada aba
+(Perfil de caça / Ajuste fino; Rotas gravadas / Caçar com um colega). Cartões de preset com nome, dica à vista e o selo
+"padrão" no Equilibrado (rádio acessível). "Modo avançado" deixa de ser a primeira coisa da aba e vira a última linha.
+Diário com chips de filtro e um ponto colorido por canal; contador de linhas novas na aba. Estados vazios que dizem o
+que fazer. Foco visível pelo teclado em tudo que se clica; transições só nas propriedades que mudam (nunca `all`);
+escala 0,96 ao apertar; `text-wrap: pretty` nas notas; `prefers-reduced-motion` desliga animações e transições;
+retratos com contorno de 1 px a 10 % de branco. Os ids de teste existentes foram mantidos.

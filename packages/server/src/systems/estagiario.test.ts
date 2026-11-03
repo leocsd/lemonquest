@@ -1,13 +1,15 @@
 // Estagiário no servidor: cura, ataque, turno, liga/desliga da rota, pausas, gravação e caminhada da rota.
 import { describe, expect, it, vi } from "vitest";
 import {
-  BUSCA_TILES, DIARIO_MAX, Dir, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS,
+  BUSCA_TILES, DIARIO_MAX, Dir, ESPERAR_MAX_MS, ESPERAR_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, SEGUIR_SUMIU_MS, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS,
   estagiarioPadrao,
   type EstagiarioConfig, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
   type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { CARENCIA_LOGIN_MS, DIARIO_CURA_OFF_MS, DIARIO_ESPERA_MS, EstagiarioSystem } from "./estagiario.ts";
+/** Busca com alvo vivo a cada 400 ms (BUSCA_MS do sistema): um tick de folga. */
+const BUSCA_MS_TESTE = 450;
 import { FightModeSystem } from "./fightmode.ts";
 import { MovementSystem } from "./movement.ts";
 import { def, grid, openGrid, player, world } from "./testkit.ts";
@@ -105,6 +107,9 @@ function setup(o: SetupOpts = {}) {
     },
     forceChase: (id: string, on: boolean, parar?: number) => { calls.push(parar !== undefined && parar > 1 ? ["chase", id, on, parar] : ["chase", id, on]); },
     resume: (id: string) => { calls.push(["resume", id]); },
+    // v3 (caçar com amigo): o seguir do FightMode, como o real (followId no jogador).
+    follow: (pl: PlayerState, id: string) => { if (pl.followId !== id) { pl.followId = id; calls.push(["follow", id]); } },
+    cancelFollow: (pl: PlayerState) => { if (pl.followId) { pl.followId = ""; calls.push(["unfollow"]); } },
   };
   /** Donos com acompanhante no mundo (o teste pode tirar um, como o Coliseu faz ao sair). */
   const acompanhantes = new Set<string>();
@@ -136,7 +141,7 @@ function setup(o: SetupOpts = {}) {
     movement: o.andar ? mv : { isIdle: () => mov.livre, pathFor: () => null, follow: () => "ok" },
     companions, npcOpen: () => npc.aberto, spellGroups: () => o.groups ?? [],
     players: () => w.players.values(), send: (to, type, msg) => sent.push({ to, type, msg }),
-    sameParty: (a, b) => a === "p" && (o.grupo ?? []).includes(b),
+    sameParty: (a, b) => (a === "p" && (o.grupo ?? []).includes(b)) || (b === "p" && (o.grupo ?? []).includes(a)),
     isPortalTile: (x, y) => (o.portalTiles ?? []).includes(`${x},${y}`),
     inCombat: () => combate.em ?? !!w.mm.wild(p.targetId),
     invocacoes: () => invoc.n,
@@ -1787,5 +1792,144 @@ describe("Estagiário v3: diário de decisões", () => {
     w2.sys.onToggle(w2.p, { rota: "Ratos" });
     w2.tick(TICK_MS * 3);
     expect(w2.sys.diario("p").map((i) => i.texto)).toContain('rota "Ratos" desligada: o turno acabou');
+  });
+});
+
+describe("Estagiário v3: caçar com amigo (seguir um colega do grupo)", () => {
+  /** Um colega "q" a 2 tiles do "p", no grupo (ou não), vivo. */
+  const comColega = (o: Parameters<typeof setup>[0] = {}, grupo = true) => {
+    const w = setup({ ...o, grupo: grupo ? ["q", ...(o.grupo ?? [])] : o.grupo });
+    w.pot.qtd = { hp: 20, mana: 20 }; // acima do mínimo do alarme de poção (não é ele que está em teste)
+    const q = w.add(player("q", 12, 10, { vocation: "druid", level: 20, hp: 150, maxHp: 150, mana: 100, maxMana: 100, name: "Quico" }));
+    w.mm.playerList = [...w.players.values()];
+    w.mv.addPlayer(q);
+    return { ...w, q };
+  };
+
+  it("só colega do grupo, vivo e a até SEGUIR_MAX_TILES; liga crachá, acompanhante e perseguição forçada; o estado mostra quem", () => {
+    const w = comColega({}, false);
+    w.sys.onToggle(w.p, { seguir: "q" });
+    expect(w.p.bot).toBe(false);
+    expect(w.notices().at(-1)).toContain("grupo");
+    const w2 = comColega();
+    w2.q.hp = 0;
+    w2.sys.onToggle(w2.p, { seguir: "q" });
+    expect(w2.p.bot).toBe(false);
+    w2.q.hp = 150;
+    w2.q.x = 30;
+    w2.sys.onToggle(w2.p, { seguir: "q" });
+    expect(w2.p.bot).toBe(false);
+    expect(w2.notices().at(-1)).toContain("Chegue perto");
+    w2.q.x = 12;
+    w2.sys.onToggle(w2.p, { seguir: "q" });
+    expect(w2.p.bot).toBe(true);
+    expect(w2.of("spawn")).toHaveLength(1);
+    expect(w2.of("chase").at(-1)).toEqual(["chase", "p", true]);
+    expect(w2.estados().at(-1)).toMatchObject({ seguindo: { id: "q", nome: "Quico" }, rota: null, cura: true, ataque: true, buffs: true });
+    expect(w2.sys.diario("p").map((i) => i.texto)).toContain("seguindo Quico");
+    // Seguir a si mesmo ou alguém que não existe: nada.
+    w2.sys.onToggle(w2.p, { seguir: "p" });
+    w2.sys.onToggle(w2.p, { seguir: "ninguem" });
+    expect(w2.estados().at(-1)!.seguindo).toEqual({ id: "q", nome: "Quico" });
+  });
+
+  it("sem alvo anda atrás do colega (follow); com alvo a perseguição manda (cancela o follow) e o alvo do colega vem primeiro", () => {
+    const w = comColega({ ratos: [{ x: 14, y: 10 }, { x: 18, y: 10 }] });
+    const [perto, longe] = [...w.mm.all()].sort((a, b) => a.s.x - b.s.x);
+    w.sys.onToggle(w.p, { seguir: "q" });
+    w.tick();
+    expect(w.of("follow")).toEqual([["follow", "q"]]);
+    expect(w.p.followId).toBe("q");
+    // O colega mira o rato mais longe: o seguidor vai nele, não no mais perto.
+    w.q.targetId = longe!.s.id;
+    w.luta.alvo = perto!.s.id;
+    w.tick(BUSCA_MS_TESTE);
+    expect(w.p.targetId).toBe(longe!.s.id);
+    expect(w.of("unfollow")).toHaveLength(1);
+    expect(w.p.followId).toBe("");
+    // Rato morto: volta a seguir.
+    longe!.s.hp = 0; w.q.targetId = ""; w.luta.alvo = "";
+    w.tick(1000);
+    expect(w.p.followId).toBe("q");
+  });
+
+  it("desliga com alarme 'colega' quando ele morre, sai do grupo, sai do jogo ou fica longe por SEGUIR_SUMIU_MS; o seguir gasta turno", () => {
+    const alarmes = (w: ReturnType<typeof comColega>) => w.sent.filter((s) => s.type === S2C.EstagiarioAlarme).map((s) => s.msg.tipo);
+    const w = comColega();
+    w.sys.onToggle(w.p, { seguir: "q" });
+    const t0 = w.sys.estado(w.p).turnoMs;
+    w.tick(2000);
+    expect(w.sys.estado(w.p).turnoMs).toBeLessThan(t0);
+    w.q.hp = 0;
+    w.tick();
+    expect(w.sys.estado(w.p).seguindo).toBeNull();
+    expect(w.p.bot).toBe(false);
+    expect(alarmes(w)).toEqual(["colega"]);
+    expect(w.sys.diario("p").map((i) => i.texto)).toContain("parou de seguir Quico: Quico morreu");
+
+    const w2 = comColega();
+    w2.sys.onToggle(w2.p, { seguir: "q" });
+    w2.q.x = 30; // longe: aguenta SEGUIR_SUMIU_MS antes de desistir
+    w2.tick(SEGUIR_SUMIU_MS - TICK_MS);
+    expect(w2.sys.estado(w2.p).seguindo).not.toBeNull();
+    expect(w2.sys.estado(w2.p).motivo).toBe("Quico está longe");
+    w2.q.x = 12; // voltou a tempo
+    w2.tick();
+    w2.q.x = 30;
+    w2.tick(SEGUIR_SUMIU_MS + TICK_MS);
+    expect(w2.sys.estado(w2.p).seguindo).toBeNull();
+    expect(alarmes(w2)).toEqual(["colega"]);
+
+    const w3 = comColega();
+    w3.sys.onToggle(w3.p, { seguir: "q" });
+    w3.players.delete("q"); // saiu do jogo
+    w3.tick();
+    expect(w3.sys.estado(w3.p).seguindo).toBeNull();
+  });
+
+  it("um ou outro: ligar a rota para de seguir e vice-versa; morrer e a queda param de seguir; gravar não começa seguindo", () => {
+    const w = comColega({ saved: { config: comRota() } });
+    w.sys.onToggle(w.p, { seguir: "q" });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    expect(w.sys.estado(w.p)).toMatchObject({ rota: "Ratos", seguindo: null });
+    w.sys.onToggle(w.p, { seguir: "q" });
+    expect(w.sys.estado(w.p)).toMatchObject({ rota: null, seguindo: { id: "q" } });
+    w.sys.onGravar(w.p, { acao: "iniciar" });
+    expect(w.sys.estado(w.p).gravando).toBe(false);
+    w.sys.onDied(w.p);
+    expect(w.sys.estado(w.p).seguindo).toBeNull();
+    w.sys.onToggle(w.p, { seguir: "q" });
+    w.sys.desligarTudo(w.p);
+    expect(w.sys.estado(w.p).seguindo).toBeNull();
+    expect(w.p.bot).toBe(false);
+  });
+
+  it("o líder com rota espera o seguidor longe (motivo 'esperando'), volta quando ele chega e desiste depois de ESPERAR_MAX_MS", () => {
+    const w = comColega({ saved: { config: comRota() }, andar: true });
+    w.sys.load(w.q, { config: { modo: "avancado" } } as never);
+    w.sys.onToggle(w.q, { seguir: "p" });
+    expect(w.sys.estado(w.q).seguindo).toEqual({ id: "p", nome: w.p.name });
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    w.q.x = 10 + ESPERAR_TILES + 2; w.q.y = 20; // longe do líder
+    const x0 = w.p.x;
+    w.tick(2000);
+    expect(w.p.x).toBe(x0); // não andou
+    expect(w.sys.estado(w.p).motivo).toBe("esperando Quico");
+    w.q.x = w.p.x + 2; w.q.y = w.p.y; // chegou
+    w.tick(2000);
+    expect(w.p.x).not.toBe(x0);
+    expect(w.sys.estado(w.p).motivo).not.toContain("esperando");
+    // Preso a 12 tiles (dentro do alcance do seguir, longe demais para a rota): depois de ESPERAR_MAX_MS a rota segue.
+    // (O passo que já estava em curso termina antes de medir.)
+    w.q.x = w.p.x + 12; w.q.y = w.p.y;
+    w.tick(500);
+    const x1 = w.p.x;
+    w.tick(ESPERAR_MAX_MS - 2000);
+    expect(w.p.x).toBe(x1);
+    // Voltou a andar: passa por mais de um tile (a posição no fim é caótica — a rota é um circuito curto).
+    w.visitados.clear();
+    w.tick(3000);
+    expect(w.visitados.size).toBeGreaterThan(1);
+    expect(w.sys.diario("p").map((i) => i.texto)).toContain("cansou de esperar Quico: segue a rota");
   });
 });

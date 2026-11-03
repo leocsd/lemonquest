@@ -1,5 +1,29 @@
 # Changelog
 
+## [Não lançado] — 2026-11-02 · Estagiário: caçar com amigo e a janela repensada
+
+Dono: "Tem como colocar alguma opção para caçar com amigo?" (decisões: gasta turno; só no mesmo grupo; o seguidor
+prefere o alvo do colega; o líder com rota espera) e "uma interfacezinha melhor com as melhores práticas de ui/ux".
+- **Seguir um colega** (aba Rota, seção "Caçar com um colega"; `EstagiarioToggleMsg.seguir`): o Estagiário anda atrás
+  de um colega do mesmo grupo (o "seguir" do FightMode sem alvo; com alvo a perseguição forçada manda e o recuo de
+  "manter distância" vale), mata o que aparece preferindo o **alvo do colega** (`alvoDoColega`), com crachá,
+  acompanhante e turno como a rota (um ou outro). Para, com o alarme novo **"colega"**, se ele morre, sai do grupo, sai
+  do jogo ou fica a mais de 15 tiles por 10 s (`SEGUIR_MAX_TILES`, `SEGUIR_SUMIU_MS`); morrer, cair e o Coliseu também
+  param. A zona de proteção não desliga (o colega foi ao depot e volta).
+- **O líder espera** (`esperarSeguidores`): quem roda uma rota com seguidores do grupo para de andar (segue lutando e
+  curando) enquanto um seguidor vivo está a mais de 8 tiles, volta com todos a até 4 e desiste depois de 30 s por vez
+  (`ESPERAR_TILES`, `ESPERAR_PERTO_TILES`, `ESPERAR_MAX_MS`); motivo "esperando Fulano" e linhas no diário.
+- **Janela repensada** (`EstagiarioWindow.tsx`, `estagiario.css`): cabeçalho com o estado em primeiro lugar (Rota X /
+  Seguindo Fulano / Gravando / Parado, pausa, ponto e o motivo embaixo), botão **Parar** à mão, turno como barra com o
+  tempo em números tabulares, interruptores com "ligada pela rota / pelo colega"; aba Perfil com cartões de preset (nome,
+  dica e o selo "padrão") e seções "Perfil de caça" / "Ajuste fino"; "Modo avançado" vira a última linha; aba Rota com
+  seções "Rotas gravadas" e "Caçar com um colega" (retrato, vocação, level, Seguir / Parar de seguir; estado vazio
+  explica como convidar); Diário com chips de filtro (Tudo / Cura e poção / Rota / Buffs e comida / Avisos), ponto
+  colorido por canal e contador de linhas novas na aba; foco visível pelo teclado em tudo, transições só nas
+  propriedades que mudam, escala 0,96 ao apertar, `text-wrap: pretty` nas notas, `prefers-reduced-motion` respeitado.
+- E2E novo `e2e/estagiarioGrupo.spec.ts` (dois clientes: sem grupo a aba explica; grupo pelo clique direito; Seguir liga
+  o crachá; o colega se afasta e o seguidor chega ao lado; Parar de seguir).
+
 ## [Não lançado] — 2026-11-02 · Estagiário v3, etapas 2–4: canais, perfil por nome e modo simples
 
 Dono: "Faça as etapas 2 a 4" da abordagem nova (`docs/superpowers/specs/2026-11-02-estagiario-v3-abordagem.md`).
