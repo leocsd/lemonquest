@@ -53,7 +53,7 @@ const ALARME_LABEL: Record<AlarmeTipo, { nome: string; quando: string }> = {
   turno: { nome: "Turno acabando", quando: "faltam 5 min de turno" },
   mochila: { nome: "Mochila cheia", quando: "o loot não coube e ficou no chão" },
   morte: { nome: "Você morreu", quando: "sempre avisa (não desliga)" },
-  colega: { nome: "Colega seguido", quando: "ele morreu, saiu do grupo, saiu do jogo ou sumiu: parou de seguir" },
+  colega: { nome: "Colega seguido", quando: "ele morreu, saiu do grupo ou saiu do jogo (parou de seguir), ou sumiu de vista (continua procurando)" },
 };
 
 const PAUSA_LABEL: Record<string, string> = { manual: "pausada: você se mexeu", npc: "pausada: conversa com NPC" };
@@ -613,8 +613,8 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
       <section class="est-section">
         <h4 class="est-h">Caçar com um colega</h4>
         <p class="est-note">
-          O Estagiário anda atrás de um colega do seu grupo, mata o que aparece (o alvo dele primeiro) e para se ele morrer, sair do grupo
-          ou sumir. Gasta turno como a rota. Quem lidera com uma rota espera você chegar.
+          O Estagiário anda atrás de um colega do seu grupo, mata o que aparece (o alvo dele primeiro) e para se ele morrer ou sair do grupo.
+          Se ele sumir de vista, vai aonde o viu por último (entra no portal que ele pegou) e volta a segui-lo ao reencontrá-lo. Gasta turno como a rota. Quem lidera com uma rota espera você chegar.
         </p>
         {!party ? (
           <div class="est-empty" data-testid="est-sem-grupo">Você não está num grupo. Clique com o botão direito num colega e escolha "Convidar para o grupo".</div>

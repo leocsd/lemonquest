@@ -106,7 +106,9 @@ export const BUSCA_TILES = 12;
 export const ALARMES: readonly AlarmeTipo[] = ["pocao", "vidaBaixa", "jogador", "atacado", "privada", "turno", "mochila", "morte", "colega"];
 /**
  * Caçar com amigo (v3, decisões do dono em 2026-11-02: gasta turno; só no mesmo grupo; o seguidor prefere o alvo do
- * colega; o líder com rota espera). O colega a mais que isto (ou sem caminho) por SEGUIR_SUMIU_MS desliga o seguir.
+ * colega; o líder com rota espera). O colega a mais que isto está perdido: o seguidor vai aonde o viu por último (ou ao
+ * portal que ele pegou) e retoma o follow ao reencontrá-lo (dono, 2026-11-05: não desliga); perdido por SEGUIR_SUMIU_MS,
+ * o alarme "colega" avisa uma vez.
  */
 export const SEGUIR_MAX_TILES = 15;
 export const SEGUIR_SUMIU_MS = 10_000;

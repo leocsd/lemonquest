@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-05",
+    date: "5 de novembro",
+    title: "Estagiário: caçar com amigo mais esperto",
+    items: [
+      "Seguindo um colega, o ataque automático (F8) não troca mais o alvo dele pelo bicho mais perto: o Estagiário decide.",
+      "Perdeu o colega de vista? O Estagiário vai até onde o viu por último (entra no portal que ele pegou) e volta a segui-lo sozinho, sem desligar.",
+    ],
+  },
+  {
     id: "2026-11-02c",
     date: "2 de novembro",
     title: "Estagiário v3: caçar com amigo, modo simples, Cura que fica ligada e um diário",

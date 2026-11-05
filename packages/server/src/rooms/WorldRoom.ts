@@ -414,6 +414,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       getPlayer, send,
       // O Estagiário é criado logo abaixo; só é consultado durante o tick.
       ignorado: (pid, mid) => this.estagiario?.ignorado(pid, mid) ?? false,
+      botMira: (pid) => this.estagiario?.mirando(pid) ?? false,
     });
     this.estagiario = new EstagiarioSystem({
       spells: this.spells, potions: this.inventory, fight: this.fight, monsters: this.monsters, movement: this.movement,

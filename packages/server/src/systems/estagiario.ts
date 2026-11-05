@@ -204,8 +204,16 @@ interface Estado {
   /** v3 (caçar com amigo): id e nome do colega de grupo seguido (exclui a rota: um ou outro). */
   seguindo: string | null;
   seguindoNome: string;
-  /** Desde quando o colega está a mais de SEGUIR_MAX_TILES ou sem caminho (0 = perto); SEGUIR_SUMIU_MS desliga. */
+  /** Desde quando o colega está a mais de SEGUIR_MAX_TILES (0 = perto); SEGUIR_SUMIU_MS → alarme "colega" (uma vez). */
   colegaLongeDesde: number;
+  /**
+   * Onde o colega foi visto por último a até SEGUIR_MAX_TILES — ou o portal que ele pegou (o salto saiu de perto). Perdido,
+   * o seguidor vai até lá (pisar no portal o leva junto) e retoma o follow quando o reencontra.
+   */
+  colegaVisto: Point | null;
+  /** Posição do colega no tick anterior (para ver o salto de portal) e se o alarme desta perda já tocou. */
+  colegaPos: Point;
+  colegaAlarmado: boolean;
   /** Líder com rota esperando um seguidor longe: desde quando e quem (0/"" = ninguém). */
   esperandoDesde: number;
   esperandoQuem: string;
@@ -239,7 +247,7 @@ export class EstagiarioSystem {
       grav: null, gravPos: { x: p.x, y: p.y },
       pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, comeuEm: 0, retomar: false, pararEnviado: 0, avisos: avisosNovos(),
       suspenso: false, carenciaAte: algo ? now + CARENCIA_LOGIN_MS : 0, diario: [], diarioNovos: [], diarioTudo: false, esperaAnotadaEm: 0, curaOffAnotadaEm: 0,
-      seguindo: null, seguindoNome: "", colegaLongeDesde: 0, esperandoDesde: 0, esperandoQuem: "",
+      seguindo: null, seguindoNome: "", colegaLongeDesde: 0, colegaVisto: null, colegaPos: { x: -1, y: -1 }, colegaAlarmado: false, esperandoDesde: 0, esperandoQuem: "",
     });
   }
 
@@ -323,6 +331,9 @@ export class EstagiarioSystem {
     s.seguindo = id;
     s.seguindoNome = c.name;
     s.colegaLongeDesde = 0;
+    s.colegaVisto = { x: c.x, y: c.y };
+    s.colegaPos = { x: c.x, y: c.y };
+    s.colegaAlarmado = false;
     s.lutando = false;
     s.lutaOrigem = null;
     s.lutaFimEm = 0;
@@ -348,6 +359,8 @@ export class EstagiarioSystem {
     s.seguindo = null;
     s.seguindoNome = "";
     s.colegaLongeDesde = 0;
+    s.colegaVisto = null;
+    s.colegaAlarmado = false;
     s.ignorados.clear();
     s.alvoId = "";
     s.alvoAnterior = "";
@@ -530,7 +543,7 @@ export class EstagiarioSystem {
     if (caca && s.pausa === "manual") return "pausado: você está jogando";
     if (caca && s.pausa === "npc") return "pausado: conversa com NPC";
     if (s.rota && s.esperandoDesde > 0) return `esperando ${s.esperandoQuem}`;
-    if (s.seguindo && s.colegaLongeDesde) return `${s.seguindoNome} está longe`;
+    if (s.seguindo && s.colegaLongeDesde) return `procurando ${s.seguindoNome}`;
     if (!this.ataqueLigado(s) || p.hp <= 0) return "";
     if (p.targetId && !this.o.monsters.wild(p.targetId) && this.ehJogador(p.targetId)) return "mirando um jogador";
     if (s.rota && now < s.travadoAte) return "ponto travado, pulando";
@@ -696,9 +709,11 @@ export class EstagiarioSystem {
   }
 
   /**
-   * Caçar com amigo, a cada tick: o colega tem de continuar vivo, no jogo, no grupo e a até SEGUIR_MAX_TILES (longe por
-   * SEGUIR_SUMIU_MS desliga, com alarme "colega"); a zona de proteção não desliga (o colega foi ao depot e volta). Gasta
-   * turno como a rota.
+   * Caçar com amigo, a cada tick: o colega tem de continuar vivo, no jogo e no grupo (senão desliga, com alarme
+   * "colega"). Longe (mais de SEGUIR_MAX_TILES: correu, pegou um portal) não desliga (dono, 2026-11-05: "volta a dar
+   * follow automaticamente"): o seguidor vai até onde o viu por último e retoma ao reencontrá-lo; perdido por
+   * SEGUIR_SUMIU_MS, o alarme "colega" avisa uma vez. A zona de proteção não desliga (o colega foi ao depot e volta).
+   * Gasta turno como a rota.
    */
   private tickSeguir(p: PlayerState, s: Estado, now: number): void {
     const c = this.jogador(s.seguindo!);
@@ -706,10 +721,7 @@ export class EstagiarioSystem {
     if (!c) { desliga(`${s.seguindoNome} saiu do jogo`); return; }
     if (c.hp <= 0) { desliga(`${s.seguindoNome} morreu`); return; }
     if (!this.o.sameParty?.(p.id, c.id)) { desliga(`${s.seguindoNome} não está mais no seu grupo`); return; }
-    if (cheb(p.x, p.y, c.x, c.y) > SEGUIR_MAX_TILES) {
-      if (!s.colegaLongeDesde) s.colegaLongeDesde = now;
-      else if (now - s.colegaLongeDesde >= SEGUIR_SUMIU_MS) { desliga(`${s.seguindoNome} sumiu`); return; }
-    } else s.colegaLongeDesde = 0;
+    this.rastrearColega(p, s, c, now);
     if (p.hp > 0 && !this.o.monsters.inPz(p.x, p.y) && !this.o.companions.companionOf(p.id)) this.o.companions.spawnCompanion(p, now);
     this.acompanharPausa(p, s, now);
     if (!this.rodando(s)) return;
@@ -723,6 +735,34 @@ export class EstagiarioSystem {
       return;
     }
     if (now - s.estadoEm >= ESTADO_PERIODICO_MS) this.enviarEstado(p, now);
+  }
+
+  /**
+   * Onde procurar o colega: perto, o lugar dele; saiu de perto num salto (portal), o portal (o tile para onde ele olhava,
+   * como na gravação de rota); saiu andando ou por teleporte sem portal (templo, viagem de NPC), o último tile visto.
+   */
+  private rastrearColega(p: PlayerState, s: Estado, c: PlayerState, now: number): void {
+    const antes = s.colegaPos;
+    s.colegaPos = { x: c.x, y: c.y };
+    if (cheb(p.x, p.y, c.x, c.y) <= SEGUIR_MAX_TILES) {
+      if (s.colegaLongeDesde) this.anotar(s, now, "rota", `reencontrou ${s.seguindoNome}`);
+      s.colegaLongeDesde = 0;
+      s.colegaAlarmado = false;
+      s.colegaVisto = { x: c.x, y: c.y };
+      return;
+    }
+    if (cheb(antes.x, antes.y, c.x, c.y) > 1 && cheb(p.x, p.y, antes.x, antes.y) <= SEGUIR_MAX_TILES) {
+      const portal = this.portalDoSalto(c, antes);
+      if (portal) s.colegaVisto = portal;
+      s.caminhoAlvo = -1; // destino novo: recalcula o caminho
+    }
+    if (!s.colegaLongeDesde) {
+      s.colegaLongeDesde = now;
+      this.anotar(s, now, "rota", `perdeu ${s.seguindoNome} de vista: indo aonde o viu por último`);
+    } else if (!s.colegaAlarmado && now - s.colegaLongeDesde >= SEGUIR_SUMIU_MS) {
+      s.colegaAlarmado = true;
+      this.alarme(p, "colega", `Estagiário: perdeu ${s.seguindoNome} de vista; continua procurando.`);
+    }
   }
 
   /**
@@ -741,6 +781,13 @@ export class EstagiarioSystem {
     }
     if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
     if (s.lutando) { s.lutando = false; s.lutaFimEm = now; }
+    // Colega perdido: o follow do FightMode desistiria (longe demais) com aviso a cada tick; anda até onde o viu por último.
+    if (s.colegaLongeDesde) {
+      if (p.followId) this.o.fight.cancelFollow(p);
+      const v = s.colegaVisto;
+      if (v && (p.x !== v.x || p.y !== v.y)) this.passo(p, s, v, now, -2);
+      return;
+    }
     if (p.followId !== s.seguindo) this.o.fight.follow(p, s.seguindo!);
   }
 
@@ -1136,13 +1183,14 @@ export class EstagiarioSystem {
     return false;
   }
 
-  private passo(p: PlayerState, s: Estado, alvo: PontoRota, now: number): void {
+  /** `chave`: o destino do caminho guardado (o índice do ponto da rota; -2 = o lugar onde o colega foi visto). */
+  private passo(p: PlayerState, s: Estado, alvo: Point, now: number, chave = s.indice): void {
     const mv = this.o.movement;
     if (!mv.isIdle(p, now)) return;
-    if (s.caminhoAlvo !== s.indice || (now - s.caminhoEm >= CAMINHO_MS && !s.caminho?.length)) {
+    if (s.caminhoAlvo !== chave || (now - s.caminhoEm >= CAMINHO_MS && !s.caminho?.length)) {
       s.caminho = mv.pathFor(p, { x: alvo.x, y: alvo.y });
       s.caminhoEm = now;
-      s.caminhoAlvo = s.indice;
+      s.caminhoAlvo = chave;
     }
     const next = s.caminho?.[0];
     if (!next) return;
@@ -1200,6 +1248,15 @@ export class EstagiarioSystem {
   ignorado(playerId: string, monsterId: string): boolean {
     const s = this.st.get(playerId);
     return !!s && this.ignoradoEm(s, monsterId, this.now());
+  }
+
+  /**
+   * O Estagiário escolhe o alvo deste jogador agora (a mesma condição da busca em `atacar`): o ataque automático (F8)
+   * cede a vez, senão trocaria o alvo do colega pelo bicho mais perto a cada busca. Pausado à mão, o F8 volta.
+   */
+  mirando(playerId: string): boolean {
+    const s = this.st.get(playerId);
+    return !!s && !s.suspenso && this.now() >= s.carenciaAte && (s.ataque || this.rodando(s));
   }
 
   private ignoradoEm(s: Estado, id: string, now: number): boolean {
