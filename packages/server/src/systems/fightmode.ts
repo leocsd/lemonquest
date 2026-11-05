@@ -41,6 +41,12 @@ export interface FightModeOptions {
    * miraria de novo no tick seguinte e a rota ficaria parada). Ausente ou sem rota: nada é ignorado.
    */
   ignorado?: (playerId: string, monsterId: string) => boolean;
+  /**
+   * O Estagiário está escolhendo o alvo deste jogador (rota/seguir rodando ou o Ataque dele ligado): o ataque automático
+   * cede a vez. Senão os dois disputam `targetId` — no "caçar com amigo" o Estagiário punha o alvo do colega e o F8
+   * trocava de volta para o bicho mais perto no mesmo tick.
+   */
+  botMira?: (playerId: string) => boolean;
 }
 
 interface ChaseState {
@@ -165,8 +171,8 @@ export class FightModeSystem {
     for (const p of players) {
       if (p.hp <= 0) { p.followId = ""; const s = this.st.get(p.id); if (s) s.path = null; continue; }
       // Ataque automático (2026-11-01, dono: "mire sempre no bicho mais perto"): procura também com alvo, e troca
-      // para um monstro mais perto que o atual. Mirando um jogador (PvP), não troca.
-      if (p.auto && (!p.targetId || this.o.monsters.wild(p.targetId))) this.autoTarget(p, now);
+      // para um monstro mais perto que o atual. Mirando um jogador (PvP), não troca. Com o Estagiário mirando, é ele quem escolhe.
+      if (p.auto && (!p.targetId || this.o.monsters.wild(p.targetId)) && !this.o.botMira?.(p.id)) this.autoTarget(p, now);
       const range = Math.max(1, this.o.attackRange(p));
       // Alvo: monstro selvagem ou, no PvP, outro jogador.
       const t: Point | undefined = p.targetId ? this.o.monsters.wild(p.targetId)?.s ?? this.o.getPlayer?.(p.targetId) : undefined;

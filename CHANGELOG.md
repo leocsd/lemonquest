@@ -1,5 +1,19 @@
 # Changelog
 
+## [Não lançado] — 2026-11-05 · Estagiário: seguir sem disputa com o F8 e sem perder o colega
+
+Dono: "O auto ataque do personagem está conflitando com o follow ataque do modo seguir no bot" e "quando eu perco o
+personagem, ele não volta a dar follow automaticamente".
+- **F8 cede a vez ao Estagiário** (`FightModeOptions.botMira` → `EstagiarioSystem.mirando`): com a rota/seguir rodando
+  ou o Ataque do Estagiário ligado, o ataque automático não escolhe alvo. Antes o Estagiário punha o alvo do colega e
+  o F8 trocava de volta para o bicho mais perto no mesmo tick. Pausado à mão, o F8 volta.
+- **Colega perdido não desliga o seguir** (`rastrearColega`): a mais de 15 tiles, o seguidor vai aonde o viu por último
+  (ou ao portal que ele pegou, e pisa nele) e retoma o follow ao reencontrá-lo; motivo "procurando Fulano", diário
+  "perdeu…/reencontrou…" e o alarme "colega" uma vez depois de 10 s (`SEGUIR_SUMIU_MS`). Antes ficava parado (o follow
+  do FightMode desistia com aviso a cada tick) e desligava em 10 s. Desliga só se o colega morre, sai do grupo ou do jogo.
+- Testes: F8 + seguir com o FightMode real; colega que correu e colega que pegou portal (o FightMode real do kit ganhou
+  `getPlayer`/`send`, sem eles o follow caía na hora).
+
 ## [Não lançado] — 2026-11-02 · Estagiário: caçar com amigo e a janela repensada
 
 Dono: "Tem como colocar alguma opção para caçar com amigo?" (decisões: gasta turno; só no mesmo grupo; o seguidor

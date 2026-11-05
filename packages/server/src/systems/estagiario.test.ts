@@ -134,7 +134,7 @@ function setup(o: SetupOpts = {}) {
   mv.addPlayer(p);
   // Como no WorldRoom: o ataque automático do jogador (F8) consulta os monstros que o Estagiário largou.
   const real: FightModeSystem | null = o.lutaReal
-    ? new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => clock, ignorado: (pid, mid): boolean => sys.ignorado(pid, mid) })
+    ? new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => clock, getPlayer: (id) => w.players.get(id), send: (to, type, msg) => sent.push({ to, type, msg }), ignorado: (pid, mid): boolean => sys.ignorado(pid, mid), botMira: (pid): boolean => sys.mirando(pid) })
     : null;
   const sys = new EstagiarioSystem({
     spells, potions, conditions, fight: real ?? fight, monsters: w.mm,
@@ -1853,7 +1853,25 @@ describe("Estagiário v3: caçar com amigo (seguir um colega do grupo)", () => {
     expect(w.p.followId).toBe("q");
   });
 
-  it("desliga com alarme 'colega' quando ele morre, sai do grupo, sai do jogo ou fica longe por SEGUIR_SUMIU_MS; o seguir gasta turno", () => {
+  it("com o ataque automático (F8) ligado, o alvo do colega não é trocado pelo bicho mais perto (os dois não disputam o alvo)", () => {
+    const w = comColega({ andar: true, lutaReal: true, ratos: [{ x: 14, y: 10 }, { x: 18, y: 10 }], over: { auto: true, chase: true } });
+    const [perto, longe] = [...w.mm.all()].sort((a, b) => a.s.x - b.s.x);
+    w.q.targetId = longe!.s.id;
+    w.sys.onToggle(w.p, { seguir: "q" });
+    // A cada tick: o alvo nunca é o rato mais perto (antes o F8 trocava para ele e o Estagiário voltava ao do colega).
+    const alvos = new Set<string>();
+    for (let ms = 0; ms < 3000; ms += TICK_MS) { w.tick(); if (w.p.targetId) alvos.add(w.p.targetId); }
+    expect([...alvos]).toEqual([longe!.s.id]);
+    // Desligou o seguir: o ataque automático do jogador volta a escolher (sem alvo, o mais perto de onde ele está).
+    w.sys.onToggle(w.p, { seguir: null });
+    expect(w.sys.mirando("p")).toBe(false);
+    w.p.targetId = "";
+    const maisPerto = [perto!, longe!].sort((a, b) => Math.abs(a.s.x - w.p.x) - Math.abs(b.s.x - w.p.x))[0]!;
+    w.tick(1000);
+    expect(w.p.targetId).toBe(maisPerto.s.id);
+  });
+
+  it("desliga com alarme 'colega' quando ele morre, sai do grupo ou sai do jogo; longe não desliga; o seguir gasta turno", () => {
     const alarmes = (w: ReturnType<typeof comColega>) => w.sent.filter((s) => s.type === S2C.EstagiarioAlarme).map((s) => s.msg.tipo);
     const w = comColega();
     w.sys.onToggle(w.p, { seguir: "q" });
@@ -1869,22 +1887,55 @@ describe("Estagiário v3: caçar com amigo (seguir um colega do grupo)", () => {
 
     const w2 = comColega();
     w2.sys.onToggle(w2.p, { seguir: "q" });
-    w2.q.x = 30; // longe: aguenta SEGUIR_SUMIU_MS antes de desistir
+    w2.q.x = 30; // longe (o movimento falso não anda): procura, avisa uma vez depois de SEGUIR_SUMIU_MS e não desliga
     w2.tick(SEGUIR_SUMIU_MS - TICK_MS);
-    expect(w2.sys.estado(w2.p).seguindo).not.toBeNull();
-    expect(w2.sys.estado(w2.p).motivo).toBe("Quico está longe");
-    w2.q.x = 12; // voltou a tempo
-    w2.tick();
-    w2.q.x = 30;
-    w2.tick(SEGUIR_SUMIU_MS + TICK_MS);
-    expect(w2.sys.estado(w2.p).seguindo).toBeNull();
+    expect(w2.sys.estado(w2.p).motivo).toBe("procurando Quico");
+    expect(alarmes(w2)).toEqual([]);
+    w2.tick(SEGUIR_SUMIU_MS * 3);
+    expect(w2.sys.estado(w2.p).seguindo).toEqual({ id: "q", nome: "Quico" });
     expect(alarmes(w2)).toEqual(["colega"]);
+    w2.q.x = 12; // voltou: retoma o follow sozinho
+    w2.tick();
+    expect(w2.p.followId).toBe("q");
+    expect(w2.sys.estado(w2.p).motivo).not.toBe("procurando Quico");
+    expect(w2.sys.diario("p").map((i) => i.texto)).toContain("reencontrou Quico");
 
     const w3 = comColega();
     w3.sys.onToggle(w3.p, { seguir: "q" });
     w3.players.delete("q"); // saiu do jogo
     w3.tick();
     expect(w3.sys.estado(w3.p).seguindo).toBeNull();
+  });
+
+  it("perdeu o colega de vista (correu para longe): vai aonde o viu por último, sem o aviso do follow, e retoma ao reencontrá-lo", () => {
+    const w = comColega({ andar: true, lutaReal: true });
+    w.sys.onToggle(w.p, { seguir: "q" });
+    w.tick(500);
+    // Some de uma vez para longe (como um passo grande): visto por último em (12,10)… depois em (24,10), a 14 do seguidor.
+    w.q.x = 24; w.tick();
+    expect(w.st().colegaVisto).toEqual({ x: 24, y: 10 });
+    w.q.x = 39; w.tick();
+    expect(w.sys.estado(w.p).motivo).toBe("procurando Quico");
+    expect(w.p.followId).toBe("");
+    w.tick(6000);
+    // Andou até onde o viu (24,10): ali o reencontra (a 15 de 39) e volta ao follow, sem "Você parou de seguir".
+    expect(w.p.x).toBeGreaterThanOrEqual(24);
+    expect(w.p.followId).toBe("q");
+    expect(w.notices().filter((n) => n.includes("parou de seguir"))).toEqual([]);
+    expect(w.sys.estado(w.p).seguindo).not.toBeNull();
+  });
+
+  it("o colega pegou um portal: o seguidor vai ao portal, pisa nele e retoma o follow do outro lado", () => {
+    const w = comColega({ andar: true, lutaReal: true, portalTiles: ["14,10"], portais: { "14,10": { x: 36, y: 30 } } });
+    w.sys.onToggle(w.p, { seguir: "q" });
+    w.tick(300);
+    // O colega dá um passo para leste no portal (14,10) e sai em (36,31): o tick o vê saltar de (13,10).
+    w.q.x = 13; w.q.dir = Dir.E; w.tick();
+    w.q.x = 36; w.q.y = 31; w.tick();
+    expect(w.st().colegaVisto).toEqual({ x: 14, y: 10 });
+    w.tick(3000);
+    expect(Math.max(Math.abs(w.p.x - 36), Math.abs(w.p.y - 31))).toBeLessThanOrEqual(2);
+    expect(w.p.followId).toBe("q");
   });
 
   it("um ou outro: ligar a rota para de seguir e vice-versa; morrer e a queda param de seguir; gravar não começa seguindo", () => {
