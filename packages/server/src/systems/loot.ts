@@ -5,7 +5,7 @@
 // Loot automático configurável (shared/lootFilter.ts): o que o jogador deixou fora do filtro fica no chão onde o monstro
 // morreu, sem aviso de mochila cheia (foi escolha); no grupo, quem filtra o item é pulado no rodízio.
 import {
-  DEFAULT_LOOT_FILTER, ELITE, RARITIES, RARITY_LABEL, S2C, autoLoots, eliteName, isEquipable, rollInt,
+  DEFAULT_LOOT_FILTER, RARITIES, RARITY_LABEL, S2C, autoLoots, eliteMult, isEquipable, monsterDisplayName, rollInt,
   type FeedMsg, type ItemDef, type ItemInstance, type LootFilter, type LootMsg, type MonsterDef, type NoticeMsg, type Rarity, type StatId,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -186,9 +186,10 @@ export class LootSystem {
     const { x, y } = m.s;
     const def = m.def;
     if (def.boss) this.feed(`☠️ ${p.name} derrotou ${def.name}!`, "boss");
-    // Elite: chance de cada item ×2 e ouro ×2 (ELITE).
-    const roll = rollLoot(def, this.rng, this.o.inventory.defs, (this.o.lootMult?.() ?? 1) * (m.elite ? ELITE.loot : 1), m.elite ? ELITE.gold : 1);
-    const monsterName = m.elite ? eliteName(def.name) : def.name;
+    if (m.named) this.feed(`⚔ ${p.name} derrotou ${m.named}!`, "boss");
+    // Elite: chance de cada item ×2 e ouro ×2 (ELITE); nomeado: ×5 (NAMED_ELITE).
+    const roll = rollLoot(def, this.rng, this.o.inventory.defs, (this.o.lootMult?.() ?? 1) * eliteMult(m, "loot"), eliteMult(m, "gold"));
+    const monsterName = monsterDisplayName(m, m.def.name);
     const party = this.o.partyIdOf?.(p, m);
     if (party && this.o.ground?.placeNear) return this.dropForParty(p, m, roll.items, roll.gold, party);
     if (roll.gold > 0) this.o.inventory.addGold(p, roll.gold);
@@ -245,7 +246,7 @@ export class LootSystem {
    */
   private dropForParty(p: PlayerState, m: Monster, items: ItemInstance[], gold: number, partyId: string): void {
     const { x, y } = m.s;
-    const monsterName = m.elite ? eliteName(m.def.name) : m.def.name;
+    const monsterName = monsterDisplayName(m, m.def.name);
     const sharers = this.o.lootSharers?.(p, m) ?? [];
     const toGround: ItemInstance[] = [];
     // Quem estava sem espaço para um item que acabou no chão: o alarme do Estagiário (a mochila cheia não passa por aqui no solo).

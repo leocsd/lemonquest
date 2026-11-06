@@ -395,3 +395,12 @@ describe("Montadora (ciclo 20)", () => {
     expect(new Set(pairs).size).toBe(pairs.length);
   });
 });
+
+describe("A Lei de Murphy (C10-4)", () => {
+  it("Técnico do CLP, depois da Tag Perdida: derrubar o Murphy e entregar a Carta Lacrada; título à Prova de Murphy", () => {
+    const q = QUEST_LIST.find((x) => x.id === "lei_de_murphy")!;
+    expect([q.giver, q.minLevel, q.requires]).toEqual(["operador_abrigo", 42, ["passagem_duplicada"]]);
+    expect(q.steps.map((s) => [s.kind, s.target])).toEqual([["boss", "murphy"], ["deliver", "mensagem_retida"]]);
+    expect(q.rewards.unlock).toBe("title:a_prova_de_murphy");
+  });
+});

@@ -91,6 +91,17 @@ describe("balanço das vocações (P = dano × sobrevivência)", () => {
     }
   });
 
+  // 2026-11-06 (C12-9): magias de ataque do paladino ×1,15. Antes 0,79/0,80/0,82 da melhor; agora 0,85/0,88/0,91.
+  it("paladino: P ≥ 0,84 da melhor vocação nos lv 30/60/100, sem liderar em nenhum", () => {
+    for (const L of BALANCE_LEVELS) {
+      const list = best(L);
+      const top = Math.max(...list.map((r) => r.m.p));
+      const pal = list.find((r) => r.f.v === "paladin")!;
+      expect(pal.m.p / top, `lv ${L}`).toBeGreaterThanOrEqual(0.84);
+      expect(pal.m.p, `lv ${L}`).toBeLessThan(top);
+    }
+  }, 30_000);
+
   it("15-13: o feiticeiro não lidera dano e sobrevivência ao mesmo tempo", () => {
     for (const L of BALANCE_LEVELS) {
       const list = best(L);

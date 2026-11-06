@@ -163,6 +163,72 @@ describe("coliseu: lobbies", () => {
   });
 });
 
+describe("coliseu: sala emprestada à Arena de Duelo (2026-11-06)", () => {
+  it("reserve tira a sala do Coliseu (a partida espera na fila) e release devolve e começa a fila", () => {
+    const k = setup();
+    const sala = k.arena.reserve()!;
+    expect(sala.id).toBe(1);
+    expect(k.arena.freeArenas).toBe(0);
+    expect(k.arena.reserve()).toBeUndefined();
+    const a = k.add("a");
+    k.arena.onAction(a, { action: "create" });
+    k.arena.onAction(a, { action: "start" });
+    expect(k.arena.partyFor("a")!.phase).toBe("queued");
+    k.arena.release(sala.id);
+    expect(k.arena.partyFor("a")!.phase).toBe("countdown");
+    k.arena.release(sala.id); // devolver duas vezes não faz nada
+    expect(k.arena.freeArenas).toBe(0);
+  });
+});
+
+describe("coliseu competitivo (2026-11-06)", () => {
+  it("desafio grupo × grupo: começam juntos em duas salas; vence quem passou mais ondas e ganha baú; as duas partidas entram no ranking", () => {
+    const kv = new Map<string, string>();
+    const chests: [string, number][] = [];
+    const k = setup(2, { getKv: (key) => kv.get(key), setKv: (key, v) => { kv.set(key, v); }, giveChests: (p, n) => chests.push([p.name, n]) });
+    const a = k.add("a"), b = k.add("b");
+    k.arena.onAction(a, { action: "create" });
+    k.arena.onAction(b, { action: "create" });
+    const la = k.arena.partyFor("a")!.id, lb = k.arena.partyFor("b")!.id;
+    // Só o líder desafia; o desafio aparece na lista; o líder desafiado aceita.
+    k.arena.onAction(a, { action: "versus", lobbyId: lb });
+    expect(k.lastOf("*", S2C.ArenaLobbies) ?? true).toBeTruthy();
+    k.arena.onAction(b, { action: "versusAnswer", lobbyId: la, accept: true });
+    expect(k.arena.partyFor("a")!.phase).toBe("countdown");
+    expect(k.arena.partyFor("b")!.phase).toBe("countdown");
+    expect(k.arena.freeArenas).toBe(0);
+    k.toWave1();
+    // O grupo do a vence a onda 1 (só os monstros da sala dele morrem); o do b desiste sem vencer nenhuma.
+    const pa = () => k.arena.partyFor("a")!;
+    for (let g = 0; g < 100 && (pa().phase !== "fight" || pa().pending.length); g++) k.run(200);
+    for (const m of k.arenaMonsters().filter((x) => x.arenaId === pa().arena!.id)) k.w.combat.damageMonster(m, "", 1e9, "physical", k.w.now());
+    k.run(100);
+    expect(pa().cleared).toBe(1);
+    k.arena.onAction(b, { action: "leave" });
+    expect(chests).toEqual([]); // o rival ainda está jogando
+    k.arena.onAction(a, { action: "leave" });
+    expect(chests).toEqual([["a", 1]]);
+    expect(k.w.sent.some((x) => x.type === S2C.Feed && /Desafio no Coliseu: a \(1 ondas\) venceu b \(0 ondas\)/.test(x.msg.text))).toBe(true);
+    const week = [...kv.entries()].find(([key]) => key.startsWith("arena.waves.week."))!;
+    expect(JSON.parse(week[1]).map((r: { names: string[]; wave: number }) => [r.names.join(), r.wave])).toEqual([["a", 1]]);
+  });
+
+  it("recusar avisa quem desafiou; desafio precisa de duas salas livres", () => {
+    const k = setup(1);
+    const a = k.add("a"), b = k.add("b");
+    k.arena.onAction(a, { action: "create" });
+    k.arena.onAction(b, { action: "create" });
+    const la = k.arena.partyFor("a")!.id, lb = k.arena.partyFor("b")!.id;
+    k.arena.onAction(a, { action: "versus", lobbyId: lb });
+    k.arena.onAction(b, { action: "versusAnswer", lobbyId: la, accept: false });
+    expect(k.notices("a").at(-1)).toMatch(/recusou o desafio/);
+    k.arena.onAction(a, { action: "versus", lobbyId: lb });
+    k.arena.onAction(b, { action: "versusAnswer", lobbyId: la, accept: true });
+    expect(k.notices("b").at(-1)).toMatch(/duas salas livres/);
+    expect(k.arena.partyFor("a")!.phase).toBe("lobby");
+  });
+});
+
 describe("coliseu: partida", () => {
   it("solo: contagem, teletransporte para a entrada, onda 1 com 3 ratos", () => {
     const k = setup();
@@ -551,9 +617,14 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
 
   // 2026-10-27 (cura como no Tibia): era "com todos o lv 130 completa"; com a cura nova a semana de Fúria segura o lv
   // 130 na 69 e o lv 135 completa em todas (escada medida: 110 ≤ 69 · 120 completa sem modificador · 135 completa sempre).
-  it("modificador da semana: nenhum deixa o lv 110 completar as 70 e com todos o lv 135 completa", () => {
+  // 2026-11-06 (magias do paladino ×1,15, C12-9): o grupo com paladino ficou ~5 levels mais forte. Escada nova: lv 110
+  // sem modificador 68 e com Sem Trégua completa (era 69); lv 115 sem modificador completa (era 69); o lv 105 não
+  // completa com nenhum. A meta passou de "nenhum deixa o lv 110" para "nenhum deixa o lv 105" (decisão registrada no
+  // roadmap, C12-9); o lv 110 sem modificador segue sem completar (teste acima).
+  it("modificador da semana: nenhum deixa o lv 105 completar as 70 e com todos o lv 135 completa", () => {
     for (const m of ARENA_MOD_ORDER) {
-      expect(reach(GROUP, 110, {}, m), `${m} lv 110`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+      expect(reach(GROUP, 105, {}, m), `${m} lv 105`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+      if (m !== "sem_tregua") expect(reach(GROUP, 110, {}, m), `${m} lv 110`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
       expect(reach(GROUP, 135, {}, m), `${m} lv 135`).toBe(DONE);
     }
   }, 30_000);

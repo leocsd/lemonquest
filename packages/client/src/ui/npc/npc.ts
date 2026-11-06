@@ -3,6 +3,7 @@ import { BOUNTY_NPC, C2S, EXCURSION_NPC, QUEST_LIST, REFINE_NPC, REQUEST_NPC, np
 import { createStore } from "../hud/store.ts";
 import { send } from "../items/net.ts";
 import { closeArenaWindow, openArenaWindow } from "../arena/arena.ts";
+import { closeMinigameWindow, openMinigameWindow } from "../minigame/minigame.ts";
 
 export type NpcTab = "work" | "quests" | "bounties" | "request" | "excursions" | "refine" | "imbue" | "travel" | "buy" | "sell" | "depot";
 export interface NpcState { msg: NpcOpenMsg; tab: NpcTab; /** muda a cada nova abertura (reinicia a digitação). */ nonce: number }
@@ -36,9 +37,11 @@ export const npcTabs = (m: NpcOpenMsg): NpcTab[] => {
 
 /** S2C.NpcOpen: npcId "" fecha; senão abre/atualiza a janela. */
 export function handleNpcOpen(m: NpcOpenMsg): void {
-  if (!m.npcId) { closeNpc(); closeArenaWindow(); return; }
+  if (!m.npcId) { closeNpc(); closeArenaWindow(); closeMinigameWindow(); return; }
   // Mestre do Coliseu: abre a janela própria (lobbies) no lugar do diálogo.
   if (m.npcId === "arena_master") { closeNpc(); openArenaWindow(); return; }
+  // Mestre do Salão: a janela do Salão de Minijogos (salas, recordes, fichas).
+  if (m.npcId === "salao_mestre") { closeNpc(); openMinigameWindow(); return; }
   const cur = npcStore.get();
   if (cur && cur.msg.npcId === m.npcId) {
     const tabs = npcTabs(m);

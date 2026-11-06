@@ -8,7 +8,7 @@ import type { PartyShareReason } from "./party.ts";
 import type { AlarmeTipo, DiarioItem, EstagiarioConfig } from "./estagiario.ts";
 export type { SkillId };
 import type { EquipSlot, ItemInstance, Rarity, Stats } from "./data/items.ts";
-import type { ArenaModId, ArenaTimeRecord } from "./data/arena.ts";
+import type { ArenaModId, ArenaTimeRecord, ArenaWaveRecord } from "./data/arena.ts";
 
 /** Cliente → servidor */
 export const C2S = {
@@ -93,6 +93,10 @@ export const C2S = {
   Excursion: "excursion",
   /** Painel Online (SocialActionMsg, shared/online.ts): pedir a lista, pôr/tirar amigo. */
   Social: "social",
+  /** Arena de Duelo (DuelActionMsg, shared/data/duel.ts). */
+  Duel: "duel",
+  /** Salão de Minijogos (MinigameActionMsg, shared/data/minigames.ts). */
+  Minigame: "minigame",
   /** Salva o filtro do loot automático do personagem (SetLootFilterMsg, shared/lootFilter.ts). */
   SetLootFilter: "setLootFilter",
   /** Salva a configuração do Estagiário (EstagiarioConfigMsg, shared/estagiario.ts). */
@@ -183,7 +187,10 @@ export type ArenaActionMsg =
   | { action: "join"; lobbyId: string }
   | { action: "leave" }                       // sai do lobby OU desiste da partida (volta à vila)
   | { action: "start" }                       // só o líder: inicia (precisa estar perto do NPC do coliseu)
-  | { action: "ready" };                      // durante a pausa com vendedor: "pronto" (todos prontos = próxima onda já)
+  | { action: "ready" }                       // durante a pausa com vendedor: "pronto" (todos prontos = próxima onda já)
+  // Coliseu competitivo (2026-11-06): o líder desafia outro lobby; o líder desafiado aceita ou recusa.
+  | { action: "versus"; lobbyId: string }
+  | { action: "versusAnswer"; lobbyId: string; accept: boolean };
 
 export interface FightModeMsg { stance: FightStance; chase: boolean; /** Ataque automático: escolhe sozinho o monstro mais próximo. */ auto?: boolean }
 export interface FollowMsg { targetId: string | null }
@@ -330,6 +337,14 @@ export const S2C = {
   EventSoon: "eventSoon",
   /** Invasão da Vila (InvasionMsg, shared/data/invasion.ts): estado por jogador (1×/s quando muda) e o resultado no fim. */
   Invasion: "invasion",
+  /** Corrida de Caça (RaceMsg, shared/data/huntRace.ts): estado por jogador (1×/s quando muda) e o resultado no fim. */
+  Race: "race",
+  /** Arena de Duelo (DuelMsg, shared/data/duel.ts): convites, duelo em andamento e resultado. */
+  Duel: "duel",
+  /** Salão de Minijogos (shared/data/minigames.ts): janela do Mestre, a partida e os avisos no chão. */
+  MinigameLobby: "minigameLobby",
+  Minigame: "minigame",
+  MinigameFx: "minigameFx",
   /** Mural de Excursões inteiro (ExcursionsMsg): a todos quando muda e a quem pede. */
   Excursions: "excursions",
   /** "Quero ir" (ao líder) ou lembrete de 2 min (ExcursionPingMsg). */
@@ -520,13 +535,17 @@ export interface FishCastMsg { id: string; x: number; y: number; ms: number }
 export interface EventMsg { active: import("./data/events.ts").ActiveEvent | null }
 export interface TrainingOpenMsg { statueId: string }
 export interface TrainingResultMsg { skill: SkillId; minutes: number; levelsGained: number; newLevel: number; pct: number }
-export interface ArenaLobbySummary { id: string; leader: string; members: string[]; avgLevel: number }
+export interface ArenaLobbySummary {
+  id: string; leader: string; members: string[]; avgLevel: number;
+  /** Coliseu competitivo: este lobby desafiou o lobby `versusTo` (esperando a resposta). */
+  versusTo?: string;
+}
 export interface ArenaLobbiesMsg {
   lobbies: ArenaLobbySummary[];
   freeArenas: number;
   queue: number;
   /** Ciclo 16: modificador da semana (ondas 61–70), quando a semana acaba e os melhores tempos das 70 ondas. */
-  week?: { mod: ArenaModId; endsAt: number; best?: ArenaTimeRecord; record?: ArenaTimeRecord };
+  week?: { mod: ArenaModId; endsAt: number; best?: ArenaTimeRecord; record?: ArenaTimeRecord; /** Ranking de ondas da semana (top 5). */ waves?: ArenaWaveRecord[] };
 }
 /** "break" = respiro curto entre ondas comuns (sem loja); "pause" = pausa com vendedor e "Pronto" (depois de chefe). */
 export type ArenaPhase = "lobby" | "queued" | "countdown" | "fight" | "break" | "pause" | "ended";

@@ -153,7 +153,7 @@ describe("EventSystem: agenda e aviso de 10 min (ciclo 17)", () => {
     expect(lines[0]).toMatch(/^Agenda da semana/);
     expect(lines[1]).toBe("Hoje: 19:00 Noite de Caçada ▶ agora (até 20:00)");
     expect(lines[2]).toBe("Amanhã: 14:00 Tarde de Sábado ← próximo · 21:00 Invasão de Orshabaal");
-    expect(lines.at(-1)).toMatch(/^Sex: 12:15 Fúria de Demodras · 17:00 Sextou!$/);
+    expect(lines.at(-1)).toMatch(/^Sex: 12:15 Fúria de Demodras · 16:00 Raide de Sexta · 17:00 Sextou!$/);
     expect(lines.length).toBe(1 + 8); // hoje + 6 dias + a sexta seguinte (antes das 19h30)
   });
 });

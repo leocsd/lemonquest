@@ -34,7 +34,7 @@ describe("amostras dos tons na janela", () => {
   it("ordem: vivos pelo matiz (arco-íris), depois terrosos e por fim cinzas do claro ao escuro", () => {
     const ids = swatchOrder(OUTFIT_TONES).map((t) => t.id);
     expect(ids).toHaveLength(OUTFIT_TONES.length);
-    expect(ids.slice(0, 3)).toEqual(["crimson", "amber", "gold"]);
+    expect(ids.slice(0, 4)).toEqual(["crimson", "sunset", "amber", "gold"]); // Pôr do Sol (Salão) cai entre os dois
     expect(ids.indexOf("emerald")).toBeLessThan(ids.indexOf("azure"));
     expect(ids.indexOf("azure")).toBeLessThan(ids.indexOf("violet"));
     expect(ids.slice(-4)).toEqual(["chestnut", "silver", "slate", "charcoal"]);

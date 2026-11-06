@@ -22,7 +22,15 @@ export type AchMetric =
   // Ciclo 19: chefes da Siderúrgica (o servidor já conta `boss:<id>` de qualquer chefe).
   | "boss:contramestre_fuligem" | "boss:golem_convertedor" | "boss:fornalha_primordial"
   // Ciclo 20: chefes da Montadora.
-  | "boss:mt_sapao" | "boss:mt_monstro_estufa" | "boss:mt_prototipo";
+  | "boss:mt_sapao" | "boss:mt_monstro_estufa" | "boss:mt_prototipo"
+  // C10-4: Murphy, o chefe do Portal de Inspeção.
+  | "boss:murphy"
+  // 2026-11-06: raides vencidos com prêmio (server/systems/raid.ts) e corridas vencidas (server/systems/huntRace.ts).
+  | "raids" | "races"
+  // Arena de Duelo (server/systems/duel.ts).
+  | "duels"
+  // Salão de Minijogos (server/systems/minigames.ts): partidas jogadas e vencidas (com 2+ jogadores).
+  | "minigames" | "minigame_wins";
 
 export interface AchievementDef {
   id: string;
@@ -91,6 +99,13 @@ export const TITLES: Record<string, string> = {
   maquinista: "o Maquinista",
   inspetor_de_via: "Inspetor de Via",
   ferroviario: "o Ferroviário",
+  a_prova_de_murphy: "à Prova de Murphy",
+  forca_tarefa: "da Força-Tarefa",
+  campeao_corrida: "Campeão da Corrida",
+  duelista: "o Duelista",
+  rei_do_salao: "Rei do Salão",
+  imbativel_do_salao: "o Imbatível do Salão",
+  corretor_de_rota: "Corretor de Rota",
   dormente: "o Dormente",
   entregador: "o Entregador",
   fechador_sprint: "Fechador de Sprint",
@@ -227,6 +242,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("vagao_inspecionado", "Vagão Inspecionado", "Derrote o Ciclope de Pedra", "🚃", 30, "boss:vagao_nao_inspecionavel", 1, { rewards: ["title:inspetor_de_via"], rare: true }),
   a("ultimo_apito", "Último Apito", "Derrote o Tirano da Serra", "🚂", 40, "boss:locomotiva_fantasma", 1, { rewards: ["title:ferroviario"], rare: true }),
   a("horario_cumprido", "Horário Cumprido", "Derrote o Tirano da Serra 5 vezes", "⏱️", 40, "boss:locomotiva_fantasma", 5, { rare: true }),
+  a("lei_de_murphy", "Deu Errado Para Ele", "Derrote Murphy, o Corretor", "🐛", 30, "boss:murphy", 1, { rare: true }),
+  a("murphy_5", "Corretor de Rota", "Derrote Murphy, o Corretor 5 vezes", "🔧", 40, "boss:murphy", 5, { rewards: ["title:corretor_de_rota"], rare: true }),
   a("dormente", "Dormente", "Treine offline por 6 horas no total", "🛤️", 15, "offline", 360, { rewards: ["title:dormente"] }),
   a("bitola_larga", "Bitola Larga", "Ande 100.000 tiles", "📏", 35, "steps", 100_000),
   a("passagem_liberada", "Passagem Liberada", "Complete 15 missões", "🚦", 35, "quests", 15),
@@ -238,6 +255,17 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // Mural de Excursões (ciclo 18): "saiu" = o líder juntou no grupo pelo menos 2 inscritos perto do horário.
   a("excursion_3", "Guia de Excursão", "Lidere 3 excursões do Mural que saíram (marcadas com 15+ min de antecedência, 2+ inscritos no seu grupo; uma por dia)", "🧭", 20, "excursions", 3, { rewards: ["title:guia_excursao"] }),
   // Invasão da Vila (ciclo 18): ganhar o prêmio (10+ pontos de contribuição) numa invasão em que a Vila resistiu.
+  a("forca_tarefa", "Força-Tarefa", "Vença um raide (1 minuto ou mais na luta)", "🤝", 20, "raids", 1),
+  a("forca_tarefa_10", "Auditoria Aprovada", "Vença 10 raides", "📋", 40, "raids", 10, { rewards: ["title:forca_tarefa"], rare: true }),
+  a("corrida_vencida", "Bandeira Quadriculada", "Pontue no time vencedor de uma Corrida de Caça", "🏁", 15, "races", 1),
+  a("corrida_10", "Campeão da Corrida", "Vença 10 Corridas de Caça", "🏆", 35, "races", 10, { rewards: ["title:campeao_corrida"], rare: true }),
+  a("primeiro_duelo", "Luvas Jogadas", "Vença um duelo", "🥊", 10, "duels", 1),
+  a("duelos_25", "Duelista", "Vença 25 duelos", "🤺", 35, "duels", 25, { rewards: ["title:duelista"], rare: true }),
+  // Salão de Minijogos (2026-11-06).
+  a("primeiro_minijogo", "Ficha na Mão", "Jogue uma partida no Salão de Minijogos", "🎲", 10, "minigames", 1),
+  a("minijogos_50", "Frequentador do Salão", "Jogue 50 partidas no Salão de Minijogos", "🎰", 30, "minigames", 50, { rewards: ["title:rei_do_salao"] }),
+  a("vitoria_salao", "Desviou de Tudo", "Vença uma partida do Salão contra outros jogadores", "🍋", 15, "minigame_wins", 1),
+  a("vitorias_salao_20", "Imbatível do Salão", "Vença 20 partidas do Salão contra outros jogadores", "🏅", 35, "minigame_wins", 20, { rewards: ["title:imbativel_do_salao"], rare: true }),
   a("defensor_da_vila", "Defensor da Vila", "Ajude a Vila a resistir a uma invasão (10+ pontos de contribuição)", "🛡️", 20, "invasions", 1, { rewards: ["title:defensor_vila"] }),
   // Siderúrgica (ciclo 19): os três chefes da usina. "Coração de Aço" vem da missão final (A Fornalha Primordial).
   a("hora_extra_paga", "Hora Extra Paga", "Derrote o Contramestre Fuligem", "⏰", 30, "boss:contramestre_fuligem", 1, { rewards: ["title:contramestre"], rare: true }),

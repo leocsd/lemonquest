@@ -213,7 +213,7 @@ describe("spellPower (ciclo 15)", () => {
     expect(spellPower("paladin", 12, 25, 0, 61)).toBe(38);
   });
 
-  it("Golpe Aniquilador lv 100: 680 só com o ML → 1.442 (15-13: +40% e level na potência); Julgamento Divino 458 → 702", () => {
+  it("Golpe Aniquilador lv 100: 680 só com o ML → 1.442 (15-13: +40% e level na potência); Julgamento Divino 458 → 702 (×1,15 do paladino: 527 → 807)", () => {
     const avg = (id: string, lvl: number, power: number) => {
       const f = SPELLS[id]!.damage!;
       return Math.round(f.base + lvl * f.perLevel + power * f.perMagic);
@@ -225,8 +225,9 @@ describe("spellPower (ciclo 15)", () => {
     expect(avg("annihilation_strike", 100, spellPower("knight", 10, 66, 4, 100))).toBe(1442);
     expect(avg("annihilation_strike", 100, spellPower("knight", 10, 66, 8, 100))).toBe(1456);
     expect(avg("annihilation_strike", 100, spellPower("knight", 10, 35, 9, 100))).toBe(1351);
-    expect(avg("divine_judgment", 100, 22)).toBe(458);
-    expect(avg("divine_judgment", 100, spellPower("paladin", 22, 66, 10, 100))).toBe(702);
+    // 2026-11-06: magias de ataque do paladino ×1,15 (PALADIN_SPELL_DAMAGE_MULT): 458 → 527 e 702 → 807.
+    expect(avg("divine_judgment", 100, 22)).toBe(527);
+    expect(avg("divine_judgment", 100, spellPower("paladin", 22, 66, 10, 100))).toBe(807);
   });
 });
 

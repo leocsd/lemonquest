@@ -1,5 +1,56 @@
 # Changelog
 
+## [Não lançado] — 2026-11-06 · Salão de Minijogos
+
+Dono: "um sistema ... que a pessoa entra em uma sala quadrada e tem que desviar de magias que são lançadas, eu quero
+jogos assim no Lemon Quest, pode usar a imaginação para criar novos" (decisões: sala nova no mapa; depois da fila).
+- **Mapa** (`tools/mapgen/expansion8.mjs`): oitava expansão para baixo (400×888 → 400×936), bloco 41×17 em (60,912) com
+  saguão (Mestre do Salão, mesas, quadro) e duas salas de pedra 11×11 sem porta (objetos `minigame_room` + `minigame_exit`).
+  Entrada pela porta da casinha laranja do sul da praça (79,106), saída na parede norte do saguão. `diff-world`: 0 tiles
+  alterados, 1398/1398 objetos antigos idênticos, 11 novos; `diff-atlas`: 1606/1606 tiles idênticos. Zona PZ "Salão de
+  Minijogos" com a música "Good Time".
+- **Regras** (`shared/data/minigames.ts`): Chuva de Limões (padrões garoa, linhas, colunas, xadrez, anéis, cruz,
+  quadrantes, metade e "olho", liberados por onda; sempre ≥ 9 tiles livres; aviso 1,6 s → 0,75 s), Chão que Cai (3 → 12
+  tiles por rodada, 70% da borda do que restou; pisar no buraco tira vida), Pega-Limão (60 s, limão dourado vale 3, garoa
+  leve derruba 2 limões), Genius do Escritório (cooperativo, 4 placas 2×2, sequência 3 + rodada, 3 vidas do time).
+  Fichas por partida (entrar e sair sem ponto não rende; +2 por vitória contra outros), teto de 40/dia.
+- **Servidor** (`systems/minigames.ts`): salas com anfitrião, contagem de 4 s, tudo no tick (aviso `S2C.MinigameFx` →
+  golpe), imunidade de 1,2 s depois de um golpe, magias bloqueadas (`castBlocked`) e condições/invocações/rota do
+  Estagiário tiradas ao entrar, eliminado volta ao saguão e segue vendo o placar, recordes da semana no kv
+  (`minigame.week.<semana>.<jogo>`), fichas do dia no kv (`minigame.fichas.<dia>.<nome>`), feed para quem vence contra
+  outros. Quem cai ou reconecta dentro de uma sala volta ao saguão (`loginPosition`); estado da partida só em memória.
+- **Loja**: 4 tons de roupa exclusivos (Limão Neon 60, Pôr do Sol, Mar Fundo e Cereja 40 fichas); a janela de roupas
+  mostra a prévia e explica onde trocar; o servidor recusa comprá-los com ouro. Item novo Ficha do Salão.
+- **Cliente**: janela do Mestre (`ui/minigame/MinigameWindow.tsx`), barra no topo com vidas, placar e Sair
+  (`MinigameHud.tsx`), avisos/golpes/placas acesas e buracos, limões e placas desenhados no chão (`game/minigameLayer.ts`,
+  `SpellEffects.blast`/`padFlash`).
+- Conquistas: Ficha na Mão, Frequentador do Salão (título "Rei do Salão"), Desviou de Tudo e Imbatível do Salão (título).
+
+## [Não lançado] — 2026-11-06 · Jogos juntos e contra, paladino, elites nomeados, Murphy e chefes mais frequentes
+
+Dono: "deixe o respawn dos bosses ... menos de 1 hora, todos", "traga mais jogos para jogar juntos e contra para animar"
+(escolheu os quatro: raide, corrida, duelo, Coliseu competitivo) e itens 1 e 2 da lista de melhorias (paladino e chefe).
+- **Chefes em menos de 1 hora** (`BOSS_RESPAWN_MULT = 0.15`): todo chefe volta em < 60 min; o prazo salvo de antes é
+  encurtado no boot (`spawnAll`), sem esperar o ciclo antigo.
+- **Paladino** (`PALADIN_SPELL_DAMAGE_MULT = 1.15` nas magias de dano só dele, fora a Onda Sagrada para não roubar a
+  identidade de área do mago): sobe sem liderar (teste "paladino ≥0,84 sem liderar"). Efeito colateral medido: o
+  Coliseu com paladino fica ~5 levels mais fácil; a meta do modificador passou para lv 105.
+- **Elites nomeados** (`NAMED_ELITES`): Trovão-de-Pedra (Behemoth), Belzor, o Insaciável (Demônio) e Gorvak, o
+  Inabalável (Colosso). 1,5% por nascimento, um vivo por nome, aviso no servidor, ×4 vida, ×1,4 dano, ×8 XP, ×5 ouro e loot.
+- **Murphy, o Corretor** (lv 44): chefe no Portal de Inspeção (objeto novo no fim do mapa, 0 tiles alterados), missão
+  "A Lei de Murphy" (depois de "Passagem Duplicada"), título "À Prova de Murphy" e duas conquistas.
+- **Raide de Sexta** (sexta 16h, 45 min, `systems/raid.ts`): um chefe gigante ao norte da Vila, O Grande Auditor ou A
+  Impressora Possuída conforme a semana. Vida cresce com a soma dos levels de quem luta; dano acompanha o menor level
+  presente. Quem lutou ≥ 1 min ganha 1 Baú de Recompensa (+1 na vitória). Conquistas "Força-Tarefa".
+- **Corrida de Caça** (segunda 18h, 30 min, `systems/huntRace.ts`): Time Limão × Time Laranja sorteados por level,
+  pontos por abate (crédito de grupo), placar no topo (`RaceBar`); quem pontuou no time vencedor ganha baú.
+- **Arena de Duelo** (`systems/duel.ts`): clique direito → desafiar 1×1 (ou 2×2 com o grupo); a luta usa uma sala livre
+  do Coliseu, sem perder XP/itens e sem caveira; 3 min, depois vence quem tem mais vida. `/duelos` = ranking da semana.
+- **Coliseu competitivo** (`systems/arenaWeekly.ts`): toda partida entra no ranking semanal de ondas (o 1º grupo ganha
+  3 baús na virada, entregues no login); desafio grupo × grupo pela janela do Coliseu (duas salas, mesmas ondas, vence
+  quem passar mais; 1 baú para cada vencedor). `/coliseu` = ranking.
+- Raide, corrida e duelo vivem só na memória: reiniciar o servidor no meio recomeça o evento.
+
 ## [Não lançado] — 2026-11-05 · Estagiário: seguir sem disputa com o F8 e sem perder o colega
 
 Dono: "O auto ataque do personagem está conflitando com o follow ataque do modo seguir no bot" e "quando eu perco o

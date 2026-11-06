@@ -103,6 +103,7 @@ export function helpLines(name: string, env: Env = process.env): string[] {
     "Social: /w <nome> <mensagem> sussurra · /r <mensagem> responde · /amigo <nome> adiciona ou remove · /amigos lista · /quem mostra quem está online, onde e quem pode caçar em grupo com você · /e <emote> (botão ☺ no chat).",
     "Magias: digite as palavras (ex.: exura) ou use as teclas 1–0 (H configura a barra). Todos os atalhos de teclado: F1.",
     "Eventos: /agenda mostra os eventos da semana · /evento diz o que está valendo agora e o próximo.",
+    "Duelo: botão direito num jogador → Desafiar para duelo (1×1, ou 2×2 com o colega do grupo de 2) · /duelos mostra o ranking da semana.",
   ];
   if (isAdmin(name, env)) lines.push(`Admin: ${ADMIN_COMMANDS.join(" ")}`);
   return lines;

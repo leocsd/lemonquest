@@ -7,6 +7,7 @@ import { playersStore, selectMe } from "../hud/world.ts";
 import { openCtxMenu, openOutfit } from "../outfit/outfit.ts";
 import { amLeader, isPartyMember, partyAction, partyStore } from "../party/party.ts";
 import { requestTrade } from "../trade/trade.ts";
+import { challengeDuel } from "../duel/duel.ts";
 import { playerMenuItems, selfMenuItems } from "./playerMenuLogic.ts";
 
 /** Outro jogador (id = sessionId), menu em (x, y) da janela. */
@@ -21,6 +22,7 @@ export function openPlayerMenu(id: string, x: number, y: number): void {
       invite: () => partyAction({ action: "invite", targetId: id }),
       lead: () => partyAction({ action: "lead", targetId: id }),
       kick: () => partyAction({ action: "kick", targetId: id }),
+      duel: (mode) => challengeDuel(id, mode),
     },
   ));
 }

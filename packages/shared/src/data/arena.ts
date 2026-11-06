@@ -163,8 +163,8 @@ export const isBossWave = (wave: number): boolean => wave > 0 && wave % ARENA_BO
  * Modificador da semana (ciclo 16): muda as ondas 61–70 para todos durante a semana ISO (`weekId`, segunda a
  * domingo), em rodízio fixo (semanas seguidas nunca repetem). A partida usa o da semana em que começou. Não muda a
  * recompensa: a XP da onda vem da quantidade de antes (Enxame reparte a mesma XP entre mais monstros).
- * Medidos no modelo (arena.test.ts, "modificador da semana"): nenhum deixa o grupo lv 110 completar e com todos o
- * lv 130 completa; o lv 120, que completa sem modificador, cai na Fúria e na Carapaça (onda 61) e no Enxame (69).
+ * Medidos no modelo (arena.test.ts, "modificador da semana"; 2026-11-06, com o paladino ×1,15): nenhum deixa o grupo
+ * lv 105 completar (o lv 110 só completa no Sem Trégua) e com todos o lv 135 completa; a Fúria segura o lv 120 na 67.
  */
 export type ArenaModId = "furia" | "carapaca" | "enxame" | "sem_tregua" | "calmaria";
 export interface ArenaModDef {
@@ -386,4 +386,58 @@ export function arenaTimeText(ms: number): string {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   const two = (n: number) => String(n).padStart(2, "0");
   return h > 0 ? `${h}:${two(m)}:${two(sec)}` : `${m}:${two(sec)}`;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Coliseu competitivo (2026-11-06, pedido do dono: "jogos para jogar juntos e contra"). Duas coisas a mais em cima do
+// ranking de tempo, que só conta quem vence as 70 ondas:
+// - ranking SEMANAL DE ONDAS: toda partida que termina entra (onda mais alta; empate, quem chegou mais rápido); o grupo
+//   em 1º na virada da semana ganha ARENA_WEEK_PRIZE_CHESTS Baús de Recompensa cada (no próximo login);
+// - DESAFIO GRUPO × GRUPO: o líder de um lobby desafia outro lobby; aceito, os dois começam juntos (duas salas, o
+//   mesmo modificador). Vence quem passar mais ondas (empate: quem chegou mais rápido à última); ARENA_VERSUS_CHESTS
+//   Baú para cada um do grupo vencedor.
+// ---------------------------------------------------------------------------------------------------------------------
+export interface ArenaWaveRecord {
+  /** Quem jogou a partida. */
+  names: string[];
+  /** Ondas vencidas. */
+  wave: number;
+  /** Da onda 1 até vencer a última onda (ms). */
+  ms: number;
+  week: string;
+  at: number;
+}
+/** Quantos grupos ficam no ranking da semana. */
+export const ARENA_WEEK_TOP = 10;
+export const ARENA_WEEK_PRIZE_CHESTS = 3;
+export const ARENA_VERSUS_CHESTS = 1;
+
+/** `a` é melhor que `b`? Mais ondas; empate, menos tempo; empate, quem fez antes. */
+export function arenaWaveBetter(a: Pick<ArenaWaveRecord, "wave" | "ms" | "at">, b: Pick<ArenaWaveRecord, "wave" | "ms" | "at">): boolean {
+  if (a.wave !== b.wave) return a.wave > b.wave;
+  if (a.ms !== b.ms) return a.ms < b.ms;
+  return a.at < b.at;
+}
+
+/** Mesmo grupo (os mesmos nomes, em qualquer ordem). */
+const groupKey = (names: readonly string[]) => [...names].map((n) => n.toLowerCase()).sort().join("|");
+
+/**
+ * Põe `rec` no ranking da semana: um registro por grupo (fica o melhor), ordenado, no máximo ARENA_WEEK_TOP. Partida
+ * sem onda vencida não entra.
+ */
+export function arenaWavesInsert(list: readonly ArenaWaveRecord[], rec: ArenaWaveRecord): ArenaWaveRecord[] {
+  if (!(rec.wave >= 1) || !rec.names.length) return [...list];
+  const k = groupKey(rec.names);
+  const old = list.find((r) => groupKey(r.names) === k);
+  const rest = list.filter((r) => r !== old);
+  const best = old && !arenaWaveBetter(rec, old) ? old : rec;
+  return [...rest, best].sort((a, b) => (arenaWaveBetter(a, b) ? -1 : arenaWaveBetter(b, a) ? 1 : 0)).slice(0, ARENA_WEEK_TOP);
+}
+
+/** Vencedor do desafio grupo × grupo: 0, 1 ou null (empate exato). */
+export function arenaVersusWinner(a: { wave: number; ms: number }, b: { wave: number; ms: number }): 0 | 1 | null {
+  if (a.wave !== b.wave) return a.wave > b.wave ? 0 : 1;
+  if (a.ms !== b.ms) return a.ms < b.ms ? 0 : 1;
+  return null;
 }

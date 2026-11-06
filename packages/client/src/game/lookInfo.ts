@@ -1,5 +1,5 @@
 // Conteúdo do "olhar" (puro: recebe os dados, devolve título/cor/linhas). A cena decide o que está sob o mouse.
-import { ELITE, SKULL_LABEL, TITLES, monsterDef, monsterResistances, npcDef, questLeverDef } from "@lemonquest/shared";
+import { eliteMult, SKULL_LABEL, TITLES, monsterDef, monsterResistances, npcDef, questLeverDef } from "@lemonquest/shared";
 import { BOUNTY_NPC, QUEST_LIST, REFINE_NPC, REQUEST_NPC, type NpcDef } from "@lemonquest/shared";
 import { elementLines } from "../ui/bestiary/bestiaryLogic.ts";
 import { DAMAGE_LABEL, VOCATION_LABEL } from "../ui/items/itemInfo.ts";
@@ -10,15 +10,15 @@ export interface LookContent { title: string; color?: string; lines: string[] }
 
 const pct = (hp: number, max: number) => `${Math.max(0, Math.round((hp / Math.max(1, max)) * 100))}%`;
 
-export function lookCreature(c: { defId: string; name: string; level: number; boss: boolean; hp: number; maxHp: number; elite?: boolean }, myLevel: number): LookContent {
+export function lookCreature(c: { defId: string; name: string; level: number; boss: boolean; hp: number; maxHp: number; elite?: boolean; named?: string }, myLevel: number): LookContent {
   const def = monsterDef(c.defId);
   const lines = [
-    `Level ${c.level} · ${levelDifficulty(c.level, myLevel, c.boss)}${c.elite ? " · ELITE" : ""}`,
+    `Level ${c.level} · ${levelDifficulty(c.level, myLevel, c.boss)}${c.named ? ` · NOMEADO (${def?.name ?? c.defId})` : c.elite ? " · ELITE" : ""}`,
     `Vida ${c.hp.toLocaleString("pt-BR")}/${c.maxHp.toLocaleString("pt-BR")} (${pct(c.hp, c.maxHp)})`,
   ];
   if (def) {
-    // Dano real (os dados já vêm com o multiplicador por level; a elite ainda bate ELITE.dmg a mais).
-    const k = c.elite ? ELITE.dmg : 1;
+    // Dano real (os dados já vêm com o multiplicador por level; elite e nomeado ainda batem ELITE/NAMED_ELITE.dmg a mais).
+    const k = eliteMult(c, "dmg");
     const dmg = `${Math.round(def.damage[0] * k)}–${Math.round(def.damage[1] * k)}`;
     lines.push(`Ataque: ${def.attackRange > 1 ? `à distância (${def.attackRange} sqm)` : "corpo a corpo"}, ${DAMAGE_LABEL[def.damageKind]}, ${dmg}`);
     if (def.abilities?.length) lines.push(`Habilidades: ${def.abilities.map((a) => a.name).join(", ")}`);
@@ -29,7 +29,7 @@ export function lookCreature(c: { defId: string; name: string; level: number; bo
     // Bando e fuga (GD-15): quem vai puxar precisa saber antes que o monstro grita por reforço ou some com pouca vida.
     if (def.pack) lines.push(`Chama o bando quando atacado (família: ${packFamilyLabel(def.pack.family)})`);
     if (def.fleeAtHpPct > 0) lines.push(`Foge com pouca vida (abaixo de ${Math.round(def.fleeAtHpPct * 100)}%)`);
-    lines.push(`XP: ${(def.xp * (c.elite ? ELITE.xp : 1)).toLocaleString("pt-BR")}`);
+    lines.push(`XP: ${(def.xp * eliteMult(c, "xp")).toLocaleString("pt-BR")}`);
   }
   // Elite: ★ antes do nome; a cor continua a da dificuldade (o dourado sozinho se confundia com o amarelo "difícil").
   return { title: `${c.boss ? "☠ " : ""}${c.elite ? `${ELITE_GLYPH} ` : ""}${c.name}`, color: creatureColor(c.level, myLevel, c.boss, c.elite), lines };
@@ -62,6 +62,7 @@ export function npcServices(d: NpcDef): string[] {
   if (d.blessing) out.push("bênção");
   if (d.casino) out.push("ficha de cassino");
   if (d.id === "arena_master") out.push("Coliseu");
+  if (d.id === "salao_mestre") out.push("Salão de Minijogos");
   if (d.travel?.length) out.push(`viagem (${d.travel.map((t) => t.label).join(", ")})`);
   if (d.shop?.sells.length) out.push("loja");
   if (d.shop?.buys?.length) out.push("compra itens");

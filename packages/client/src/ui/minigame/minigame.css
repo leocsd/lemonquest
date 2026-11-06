@@ -1,0 +1,34 @@
+/* Salão de Minijogos: janela do Mestre (reaproveita .arena-*) e a barra da partida. */
+.mg-window { left: 24px; top: 72px; width: 380px; max-height: calc(100vh - 150px); }
+.hud-card.mg-window { background: rgba(17, 20, 28, 0.93); }
+.mg-games { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mg-game {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 8px; text-align: left;
+  font-size: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; color: var(--hud-text);
+  transition: border-color 120ms, background-color 120ms;
+}
+.mg-game.sel { border-color: rgba(200, 240, 64, 0.7); background: rgba(200, 240, 64, 0.08); }
+.mg-game:focus-visible { outline: 2px solid var(--hud-gold); outline-offset: 1px; }
+.mg-tag { font-size: 10px; color: #8fd6ff; }
+.mg-desc { font-size: 12px; line-height: 1.4; color: var(--hud-text); text-wrap: pretty; }
+.mg-rooms, .mg-shop { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.mg-room { display: flex; align-items: center; gap: 8px; padding: 5px 6px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
+.mg-room.mine { border-color: rgba(200, 240, 64, 0.6); }
+.mg-room-main { flex: 1; min-width: 0; }
+.mg-room-title { font-size: 13px; }
+.mg-room-sub { font-size: 11px; color: var(--hud-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-room-btns { display: flex; gap: 4px; }
+.mg-tone { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.mg-swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.25); flex: none; }
+.mg-tone-name { flex: 1; }
+.mg-owned { color: #7fd88f; font-size: 11px; }
+
+.mg-bar { flex-direction: column; align-items: stretch; gap: 3px; }
+.mg-bar.ended { border-color: rgba(200, 240, 64, 0.7); }
+.mg-bar-row { display: flex; align-items: center; gap: 8px; }
+.mg-hearts { color: #ff6b6b; letter-spacing: 1px; }
+.mg-hearts.out { color: var(--hud-faint); }
+.mg-hearts b { color: var(--hud-gold); }
+.mg-score { display: flex; gap: 12px; font-size: 12px; color: var(--hud-muted); justify-content: center; }
+.mg-score .out { color: var(--hud-faint); text-decoration: line-through; }
+@media (prefers-reduced-motion: reduce) { .mg-game { transition: none; } }

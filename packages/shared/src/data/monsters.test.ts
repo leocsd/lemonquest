@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CALL_HELP_ID } from "./monsterAbilities.ts";
 import {
-  BOSS_ROOT_SLOW_PCT, BOSS_SLOW_MULT, ELEMENT_WEAKNESS, ELITE, ELITE_CHANCE, HELP_RADIUS, MONSTERS, OWN_ELEMENT_TAKEN, bossCondition, canBeElite,
+  BOSS_RESPAWN_MULT, NAMED_ELITE, NAMED_ELITES, eliteMult, monsterDisplayName, namedEliteOf, BOSS_ROOT_SLOW_PCT, BOSS_SLOW_MULT, ELEMENT_WEAKNESS, ELITE, ELITE_CHANCE, HELP_RADIUS, MONSTERS, OWN_ELEMENT_TAKEN, bossCondition, canBeElite,
   damageTakenMult, eliteName, monsterAbilitySpell, monsterDamageMult, monsterNatures, monsterResistances, summonScaled, type MonsterNature,
 } from "./monsters.ts";
 import { TARGETING_LABEL, monsterTargeting } from "./monsters.ts";
@@ -76,8 +76,11 @@ describe("MONSTERS", () => {
     }
   });
 
-  it("bosses respawnam em ~2h", () => {
-    for (const d of Object.values(MONSTERS).filter((m) => m.boss)) expect(d.respawnMs).toBeGreaterThanOrEqual(3_600_000);
+  it("bosses respawnam entre 15 min e menos de 1 h", () => {
+    for (const d of Object.values(MONSTERS).filter((m) => m.boss)) {
+      expect(d.respawnMs, d.id).toBeGreaterThanOrEqual(900_000);
+      expect(d.respawnMs, d.id).toBeLessThan(3_600_000);
+    }
   });
 });
 
@@ -124,10 +127,10 @@ describe("ciclo 8: dano por level, respawn, elites e bandos", () => {
     }
   });
 
-  it("respawn dos comuns ×0,7; chefes e boneco iguais", () => {
+  it("respawn dos comuns ×0,7; chefes ×0,15; boneco igual", () => {
     expect(MONSTERS.rat!.respawnMs).toBe(14_000); // 20 s
     expect(MONSTERS.demon!.respawnMs).toBe(105_000); // 150 s
-    expect(MONSTERS.goblin_king!.respawnMs).toBe(7_200_000);
+    expect(MONSTERS.goblin_king!.respawnMs).toBe(1_080_000); // 2 h → 18 min
     expect(MONSTERS.training_dummy!.respawnMs).toBe(5000);
   });
 
@@ -259,14 +262,14 @@ describe("chefes de covil (ciclo 16)", () => {
     ["lair_shogun", 125, 45000, "shogun_seal", "Boss/GiantBlueSamurai/"],
   ] as const;
 
-  it("level, vida e sprite da tabela; chefe que deixa a prova a 100%; respawn de 2 a 4 h", () => {
+  it("level, vida e sprite da tabela; chefe que deixa a prova a 100%; respawn de 2 a 4 h de tabela (×0,15)", () => {
     for (const [id, level, hp, proof, sprite] of LAIRS) {
       const d = MONSTERS[id]!;
       expect([d.level, d.hp, d.boss], id).toEqual([level, hp, true]);
       expect(d.sprite.url, id).toContain(sprite);
       expect(d.loot!.find((l) => l.itemId === proof)?.chance, id).toBe(1);
-      expect(d.respawnMs, id).toBeGreaterThanOrEqual(7_200_000);
-      expect(d.respawnMs, id).toBeLessThanOrEqual(14_400_000);
+      expect(d.respawnMs, id).toBeGreaterThanOrEqual(7_200_000 * BOSS_RESPAWN_MULT);
+      expect(d.respawnMs, id).toBeLessThanOrEqual(14_400_000 * BOSS_RESPAWN_MULT);
       expect(d.abilities?.some((a) => a.summon), `${id} invoca ajudantes`).toBe(true);
     }
     // Tiras largas: Squid 304x79 = 4 de 76x79; Samurai 576x48 = 6 de 96x48 (meio samurai se cortasse em 48).
@@ -336,12 +339,12 @@ describe("Siderúrgica (ciclo 19)", () => {
     for (const id of ["gosma_gusa", "golem_escoria", "golem_convertedor", "gosma_aco_liquido"]) expect(MONSTERS[id]!.sprite.tint, id).toBeUndefined();
   });
 
-  it("chefes: prova a 100%, invocam um monstro da região, respawn de 2 a 4 h", () => {
+  it("chefes: prova a 100%, invocam um monstro da região, respawn de 2 a 4 h de tabela (×0,15)", () => {
     for (const [id, proof, helper, respawn] of BOSSES) {
       const d = MONSTERS[id]!;
       expect(d.loot!.find((l) => l.itemId === proof)?.chance, id).toBe(1);
       expect(d.abilities!.find((a) => a.summon)?.summon?.monsterId, id).toBe(helper);
-      expect(d.respawnMs, id).toBe(respawn);
+      expect(d.respawnMs, id).toBe(respawn * BOSS_RESPAWN_MULT);
     }
     // A Fornalha se cura a 30% da vida (Reacender).
     expect(MONSTERS.fornalha_primordial!.abilities!.find((a) => a.heal)?.heal).toEqual({ pct: 0.05, belowHpPct: 0.3 });
@@ -435,13 +438,13 @@ describe("Montadora (ciclo 20)", () => {
     }
   });
 
-  it("chefes: prova a 100%, invocam um monstro da região, respawn de 2 a 4 h", () => {
+  it("chefes: prova a 100%, invocam um monstro da região, respawn de 2 a 4 h de tabela (×0,15)", () => {
     for (const [id, proof, helper, respawn] of BOSSES) {
       const d = MONSTERS[id]!;
       expect(d.loot!.find((l) => l.itemId === proof)?.chance, id).toBe(1);
       expect(d.abilities!.find((a) => a.summon)?.summon?.monsterId, id).toBe(helper);
       expect(MONSTERS[helper], helper).toBeDefined();
-      expect(d.respawnMs, id).toBe(respawn);
+      expect(d.respawnMs, id).toBe(respawn * BOSS_RESPAWN_MULT);
     }
   });
 
@@ -495,5 +498,60 @@ describe("estratégia de alvo (dono, 2026-10-28): monsterTargeting", () => {
     }
     // O catálogo pode sobrepor o padrão.
     expect(monsterTargeting({ targeting: "random", boss: true, attackRange: 1, fleeAtHpPct: 0 })).toBe("random");
+  });
+});
+
+describe("elite nomeado (C12-8)", () => {
+  it("cada nomeado é de um monstro comum do fim de jogo que pode ser elite e nasce no mapa", () => {
+    const world = JSON.parse(readFileSync(fileURLToPath(new URL("../../../../assets/maps/world.json", import.meta.url)), "utf8"));
+    const spawned = new Set<string>();
+    for (const l of world.layers) for (const o of l.objects ?? []) {
+      if (o.type === "monster_spawn") spawned.add(o.properties?.find((p: { name: string }) => p.name === "monster")?.value);
+    }
+    for (const [id, name] of Object.entries(NAMED_ELITES)) {
+      const d = MONSTERS[id]!;
+      expect(d, id).toBeDefined();
+      expect(canBeElite(d), id).toBe(true);
+      expect(d.level, id).toBeGreaterThanOrEqual(90);
+      expect(spawned.has(id), `${id} nasce no mapa`).toBe(true);
+      expect(name.length, id).toBeGreaterThan(3);
+    }
+    expect(new Set(Object.values(NAMED_ELITES)).size).toBe(Object.keys(NAMED_ELITES).length);
+  });
+
+  it("multiplicadores e nome mostrado: nomeado > elite > comum", () => {
+    expect(eliteMult({ named: "X", elite: true }, "xp")).toBe(NAMED_ELITE.xp);
+    expect(eliteMult({ elite: true }, "xp")).toBe(ELITE.xp);
+    expect(eliteMult({}, "xp")).toBe(1);
+    for (const k of ["hp", "dmg", "xp", "gold", "loot"] as const) expect(NAMED_ELITE[k], k).toBeGreaterThan(ELITE[k]);
+    expect(monsterDisplayName({ named: "Belzor", elite: true }, "Demônio")).toBe("Belzor");
+    expect(monsterDisplayName({ elite: true }, "Demônio")).toBe("Elite Demônio");
+    expect(monsterDisplayName({}, "Demônio")).toBe("Demônio");
+    expect(namedEliteOf("demon")).toBe("Belzor, o Insaciável");
+    expect(namedEliteOf("rat")).toBeUndefined();
+    expect(namedEliteOf("constructor")).toBeUndefined();
+  });
+});
+
+describe("Murphy, o Corretor (C10-4)", () => {
+  it("chefe lv 44 do Portal: Carta Lacrada a 100%, invoca o Frame Descartado, respawn de tabela 2 h", () => {
+    const d = MONSTERS.murphy!;
+    expect([d.name, d.level, d.boss]).toEqual(["Murphy, o Corretor", 44, true]);
+    expect(d.loot!.find((l) => l.itemId === "mensagem_retida")?.chance).toBe(1);
+    expect(d.abilities!.find((a) => a.summon)?.summon?.monsterId).toBe("frame_descartado");
+    expect(d.respawnMs).toBe(7_200_000 * BOSS_RESPAWN_MULT);
+  });
+
+  it("nasce uma vez só, no Portal de Inspeção, fora de PZ", () => {
+    const world = JSON.parse(readFileSync(fileURLToPath(new URL("../../../../assets/maps/world.json", import.meta.url)), "utf8"));
+    const objs = world.layers.flatMap((l: { objects?: unknown[] }) => l.objects ?? []) as { type: string; x: number; y: number; width: number; height: number; name: string; properties?: { name: string; value: unknown }[] }[];
+    const prop = (o: (typeof objs)[number], k: string) => o.properties?.find((p) => p.name === k)?.value;
+    const spawns = objs.filter((o) => o.type === "monster_spawn" && prop(o, "monster") === "murphy");
+    expect(spawns).toHaveLength(1);
+    const s = spawns[0]!;
+    expect(prop(s, "count")).toBe(1);
+    const zonesAt = objs.filter((z) => z.type === "zone" && s.x >= z.x && s.x < z.x + z.width && s.y >= z.y && s.y < z.y + z.height);
+    expect(zonesAt.map((z) => z.name)).toContain("Portal de Inspeção");
+    expect(zonesAt.some((z) => prop(z, "pz") === true)).toBe(false);
   });
 });

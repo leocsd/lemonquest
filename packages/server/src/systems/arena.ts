@@ -7,7 +7,8 @@
 // tempo das 70 ondas no kv (arenaChampion.ts; o título rotativo "Campeão do Coliseu" sai de lá na virada da semana).
 import {
   ARENA_COMPLETE_GOLD, ARENA_COMPLETE_XP_PCT, ARENA_COUNTDOWN_MS, ARENA_INTRO_MS, ARENA_LOBBY_RANGE, ARENA_MODS,
-  ARENA_MAX_WAVE, ARENA_MOD_FROM_WAVE, ARENA_PAUSE_HEAL, ARENA_READY_MS, ARENA_SPAWN_DELAY_MS, ARENA_SPAWN_STAGGER_MS, S2C,
+  ARENA_MAX_WAVE, ARENA_MOD_FROM_WAVE, ARENA_PAUSE_HEAL, ARENA_READY_MS, ARENA_SPAWN_DELAY_MS, ARENA_SPAWN_STAGGER_MS, ARENA_VERSUS_CHESTS, S2C,
+  arenaVersusWinner,
   applyXpStage, arenaMilestoneGold, arenaModAt, arenaPauseMs, arenaShopAfter, arenaTimeText, arenaWaveGold, arenaWaveSpawns,
   arenaWaveXp, findObjects, monsterDef, objectTile, partyMinLevel, weekEndsAt, weekId,
   type ArenaActionMsg, type ArenaLobbiesMsg, type ArenaLobbySummary, type ArenaModId, type ArenaPhase, type ArenaResultMsg,
@@ -15,6 +16,7 @@ import {
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { arenaTimes, submitArenaTime } from "./arenaChampion.ts";
+import { arenaWavesOf, kvArenaPrize, submitArenaWaves } from "./arenaWeekly.ts";
 import { cheb, type MonsterManager, type TileRect } from "./monsters.ts";
 import type { Point } from "./pathfinding.ts";
 
@@ -101,7 +103,12 @@ export interface ArenaOptions {
   partyMates?: (id: string) => string[];
   /** O jogador é o líder do grupo (party)? */
   isPartyLeader?: (id: string) => boolean;
+  /** Coliseu competitivo: entrega Baús de Recompensa (desafio grupo × grupo vencido). Sem ele, guarda no kv do prêmio. */
+  giveChests?: (p: PlayerState, n: number) => void;
 }
+
+/** Resultado de um grupo do desafio grupo × grupo, esperando o outro terminar. */
+interface VersusDone { wave: number; ms: number; names: string[]; ids: string[] }
 
 interface Member {
   id: string;
@@ -140,6 +147,10 @@ interface Party {
   mod: ArenaModId;
   /** Início da onda 1 (ms): relógio do ranking de tempo. 0 = ainda não começou. */
   startedAt: number;
+  /** Coliseu competitivo: quando venceu a última onda (ms), o grupo rival do desafio e o lobby que ele desafiou. */
+  lastClearAt?: number;
+  rival?: string;
+  versusTo?: string;
   /** Venceu as 70: tempo e recorde batido (para o resultado e o feed). */
   timeMs?: number;
   timeRecord?: "week" | "server";
@@ -152,6 +163,10 @@ export class ArenaSystem {
   private readonly partyOf = new Map<string, Party>();
   private readonly queue: Party[] = [];
   private readonly busy = new Map<number, Party>();
+  /** Salas emprestadas à Arena de Duelo (reserve/release). */
+  private readonly reserved = new Set<number>();
+  /** Desafios grupo × grupo: resultado do grupo que terminou primeiro, pelo id do lobby dele. */
+  private readonly versusDone = new Map<string, VersusDone>();
   private readonly watchers = new Set<string>();
   private readonly now: () => number;
   private readonly rng: () => number;
@@ -172,7 +187,7 @@ export class ArenaSystem {
   }
 
   get arenas(): readonly ArenaDef[] { return this.o.layout.arenas; }
-  get freeArenas(): number { return this.arenas.filter((a) => !this.busy.has(a.id)).length; }
+  get freeArenas(): number { return this.arenas.filter((a) => this.isFreeArena(a)).length; }
   get queueLength(): number { return this.queue.length; }
   /** Partida/lobby do jogador (testes/inspeção). */
   partyFor(id: string): Readonly<Party> | undefined { return this.partyOf.get(id); }
@@ -218,6 +233,78 @@ export class ArenaSystem {
       case "leave": return this.leave(p);
       case "start": return this.start(p);
       case "ready": return this.ready(p);
+      case "versus": return typeof msg.lobbyId === "string" ? this.versus(p, msg.lobbyId) : undefined;
+      case "versusAnswer": return typeof msg.lobbyId === "string" ? this.versusAnswer(p, msg.lobbyId, msg.accept === true) : undefined;
+    }
+  }
+
+  // --- desafio grupo × grupo (Coliseu competitivo, 2026-11-06) -------------------------------------------------------
+
+  /** Líder do lobby desafia outro lobby (os dois ainda no lobby, perto do Mestre). */
+  private versus(p: PlayerState, lobbyId: string): void {
+    const mine = this.partyOf.get(p.id);
+    if (!mine || mine.phase !== "lobby") return this.notice(p.id, "Crie um grupo do Coliseu antes de desafiar.", "warn");
+    if (mine.leader !== p.id) return this.notice(p.id, "Só o líder pode desafiar outro grupo.", "warn");
+    if (!this.nearMaster(p)) return this.notice(p.id, "Fale com o Mestre do Coliseu.", "warn");
+    const other = this.parties.get(lobbyId);
+    if (!other || other === mine || other.phase !== "lobby") return this.notice(p.id, "Esse grupo não está mais aberto.", "warn");
+    mine.versusTo = other.id;
+    this.notice(p.id, `Desafio enviado ao grupo de ${this.leaderName(other)}. Esperando a resposta do líder.`, "info");
+    this.notice(other.leader, `O grupo de ${p.name} desafiou o seu no Coliseu! Responda na janela do Coliseu.`, "warn");
+    this.lobbiesDirty = true;
+  }
+
+  private leaderName(party: Party): string {
+    return party.members.find((m) => m.id === party.leader)?.name ?? "?";
+  }
+
+  /** Líder do lobby desafiado aceita (os dois começam juntos, em duas salas) ou recusa. */
+  private versusAnswer(p: PlayerState, lobbyId: string, accept: boolean): void {
+    const mine = this.partyOf.get(p.id);
+    const other = this.parties.get(lobbyId);
+    if (!mine || !other || other.versusTo !== mine.id || mine.leader !== p.id) return;
+    other.versusTo = undefined;
+    this.lobbiesDirty = true;
+    if (!accept) return this.notice(other.leader, `O grupo de ${p.name} recusou o desafio.`, "info");
+    if (mine.phase !== "lobby" || other.phase !== "lobby") return this.notice(p.id, "Um dos grupos não está mais no lobby.", "warn");
+    const free = this.arenas.filter((a) => this.isFreeArena(a));
+    if (free.length < 2) {
+      for (const id of [p.id, other.leader]) this.notice(id, "O desafio precisa de duas salas livres. Tentem de novo daqui a pouco.", "warn");
+      return;
+    }
+    for (const x of this.parties.values()) if (x.versusTo === mine.id || x.versusTo === other.id) x.versusTo = undefined;
+    mine.versusTo = undefined;
+    other.rival = mine.id;
+    mine.rival = other.id;
+    this.beginCountdown(other, free[0]!);
+    this.beginCountdown(mine, free[1]!);
+    const names = (x: Party) => x.members.map((m) => m.name).join(", ");
+    this.o.broadcast(S2C.Feed, { text: `🏟️ Desafio no Coliseu: ${names(other)} × ${names(mine)}! Vence quem passar mais ondas.`, kind: "info" } satisfies FeedMsg);
+  }
+
+  /** Fim de uma partida de desafio: guarda o resultado até o rival terminar; aí decide e premia. */
+  private versusEnded(party: Party, res: VersusDone): void {
+    if (!party.rival) return;
+    const other = this.versusDone.get(party.rival);
+    if (!other) {
+      this.versusDone.set(party.id, res);
+      for (const id of res.ids) this.notice(id, "Desafio do Coliseu: seu grupo terminou. Esperando o outro grupo...", "info");
+      return;
+    }
+    this.versusDone.delete(party.rival);
+    const w = arenaVersusWinner(res, other);
+    const txt = (r: VersusDone) => `${r.names.join(", ")} (${r.wave} ondas)`;
+    const head = w === null ? `empate entre ${txt(res)} e ${txt(other)}` : `${txt(w === 0 ? res : other)} venceu ${txt(w === 0 ? other : res)}`;
+    this.o.broadcast(S2C.Feed, { text: `🏟️ Desafio no Coliseu: ${head}!`, kind: "info" } satisfies FeedMsg);
+    if (w === null) return;
+    const win = w === 0 ? res : other;
+    for (let i = 0; i < win.ids.length; i++) {
+      const p = this.o.getPlayer(win.ids[i]!);
+      if (p && this.o.giveChests) this.o.giveChests(p, ARENA_VERSUS_CHESTS);
+      else if (this.o.getKv && this.o.setKv) {
+        const k = kvArenaPrize(win.names[i]!);
+        this.o.setKv(k, String((Number(this.o.getKv(k)) || 0) + ARENA_VERSUS_CHESTS));
+      }
     }
   }
 
@@ -483,6 +570,7 @@ export class ArenaSystem {
   private waveCleared(party: Party, now: number): void {
     const wave = party.wave;
     party.cleared = wave;
+    party.lastClearAt = now;
     const alive = party.members.filter((m) => m.alive);
     const waveXp = arenaWaveXp(party.spawns, alive.length);
     const milestone = arenaMilestoneGold(wave);
@@ -571,6 +659,17 @@ export class ArenaSystem {
   }
 
   private endMatch(party: Party, reason: ArenaResultMsg["reason"]): void {
+    // Coliseu competitivo: a partida entra no ranking de ondas da semana em que começou; o desafio decide quando os dois
+    // grupos terminam. Isolado: falha no kv não impede o fim da partida.
+    const names = party.members.map((m) => m.name), ids = party.members.map((m) => m.id);
+    const ms = party.startedAt && party.lastClearAt ? party.lastClearAt - party.startedAt : 0;
+    if (party.startedAt && this.o.getKv && this.o.setKv) {
+      try {
+        submitArenaWaves({ getKv: this.o.getKv, setKv: this.o.setKv },
+          { names, wave: party.cleared, ms, week: weekId(new Date(party.startedAt)), at: this.now() });
+      } catch (e) { console.error("[arena] falha ao gravar o ranking de ondas:", e); }
+    }
+    try { this.versusEnded(party, { wave: party.cleared, ms, names, ids }); } catch (e) { console.error("[arena] falha no desafio:", e); }
     for (const m of party.members) if (m.alive) this.memberOut(party, m, reason);
     for (const id of party.monsterIds) { const mon = this.o.monsters.get(id); if (mon) this.o.monsters.despawn(mon); }
     party.monsterIds.clear();
@@ -666,7 +765,26 @@ export class ArenaSystem {
   }
 
   private freeArena(): ArenaDef | undefined {
-    return this.arenas.find((a) => !this.busy.has(a.id));
+    return this.arenas.find((a) => this.isFreeArena(a));
+  }
+
+  private isFreeArena(a: ArenaDef): boolean {
+    return !this.busy.has(a.id) && !this.reserved.has(a.id);
+  }
+
+  /**
+   * Arena de Duelo (2026-11-06): reserva uma sala livre para outro uso; undefined = todas ocupadas. Enquanto reservada,
+   * o Coliseu não começa partida nela (a fila espera); `release` devolve e chama a fila.
+   */
+  reserve(): ArenaDef | undefined {
+    const a = this.freeArena();
+    if (a) this.reserved.add(a.id);
+    return a;
+  }
+
+  release(id: number): void {
+    if (!this.reserved.delete(id)) return;
+    this.startQueued();
   }
 
   private nearMaster(p: PlayerState): boolean {
@@ -697,12 +815,15 @@ export class ArenaSystem {
         leader: party.members.find((m) => m.id === party.leader)?.name ?? "?",
         members: party.members.map((m) => m.name),
         avgLevel: lv.length ? Math.round(lv.reduce((a, b) => a + b, 0) / lv.length) : 0,
+        ...(party.versusTo && this.parties.get(party.versusTo)?.phase === "lobby" ? { versusTo: party.versusTo } : {}),
       });
     }
     const now = this.now();
     let times: ReturnType<typeof arenaTimes> = {};
     try { if (this.o.getKv) times = arenaTimes({ getKv: this.o.getKv }, weekId(new Date(now))); } catch { /* sem ranking */ }
-    const week = { mod: this.weekMod(now), endsAt: weekEndsAt(new Date(now)), ...times };
+    let waves: ReturnType<typeof arenaWavesOf> = [];
+    try { if (this.o.getKv) waves = arenaWavesOf({ getKv: this.o.getKv }, weekId(new Date(now))).slice(0, 5); } catch { /* sem ranking */ }
+    const week = { mod: this.weekMod(now), endsAt: weekEndsAt(new Date(now)), ...times, ...(waves.length ? { waves } : {}) };
     return { lobbies, freeArenas: this.freeArenas, queue: this.queue.length, week };
   }
 

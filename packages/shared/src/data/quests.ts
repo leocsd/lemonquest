@@ -842,6 +842,22 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 12000, gold: 3000, items: [{ itemId: "mana_potion_large", count: 10 }, { itemId: "health_potion_large", count: 5 }] },
   }),
+  // C10-4 (2026-11-06): o chefe Murphy nasce no próprio Portal de Inspeção (sem sala nova) e larga a Carta Lacrada.
+  q({
+    id: "lei_de_murphy", name: "A Lei de Murphy", giver: "operador_abrigo", minLevel: 42, requires: ["passagem_duplicada"],
+    summary: "Tudo que pode dar errado no Portal dá errado, e sempre do mesmo jeito: Murphy, o Corretor, ronda o pórtico. O Técnico do CLP quer o Murphy derrubado e a carta que ele segura entregue em mãos.",
+    steps: [
+      { kind: "boss", target: "murphy", count: 1, label: "Murphy, o Corretor" },
+      { kind: "deliver", target: "mensagem_retida", count: 1, label: "Carta Lacrada" },
+    ],
+    dialog: {
+      offer: "Passagem duplicada, imagem três horas adiantada, iluminador que queima na visita de campo... Não é azar: é o Murphy. Ele ronda o leste do pórtico e segura uma carta lacrada que nunca chegou ao destino. Derrube o Murphy e me traga a carta, em mãos.",
+      accept: "Leve um grupo e não confie em nada que pareça estar dando certo. O Murphy fica no leste do Portal de Inspeção.",
+      progress: "O Murphy ainda está por aí. Se algo está dando certo, é porque você ainda não chegou lá.",
+      complete: "A carta! Lacrada desde a primeira passagem... Era o aviso de que o servidor ia reiniciar no meio do trem. Tarde, mas chegou. Tome, e lembre: se pode dar errado, teste antes.",
+    },
+    rewards: { xp: 22000, gold: 5500, items: [{ itemId: "health_potion_large", count: 10 }], unlock: "title:a_prova_de_murphy" },
+  }),
   q({
     id: "rodeiro_trincado", name: "Trinca no Disco", giver: "mecanico_vagao", minLevel: 45, requires: ["sapata_gasta", "dark_field"],
     summary: "Na Oficina de Vagões, Olhos Sangrentos e Feras das Brasas tomaram o galpão das rodas reprovadas. O Engenheiro do Dark-field quer a oficina de volta e as engrenagens salvas.",

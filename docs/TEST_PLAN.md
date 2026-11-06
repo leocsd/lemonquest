@@ -16,6 +16,30 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Salão de Minijogos (2026-11-06)
+
+Typecheck 3× tsc. Novos: `shared/data/minigames.test.ts` (10: padrões da Chuva sempre com ≥ 9 tiles livres em 60 ondas ×
+40 sorteios, padrões difíceis só depois da onda mínima, "olho" com 3×3 livre, Chão que Cai prefere a borda (> 60%) e
+sempre acaba, garoa leve, placas do Genius, fichas e teto, recordes por grupo, tons da loja), `server/systems/minigames.test.ts`
+(10: mapa real com as 2 salas andáveis dentro da zona PZ e o Mestre; anfitrião, começar só por ele, fora do Salão não
+entra, sala em jogo fechada; Chuva parado perde as vidas e volta ao saguão, desviando sobrevive > 20 ondas, 2 jogadores
+com vencedor e sem ficha na vitória relâmpago; buraco tira vida e reposiciona; Pega-Limão soma e vence quem pegou mais;
+Genius passa de rodada repetindo e perde vida do time errando; teto diário e `loginPosition`),
+`client/ui/minigame/minigameLogic.test.ts` (3). Mapa: `diff-world` 0 tiles alterados, 1398/1398 objetos antigos idênticos,
+11 novos; `diff-atlas` 1606/1606. E2E novo `e2e/salao.spec.ts` (porta da Vila → saguão → janela → partida solo → Sair).
+**Pendente no jogo:** ritmo dos avisos com a latência real da LAN e leitura visual dos golpes, buracos, limões e placas.
+
+## Resultados — Jogos juntos e contra (2026-11-06)
+
+Typecheck 3× tsc; suíte unitária inteira verde (161 arquivos, 2002 testes). Novos: `raid.test.ts` (8: vida pela soma
+dos levels, dano pelo menor level, baú por ≥ 1 min, vitória, alavanca), `huntRace.test.ts` (7: sorteio equilibrado,
+pontos com crédito de grupo, empate, vencedores), `duel.test.ts` (7: convite expira, contagem, morte interceptada sem
+perda, tempo esgotado, desistência ao sair, sala reservada), `arenaWeekly.test.ts` (5: ranking por grupo, coroação uma
+vez, prêmio entregue uma vez), `arena.test.ts` (+3: desafio grupo × grupo, recusa, duas salas livres), Murphy em
+`monsters.test.ts`/`quests.test.ts`, elites nomeados, paladino em `vocationBalance.test.ts`. Mapa: `diff-world` 0 tiles,
+1397/1397 objetos antigos idênticos, 1 objeto novo (spawn do Murphy). **Sem E2E nem conferência visual** das barras de
+corrida e duelo, dos botões de desafio e dos sprites novos: pendente no servidor de dev.
+
 ## Resultados — Estagiário: caçar com amigo e a janela repensada (2026-11-02)
 
 Typecheck 3× tsc; suíte unitária inteira verde. `server/src/systems/estagiario.test.ts` ganha "caçar com amigo" (+5, 108

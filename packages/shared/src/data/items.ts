@@ -327,6 +327,11 @@ add({
   use: { chest: true, cooldownMs: 500 },
   description: "Prêmio do Quadro de Recompensas. Use para abrir: poções, comida, ouro e, com sorte, um equipamento incomum ou melhor.",
 });
+// Salão de Minijogos (2026-11-06): moeda dos cosméticos do Salão (tons exclusivos). Sem valor em ouro.
+add({
+  id: "ficha_salao", name: "Ficha do Salão", kind: "quest", stackable: true, maxStack: 500, value: 0, icon: img("Treasure/SilverCoin.png", 0xc8f040),
+  description: "Ganha nos minijogos do Salão (porta da casinha laranja ao sul da praça). O Mestre do Salão troca por tons de roupa exclusivos.",
+});
 add({ id: "goblin_crown", name: "Coroa do Rei Goblin", kind: "quest", value: 0, icon: img("Treasure/GoldCup.png"), description: "Prova de que o Rei Goblin caiu." });
 add({ id: "horned_fox_tail", name: "Cauda da Raposa Chifruda", kind: "quest", value: 0, icon: matIcon("wolf_pelt", 0xffa040), description: "Prova de que a Raposa Chifruda caiu." });
 add({ id: "demodras_head", name: "Cabeça de Demodras", kind: "quest", value: 0, icon: matIcon("lizard_scale", 0xff3020), description: "Prova de que Demodras caiu." });

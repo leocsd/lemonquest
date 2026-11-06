@@ -26,6 +26,7 @@ import { LootToasts } from "../items/LootToasts.tsx";
 import { QuickPotions } from "../items/QuickPotions.tsx";
 import { NpcWindow } from "../npc/NpcWindow.tsx";
 import { ArenaWindow } from "../arena/ArenaWindow.tsx";
+import { MinigameWindow } from "../minigame/MinigameWindow.tsx";
 import { ArenaHud } from "../arena/ArenaHud.tsx";
 import { TrainingWindow } from "../training/TrainingWindow.tsx";
 import { helpOpen, skillsOpen, toggle, togglePopover } from "./uiState.ts";
@@ -62,6 +63,7 @@ export function Hud() {
       </div>
       <NpcWindow />
       <ArenaWindow />
+      <MinigameWindow />
       <ArenaHud />
       <TrainingWindow />
       <LootToasts />

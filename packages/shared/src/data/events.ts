@@ -17,6 +17,10 @@ export interface GameEventDef {
   boss?: string;
   /** Invasão da Vila (shared/data/invasion.ts, server/systems/invasion.ts): ondas de monstros durante a janela. */
   invasion?: true;
+  /** Chefe de raide (shared/data/raid.ts, server/systems/raid.ts): o chefe da semana nasce ao norte da Vila. */
+  raid?: true;
+  /** Corrida de Caça (shared/data/huntRace.ts, server/systems/huntRace.ts): dois times sorteados disputam por abates. */
+  race?: true;
 }
 
 /** Chefes do almoço: dias úteis, 12h15 às 13h (o público joga no intervalo do escritório). */
@@ -58,6 +62,10 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   { id: "sangria_do_alto_forno", name: "Sangria do Alto-Forno", desc: "A corrida de gusa acordou o Golem do Convertedor na Aciaria! Loot +50%", xpMult: 1, lootMult: 1.5, day: 1, hour: 17, durationMin: 60, boss: "golem_convertedor" },
   // Montadora (ciclo 20): quarta às 13h, logo depois da Invasão da Vila (12h15–12h55) e antes do Apito (17h). O chefe
   // é convocado no spawn dele, o Salão do Protótipo, no subsolo da Pista de Testes.
+  // Corrida de Caça (2026-11-06): segunda 18h–18h30, logo depois da Sangria do Alto-Forno (17h–18h).
+  { id: "corrida_de_caca", name: "Corrida de Caça", desc: "Time Limão × Time Laranja, sorteados na hora: cada abate soma pontos para o seu time. Quem pontuar no time vencedor ganha Baú de Recompensa", xpMult: 1, lootMult: 1, day: 1, hour: 18, durationMin: 30, race: true },
+  // Chefe de raide (2026-11-06): sexta 16h–16h45, antes do Sextou (17h). Todo mundo junto, de qualquer level.
+  { id: "raide_de_sexta", name: "Raide de Sexta", desc: "Um chefe gigante chegou ao norte da Vila! Todo mundo junto, de qualquer level: quem lutar ganha Baú de Recompensa", xpMult: 1, lootMult: 1, day: 5, hour: 16, durationMin: 45, raid: true },
   { id: "teste_de_pista", name: "Teste de Pista", desc: "O Protótipo ligou o motor na Sala dos Protótipos! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 3, hour: 13, durationMin: 60, boss: "mt_prototipo" },
 ];
 
@@ -72,12 +80,16 @@ export interface ActiveEvent {
   until: number;
   /** Chefe convocado ao começar (ver GameEventDef.boss). */
   boss?: string;
+  /** Raide (ver GameEventDef.raid). */
+  raid?: true;
+  /** Corrida de Caça (ver GameEventDef.race). */
+  race?: true;
 }
 
 export const eventDef = (id: string): GameEventDef | undefined => WEEKLY_EVENTS.find((e) => e.id === id);
 
 export function toActive(def: GameEventDef, until: number): ActiveEvent {
-  return { id: def.id, name: def.name, desc: def.desc, xpMult: def.xpMult, lootMult: def.lootMult, until, ...(def.boss ? { boss: def.boss } : {}) };
+  return { id: def.id, name: def.name, desc: def.desc, xpMult: def.xpMult, lootMult: def.lootMult, until, ...(def.boss ? { boss: def.boss } : {}), ...(def.raid ? { raid: true as const } : {}), ...(def.race ? { race: true as const } : {}) };
 }
 
 /** Evento agendado que está valendo em `now` (considera o de ontem que atravessa a meia-noite). Null se nenhum. */

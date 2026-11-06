@@ -1,12 +1,16 @@
 // Tingimento na janela de roupas: clicar num tom não comprado só mostra a prévia no boneco; a compra (8.000 de ouro,
 // vale para a conta) sai por um botão que pede confirmação (dois cliques), para um clique solto não gastar o ouro.
-import { OUTFIT_TONE_PRICE } from "@lemonquest/shared";
+import { OUTFIT_TONE_PRICE, toneDef } from "@lemonquest/shared";
 
-/** owned = natural ou já liberado na conta (veste); buy = à venda com ouro suficiente; poor = à venda sem ouro. */
-export type ToneStatus = "owned" | "buy" | "poor";
+/**
+ * owned = natural ou já liberado na conta (veste); buy = à venda com ouro suficiente; poor = à venda sem ouro;
+ * salao = exclusivo do Salão de Minijogos (só com Fichas do Salão, no Mestre do Salão).
+ */
+export type ToneStatus = "owned" | "buy" | "poor" | "salao";
 
 export function toneStatus(tone: string, unlocked: readonly string[], gold: number): ToneStatus {
   if (tone === "" || unlocked.includes(tone)) return "owned";
+  if (toneDef(tone)?.fichas) return "salao";
   return gold >= OUTFIT_TONE_PRICE ? "buy" : "poor";
 }
 

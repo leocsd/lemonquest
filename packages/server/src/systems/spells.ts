@@ -115,6 +115,8 @@ export interface SpellSystemOptions {
    * quem atacou o conjurador — passar por um inocente não dá caveira). Ausente = área nunca atinge jogadores.
    */
   areaHitsPlayer?: (caster: PlayerState, other: PlayerState) => boolean;
+  /** Proibido conjurar agora (partida do Salão de Minijogos: ninguém corre com Pés Ligeiros). Falha como "pz". */
+  castBlocked?: (p: PlayerState) => boolean;
 }
 
 type Resolved =
@@ -205,6 +207,7 @@ export class SpellSystem {
     if (!s) return this.fail(spellId, "unknown");
     const basic = this.check(p, s);
     if (basic) return basic;
+    if (this.o.castBlocked?.(p)) return this.fail(s.id, "pz");
     const mm = this.o.monsters;
     const aggressive = isAggressive(s);
     const casterPz = mm.inPz(p.x, p.y);

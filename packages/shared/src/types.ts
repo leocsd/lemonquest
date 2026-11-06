@@ -145,6 +145,8 @@ export interface MonsterView {
   ownerId: string;
   /** Elite (ciclo 8): nasceu mais forte (vida, dano, XP, ouro e loot maiores); nome "Elite <nome>" em dourado. */
   elite?: boolean;
+  /** Elite nomeado (C12-8): nome próprio no lugar de "Elite <nome>" ("" = não é). Sempre vem com `elite`. */
+  named?: string;
 }
 
 /**

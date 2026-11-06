@@ -1,8 +1,9 @@
 // Janela "Coliseu" (Mestre do Coliseu): lista de grupos abertos, criar/entrar/sair/iniciar, modificador da semana das
 // ondas 61–70 e os melhores tempos das 70 ondas (ciclo 16).
 import {
-  ARENA_COUNT, ARENA_MAX_WAVE, ARENA_MOD_FROM_WAVE, ARENA_MODS, arenaTimeText, partyMinLevel, timeLeftText,
-  type ArenaLobbiesMsg, type ArenaTimeRecord,
+  ARENA_COUNT, ARENA_MAX_WAVE, ARENA_MOD_FROM_WAVE, ARENA_MODS, ARENA_VERSUS_CHESTS, ARENA_WEEK_PRIZE_CHESTS, arenaTimeText,
+  partyMinLevel, timeLeftText,
+  type ArenaLobbiesMsg, type ArenaTimeRecord, type ArenaWaveRecord,
 } from "@lemonquest/shared";
 import { session } from "../../session.ts";
 import { useStore } from "../hud/store.ts";
@@ -44,7 +45,25 @@ function WeekInfo({ week }: { week: NonNullable<ArenaLobbiesMsg["week"]> }) {
       <TimeRow label="Semana" r={week.best} />
       <TimeRow label="Recorde" r={week.record} />
       <div class="arena-hint">O grupo do melhor tempo da semana leva o título "Campeão do Coliseu" até a semana seguinte.</div>
+      <WavesTop waves={week.waves ?? []} />
     </div>
+  );
+}
+
+/** Coliseu competitivo (2026-11-06): os 5 grupos que mais longe chegaram na semana. */
+function WavesTop({ waves }: { waves: ArenaWaveRecord[] }) {
+  return (
+    <>
+      <div class="arena-sub">Ondas da semana (todo grupo entra)</div>
+      {!waves.length ? <div class="arena-time-row"><span class="arena-time-names">ninguém ainda</span></div> : waves.map((r, i) => (
+        <div key={r.at} class="arena-time-row">
+          <span>{i + 1}º</span>
+          <b>{r.wave} ondas</b>
+          <span class="arena-time-names" data-tip={r.names.join(", ")} data-tip-sub={`em ${arenaTimeText(r.ms)}`}>{r.names.join(", ")}</span>
+        </div>
+      ))}
+      <div class="arena-hint">Na virada da semana, o 1º lugar ganha {ARENA_WEEK_PRIZE_CHESTS} Baús de Recompensa para cada um. Também no chat: /coliseu.</div>
+    </>
   );
 }
 
@@ -118,6 +137,11 @@ export function ArenaWindow() {
           <ul class="arena-lobbies">
             {list.lobbies.map((l) => {
               const isMine = mine?.lobbyId === l.id;
+              // Desafio grupo × grupo: o líder do lobby desafia outro lobby; o líder desafiado responde aqui.
+              const myLobby = list.lobbies.find((x) => x.id === mine?.lobbyId);
+              const canChallenge = !!mine && leader && mine.phase === "lobby" && !isMine && !myLobby?.versusTo && l.versusTo !== mine.lobbyId;
+              const challengedMe = !!mine && leader && l.versusTo === mine.lobbyId;
+              const sent = myLobby?.versusTo === l.id;
               return (
                 <li key={l.id} class={`arena-lobby${isMine ? " mine" : ""}`}>
                   <div class="arena-lobby-main">
@@ -127,6 +151,17 @@ export function ArenaWindow() {
                   <span class="arena-slots">{l.members.length}</span>
                   {!mine && (
                     <button class="arena-btn" onClick={() => arenaAction({ action: "join", lobbyId: l.id })}>Entrar</button>
+                  )}
+                  {canChallenge && (
+                    <button class="arena-btn" onClick={() => arenaAction({ action: "versus", lobbyId: l.id })}
+                      data-tip="Desafiar este grupo" data-tip-sub={`Os dois grupos começam juntos, em salas separadas e com as mesmas ondas. Vence quem passar mais ondas (empate: quem chegou mais rápido); ${ARENA_VERSUS_CHESTS} Baú de Recompensa para cada um do grupo vencedor.`}>Desafiar</button>
+                  )}
+                  {sent && <span class="arena-slots" data-tip="Esperando a resposta do líder">desafiado…</span>}
+                  {challengedMe && (
+                    <>
+                      <button class="arena-btn primary" onClick={() => arenaAction({ action: "versusAnswer", lobbyId: l.id, accept: true })} data-tip="Aceitar o desafio deste grupo">Aceitar desafio</button>
+                      <button class="arena-btn" onClick={() => arenaAction({ action: "versusAnswer", lobbyId: l.id, accept: false })}>Recusar</button>
+                    </>
                   )}
                 </li>
               );

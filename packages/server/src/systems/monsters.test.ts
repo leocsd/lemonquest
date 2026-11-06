@@ -138,6 +138,18 @@ describe("spawns", () => {
     expect(w3.mm.size).toBe(1);
   });
 
+  it("prazo gravado com respawn antigo (mais longo) é encurtado no boot para o respawn atual", () => {
+    const kv = new Map<string, number | null>();
+    const bossRespawn = { load: (id: string) => kv.get(id) ?? undefined, save: (id: string, at: number | null) => { kv.set(id, at); } };
+    const opts = { grid: openGrid(30, 10), spawns: [sp(5, 5, 1, 1, "rei")], defs: () => def({ id: "rei", boss: true, name: "Rei", respawnMs: 1_080_000, aggroRange: 0 }), bossRespawn };
+    const w = world(opts);
+    kv.set("rei", w.now() + 6 * 3_600_000); // abate da época do respawn de 6 h
+    w.mm.spawnAll();
+    expect(w.mm.size).toBe(0);
+    w.run(1_080_000 + 1_000);
+    expect(w.mm.size).toBe(1);
+  });
+
   it("callBoss ignora cópias do Coliseu, da alavanca e de invocador (ciclo 14)", () => {
     const rei = def({ id: "rei", boss: true, name: "Rei", respawnMs: 7_200_000, aggroRange: 0 });
     const w = world({ grid: openGrid(40, 20), spawns: [sp(5, 5, 1, 1, "rei")], defs: () => rei });

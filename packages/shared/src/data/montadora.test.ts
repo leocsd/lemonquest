@@ -108,11 +108,12 @@ const regionZones = findObjects(map, "zone").filter((o) => prop(o, "regiao") ===
 const faixaOf = (zone: string) => String(ZONES.find(([n, , , , , pz]) => n === zone && !pz)?.[6] ?? "").split("-").map(Number);
 
 describe("Montadora: geometria", () => {
-  it("o mapa cresce para 400×888; a região fica no bloco, com o vazio de 29 linhas acima", () => {
-    expect([map.width, map.height]).toEqual([400, 888]);
+  it("o mapa cresce para 400×888 (expansões seguintes crescem abaixo); a região fica no bloco, com o vazio de 29 linhas acima", () => {
+    expect(map.width).toBe(400);
+    expect(map.height).toBeGreaterThanOrEqual(888);
     for (let y = 717; y <= 745; y++) for (let x = 0; x < map.width; x++) expect(grid.isWalkable(x, y), `${x},${y}`).toBe(false);
     let walk = 0;
-    for (let y = 722; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+    for (let y = 722; y < 888; y++) for (let x = 0; x < map.width; x++) {
       if (!grid.isWalkable(x, y)) continue;
       walk++;
       expect(x >= 219 && x <= 392 && y >= 749 && y <= 883, `andável fora do bloco em ${x},${y}`).toBe(true);
@@ -217,7 +218,7 @@ describe("Montadora: spawns, NPCs e alavanca", () => {
       expect(index.npcAt(id), id).toMatchObject({ x, y });
       expect(NPCS[id], id).toBeDefined();
     }
-    expect(findObjects(map, "npc").filter((o) => o.y / 16 >= 746)).toHaveLength(18);
+    expect(findObjects(map, "npc").filter((o) => o.y / 16 >= 746 && o.y / 16 < 888)).toHaveLength(18);
     expect(index.zoneAt(91, 100)).toBe("Vila de Pedra Clara");
     expect(index.zoneAt(30, 605)).toBe("Estação do Minério");
   });
