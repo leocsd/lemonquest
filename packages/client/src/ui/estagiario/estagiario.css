@@ -22,6 +22,9 @@
 .est-turno-bar { flex: 1 1 64px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
 .est-turno-fill { display: block; height: 100%; border-radius: 3px; background: var(--hud-gold); transition: width 600ms ease-out; }
 .est-turno-num { font-size: 11.5px; color: var(--hud-gold); font-variant-numeric: tabular-nums; }
+/* Stamina baixa: o XP da caça do Estagiário está caindo. */
+.est-turno.baixa .est-turno-fill { background: #e0803a; }
+.est-turno.baixa .est-turno-num { color: #f0a060; }
 .est-switches { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* Interruptor: botão com "trilho" à esquerda (role=switch). */

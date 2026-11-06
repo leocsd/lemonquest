@@ -4,7 +4,7 @@
 // num rascunho (store.ts rascunhoStore) que só vai no "Aplicar"; ligar/desligar, gravar, renomear e apagar rota vão na hora.
 // Abre pelo 🤖 do trilho. Molde: items/LootFilterWindow.tsx.
 import {
-  ALARMES, DIARIO_MAX, DISTANCIAS, NOME_ROTA_MAX, PRESETS, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, ataqueRecomendado, buffsDaVocacao,
+  ALARMES, DIARIO_MAX, DISTANCIAS, NOME_ROTA_MAX, PRESETS, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS, TURNO_RECARGA, STAMINA_BAIXA_MS, staminaXpMult, ataqueRecomendado, buffsDaVocacao,
   buffsRecomendados, curaRecomendada, perfilDoPreset, spellDef, spellsFor,
   type AlarmeTipo, type CuraAcao, type CuraQuando, type DiarioCanal, type DiarioItem, type EstagiarioConfig, type EstagiarioEstadoMsg,
   type Perfil, type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
@@ -50,7 +50,7 @@ const ALARME_LABEL: Record<AlarmeTipo, { nome: string; quando: string }> = {
   jogador: { nome: "Jogador na tela", quando: "outro jogador a até 12 tiles (uma vez por jogador)" },
   atacado: { nome: "Atacado por jogador", quando: "um jogador causou dano em você" },
   privada: { nome: "Mensagem privada", quando: "alguém sussurrou para você" },
-  turno: { nome: "Turno acabando", quando: "faltam 5 min de turno" },
+  turno: { nome: "Stamina", quando: "stamina abaixo de 2 h (o XP cai) e faltando 5 min" },
   mochila: { nome: "Mochila cheia", quando: "o loot não coube e ficou no chão" },
   morte: { nome: "Você morreu", quando: "sempre avisa (não desliga)" },
   colega: { nome: "Colega seguido", quando: "ele morreu, saiu do grupo ou saiu do jogo (parou de seguir), ou sumiu de vista (continua procurando)" },
@@ -150,6 +150,7 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
       : e.gravando ? { cls: "rec", texto: <>Gravando rota…</> } : { cls: "", texto: <>Parado</> };
   const sub = cacando ? (e.pausa ? PAUSA_LABEL[e.pausa] ?? "pausada" : "rodando") : null;
   const pct = Math.max(0, Math.min(100, (turno / TURNO_MAX_MS) * 100));
+  const xpPct = Math.round(staminaXpMult(turno) * 100);
   return (
     <div class="est-head">
       <div class="est-state">
@@ -168,11 +169,12 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
             Parar
           </button>
         )}
-        <div class="est-turno" data-tip="Turno de caça" data-tip-sub="Gasta com a rota ou seguindo um colega; recarrega 5 min por hora (máx. 2 h)">
-          <span class="est-turno-bar" role="progressbar" aria-label="Turno restante" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
+        <div class={`est-turno${xpPct < 100 ? " baixa" : ""}`} data-tip={`Stamina do Estagiário · XP ${xpPct}%`}
+          data-tip-sub={`Gasta com a rota ou seguindo um colega; recarrega 15 min por hora com ele parado ou com você offline (máx. ${TURNO_MAX_MS / 3_600_000} h). Abaixo de ${STAMINA_BAIXA_MS / 3_600_000} h, o XP da caça dele cai até zerar. Caçar à mão não gasta nem perde XP.`}>
+          <span class="est-turno-bar" role="progressbar" aria-label="Stamina do Estagiário" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
             <span class="est-turno-fill" style={{ width: `${pct}%` }} />
           </span>
-          <span class="est-turno-num">{fmtTurno(turno)}</span>
+          <span class="est-turno-num" data-testid="est-stamina">{fmtTurno(turno)}{xpPct < 100 && <> · XP {xpPct}%</>}</span>
         </div>
       </div>
       <div class="est-switches">
@@ -551,7 +553,7 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
       <h4 class="est-h">Rotas gravadas</h4>
       <p class="est-note">
         Grave andando pela caça. Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê, pega o loot pelo seu loot
-        automático e volta ao começo no fim. Gasta turno; se você se mexer, pausa 10 s.
+        automático e volta ao começo no fim. Gasta stamina; se você se mexer, pausa 10 s.
       </p>
       {c.rotas.length === 0 && !e.gravando && <div class="est-empty">Nenhuma rota gravada ainda. Aperte "Gravar" e ande pela caça.</div>}
       <ul class="est-routes">
@@ -614,7 +616,7 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
         <h4 class="est-h">Caçar com um colega</h4>
         <p class="est-note">
           O Estagiário anda atrás de um colega do seu grupo, mata o que aparece (o alvo dele primeiro) e para se ele morrer ou sair do grupo.
-          Se ele sumir de vista, vai aonde o viu por último (entra no portal que ele pegou) e volta a segui-lo ao reencontrá-lo. Gasta turno como a rota. Quem lidera com uma rota espera você chegar.
+          Se ele sumir de vista, vai aonde o viu por último (entra no portal que ele pegou) e volta a segui-lo ao reencontrá-lo. Gasta stamina como a rota. Quem lidera com uma rota espera você chegar.
         </p>
         {!party ? (
           <div class="est-empty" data-testid="est-sem-grupo">Você não está num grupo. Clique com o botão direito num colega e escolha "Convidar para o grupo".</div>

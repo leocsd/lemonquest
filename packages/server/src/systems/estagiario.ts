@@ -8,7 +8,7 @@ import {
   BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIARIO_MAX, DIR_DELTA, Dir, ESPERAR_MAX_MS, ESPERAR_PERTO_TILES, ESPERAR_TILES, PAUSA_MANUAL_MS,
   POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, SEGUIR_MAX_TILES, SEGUIR_SUMIU_MS,
   TURNO_AVISO_MS, alarmeLigado, avancarTurno, compactar, configEfetiva, curaEmGrupo, curaEstimada, curasProprias, decidirCura, dirFromDelta,
-  ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao,
+  ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao, RECUO_MAX_TILES, STAMINA_BAIXA_MS, staminaXpMult,
   fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
   resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef,
   type AlarmeTipo, type ConditionId, type CuraAcao, type DiarioCanal, type DiarioItem, type EstagiarioAlarmeMsg, type EstagiarioConfig,
@@ -29,7 +29,7 @@ export const ESTADO_PERIODICO_MS = 10_000;
 const BUSCA_MS = 400;
 /** Sem alvo, a cada 100 ms: o bicho que entra no alcance é visto em até 0,1 s (era até 0,4 s de espera parado). */
 const BUSCA_SEM_ALVO_MS = 100;
-const AVISO_TURNO = "O turno do Estagiário acabou por hoje.";
+const AVISO_TURNO = "A stamina do Estagiário acabou. Ela recarrega com ele parado ou com você offline.";
 const AVISO_PZ = "Saia da zona de proteção para ligar a rota.";
 /** Caminho até o ponto recalculado no máximo a cada 300 ms (= CHASE_REPATH_MS da perseguição): A* a cada tick pesa. */
 const CAMINHO_MS = 300;
@@ -50,8 +50,6 @@ const MOTIVO_MS = 5000;
 const MOTIVO_ENVIO_MS = 1000;
 /** Tenta comer no máximo a cada 2 s (a comida tem recarga própria de 1 s; sem comida na mochila não vale varrer a cada tick). */
 export const COMER_INTERVALO_MS = 2000;
-/** Luta que começa até isto depois da anterior acabar continua a mesma para o recuo (a origem não anda com o personagem). */
-export const LUTA_EMENDADA_MS = 3000;
 /** v3: ao entrar (ou reconectar) com algo ligado, espera isto antes de agir — o cliente ainda está carregando o mundo. */
 export const CARENCIA_LOGIN_MS = 3000;
 /** Diário: "esperando" (uma regra vale e nada está pronto) no máximo a cada 2 s; "a Cura está desligada" a cada 10 s. */
@@ -118,11 +116,13 @@ interface Avisos {
   /** Jogador já avisado → última vez visto no alcance (rearma depois de JOGADOR_REARMA_MS fora). */
   jogadores: Map<string, number>;
   turno: boolean;
+  /** Já avisou que a stamina ficou baixa (o XP começou a cair). */
+  staminaBaixa: boolean;
   atacadoAte: number;
   mochilaAte: number;
 }
 
-const avisosNovos = (): Avisos => ({ pocao: new Set(), vidaBaixa: false, jogadores: new Map(), turno: false, atacadoAte: 0, mochilaAte: 0 });
+const avisosNovos = (): Avisos => ({ pocao: new Set(), vidaBaixa: false, jogadores: new Map(), turno: false, staminaBaixa: false, atacadoAte: 0, mochilaAte: 0 });
 
 interface Estado {
   /** O que o jogador configurou (vai no save e no estado ao cliente). */
@@ -158,10 +158,6 @@ interface Estado {
   motivoEnviado: string;
   /** Havia alvo vivo no tick anterior: ao matar, a rota retoma pelo ponto mais próximo. */
   lutando: boolean;
-  /** Onde a luta atual (ou a cadeia de lutas emendadas) começou (v2): recuando, nunca mais que RECUO_MAX_TILES dali. */
-  lutaOrigem: Point | null;
-  /** Quando a última luta acabou (LUTA_EMENDADA_MS). */
-  lutaFimEm: number;
   /**
    * Alvo (monstro) acompanhado: menor distância, vida e o relógio de "luta sem progresso" (alvo travado → larga). O
    * relógio só recomeça quando um alvo perde vida, o alvo atual chega mais perto ou a luta começa: trocar de alvo não o
@@ -242,7 +238,7 @@ export class EstagiarioSystem {
       config, efetiva: configEfetiva(config, p.vocation),
       turno: avancarTurno(saved?.turno, now, false), cura: !!ligado.cura, ataque: !!ligado.ataque, buffs: !!ligado.buffs, rota: null, indice: 0,
       caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
-      inalcancavelAte: 0, recuandoAte: 0, foraAlcanceAte: 0, semManaBuffAte: 0, motivoEnviado: "", lutando: false, lutaOrigem: null, lutaFimEm: 0,
+      inalcancavelAte: 0, recuandoAte: 0, foraAlcanceAte: 0, semManaBuffAte: 0, motivoEnviado: "", lutando: false,
       alvoId: "", alvoAnterior: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
       pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, comeuEm: 0, retomar: false, pararEnviado: 0, avisos: avisosNovos(),
@@ -335,8 +331,6 @@ export class EstagiarioSystem {
     s.colegaPos = { x: c.x, y: c.y };
     s.colegaAlarmado = false;
     s.lutando = false;
-    s.lutaOrigem = null;
-    s.lutaFimEm = 0;
     s.pausa = "";
     s.pausaAte = 0;
     s.estadoEm = now;
@@ -366,8 +360,6 @@ export class EstagiarioSystem {
     s.alvoAnterior = "";
     s.inalcancavelAte = 0;
     s.recuandoAte = 0;
-    s.lutaOrigem = null;
-    s.lutaFimEm = 0;
     s.pausa = "";
     s.pausaAte = 0;
     s.pararEnviado = 0;
@@ -643,7 +635,12 @@ export class EstagiarioSystem {
     }
     for (const [id, visto] of a.jogadores) if (now - visto >= JOGADOR_REARMA_MS) a.jogadores.delete(id);
     if (s.turno.ms > TURNO_AVISO_MS) a.turno = false;
-    else if (!a.turno) { a.turno = true; this.alarme(p, "turno", "Estagiário: faltam 5 min de turno."); }
+    else if (!a.turno) { a.turno = true; this.alarme(p, "turno", "Estagiário: faltam 5 min de stamina."); }
+    if (s.turno.ms >= STAMINA_BAIXA_MS) a.staminaBaixa = false;
+    else if (!a.staminaBaixa) {
+      a.staminaBaixa = true;
+      this.alarme(p, "turno", "Estagiário: stamina baixa (menos de 2 h). O XP da caça dele cai até zerar quando ela acabar.");
+    }
   }
 
   /** Gravando: guarda o passo (ou o teleporte) entre o tick anterior e este; ponto novo → estado para o painel. */
@@ -772,15 +769,12 @@ export class EstagiarioSystem {
   private andarSeguindo(p: PlayerState, s: Estado, now: number): void {
     if (this.alvoVivo(p) && !this.alvoTravado(p, s, now)) {
       if (p.followId) this.o.fight.cancelFollow(p);
-      if (!s.lutando) {
-        s.lutando = true;
-        if (!s.lutaOrigem || now - s.lutaFimEm > LUTA_EMENDADA_MS) s.lutaOrigem = { x: p.x, y: p.y };
-      }
+      s.lutando = true;
       this.recuar(p, s, now);
       return;
     }
     if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
-    if (s.lutando) { s.lutando = false; s.lutaFimEm = now; }
+    if (s.lutando) s.lutando = false;
     // Colega perdido: o follow do FightMode desistiria (longe demais) com aviso a cada tick; anda até onde o viu por último.
     if (s.colegaLongeDesde) {
       if (p.followId) this.o.fight.cancelFollow(p);
@@ -1094,12 +1088,7 @@ export class EstagiarioSystem {
     if (!rota) return;
     const pts = rota.pontos, n = pts.length;
     if (this.alvoVivo(p) && !this.alvoTravado(p, s, now)) {
-      if (!s.lutando) {
-        s.lutando = true;
-        // Lutas emendadas (outro bicho logo depois do abate) são uma só para o recuo: senão a origem andava junto com
-        // o personagem e quem mantém distância ia parar a 20 tiles da rota.
-        if (!s.lutaOrigem || now - s.lutaFimEm > LUTA_EMENDADA_MS) s.lutaOrigem = { x: p.x, y: p.y };
-      }
+      s.lutando = true;
       s.caminho = null;
       this.recuar(p, s, now);
       return;
@@ -1109,7 +1098,7 @@ export class EstagiarioSystem {
     if (this.esperarSeguidores(p, s, now)) { s.progressoEm = now; s.caminho = null; return; }
     // Sem luta: o relógio de "luta sem progresso" começa do zero na próxima (o alvo anterior não conta mais).
     if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
-    if (s.lutando) { s.lutando = false; s.lutaFimEm = now; this.irPara(s, indiceMaisProximo(pts, p), now); }
+    if (s.lutando) { s.lutando = false; this.irPara(s, indiceMaisProximo(pts, p), now); }
     if (s.indice < 0 || s.indice >= n) this.irPara(s, 0, now);
     // Ponto com alguém parado em cima (monstro, outro jogador): ao lado já conta, senão cada volta perdia
     // PONTO_TRAVADO_MS ali. O de portal precisa ser pisado (é ele que leva ao outro lado).
@@ -1142,10 +1131,10 @@ export class EstagiarioSystem {
   }
 
   /**
-   * "Manter distância" (v2, decisão do dono): com a rota rodando, quem ataca à distância recua um passo quando um
-   * monstro corpo a corpo encosta — para um vizinho livre que mantém o alvo no alcance e à vista e fica a até
-   * RECUO_MAX_TILES de onde a luta começou (escolherRecuo). Nunca na PZ; monstro à distância não faz recuar. O ataque
-   * básico e as magias continuam saindo andando (o combate só olha distância, visão e recarga).
+   * "Manter distância" (decisão do dono): com a rota ou o seguir rodando, quem ataca à distância recua um passo quando um
+   * monstro corpo a corpo encosta — para um vizinho livre que se afasta dele, mantém o alvo no alcance e à vista e fica a até RECUO_MAX_TILES da rota
+   * (ou do colega). Nunca na PZ; monstro à distância não faz recuar. O ataque básico e as magias continuam saindo
+   * andando (o combate só olha distância, visão e recarga).
    */
   private recuar(p: PlayerState, s: Estado, now: number): void {
     const alcance = this.o.attackRange?.(p) ?? 1;
@@ -1153,6 +1142,7 @@ export class EstagiarioSystem {
     const mm = this.o.monsters;
     const alvo = mm.wild(p.targetId);
     if (!alvo || mm.inPz(p.x, p.y) || !this.o.movement.isIdle(p, now)) return;
+    const distancia = Math.min(s.efetiva.distancia, alcance);
     const ameacas: Point[] = [];
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dy) continue;
@@ -1160,14 +1150,30 @@ export class EstagiarioSystem {
       if (m && !m.s.ownerId && m.s.hp > 0 && !m.def.invulnerable && !m.def.stationary && m.def.attackRange <= 1) ameacas.push({ x: m.s.x, y: m.s.y });
     }
     if (!ameacas.length) return;
+    const ancora = this.ancoraRecuo(s);
+    // Já fora do limite (rota longe, colega correu): pode andar em volta, nunca para mais longe.
+    const longeAgora = ancora(p.x, p.y);
     const t = escolherRecuo({
-      pos: p, alvo: alvo.s, ameacas, distancia: Math.min(s.efetiva.distancia, alcance), alcance, origem: s.lutaOrigem ?? p,
+      pos: p, alvo: alvo.s, ameacas, distancia, alcance,
+      dentro: (x, y) => ancora(x, y) <= Math.max(RECUO_MAX_TILES, longeAgora),
       livre: (x, y) => mm.grid.isWalkable(x, y) && !mm.isMonsterAt(x, y) && !mm.inPz(x, y) && !this.ocupado(p, { x, y }),
       visao: (x, y) => mm.los(x, y, alvo.s.x, alvo.s.y),
     });
     if (!t) return;
     const dir = dirFromDelta(t.x - p.x, t.y - p.y);
     if (dir !== null && this.o.movement.follow(p, dir, now) === "ok") s.recuandoAte = now + MOTIVO_MS;
+  }
+
+  /** Distância (tiles) de um tile à âncora do recuo: o ponto da rota mais perto, ou o colega seguido. 0 = sem âncora. */
+  private ancoraRecuo(s: Estado): (x: number, y: number) => number {
+    const rota = s.rota ? this.rotaDe(s, s.rota) : undefined;
+    if (rota?.pontos.length) {
+      const pts = rota.pontos;
+      return (x, y) => { let d = Infinity; for (const q of pts) d = Math.min(d, cheb(x, y, q.x, q.y)); return d; };
+    }
+    const c = s.seguindo ? this.jogador(s.seguindo) : undefined;
+    if (c) return (x, y) => cheb(x, y, c.x, c.y);
+    return () => 0;
   }
 
   /** Distância a que a perseguição forçada para: a opção "manter distância", limitada ao alcance do ataque (1 = colado). */
@@ -1329,8 +1335,6 @@ export class EstagiarioSystem {
     s.travados = 0;
     s.travadoAte = 0;
     s.lutando = false;
-    s.lutaOrigem = null;
-    s.lutaFimEm = 0;
     s.pausa = "";
     s.pausaAte = 0;
     s.emPz = false;
@@ -1354,8 +1358,6 @@ export class EstagiarioSystem {
     s.alvoAnterior = "";
     s.inalcancavelAte = 0;
     s.recuandoAte = 0;
-    s.lutaOrigem = null;
-    s.lutaFimEm = 0;
     s.pausa = "";
     s.pausaAte = 0;
     s.pararEnviado = 0;
@@ -1390,6 +1392,16 @@ export class EstagiarioSystem {
   private ataqueLigado(s: Estado): boolean { return s.ataque || !!s.rota || !!s.seguindo; }
 
   private buffsLigados(s: Estado): boolean { return s.buffs || !!s.rota || !!s.seguindo; }
+
+  /**
+   * Multiplicador do XP de abate de `p` (CombatSystem.killXpMult): só com o Estagiário rodando (rota ou seguir) e pela
+   * stamina (staminaXpMult); caçando à mão, 1.
+   */
+  xpMult(p: PlayerState, now = this.now()): number {
+    const s = this.st.get(p.id);
+    if (!s || !this.rodando(s)) return 1;
+    return staminaXpMult(avancarTurno(s.turno, now, true).ms);
+  }
 
   /** Atualiza o turno até `now` no estado atual (gastando se a rota roda, recarregando se não). */
   private acertar(s: Estado, now: number): TurnoEstado {

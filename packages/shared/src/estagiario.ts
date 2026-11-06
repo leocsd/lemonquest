@@ -93,9 +93,18 @@ export const REGRAS_MAX = 6;
 export const ROTAS_MAX = 5;
 export const PONTOS_MAX = 200;
 export const NOME_ROTA_MAX = 20;
-export const TURNO_MAX_MS = 2 * 3_600_000;
-/** Com a rota desligada, cada ms parado devolve 1/12 ms de turno (5 min por hora; vazio → cheio em 24 h). */
-export const TURNO_RECARGA = 1 / 12;
+/**
+ * Stamina do Estagiário (o antigo "turno"; decisão do dono em 2026-11-06: "stamina igual no Tibia", só para o bot): até
+ * 6 h de rota/seguir. Gasta rodando; recarrega parado ou offline (o save guarda o instante: o tempo fora conta).
+ */
+export const TURNO_MAX_MS = 6 * 3_600_000;
+/** Parado ou offline, cada ms devolve 1/4 ms de stamina (15 min por hora; vazio → cheio em 24 h). */
+export const TURNO_RECARGA = 1 / 4;
+/** Abaixo disto a stamina está baixa: o XP de abate com o Estagiário rodando cai até zerar (staminaXpMult). */
+export const STAMINA_BAIXA_MS = 2 * 3_600_000;
+/** Multiplicador do XP de abate com o Estagiário rodando: 100% até STAMINA_BAIXA_MS; abaixo, cai em linha reta até 0. */
+export const staminaXpMult = (ms: number): number =>
+  !(ms > 0) ? 0 : ms >= STAMINA_BAIXA_MS ? 1 : ms / STAMINA_BAIXA_MS;
 export const PAUSA_MANUAL_MS = 10_000;
 export const PONTO_TRAVADO_MS = 10_000;
 export const GRAVAR_A_CADA = 6;
@@ -118,8 +127,12 @@ export const ESPERAR_PERTO_TILES = 4;
 export const ESPERAR_MAX_MS = 30_000;
 /** Distâncias que a opção "manter distância" aceita (0 = colado). */
 export const DISTANCIAS: readonly number[] = [0, 2, 3, 4];
-/** Recuando, nunca mais longe que isto de onde a luta começou (a rota não deriva para outro spawn). */
-export const RECUO_MAX_TILES = 6;
+/**
+ * Recuando, nunca mais longe que isto da rota (do ponto dela mais perto) ou do colega seguido: a rota não deriva para
+ * outro spawn. Antes (até 2026-11-06) contava de onde a luta começou, e as lutas emendadas mantinham essa origem: depois
+ * de uns recuos o personagem parava de fugir e apanhava parado.
+ */
+export const RECUO_MAX_TILES = 8;
 /** Come quando o "alimentado" tem menos que isto pela frente. */
 export const COMER_ANTES_MS = 60_000;
 
@@ -559,14 +572,14 @@ const cheb = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.
 export interface Recuo {
   pos: { x: number; y: number };
   alvo: { x: number; y: number };
-  /** Monstros corpo a corpo encostados (é deles que se recua). */
+  /** Monstros corpo a corpo encostados: é deles que se recua. */
   ameacas: readonly { x: number; y: number }[];
-  /** Onde se quer ficar do alvo (a opção "manter distância", já limitada ao alcance). */
+  /** Onde se quer ficar do alvo e das ameaças (a opção "manter distância", já limitada ao alcance). */
   distancia: number;
   /** O alvo tem de continuar a até isto (o alcance do ataque). */
   alcance: number;
-  /** Onde a luta começou: nunca mais que RECUO_MAX_TILES dali. */
-  origem: { x: number; y: number };
+  /** O tile fica perto da rota / do colega (RECUO_MAX_TILES; ver o servidor). */
+  dentro(x: number, y: number): boolean;
   /** Tile andável e livre (sem criatura, fora da PZ). */
   livre(x: number, y: number): boolean;
   /** Do tile dá para ver o alvo. */
@@ -574,12 +587,19 @@ export interface Recuo {
 }
 
 /**
- * Para onde recuar um passo (v2, "manter distância"): o vizinho livre que sai de perto de TODAS as ameaças (a pelo menos
- * 2 tiles), mantém o alvo no alcance e à vista e não passa de RECUO_MAX_TILES da origem da luta. Entre os que servem:
- * o mais longe das ameaças; depois o que fica a até `distancia` do alvo (a perseguição não puxa de volta); depois o
- * mais perto dessa distância; por fim o passo reto (a diagonal demora 1,4×). null = encurralado: fica e luta.
+ * Para onde recuar um passo ("manter distância"): o vizinho livre que se AFASTA das ameaças (a mais próxima fica mais
+ * longe do que está agora, contando até `distancia`), mantém o alvo no alcance e à vista e fica perto da rota. Entre
+ * os que servem: o mais longe das ameaças; depois o que fica a até `distancia` do alvo (a perseguição não puxa de
+ * volta); depois o mais perto dessa distância; por fim o passo reto (a diagonal demora 1,4×). null = encurralado ou já
+ * longe o bastante: fica e luta.
+ * Recuar já antes do bicho encostar (a `distancia` inteira) foi medido em 2026-11-06 no estagiarioSimKit (6 sementes):
+ * andando mais, o paladino sem poção de mana matava 7–22% menos e os magos sem mana morriam cercados; ficou o recuo
+ * de quem encosta.
  */
 export function escolherRecuo(r: Recuo): { x: number; y: number } | null {
+  if (!r.ameacas.length) return null;
+  const perto = (q: { x: number; y: number }) => Math.min(r.distancia, ...r.ameacas.map((a) => cheb(q, a)));
+  const agora = perto(r.pos);
   let best: { x: number; y: number } | null = null, bestKey: number[] = [];
   // Comparação lexicográfica: a primeira posição diferente decide (maior ganha).
   const melhor = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i]! > b[i]!; return false; };
@@ -587,9 +607,9 @@ export function escolherRecuo(r: Recuo): { x: number; y: number } | null {
     if (!dx && !dy) continue;
     const t = { x: r.pos.x + dx, y: r.pos.y + dy };
     const dAlvo = cheb(t, r.alvo);
-    if (dAlvo < 1 || dAlvo > r.alcance || cheb(t, r.origem) > RECUO_MAX_TILES || !r.livre(t.x, t.y) || !r.visao(t.x, t.y)) continue;
-    const longe = Math.min(3, ...r.ameacas.map((a) => cheb(t, a)));
-    if (longe < 2) continue; // ainda encostado em alguma ameaça: não adianta
+    if (dAlvo < 1 || dAlvo > r.alcance || !r.dentro(t.x, t.y) || !r.livre(t.x, t.y) || !r.visao(t.x, t.y)) continue;
+    const longe = perto(t);
+    if (longe <= agora) continue; // não se afasta de quem está perto: não adianta andar
     const key = [longe, dAlvo <= r.distancia ? 1 : 0, -Math.abs(dAlvo - r.distancia), dx && dy ? 0 : 1];
     if (!best || melhor(key, bestKey)) { best = t; bestKey = key; }
   }

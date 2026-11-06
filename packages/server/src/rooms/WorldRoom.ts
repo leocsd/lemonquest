@@ -445,6 +445,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     });
     this.combat.hooks = {
       xpMult: () => this.events?.xpMult() ?? 1,
+      killXpMult: (p) => this.estagiario?.xpMult(p) ?? 1,
       damageTakenPct: (id) => this.conditions.damageTakenPct(id),
       manaShield: (id) => this.conditions.manaShield(id),
       onAutoAttack: (p) => {

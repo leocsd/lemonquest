@@ -78,6 +78,8 @@ turno de ~2 h por dia, qualquer lugar.
 | ES-15 | Modo simples: acompanhar o uso (quem fica no avançado e por quê); rever os presets dos magos contra bandos grandes (vida mínima 5 % no agressivo lv 40/60) | 🧭 | — |
 | ES-16 | Caçar com amigo (dono, 2026-11-02: "Tem como colocar alguma opção para caçar com amigo?"; decisões: gasta turno, só no mesmo grupo, alvo do colega primeiro, o líder espera): "Seguir um colega" na aba Rota (crachá, acompanhante, turno; para com alarme "colega" se ele morre/sai/some), o líder com rota espera seguidores longe; janela repensada (estado no cabeçalho, Parar, turno em barra, cartões de preset, seções, chips no Diário) | ✅ (2026-11-02) | `server/systems/estagiario.test.ts` ("caçar com amigo": só grupo/vivo/perto, follow × perseguição, alvo do colega, desliga com alarme, um ou outro, líder espera), E2E `estagiarioGrupo.spec.ts` (CI) |
 | ES-17 | Caçar com amigo: o seguidor volta a pé para o líder depois de um teleporte (portal/templo) em vez de desligar; "esperar o colega" também para quem segue outro seguidor (comboio de três) | 🧭 | — |
+| ES-18 | Recuo que não trava (dono, 2026-11-06: "tem hora que o char para de correr do bicho"): o limite conta da rota/colega, não da origem da luta; recuar antes de encostar medido e descartado (simulador) | ✅ (2026-11-06) | `estagiario.test.ts` (shared: recuo; servidor: "lutas emendadas não prendem o recuo") |
+| ES-19 | Stamina do Estagiário (dono, 2026-11-06): o turno vira stamina de 6 h, recarrega 15 min/h parado ou offline, abaixo de 2 h o XP de abate rodando cai até 0; só o bot (caça manual não muda) | ✅ (2026-11-06) | `estagiario.test.ts` (shared: stamina e XP; servidor: aviso e `xpMult`), `store.test.ts` |
 
 ## Combate e cavaleiro (2026-11-01)
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [Não lançado] — 2026-11-06 · Estagiário: recuo que não trava e a Stamina do Estagiário
+
+Dono: "tem hora que o char para de correr do bicho, mesmo com o tile 4" e "Vamos levar a stamina para o estagiário.
+Podemos recarregar offline também. E quando a stamina estiver baixa diminui o XP até chegar 0 ... 6 horas de stamina".
+- **Recuo sem travar** (`escolherRecuo`, `EstagiarioSystem.recuar`): o limite do recuo contava de onde a luta começou e
+  as lutas emendadas mantinham essa origem; depois de ~6 passos o personagem parava de fugir e apanhava. Agora o limite
+  (`RECUO_MAX_TILES` 6 → 8) conta da rota (o ponto mais perto) ou do colega seguido; já fora dele, anda de lado, nunca
+  para mais longe. Recuar antes de encostar (a distância inteira) foi medido no simulador (6 sementes) e descartado:
+  andando mais, o paladino sem poção de mana matava 7–22% menos e os magos sem mana morriam cercados.
+- **Stamina do Estagiário** (o antigo turno): 6 h (era 2 h), recarrega 15 min por hora (era 5) com ele parado ou com
+  você offline (vazia → cheia em 24 h). Abaixo de 2 h, o XP de abate com a rota/seguir rodando cai em linha reta até 0
+  (`staminaXpMult`, `CombatSystem.killXpMult`); caçar à mão não muda. Alarme novo ao cair abaixo de 2 h; a barra fica
+  laranja com o XP %.
+- Teste de balanço: a razão de abates agressivo/equilibrado soma duas sementes (com uma, oscilava ±10%; com 4 sementes
+  o agressivo rende 97–101% do equilibrado).
+
 ## [Não lançado] — 2026-11-06 · Salão de Minijogos
 
 Dono: "um sistema ... que a pessoa entra em uma sala quadrada e tem que desviar de magias que são lançadas, eu quero

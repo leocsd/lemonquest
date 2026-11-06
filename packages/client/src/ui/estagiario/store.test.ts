@@ -101,9 +101,9 @@ describe("turno restante", () => {
   it("entre dois envios do servidor: gasta com a rota rodando, recarrega pausada ou desligada até o teto", () => {
     const e = (rota: string | null, pausa = "") => ({ turnoMs: 3_600_000, rota, pausa });
     expect(turnoMostrado(e("Ratos"), 1000, 61_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_540_000);
-    expect(turnoMostrado(e("Ratos", "manual"), 1000, 121_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_610_000); // pausada recarrega
-    expect(turnoMostrado(e("Ratos", "npc"), 1000, 121_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_610_000);
-    expect(turnoMostrado(e(null), 0, 120_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_610_000);
+    expect(turnoMostrado(e("Ratos", "manual"), 1000, 121_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_630_000); // pausada recarrega
+    expect(turnoMostrado(e("Ratos", "npc"), 1000, 121_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_630_000);
+    expect(turnoMostrado(e(null), 0, 120_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_630_000);
     expect(turnoMostrado({ turnoMs: TURNO_MAX_MS - 1, rota: null, pausa: "" }, 0, 3_600_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(TURNO_MAX_MS);
     expect(turnoMostrado({ turnoMs: 5, rota: "R", pausa: "" }, 0, 999_999, TURNO_MAX_MS, TURNO_RECARGA)).toBe(0);
   });
