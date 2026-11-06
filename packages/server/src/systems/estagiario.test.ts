@@ -1,7 +1,7 @@
 // Estagiário no servidor: cura, ataque, turno, liga/desliga da rota, pausas, gravação e caminhada da rota.
 import { describe, expect, it, vi } from "vitest";
 import {
-  BUSCA_TILES, DIARIO_MAX, Dir, ESPERAR_MAX_MS, ESPERAR_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, SEGUIR_SUMIU_MS, TURNO_AVISO_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS,
+  BUSCA_TILES, DIARIO_MAX, Dir, ESPERAR_MAX_MS, ESPERAR_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, SEGUIR_SUMIU_MS, TURNO_AVISO_MS, STAMINA_BAIXA_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS,
   estagiarioPadrao,
   type EstagiarioConfig, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
   type Vocation,
@@ -310,7 +310,7 @@ describe("Estagiário: liga e desliga", () => {
     const w2 = setup({ saved: { config: comRota(), turno: { ms: 0, em: 10_000 } } });
     w2.sys.onToggle(w2.p, { rota: "Ratos" });
     expect(w2.p.bot).toBe(false);
-    expect(w2.notices().at(-1)).toBe("O turno do Estagiário acabou por hoje.");
+    expect(w2.notices().at(-1)).toBe("A stamina do Estagiário acabou. Ela recarrega com ele parado ou com você offline.");
     expect(w2.of("spawn")).toEqual([]);
   });
 });
@@ -661,7 +661,7 @@ describe("Estagiário: ataque", () => {
 });
 
 describe("Estagiário: turno", () => {
-  it("rota rodando gasta o turno em tempo real; estado a cada 10 s; desligada recarrega 1/12", () => {
+  it("rota rodando gasta a stamina em tempo real; estado a cada 10 s; desligada recarrega 1/4", () => {
     // Pontos no tile do jogador: parado sem travar (um ponto travado mudaria o motivo e mandaria estado a mais).
     const w = setup({ saved: { config: comRota({ rotas: [{ nome: "Ratos", pontos: [{ x: 10, y: 10 }, { x: 10, y: 10 }] }] }) } });
     w.sys.onToggle(w.p, { rota: "Ratos" });
@@ -671,7 +671,7 @@ describe("Estagiário: turno", () => {
     expect(w.estados().length - antes).toBe(2);
 
     w.sys.onToggle(w.p, { rota: null });
-    w.tick(120_000);
+    w.tick(40_000);
     expect(w.sys.estado(w.p).turnoMs).toBe(TURNO_MAX_MS - 25_000 + 10_000);
   });
 
@@ -682,7 +682,7 @@ describe("Estagiário: turno", () => {
     w.tick(1000);
     expect(w.p.bot).toBe(false);
     expect(w.sys.estado(w.p)).toMatchObject({ rota: null, cura: true, turnoMs: 0 });
-    expect(w.notices()).toContain("O turno do Estagiário acabou por hoje.");
+    expect(w.notices()).toContain("A stamina do Estagiário acabou. Ela recarrega com ele parado ou com você offline.");
     expect(w.of("despawn")).toEqual([["despawn", "p"]]);
   });
 });
@@ -1307,18 +1307,32 @@ describe("Estagiário: alarmes (só com a rota rodando)", () => {
 
   it("turno: avisa ao cruzar 5 min restantes, uma vez; rearma quando o turno volta acima", () => {
     const w = rodando({}, { saved: { turno: { ms: TURNO_AVISO_MS + 200, em: 10_000 } } });
+    const faltam = () => alarmes(w, "turno").filter((t) => t.includes("faltam"));
     w.tick(100);
-    expect(alarmes(w, "turno")).toEqual([]);
+    expect(faltam()).toEqual([]);
     w.tick(300);
-    expect(alarmes(w, "turno")).toEqual(["Estagiário: faltam 5 min de turno."]);
+    expect(faltam()).toEqual(["Estagiário: faltam 5 min de stamina."]);
     w.tick(500);
-    expect(alarmes(w, "turno")).toHaveLength(1);
+    expect(faltam()).toHaveLength(1);
     // Desliga, o turno recarrega acima de 5 min, liga de novo: avisa outra vez ao cruzar.
     w.sys.onToggle(w.p, { rota: null });
     (w.sys as any).st.get("p").turno = { ms: TURNO_AVISO_MS + 100, em: w.now() };
     w.sys.onToggle(w.p, { rota: "Ratos" });
     w.tick(300);
-    expect(alarmes(w, "turno")).toHaveLength(2);
+    expect(faltam()).toHaveLength(2);
+  });
+
+  it("stamina baixa: avisa uma vez ao cair abaixo de 2 h; o XP de abate rodando cai junto; à mão, cheio", () => {
+    const w = rodando({}, { saved: { turno: { ms: STAMINA_BAIXA_MS + 200, em: 10_000 } } });
+    expect(w.sys.xpMult(w.p)).toBe(1);
+    w.tick(100);
+    expect(alarmes(w, "turno")).toEqual([]);
+    w.tick(300);
+    expect(alarmes(w, "turno")).toEqual(["Estagiário: stamina baixa (menos de 2 h). O XP da caça dele cai até zerar quando ela acabar."]);
+    (w.sys as any).st.get("p").turno = { ms: STAMINA_BAIXA_MS / 4, em: w.now() };
+    expect(w.sys.xpMult(w.p)).toBeCloseTo(0.25, 2);
+    w.sys.onToggle(w.p, { rota: null });
+    expect(w.sys.xpMult(w.p)).toBe(1); // caçando à mão: XP cheio
   });
 
   it("mochila: avisa uma vez e só de novo 60 s depois", () => {
@@ -1350,7 +1364,7 @@ describe("Estagiário: alarmes (só com a rota rodando)", () => {
     jogador: { dispara: (w) => { outro(w); w.tick(100); } },
     atacado: { dispara: (w) => w.sys.onAtacado(w.p, outro(w)) },
     privada: { dispara: (w) => w.sys.onPrivada(w.p, outro(w)) },
-    turno: { setup: { saved: { turno: { ms: TURNO_AVISO_MS - 1, em: 10_000 } } }, dispara: (w) => { w.tick(100); } },
+    turno: { setup: { saved: { turno: { ms: STAMINA_BAIXA_MS - 1, em: 10_000 } } }, dispara: (w) => { w.tick(100); } },
     mochila: { dispara: (w) => w.sys.onMochilaCheia(w.p) },
   };
 
@@ -1694,7 +1708,7 @@ describe("Estagiário v2: manter distância", () => {
     expect([w3.p.x, w3.p.y]).toEqual([10, 10]);
   });
 
-  it("não recua a mais de RECUO_MAX_TILES de onde a luta começou nem na pausa manual", () => {
+  it("não recua a mais de RECUO_MAX_TILES da rota nem na pausa manual", () => {
     const w = setup({ vocation: "paladin", alcance: 6, andar: true, bicho: { stationary: false }, ratos: [{ x: 11, y: 10 }], saved: { config: { ...estagiarioPadrao("paladin"), rotas: comRota().rotas } } });
     const rato = [...w.mm.all()][0]!;
     w.p.targetId = rato.s.id;
@@ -1709,6 +1723,20 @@ describe("Estagiário v2: manter distância", () => {
     w.mm.place(rato, w.p.x + 1, w.p.y);
     w.tick(1000);
     expect(w.p.x).toBe(x);
+  });
+});
+
+describe("Estagiário: manter distância sem travar (2026-11-06)", () => {
+  it("lutas emendadas não prendem o recuo: segue fugindo ao longo da rota, bem além de 6 tiles de onde a luta começou", () => {
+    // Dono: "tem hora que o char para de correr do bicho". Antes o limite contava da origem da luta (que as lutas
+    // emendadas mantinham) e, depois de ~6 passos, o personagem parava e apanhava. Agora conta da rota (x 10..20).
+    const w = setup({ vocation: "paladin", alcance: 6, andar: true, bicho: { stationary: false }, ratos: [{ x: 9, y: 10 }], saved: { config: { ...estagiarioPadrao("paladin"), distancia: 4, rotas: comRota().rotas } } });
+    const rato = [...w.mm.all()][0]!;
+    w.p.targetId = rato.s.id;
+    w.sys.onToggle(w.p, { rota: "Ratos" });
+    for (let i = 0; i < 25; i++) { w.tick(300); w.mm.place(rato, w.p.x - 1, w.p.y); }
+    expect(w.p.x - 10).toBeGreaterThan(6); // passou do limite antigo
+    expect(w.p.x).toBeLessThanOrEqual(20 + RECUO_MAX_TILES); // e nunca longe da rota
   });
 });
 

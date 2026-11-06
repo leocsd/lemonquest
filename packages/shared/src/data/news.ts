@@ -12,6 +12,16 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-06c",
+    date: "6 de novembro",
+    title: "Estagiário: Stamina e recuo que não trava",
+    items: [
+      "O turno virou a Stamina do Estagiário: 6 horas (antes 2), recarregando 15 min por hora com ele parado ou com você offline.",
+      "Com a stamina abaixo de 2 horas, o XP que ele ganha caçando cai aos poucos até zerar. A barra fica laranja e mostra o XP. Caçar à mão não muda nada.",
+      "Manter distância: ele não para mais de fugir do bicho depois de alguns passos. Continua recuando enquanto estiver perto da rota (ou do colega que segue).",
+    ],
+  },
+  {
     id: "2026-11-06b",
     date: "6 de novembro",
     title: "Salão de Minijogos",

@@ -118,6 +118,8 @@ export interface CombatHooks {
   xpShares?: (m: Monster, shares: Map<string, number>, now: number) => Map<string, number>;
   /** Multiplicador da XP de abates (evento com bônus). Ausente = 1. */
   xpMult?: () => number;
+  /** Multiplicador por jogador do XP de abate (Stamina do Estagiário baixa: 0..1). Ausente = 1. */
+  killXpMult?: (p: PlayerState) => number;
   /** Jogador participou do combate agora (deu dano num monstro selvagem ou curou outro jogador). */
   onActivity?: (playerId: string, now: number) => void;
   /** PvP: motivo pelo qual `a` não pode atacar o jogador `b` (null = pode). Ausente = sem PvP. */
@@ -523,7 +525,10 @@ export class CombatSystem {
     const mult = Math.max(1, this.hooks.xpMult?.() ?? 1);
     for (const [pid, amount] of shares) {
       const p = this.o.getPlayer(pid);
-      if (p) this.gainXp(p, applyXpStage(mult > 1 ? Math.round(amount * mult) : amount, p.level), x, y);
+      if (!p) continue;
+      const own = Math.max(0, Math.min(1, this.hooks.killXpMult?.(p) ?? 1));
+      const xp = Math.round(applyXpStage(mult > 1 ? Math.round(amount * mult) : amount, p.level) * own);
+      if (xp > 0) this.gainXp(p, xp, x, y);
     }
   }
 

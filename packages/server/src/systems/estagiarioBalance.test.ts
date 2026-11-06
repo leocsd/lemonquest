@@ -15,6 +15,7 @@ describe("Estagiário: balanço — modo simples (presets) contra as regras da v
   const relatorio: string[] = [];
   const simples = new Map<string, Resultado>(), semMana = new Map<string, Resultado>(), v2 = new Map<string, Resultado>(), antes = new Map<string, Resultado>();
   const presets: Record<Preset, Map<string, Resultado>> = { seguro: new Map(), equilibrado: simples, agressivo: new Map() };
+  const simples2 = new Map<string, Resultado>(), agressivo2 = new Map<string, Resultado>();
   const traceKey = process.env.LEMONQUEST_SIM_TRACE ?? "";
   for (const L of LEVELS) for (const v of VOCS) {
     const k = `${v}${L}`;
@@ -26,6 +27,9 @@ describe("Estagiário: balanço — modo simples (presets) contra as regras da v
     antes.set(k, simular(v, L, { config: configAntiga(v) }));
     presets.seguro.set(k, simular(v, L, { config: { preset: "seguro" } }));
     presets.agressivo.set(k, simular(v, L, { config: { preset: "agressivo" } }));
+    // Segunda semente só para a razão de abates agressivo/equilibrado: com uma só, a soma de 3 levels oscilava ±10%.
+    simples2.set(k, simular(v, L, { seed: 1 }));
+    agressivo2.set(k, simular(v, L, { seed: 1, config: { preset: "agressivo" } }));
   }
   for (const [k, r] of simples) relatorio.push(linha(`${k} SIMPLES equilibrado, com poção de mana`, r));
   for (const [k, r] of semMana) relatorio.push(linha(`${k} SIMPLES equilibrado, SEM poção de mana`, r));
@@ -103,8 +107,8 @@ describe("Estagiário: balanço — modo simples (presets) contra as regras da v
     const total = (m: Map<string, Resultado>) => VOCS.reduce((n, v) => n + soma(m, v, (r) => r.hpMin), 0);
     expect(total(presets.seguro), `vida mínima (soma geral) seguro ${total(presets.seguro)} / equilibrado ${total(simples)}`).toBeGreaterThanOrEqual(total(simples));
     for (const v of VOCS) {
-      const a = cmp(presets.agressivo, simples, v, "abates", (r) => r.kills);
-      expect(a.a, `${a.rotulo} agressivo ${a.a} / equilibrado ${a.b}`).toBeGreaterThanOrEqual(0.9 * a.b);
+      const a = cmp(presets.agressivo, simples, v, "abates", (r) => r.kills), a2 = cmp(agressivo2, simples2, v, "abates", (r) => r.kills);
+      expect(a.a + a2.a, `${a.rotulo} agressivo ${a.a}+${a2.a} / equilibrado ${a.b}+${a2.b}`).toBeGreaterThanOrEqual(0.9 * (a.b + a2.b));
     }
   });
 });

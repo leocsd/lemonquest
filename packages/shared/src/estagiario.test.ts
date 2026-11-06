@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SPELLS } from "./data/spells.ts";
 import {
-  ALARMES, BUSCA_TILES, DISTANCIAS, NOME_ROTA_MAX, PONTOS_MAX, RECUO_MAX_TILES, REGRAS_MAX, ROTAS_MAX, TURNO_MAX_MS,
+  ALARMES, BUSCA_TILES, DISTANCIAS, NOME_ROTA_MAX, PONTOS_MAX, RECUO_MAX_TILES, REGRAS_MAX, STAMINA_BAIXA_MS, staminaXpMult, ROTAS_MAX, TURNO_MAX_MS,
   alarmeLigado, ataqueRecomendado, avancarTurno, buffsDaVocacao, buffsRecomendados, curaRecomendada, distanciaPadrao, ehBuff, ehInvocacao,
   escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao, fecharGravacao, gravarPasso,
   indiceMaisProximo, novaGravacao, pisoDeMana, sanitizeEstagiario, sanitizeLigado, type ContextoBuff, type Recuo, type RegraCura,
@@ -216,16 +216,29 @@ describe("estagiário: buffs", () => {
 });
 
 describe("estagiário: turno", () => {
-  it("começa cheio, gasta em tempo real rodando, recarrega 1/12 parado, nunca passa do teto nem fica negativo", () => {
+  it("stamina (6 h): começa cheia, gasta em tempo real rodando, recarrega 1/4 parada, nunca passa do teto nem fica negativa", () => {
+    expect(TURNO_MAX_MS).toBe(6 * 3_600_000);
     const t0 = avancarTurno(undefined, 1000, false);
     expect(t0).toEqual({ ms: TURNO_MAX_MS, em: 1000 });
     const t1 = avancarTurno(t0, 1000 + 3_600_000, true); // 1 h rodando
     expect(t1.ms).toBe(TURNO_MAX_MS - 3_600_000);
-    const t2 = avancarTurno(t1, t1.em + 12 * 60_000, false); // 12 min parado → +1 min
+    const t2 = avancarTurno(t1, t1.em + 4 * 60_000, false); // 4 min parado (ou offline) → +1 min
     expect(t2.ms).toBe(TURNO_MAX_MS - 3_600_000 + 60_000);
     expect(avancarTurno(t2, t2.em + 10 * 3_600_000, true).ms).toBe(0);
     expect(avancarTurno(t2, t2.em + 100 * 3_600_000, false).ms).toBe(TURNO_MAX_MS);
     expect(avancarTurno(t2, t2.em - 5000, true)).toEqual({ ms: t2.ms, em: t2.em - 5000 }); // relógio voltou: nada muda
+  });
+});
+
+describe("estagiário: stamina e XP", () => {
+  it("XP cheio até 2 h de stamina; abaixo, cai em linha reta até 0", () => {
+    expect(staminaXpMult(TURNO_MAX_MS)).toBe(1);
+    expect(staminaXpMult(STAMINA_BAIXA_MS)).toBe(1);
+    expect(staminaXpMult(STAMINA_BAIXA_MS / 2)).toBe(0.5);
+    expect(staminaXpMult(0)).toBe(0);
+    expect(staminaXpMult(-5)).toBe(0);
+    // Vazia → cheia em 24 h parada ou offline.
+    expect(avancarTurno({ ms: 0, em: 0 }, 24 * 3_600_000, false).ms).toBe(TURNO_MAX_MS);
   });
 });
 
@@ -319,8 +332,8 @@ describe("estagiário: decisões", () => {
 
 describe("estagiário: manter distância (recuo)", () => {
   const base = (over: Partial<Recuo> = {}): Recuo => ({
-    pos: { x: 10, y: 10 }, alvo: { x: 11, y: 10 }, ameacas: [{ x: 11, y: 10 }], distancia: 3, alcance: 6, origem: { x: 10, y: 10 },
-    livre: () => true, visao: () => true, ...over,
+    pos: { x: 10, y: 10 }, alvo: { x: 11, y: 10 }, ameacas: [{ x: 11, y: 10 }], distancia: 3, alcance: 6,
+    dentro: () => true, livre: () => true, visao: () => true, ...over,
   });
 
   it("recua para o lado oposto da ameaça, em linha reta, mantendo o alvo à vista e no alcance", () => {
@@ -329,36 +342,25 @@ describe("estagiário: manter distância (recuo)", () => {
     expect(escolherRecuo(base({ alvo: { x: 10, y: 9 }, ameacas: [{ x: 10, y: 9 }] }))).toEqual({ x: 10, y: 11 });
   });
 
-  it("não escolhe tile ocupado, sem visão do alvo, fora do alcance, ainda encostado numa ameaça ou longe demais da origem", () => {
-    // A coluna de trás (x = 9) ocupada: os outros vizinhos continuam encostados na ameaça em (11,10) → fica.
-    expect(escolherRecuo(base({ livre: (x) => x !== 9 }))).toBeNull();
-    const r = escolherRecuo(base({ livre: (x, y) => !(x === 9 && y === 10) }));
-    expect(r).not.toBeNull();
-    expect(Math.max(Math.abs(r!.x - 11), Math.abs(r!.y - 10))).toBe(2); // 2 tiles da ameaça
-    expect(escolherRecuo(base({ livre: () => false }))).toBeNull();
-    expect(escolherRecuo(base({ visao: () => false }))).toBeNull();
-    // Duas ameaças em lados opostos: nenhum vizinho fica a 2 de ambas → fica.
-    expect(escolherRecuo(base({ ameacas: [{ x: 11, y: 10 }, { x: 9, y: 10 }] }))).toBeNull();
-    // Alcance 1 (arma corpo a corpo): recuar perderia o alvo → null.
-    expect(escolherRecuo(base({ alcance: 1 }))).toBeNull();
-    // Origem a RECUO_MAX_TILES para o leste: o passo para oeste passaria do limite.
-    expect(escolherRecuo(base({ origem: { x: 10 + RECUO_MAX_TILES, y: 10 } }))).toBeNull();
-    expect(escolherRecuo(base({ origem: { x: 10 + RECUO_MAX_TILES - 1, y: 10 } }))).toEqual({ x: 9, y: 10 });
+  it("sem ameaça, fica", () => {
+    expect(escolherRecuo(base({ ameacas: [] }))).toBeNull();
   });
 
-  it("ocupado: pega a diagonal que também se afasta; tudo bloqueado = null (encurralado)", () => {
+  it("não escolhe tile ocupado, sem visão do alvo, fora do alcance, que não se afasta da ameaça ou longe da rota", () => {
+    // A coluna de trás (x = 9) ocupada: os outros vizinhos continuam encostados na ameaça em (11,10) → fica.
+    expect(escolherRecuo(base({ livre: (x) => x !== 9 }))).toBeNull();
+    // Só o reto ocupado: pega a diagonal que também se afasta (2 tiles da ameaça).
     const r = escolherRecuo(base({ livre: (x, y) => !(x === 9 && y === 10) }));
     expect(r).not.toBeNull();
-    expect(Math.max(Math.abs(r!.x - 11), Math.abs(r!.y - 10))).toBe(2); // 2 tiles da ameaça
+    expect(Math.max(Math.abs(r!.x - 11), Math.abs(r!.y - 10))).toBe(2);
     expect(escolherRecuo(base({ livre: () => false }))).toBeNull();
     expect(escolherRecuo(base({ visao: () => false }))).toBeNull();
-    // Duas ameaças em lados opostos: nenhum vizinho fica a 2 de ambas → fica.
+    // Duas ameaças em lados opostos: nenhum vizinho se afasta das duas → fica.
     expect(escolherRecuo(base({ ameacas: [{ x: 11, y: 10 }, { x: 9, y: 10 }] }))).toBeNull();
     // Alcance 1 (arma corpo a corpo): recuar perderia o alvo → null.
     expect(escolherRecuo(base({ alcance: 1 }))).toBeNull();
-    // Origem a RECUO_MAX_TILES para o leste: o passo para oeste passaria do limite.
-    expect(escolherRecuo(base({ origem: { x: 10 + RECUO_MAX_TILES, y: 10 } }))).toBeNull();
-    expect(escolherRecuo(base({ origem: { x: 10 + RECUO_MAX_TILES - 1, y: 10 } }))).toEqual({ x: 9, y: 10 });
+    // Fora da faixa da rota: não vai.
+    expect(escolherRecuo(base({ dentro: (x) => x >= 10 }))).toBeNull();
   });
 
   it("prefere ficar a até `distancia` do alvo (a perseguição não puxa de volta)", () => {
