@@ -224,8 +224,8 @@ export class SpellEffects {
    * Aviso de habilidade de monstro: os tiles piscam na cor do elemento e ficam mais fortes até o golpe (`ms`).
    * Fica no chão (abaixo das criaturas) para não esconder quem está em cima.
    */
-  telegraph(tiles: number[], ms: number, fx: FxKey) {
-    const color = PAL[fx]?.main ?? 0xff4040;
+  telegraph(tiles: number[], ms: number, fx: FxKey, tint?: number) {
+    const color = tint ?? PAL[fx]?.main ?? 0xff4040;
     const rects: Phaser.GameObjects.Rectangle[] = [];
     for (let i = 0; i + 1 < tiles.length; i += 2) {
       const c = tc(tiles[i]!, tiles[i + 1]!);
@@ -236,6 +236,35 @@ export class SpellEffects {
     if (!rects.length) return;
     this.scene.tweens.add({ targets: rects, fillAlpha: 0.5, duration: Math.max(120, ms / 3), yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     this.scene.time.delayedCall(ms, () => { for (const r of rects) { this.scene.tweens.killTweensOf(r); r.destroy(); } });
+  }
+
+  /**
+   * Salão de Minijogos: golpe que cai nos tiles do aviso. Clarão em cada tile e o impacto do elemento em até 18 deles
+   * (salas de 11×11: um padrão cheio teria ~60 explosões ao mesmo tempo).
+   */
+  blast(tiles: number[], fx: FxKey) {
+    const color = PAL[fx]?.main ?? 0xffffff;
+    const n = tiles.length / 2;
+    const every = Math.max(1, Math.ceil(n / 18));
+    for (let i = 0, k = 0; i + 1 < tiles.length; i += 2, k++) {
+      const c = tc(tiles[i]!, tiles[i + 1]!);
+      const r = this.scene.add.rectangle(c.x, c.y, TS, TS, color, 0.55).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD);
+      this.layer.add(r);
+      this.scene.tweens.add({ targets: r, alpha: 0, duration: 380, ease: "Quad.easeOut", onComplete: () => r.destroy() });
+      if (k % every === 0) this.impact(fx, c.x, c.y, 0.7, 0);
+    }
+    if (n) sfx.play(SOUND[fx], { volume: 0.5 });
+  }
+
+  /** Salão (Genius): placa acesa na cor dela por `ms`. */
+  padFlash(tiles: number[], color: number, ms: number) {
+    for (let i = 0; i + 1 < tiles.length; i += 2) {
+      const c = tc(tiles[i]!, tiles[i + 1]!);
+      const r = this.scene.add.rectangle(c.x, c.y, TS, TS, color, 0.85).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD);
+      this.layer.add(r);
+      this.scene.tweens.add({ targets: r, alpha: 0.15, duration: ms, ease: "Quad.easeIn", onComplete: () => r.destroy() });
+    }
+    this.glow(tc(tiles[0] ?? 0, tiles[1] ?? 0).x + TS / 2, tc(tiles[0] ?? 0, tiles[1] ?? 0).y + TS / 2, color, 40, ms, 0.6);
   }
 
   // --- ponto de entrada -------------------------------------------------------------

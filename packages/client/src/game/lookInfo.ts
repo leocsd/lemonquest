@@ -62,6 +62,7 @@ export function npcServices(d: NpcDef): string[] {
   if (d.blessing) out.push("bênção");
   if (d.casino) out.push("ficha de cassino");
   if (d.id === "arena_master") out.push("Coliseu");
+  if (d.id === "salao_mestre") out.push("Salão de Minijogos");
   if (d.travel?.length) out.push(`viagem (${d.travel.map((t) => t.label).join(", ")})`);
   if (d.shop?.sells.length) out.push("loja");
   if (d.shop?.buys?.length) out.push("compra itens");

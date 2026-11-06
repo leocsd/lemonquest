@@ -182,7 +182,7 @@ function OutfitDialog() {
                     class={`outfit-tone${tone === t.id ? " sel" : ""}${unlocked ? " owned" : " locked"}`}
                     style={{ background: swatchBackground(t.color) }}
                     onClick={() => pickTone(t.id)}
-                    data-tip={unlocked ? t.name : `${t.name} · ${PRICE} de ouro`}
+                    data-tip={unlocked ? t.name : t.fichas ? `${t.name} · ${t.fichas} Fichas do Salão` : `${t.name} · ${PRICE} de ouro`}
                     data-tip-sub={unlocked ? "Liberado na conta" : "Clique para ver no boneco"}
                     aria-label={t.name}
                     aria-selected={tone === t.id}
@@ -197,6 +197,10 @@ function OutfitDialog() {
                 <span class="outfit-buy-note">
                   {tone ? <><b>{toneName}</b> · liberado na conta, vale para todos os personagens.</>
                     : <>Tingir custa <b>{PRICE} de ouro</b> por tom, uma vez por conta.</>}
+                </span>
+              ) : toneSt === "salao" ? (
+                <span class="outfit-buy-note">
+                  Prévia de <b>{toneName}</b>. Exclusivo do Salão de Minijogos: troque {OUTFIT_TONES.find((t) => t.id === tone)?.fichas} Fichas do Salão com o Mestre do Salão.
                 </span>
               ) : (
                 <>

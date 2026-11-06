@@ -16,6 +16,19 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Salão de Minijogos (2026-11-06)
+
+Typecheck 3× tsc. Novos: `shared/data/minigames.test.ts` (10: padrões da Chuva sempre com ≥ 9 tiles livres em 60 ondas ×
+40 sorteios, padrões difíceis só depois da onda mínima, "olho" com 3×3 livre, Chão que Cai prefere a borda (> 60%) e
+sempre acaba, garoa leve, placas do Genius, fichas e teto, recordes por grupo, tons da loja), `server/systems/minigames.test.ts`
+(10: mapa real com as 2 salas andáveis dentro da zona PZ e o Mestre; anfitrião, começar só por ele, fora do Salão não
+entra, sala em jogo fechada; Chuva parado perde as vidas e volta ao saguão, desviando sobrevive > 20 ondas, 2 jogadores
+com vencedor e sem ficha na vitória relâmpago; buraco tira vida e reposiciona; Pega-Limão soma e vence quem pegou mais;
+Genius passa de rodada repetindo e perde vida do time errando; teto diário e `loginPosition`),
+`client/ui/minigame/minigameLogic.test.ts` (3). Mapa: `diff-world` 0 tiles alterados, 1398/1398 objetos antigos idênticos,
+11 novos; `diff-atlas` 1606/1606. E2E novo `e2e/salao.spec.ts` (porta da Vila → saguão → janela → partida solo → Sair).
+**Pendente no jogo:** ritmo dos avisos com a latência real da LAN e leitura visual dos golpes, buracos, limões e placas.
+
 ## Resultados — Jogos juntos e contra (2026-11-06)
 
 Typecheck 3× tsc; suíte unitária inteira verde (161 arquivos, 2002 testes). Novos: `raid.test.ts` (8: vida pela soma

@@ -12,6 +12,19 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-06b",
+    date: "6 de novembro",
+    title: "Salão de Minijogos",
+    items: [
+      "Porta nova na casinha laranja ao sul da praça: o Salão de Minijogos. Fale com o Mestre do Salão, escolha o jogo e abra uma sala; os amigos entram e quem abriu começa.",
+      "Chuva de Limões: o chão marca onde vai cair; saia dos tiles marcados. Linhas, anéis, xadrez, meia sala... quem dura mais vence.",
+      "Chão que Cai: o piso desmorona das bordas para dentro. Não pise nos buracos. O último de pé vence.",
+      "Pega-Limão: 60 segundos para pegar mais limões que os outros (o dourado vale 3). Levar um golpe derruba 2.",
+      "Genius do Escritório (em grupo): as quatro placas acendem numa sequência; o time repete pisando nelas, na ordem.",
+      "Ninguém perde nada: são 3 vidas de brincadeira. As Fichas do Salão (até 40 por dia) viram tons de roupa exclusivos.",
+    ],
+  },
+  {
     id: "2026-11-06",
     date: "6 de novembro",
     title: "Jogos juntos e contra: raide, corrida, duelo e Coliseu competitivo",

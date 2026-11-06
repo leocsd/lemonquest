@@ -12,6 +12,7 @@ import { MatchBar } from "./arena/ArenaHud.tsx";
 import { InvasionBar } from "./invasion/InvasionBar.tsx";
 import { RaceBar } from "./race/RaceBar.tsx";
 import { DuelBar, DuelInvites } from "./duel/DuelHud.tsx";
+import { MinigameBar } from "./minigame/MinigameHud.tsx";
 import { FeedTicker } from "./items/LootToasts.tsx";
 import { LookCardView } from "./look/LookCard.tsx";
 import { NewsWindow } from "./news/NewsWindow.tsx";
@@ -48,6 +49,7 @@ export function App() {
         <InvasionBar />
         <RaceBar />
         <DuelBar />
+        <MinigameBar />
         <MatchBar />
         <Toasts />
         <FeedTicker />

@@ -26,7 +26,9 @@ export type AchievementEventType =
   /** Prêmio da Corrida de Caça (time vencedor; systems/huntRace.ts; métrica `races`). */
   | "race"
   /** Duelo vencido (systems/duel.ts; métrica `duels`). */
-  | "duel";
+  | "duel"
+  /** Partida do Salão de Minijogos jogada / vencida contra outros (systems/minigames.ts; `minigames`, `minigame_wins`). */
+  | "minigame" | "minigame_win";
 
 export interface AchievementEventData {
   /** kill: tipo do monstro e se é chefe. */
@@ -46,6 +48,7 @@ type Ach = NonNullable<CharacterData["ach"]>;
 const COUNTER: Partial<Record<AchievementEventType, string>> = {
   death: "deaths", steps: "steps", gold: "gold", eat: "foods", drop: "drops", pickup: "pickups", quest: "quests", party_kill: "party", fish: "fish", work: "work_tasks",
   excursion: "excursions", bounty: "bounties", invasion: "invasions", raid: "raids", race: "races", duel: "duels",
+  minigame: "minigames", minigame_win: "minigame_wins",
 };
 
 /** Soma tarefas do ClickUp no registro de quem está offline (avaliado no próximo login). */

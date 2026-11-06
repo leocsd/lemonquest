@@ -13,6 +13,7 @@ import { expand4 } from './expansion4.mjs';
 import { expand5 } from './expansion5.mjs';
 import { expand6 } from './expansion6.mjs';
 import { expand7 } from './expansion7.mjs';
+import { expand8 } from './expansion8.mjs';
 import { drawEntrances14 } from './entrances14.mjs';
 import { PNG } from 'pngjs';
 
@@ -1109,14 +1110,19 @@ const lateObjects21 = { murphy: { x: 182, y: 385, radius: 3, level: 44, zone: 'P
   console.log(`lateObjects21: Murphy em ${x},${y} (${zone})`);
 }
 
+// ===================================================================== SALÃO DE MINIJOGOS (JJ-5, 2026-11-06: tools/mapgen/expansion8.mjs)
+// Oitava expansão para baixo: o mapa acima (400×888) fica intacto e o Salão entra nas linhas 912..928 (x 60..100), ligado
+// à Vila pela porta da casinha laranja do sul da praça (só um objeto portal). Sem tileset nem arte nova.
+const { map: world8 } = expand8({ old: world7, ts, S, spawnTile: SPAWN });
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
-fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world7.toTiled()));
+fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world8.toTiled()));
 { const cp = LEMON.set.croppedPng(); const out = new PNG({ width: cp.width, height: cp.height }); out.data = Buffer.from(cp.data); const dir = path.join(MAPS_DIR, '../tiles'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'lemon-terrain.png'), PNG.sync.write(out)); }
 // Os previews ficam só no disco (assets/maps/preview*.png está no .gitignore): são regenerados aqui a cada rodada.
-const a = renderPreview(world7, path.join(MAPS_DIR, 'preview.png'));
-const b = renderPreview(world7, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
+const a = renderPreview(world8, path.join(MAPS_DIR, 'preview.png'));
+const b = renderPreview(world8, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
 if (process.argv.includes('--debug')) {
-  renderPreview(world7, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
+  renderPreview(world8, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
 }
-console.log(`world.json ${world7.w}x${world7.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world7.objects.length}`);
+console.log(`world.json ${world8.w}x${world8.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world8.objects.length}`);

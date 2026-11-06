@@ -28,7 +28,9 @@ export type AchMetric =
   // 2026-11-06: raides vencidos com prêmio (server/systems/raid.ts) e corridas vencidas (server/systems/huntRace.ts).
   | "raids" | "races"
   // Arena de Duelo (server/systems/duel.ts).
-  | "duels";
+  | "duels"
+  // Salão de Minijogos (server/systems/minigames.ts): partidas jogadas e vencidas (com 2+ jogadores).
+  | "minigames" | "minigame_wins";
 
 export interface AchievementDef {
   id: string;
@@ -101,6 +103,8 @@ export const TITLES: Record<string, string> = {
   forca_tarefa: "da Força-Tarefa",
   campeao_corrida: "Campeão da Corrida",
   duelista: "o Duelista",
+  rei_do_salao: "Rei do Salão",
+  imbativel_do_salao: "o Imbatível do Salão",
   corretor_de_rota: "Corretor de Rota",
   dormente: "o Dormente",
   entregador: "o Entregador",
@@ -257,6 +261,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("corrida_10", "Campeão da Corrida", "Vença 10 Corridas de Caça", "🏆", 35, "races", 10, { rewards: ["title:campeao_corrida"], rare: true }),
   a("primeiro_duelo", "Luvas Jogadas", "Vença um duelo", "🥊", 10, "duels", 1),
   a("duelos_25", "Duelista", "Vença 25 duelos", "🤺", 35, "duels", 25, { rewards: ["title:duelista"], rare: true }),
+  // Salão de Minijogos (2026-11-06).
+  a("primeiro_minijogo", "Ficha na Mão", "Jogue uma partida no Salão de Minijogos", "🎲", 10, "minigames", 1),
+  a("minijogos_50", "Frequentador do Salão", "Jogue 50 partidas no Salão de Minijogos", "🎰", 30, "minigames", 50, { rewards: ["title:rei_do_salao"] }),
+  a("vitoria_salao", "Desviou de Tudo", "Vença uma partida do Salão contra outros jogadores", "🍋", 15, "minigame_wins", 1),
+  a("vitorias_salao_20", "Imbatível do Salão", "Vença 20 partidas do Salão contra outros jogadores", "🏅", 35, "minigame_wins", 20, { rewards: ["title:imbativel_do_salao"], rare: true }),
   a("defensor_da_vila", "Defensor da Vila", "Ajude a Vila a resistir a uma invasão (10+ pontos de contribuição)", "🛡️", 20, "invasions", 1, { rewards: ["title:defensor_vila"] }),
   // Siderúrgica (ciclo 19): os três chefes da usina. "Coração de Aço" vem da missão final (A Fornalha Primordial).
   a("hora_extra_paga", "Hora Extra Paga", "Derrote o Contramestre Fuligem", "⏰", 30, "boss:contramestre_fuligem", 1, { rewards: ["title:contramestre"], rare: true }),

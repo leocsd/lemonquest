@@ -35,6 +35,7 @@ import { InvasionSystem, parseInvasion } from "../systems/invasion.ts";
 import { RaidSystem } from "../systems/raid.ts";
 import { HuntRaceSystem } from "../systems/huntRace.ts";
 import { DuelSystem } from "../systems/duel.ts";
+import { MinigameSystem, parseMinigames } from "../systems/minigames.ts";
 import { FishingSystem } from "../systems/fishing.ts";
 import { FoodSystem } from "../systems/food.ts";
 import { ImbuementSystem } from "../systems/imbuement.ts";
@@ -45,7 +46,7 @@ import { TrainingSystem, parseStatues } from "../systems/training.ts";
 import { SummonSystem } from "../systems/summons.ts";
 import { SpellSystem } from "../systems/spells.ts";
 import { GOLD_ID, InventorySystem, makeItem, newUid } from "../systems/inventory.ts";
-import { BOUNTY_CHEST_ID as BOUNTY_CHEST, weekId as weekIdOf } from "@lemonquest/shared";
+import { BOUNTY_CHEST_ID as BOUNTY_CHEST, FICHA_ID, weekId as weekIdOf, type MinigameActionMsg } from "@lemonquest/shared";
 import { PvpSystem, pzLockSeconds } from "../systems/pvp.ts";
 import { MonsterAbilitySystem } from "../systems/monsterAbilities.ts";
 import { LootSystem } from "../systems/loot.ts";
@@ -95,7 +96,7 @@ export const KICK_DEFAULT_REASON = "Expulso por um administrador";
 export const MAX_MESSAGES_PER_SECOND = 60;
 /** Limites por tipo de mensagem (excesso descartado em silêncio). */
 export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
-  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1, [C2S.Excursion]: 3, [C2S.Social]: 3, [C2S.Duel]: 5,
+  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1, [C2S.Excursion]: 3, [C2S.Social]: 3, [C2S.Duel]: 5, [C2S.Minigame]: 5,
   // Chat inclui comandos (/convidar...) e palavras mágicas, que não passam pelo limite de fala do chat.ts.
   [C2S.Chat]: 6,
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
@@ -113,6 +114,7 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
 export const TRANSFER_SAVE_MS = 1000;
 /** Aviso da rota do Estagiário desligada na entrada/saída do Coliseu. */
 const AVISO_COLISEU = "O Estagiário não trabalha no Coliseu: a rota foi desligada.";
+const AVISO_SALAO = "O Estagiário não joga no Salão de Minijogos: a rota foi desligada.";
 const DEV = process.env.NODE_ENV !== "production";
 /** Log de desempenho do tick: dev = a cada 60 s; produção = a cada 5 min e só se algum tick passou de 30 ms. */
 const PERF_LOG_MS = DEV ? 60_000 : 5 * 60_000;
@@ -167,6 +169,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private raid!: RaidSystem;
   private race!: HuntRaceSystem;
   private duel!: DuelSystem;
+  private minigames!: MinigameSystem;
   private clickup!: ClickUpSystem;
   private fishing!: FishingSystem;
   private weeklyAt = 0;
@@ -406,6 +409,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       isBlocked: (x, y) => this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y),
       isAlly: (a, b) => this.party.sameParty(a.id, b.id),
       areaHitsPlayer: (a, b) => !this.pvp.canAttack(a, b) && (b.id === a.targetId || this.pvp.justified(a, b)),
+      castBlocked: (p) => !!this.minigames?.inGame(p.id),
     });
     this.monsterAbilities = new MonsterAbilitySystem({
       grid: this.map.grid, monsters: this.monsters, combat: this.combat, conditions: this.conditions,
@@ -561,6 +565,25 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       onWin: (p) => this.ach.event(p.id, "duel"),
       getKv, setKv,
     });
+    // Salão de Minijogos (JJ-5, 2026-11-06): salas do mapa, fichas na mochila, tons exclusivos pela conta.
+    const salao = parseZones(this.map.tiled).find((z) => z.name === "Salão de Minijogos");
+    this.minigames = new MinigameSystem({
+      layout: parseMinigames(this.map.tiled),
+      getPlayer, players: () => this.state.players.values(), send, broadcast,
+      teleport: (p, x, y) => this.movement.teleport(p, x, y),
+      isFree: (x, y, self) => this.isFreeTile(x, y, self),
+      inSalao: (x, y) => !!salao && x >= salao.x0 && x <= salao.x1 && y >= salao.y0 && y <= salao.y1,
+      giveFichas: (p, n) => this.giveItems(p, FICHA_ID, n, "Salão de Minijogos", "Ficha(s) do Salão"),
+      buyTone: (p, toneId) => this.buySalaoTone(p, toneId),
+      onEnter: (p) => {
+        this.npcs.close(p.id);
+        this.estagiario.desligarRota(p, AVISO_SALAO);
+        this.summons.despawnOwner(p.id);
+        this.conditions.clear(p.id); // sem Pés Ligeiros: todo mundo anda no mesmo passo (só o level muda um pouco)
+      },
+      onPlayed: (p, _game, _score, won) => { this.ach.event(p.id, "minigame"); if (won) this.ach.event(p.id, "minigame_win"); },
+      getKv, setKv,
+    });
     this.ach = new AchievementSystem({
       record: (id) => this.records.get(id), getPlayer, players: () => this.state.players.values(), send, broadcast,
       explorePct: (id) => this.exploration.percent(id, this.reachable),
@@ -635,7 +658,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.trade = new TradeSystem({
       getPlayer: (id) => this.state.players.get(id), send, inventory: this.inventory,
       // Troca concluída: os dois são gravados JUNTOS (uma transação no saveTransfers do tick), nunca um sem o outro.
-      inArena: (id) => this.arena.inMatch(id) || !!this.duel?.inDuel(id), save: (id) => this.transferred.add(id),
+      inArena: (id) => this.arena.inMatch(id) || !!this.duel?.inDuel(id) || !!this.minigames?.inGame(id), save: (id) => this.transferred.add(id),
     });
     // Mesma regra do banner de zona do cliente (a menor zona que contém o tile).
     const socialZones = parseZones(this.map.tiled).map((z) => ({ name: z.name, x: z.x0, y: z.y0, w: z.x1 - z.x0 + 1, h: z.y1 - z.y0 + 1 }));
@@ -740,6 +763,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       this.npcs.onInteract(p, m);
       if (m?.npcId && this.npcs.openFor(p.id) === m.npcId) this.quests.onTalk(p, m.npcId);
       if (m?.npcId === "arena_master" && this.npcs.openFor(p.id) === "arena_master") this.arena.openLobbies(p);
+      if (m?.npcId === "salao_mestre" && this.npcs.openFor(p.id) === "salao_mestre") this.minigames.openLobby(p);
       // Quadro da obra (ClickUp): barras de sprint e aba "Na obra" nos NPCs com workBoard.
       if (m?.npcId && this.npcs.openFor(p.id) === m.npcId && npcDef(m.npcId)?.workBoard) send(p.id, S2C.Work, this.clickup.workMsg(m.npcId, p.name));
     });
@@ -753,6 +777,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<TrainOfflineMsg>(C2S.TrainOffline, (p, m, c) => this.startOfflineTraining(p, m, c));
     this.on<PartyActionMsg>(C2S.Party, (p, m) => this.party.onAction(p, m));
     this.on<DuelActionMsg>(C2S.Duel, (p, m) => this.duel.onAction(p, m));
+    this.on<MinigameActionMsg>(C2S.Minigame, (p, m) => this.minigames.onAction(p, m));
     this.on<TradeMsg>(C2S.Trade, (p, m) => this.trade.onMessage(p, m));
     this.on<FishMsg>(C2S.Fish, (p, m) => this.fishing.onMessage(p, m));
     this.on<ChallengeActionMsg>(C2S.Challenge, (p, m) => this.challenges.onMessage(p, m));
@@ -772,6 +797,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       if (!rec || !tone) return;
       const unlocked = getAccountTones(rec.accountId);
       if (unlocked.includes(tone.id)) return c.send(S2C.Notice, { text: "Você já tem esse tom.", kind: "warn" } satisfies NoticeMsg);
+      if (tone.fichas) return c.send(S2C.Notice, { text: `${tone.name} é exclusivo do Salão de Minijogos (Fichas do Salão).`, kind: "warn" } satisfies NoticeMsg);
       if (!this.inventory.spendGold(p, OUTFIT_TONE_PRICE)) return c.send(S2C.Notice, { text: "Ouro insuficiente.", kind: "warn" } satisfies NoticeMsg);
       // Tom (conta) e ouro (personagem) no mesmo commit: uma queda antes do autosave não deixa o tom de graça (#56).
       const list = transaction(() => { const l = addAccountTone(rec.accountId, tone.id); this.save(p.id); return l; });
@@ -814,6 +840,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["raid", () => this.raid.tick(this.tickNow)],
       ["race", () => this.race.tick(this.tickNow)],
       ["duel", () => this.duel.tick(this.tickNow)],
+      ["minigames", () => this.minigames.tick(this.tickNow)],
       ["combat", () => this.combat.tick(this.tickNow)],
       ["conditions", () => this.conditions.tick(this.tickNow)],
       ["regen", () => this.regen.tick(this.tickNow, players())],
@@ -1035,7 +1062,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     p.mana = rec.data.mana ?? Number.MAX_SAFE_INTEGER;
     this.inventory.applyStats(p);
     // Saiu/caiu no meio de uma partida do coliseu: volta na saída do coliseu.
-    const start = this.arena.loginPosition(rec.x, rec.y)
+    const start = this.arena.loginPosition(rec.x, rec.y) ?? this.minigames.loginPosition(rec.x, rec.y)
       ?? (this.validStart(rec.x, rec.y) ? { x: rec.x!, y: rec.y! } : this.map.spawn);
     p.x = start.x;
     p.y = start.y;
@@ -1231,6 +1258,37 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.save(p.id);
   }
 
+  /** Itens empilháveis de prêmio direto na mochila (cheia: no chão aos pés), com aviso e gravação. */
+  private giveItems(p: PlayerState, defId: string, n: number, why: string, label: string): void {
+    if (!(n > 0)) return;
+    const item = makeItem(defId, n);
+    const left = this.inventory.addItem(p, item);
+    const fell = left > 0 && this.placeReward(p, { ...item, uid: newUid(), count: left });
+    const extra = left > 0 ? (fell ? " (mochila cheia: caiu aos seus pés)" : " (mochila cheia: perdido)") : "";
+    this.clients.getById(p.id)?.send(S2C.Notice, { text: `${why}: ${n} ${label}${extra}.`, kind: "good", log: true } satisfies NoticeMsg);
+    this.save(p.id);
+  }
+
+  /** Troca Fichas do Salão por um tom exclusivo (conta). Texto do erro ou null. Fichas e tom no mesmo commit. */
+  private buySalaoTone(p: PlayerState, toneId: string): string | null {
+    const rec = this.records.get(p.id);
+    const tone = toneDef(toneId);
+    const price = tone?.fichas ?? 0;
+    if (!rec || !tone || !(price > 0)) return "Esse tom não está à venda no Salão.";
+    if (getAccountTones(rec.accountId).includes(tone.id)) return "Você já tem esse tom.";
+    if (this.inventory.countItem(p.id, FICHA_ID) < price) return `${tone.name} custa ${price} Fichas do Salão.`;
+    const list = transaction(() => {
+      if (!this.inventory.removeItems(p, FICHA_ID, price)) return null;
+      const l = addAccountTone(rec.accountId, tone.id);
+      this.save(p.id);
+      return l;
+    });
+    if (!list) return `${tone.name} custa ${price} Fichas do Salão.`;
+    this.clients.getById(p.id)?.send(S2C.OutfitTones, { unlocked: list } satisfies OutfitTonesMsg);
+    this.clients.getById(p.id)?.send(S2C.Notice, { text: `Você trocou ${price} Fichas do Salão pelo tom ${tone.name}. Vista na janela de roupas.`, kind: "good", log: true } satisfies NoticeMsg);
+    return null;
+  }
+
   /** Prêmio do Coliseu competitivo guardado no kv (1º da semana, desafio vencido offline). */
   private deliverArenaPrize(p: PlayerState): void {
     const n = takeArenaPrize({ getKv, setKv }, p.name);
@@ -1365,6 +1423,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.invasion.sendTo(sid);
     { const p = this.state.players.get(sid); if (p) { this.race.removePlayer(sid); this.race.sendTo(p); } }
     this.duel.sendState(sid);
+    this.minigames.resend(sid);
     this.challenges.forget(sid); // a próxima passada do tick reenvia o estado dos desafios (ponto no trilho)
     console.log(`[world] ${this.names.get(sid) ?? sid} reconectou`);
   }
@@ -1401,7 +1460,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
    */
   private lingerMs(sid: string, consented: boolean): number {
     const p = this.state.players.get(sid);
-    if (this.shuttingDown || !p || p.hp <= 0 || this.arena.inMatch(sid) || this.duel.inDuel(sid)) return 0;
+    if (this.shuttingDown || !p || p.hp <= 0 || this.arena.inMatch(sid) || this.duel.inDuel(sid) || this.minigames.inGame(sid)) return 0;
     const now = Date.now();
     const combat = consented && this.combat.inCombat(sid, now) ? RECONNECT_S * 1000 : 0;
     // Já dentro da PZ (carroça, portal): o bloqueio não tem mais o que impedir.
@@ -1468,6 +1527,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["invasion", () => this.invasion.removePlayer(sid)],
         ["race", () => this.race.removePlayer(sid)],
         ["duel", () => this.duel.removePlayer(sid)],
+        ["minigames", () => this.minigames.removePlayer(sid)],
         ["exploration", () => this.exploration.removePlayer(sid)],
         ["inventory", () => this.inventory.removePlayer(sid)],
         ["ground", () => this.ground.removePlayer(sid)],

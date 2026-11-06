@@ -95,6 +95,8 @@ export const C2S = {
   Social: "social",
   /** Arena de Duelo (DuelActionMsg, shared/data/duel.ts). */
   Duel: "duel",
+  /** Salão de Minijogos (MinigameActionMsg, shared/data/minigames.ts). */
+  Minigame: "minigame",
   /** Salva o filtro do loot automático do personagem (SetLootFilterMsg, shared/lootFilter.ts). */
   SetLootFilter: "setLootFilter",
   /** Salva a configuração do Estagiário (EstagiarioConfigMsg, shared/estagiario.ts). */
@@ -339,6 +341,10 @@ export const S2C = {
   Race: "race",
   /** Arena de Duelo (DuelMsg, shared/data/duel.ts): convites, duelo em andamento e resultado. */
   Duel: "duel",
+  /** Salão de Minijogos (shared/data/minigames.ts): janela do Mestre, a partida e os avisos no chão. */
+  MinigameLobby: "minigameLobby",
+  Minigame: "minigame",
+  MinigameFx: "minigameFx",
   /** Mural de Excursões inteiro (ExcursionsMsg): a todos quando muda e a quem pede. */
   Excursions: "excursions",
   /** "Quero ir" (ao líder) ou lembrete de 2 min (ExcursionPingMsg). */

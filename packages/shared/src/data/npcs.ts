@@ -235,6 +235,17 @@ export const NPCS: Record<string, NpcDef> = {
       "Sextou? Então troca de roupa antes da onda.",
     ],
   },
+  // Salão de Minijogos (2026-11-06, shared/data/minigames.ts): abre a janela própria (salas, recordes, loja de fichas).
+  salao_mestre: {
+    id: "salao_mestre", name: "Mestre do Salão", sprite: C + "MaskGoldRacoon/SpriteSheet.png",
+    greeting: "Bem-vindo ao Salão! Escolha uma sala e um jogo. Aqui ninguém se machuca de verdade: são três vidas de brincadeira e muita ficha.",
+    idleLines: [
+      "Chuva de limões na sala 1! Quem se habilita?",
+      "O chão cai, a dignidade fica. Às vezes.",
+      "Genius em grupo: um pisa, o outro grita a cor.",
+      "Ficha boa é ficha trocada por tom de roupa.",
+    ],
+  },
   arena_shop_1: {
     id: "arena_shop_1", name: "Vendedor do Coliseu", sprite: C + "GladiatorBlue/SpriteSheet.png",
     greeting: "Respire fundo, guerreiro! Poções e comida para a próxima onda.",

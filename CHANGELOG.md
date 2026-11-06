@@ -1,5 +1,31 @@
 # Changelog
 
+## [Não lançado] — 2026-11-06 · Salão de Minijogos
+
+Dono: "um sistema ... que a pessoa entra em uma sala quadrada e tem que desviar de magias que são lançadas, eu quero
+jogos assim no Lemon Quest, pode usar a imaginação para criar novos" (decisões: sala nova no mapa; depois da fila).
+- **Mapa** (`tools/mapgen/expansion8.mjs`): oitava expansão para baixo (400×888 → 400×936), bloco 41×17 em (60,912) com
+  saguão (Mestre do Salão, mesas, quadro) e duas salas de pedra 11×11 sem porta (objetos `minigame_room` + `minigame_exit`).
+  Entrada pela porta da casinha laranja do sul da praça (79,106), saída na parede norte do saguão. `diff-world`: 0 tiles
+  alterados, 1398/1398 objetos antigos idênticos, 11 novos; `diff-atlas`: 1606/1606 tiles idênticos. Zona PZ "Salão de
+  Minijogos" com a música "Good Time".
+- **Regras** (`shared/data/minigames.ts`): Chuva de Limões (padrões garoa, linhas, colunas, xadrez, anéis, cruz,
+  quadrantes, metade e "olho", liberados por onda; sempre ≥ 9 tiles livres; aviso 1,6 s → 0,75 s), Chão que Cai (3 → 12
+  tiles por rodada, 70% da borda do que restou; pisar no buraco tira vida), Pega-Limão (60 s, limão dourado vale 3, garoa
+  leve derruba 2 limões), Genius do Escritório (cooperativo, 4 placas 2×2, sequência 3 + rodada, 3 vidas do time).
+  Fichas por partida (entrar e sair sem ponto não rende; +2 por vitória contra outros), teto de 40/dia.
+- **Servidor** (`systems/minigames.ts`): salas com anfitrião, contagem de 4 s, tudo no tick (aviso `S2C.MinigameFx` →
+  golpe), imunidade de 1,2 s depois de um golpe, magias bloqueadas (`castBlocked`) e condições/invocações/rota do
+  Estagiário tiradas ao entrar, eliminado volta ao saguão e segue vendo o placar, recordes da semana no kv
+  (`minigame.week.<semana>.<jogo>`), fichas do dia no kv (`minigame.fichas.<dia>.<nome>`), feed para quem vence contra
+  outros. Quem cai ou reconecta dentro de uma sala volta ao saguão (`loginPosition`); estado da partida só em memória.
+- **Loja**: 4 tons de roupa exclusivos (Limão Neon 60, Pôr do Sol, Mar Fundo e Cereja 40 fichas); a janela de roupas
+  mostra a prévia e explica onde trocar; o servidor recusa comprá-los com ouro. Item novo Ficha do Salão.
+- **Cliente**: janela do Mestre (`ui/minigame/MinigameWindow.tsx`), barra no topo com vidas, placar e Sair
+  (`MinigameHud.tsx`), avisos/golpes/placas acesas e buracos, limões e placas desenhados no chão (`game/minigameLayer.ts`,
+  `SpellEffects.blast`/`padFlash`).
+- Conquistas: Ficha na Mão, Frequentador do Salão (título "Rei do Salão"), Desviou de Tudo e Imbatível do Salão (título).
+
 ## [Não lançado] — 2026-11-06 · Jogos juntos e contra, paladino, elites nomeados, Murphy e chefes mais frequentes
 
 Dono: "deixe o respawn dos bosses ... menos de 1 hora, todos", "traga mais jogos para jogar juntos e contra para animar"

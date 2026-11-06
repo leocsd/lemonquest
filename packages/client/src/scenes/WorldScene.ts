@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { Callbacks, type Room } from "@colyseus/sdk";
 import {
   C2S, DROP_RANGE, EMOTES, MONSTERS, S2C, TILE_SIZE, NPC_RANGE,
-  monsterDisplayName, lineOfSight, monsterAbilitySpell, spellDef, spellsFor, type AttackMsg, type LookGroundMsg, type MonsterTelegraphMsg, type CombatEvent, type ChatMessage, type CombatMsg, type EmoteMsg, type FishCastMsg, type ConditionsMsg, type SkillUpMsg, type SpellCastMsg, type SpellDef, type CreatureDiedMsg, type DiedMsg, type Dir, type LevelUpMsg,
+  monsterDisplayName, lineOfSight, type MinigameFxMsg, monsterAbilitySpell, spellDef, spellsFor, type AttackMsg, type LookGroundMsg, type MonsterTelegraphMsg, type CombatEvent, type ChatMessage, type CombatMsg, type EmoteMsg, type FishCastMsg, type ConditionsMsg, type SkillUpMsg, type SpellCastMsg, type SpellDef, type CreatureDiedMsg, type DiedMsg, type Dir, type LevelUpMsg,
   type GroundItemView, type MonsterView, type LootMsg, type MoveMsg, type NpcOpenMsg, type NpcSayMsg, type PickupTo, type PlayerView, type TurnMsg, type WalkToMsg, type XpGainMsg,
 } from "@lemonquest/shared";
 import { session } from "../session.ts";
@@ -35,6 +35,7 @@ import { PixelCamera } from "../game/pixelCamera.ts";
 import { Predictor } from "../game/predictor.ts";
 import { sfx, type SfxName } from "../game/sfx.ts";
 import { SpellEffects } from "../game/spellFx.ts";
+import { MinigameLayer } from "../game/minigameLayer.ts";
 import { ADDON_SHEET_LIST, ALL_SHEETS, outfitLook } from "../game/sprites.ts";
 import { closeCtxMenu, openCtxMenu } from "../ui/outfit/outfit.ts";
 import { openPlayerMenu, openSelfMenu } from "../ui/social/playerMenu.ts";
@@ -135,6 +136,7 @@ export class WorldScene extends Phaser.Scene {
 
   private fx!: CombatFx;
   private spells!: SpellEffects;
+  private minigame?: MinigameLayer;
   private npcs!: NpcManager;
   private chestLabels!: ChestLabels;
   private portalLabels!: PortalLabels;
@@ -256,6 +258,7 @@ export class WorldScene extends Phaser.Scene {
       myId: () => this.myId,
       shake: (ms, i) => { if (!reducedMotion()) this.cameras.main.shake(ms, i); },
     });
+    this.minigame = new MinigameLayer(this, this.worldLayer, this.spells);
     this.predictor = new Predictor({
       grid: this.world.grid,
       spawn: this.world.spawn,
@@ -372,6 +375,7 @@ export class WorldScene extends Phaser.Scene {
     msg<LevelUpMsg>(S2C.LevelUp, (m) => this.onLevelUp(m.level));
     msg<SpellCastMsg>(S2C.SpellCast, (m) => this.onSpellCast(m));
     msg<MonsterTelegraphMsg>(S2C.MonsterTelegraph, (m) => this.onTelegraph(m));
+    msg<MinigameFxMsg>(S2C.MinigameFx, (m) => this.minigame?.fx(m));
     msg<ConditionsMsg>(S2C.Conditions, (m) => this.onConditions(m));
     msg<SkillUpMsg>(S2C.SkillUp, (m) => this.onSkillUp(m));
     msg<ChatMessage>(S2C.Chat, (m) => this.onChatBubble(m));
@@ -1578,6 +1582,7 @@ export class WorldScene extends Phaser.Scene {
     this.disposers = [];
     this.input_?.destroy();
     this.fx?.destroy();
+    this.minigame?.destroy();
     this.spells?.destroy();
     this.npcs?.destroy();
     this.loot?.destroy();

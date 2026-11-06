@@ -7,6 +7,8 @@ export interface OutfitTone {
   name: string;
   /** Cor que um pixel de luminância média (TONE_PIVOT) vira (0xRRGGBB); ver colorizePixel. */
   color: number;
+  /** Exclusivo do Salão de Minijogos: preço em Fichas do Salão (não se compra com ouro). */
+  fichas?: number;
 }
 
 /** Preço fixo em ouro, igual pra qualquer tom. */
@@ -31,6 +33,11 @@ export const OUTFIT_TONES: OutfitTone[] = [
   { id: "silver", name: "Prata", color: 0xb8bec8 },
   { id: "charcoal", name: "Carvão", color: 0x464a54 },
   { id: "sky", name: "Celeste", color: 0x5aa8e8 },
+  // Salão de Minijogos (2026-11-06): só com Fichas do Salão (MINIGAME_SHOP_TONES em shared/data/minigames.ts).
+  { id: "neon_lime", name: "Limão Neon", color: 0x7ee02a, fichas: 60 },
+  { id: "sunset", name: "Pôr do Sol", color: 0xf06a3a, fichas: 40 },
+  { id: "ocean_deep", name: "Mar Fundo", color: 0x2a6fb8, fichas: 40 },
+  { id: "cherry", name: "Cereja", color: 0xd0306a, fichas: 40 },
 ];
 
 export const toneDef = (id: string | undefined | null): OutfitTone | undefined =>

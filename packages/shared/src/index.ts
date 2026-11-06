@@ -37,6 +37,7 @@ export * from "./data/invasion.ts";
 export * from "./data/raid.ts";
 export * from "./data/huntRace.ts";
 export * from "./data/duel.ts";
+export * from "./data/minigames.ts";
 export * from "./data/news.ts";
 export * from "./data/weekly.ts";
 export * from "./data/challenges.ts";
