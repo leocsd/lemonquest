@@ -20,7 +20,13 @@ export type AchievementEventType =
   /** Recompensa do Quadro entregue (ciclo 18: contador `bounties`, medido pelos desafios da semana). */
   | "bounty"
   /** Prêmio de uma Invasão da Vila defendida (systems/invasion.ts; métrica `invasions`). */
-  | "invasion";
+  | "invasion"
+  /** Prêmio de um raide vencido (systems/raid.ts; métrica `raids`). */
+  | "raid"
+  /** Prêmio da Corrida de Caça (time vencedor; systems/huntRace.ts; métrica `races`). */
+  | "race"
+  /** Duelo vencido (systems/duel.ts; métrica `duels`). */
+  | "duel";
 
 export interface AchievementEventData {
   /** kill: tipo do monstro e se é chefe. */
@@ -39,7 +45,7 @@ type Ach = NonNullable<CharacterData["ach"]>;
 /** Contadores simples (stats) que cada evento soma. */
 const COUNTER: Partial<Record<AchievementEventType, string>> = {
   death: "deaths", steps: "steps", gold: "gold", eat: "foods", drop: "drops", pickup: "pickups", quest: "quests", party_kill: "party", fish: "fish", work: "work_tasks",
-  excursion: "excursions", bounty: "bounties", invasion: "invasions",
+  excursion: "excursions", bounty: "bounties", invasion: "invasions", raid: "raids", race: "races", duel: "duels",
 };
 
 /** Soma tarefas do ClickUp no registro de quem está offline (avaliado no próximo login). */

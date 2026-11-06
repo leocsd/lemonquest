@@ -1,7 +1,7 @@
 // Ciclo 8 — caça mais difícil e variada: elites, pedido de reforço dos bandos, cura dos aliados e o Coliseu compensado.
 import { describe, expect, it } from "vitest";
 import {
-  ARENA_HP_MULT, ELITE, PLAYER_ATTACK_MS, S2C, arenaWaveMult, arenaWaveSpawns, monsterDamageMult, monsterDef, type MonsterAbility,
+  ARENA_HP_MULT, ELITE, NAMED_ELITE, PLAYER_ATTACK_MS, S2C, arenaWaveMult, arenaWaveSpawns, monsterDamageMult, monsterDef, type MonsterAbility,
   type MonsterDef,
 } from "@lemonquest/shared";
 import { rollLoot } from "./loot.ts";
@@ -73,6 +73,58 @@ describe("elites", () => {
     expect(rollLoot(d, () => 0.5, itemsFx, 1, ELITE.gold).gold).toBe(20);
     expect(rollLoot(d, () => 0.5, itemsFx, 1).items).toHaveLength(0); // 0,5 ≥ 0,3
     expect(rollLoot(d, () => 0.5, itemsFx, ELITE.loot).items).toHaveLength(1); // 0,5 < 0,6
+  });
+});
+
+describe("elite nomeado (C12-8)", () => {
+  // "demon" tem nomeado (NAMED_ELITES); a definição de teste só troca os números.
+  const spawnNamed = (namedChance: number, count = 1, over: Partial<MonsterDef> = {}) => {
+    const notices: string[] = [];
+    const w = world({
+      grid: openGrid(30, 30), spawns: [{ defId: "demon", x: 10, y: 10, count, radius: 3 }], namedChance, eliteChance: 0,
+      defs: () => def({ id: "demon", name: "Demônio", level: 100, hp: 100, xp: 10, aggroRange: 0, ...over }),
+      notice: (t: string) => notices.push(t),
+    });
+    w.mm.spawnAll();
+    return { ...w, notices, all: [...w.mm.all()] };
+  };
+
+  it("nasce com o nome próprio, vida ×4, dano ×1,4, campos sincronizados e aviso para todos", () => {
+    const { all, notices } = spawnNamed(1);
+    const m = all[0]!;
+    expect([m.named, m.s.named, m.elite, m.s.elite]).toEqual(["Belzor, o Insaciável", "Belzor, o Insaciável", true, true]);
+    expect([m.s.hp, m.s.maxHp]).toEqual([100 * NAMED_ELITE.hp, 100 * NAMED_ELITE.hp]);
+    expect(m.dmgMult).toBe(NAMED_ELITE.dmg);
+    expect(notices).toEqual(["⚔ Belzor, o Insaciável (Demônio) apareceu!"]);
+  });
+
+  it("um vivo por vez: os outros do mesmo spawn nascem comuns; morto, o nome pode voltar", () => {
+    const w = spawnNamed(1, 3);
+    expect(w.all.filter((m) => m.named)).toHaveLength(1);
+    expect(w.all.filter((m) => !m.named).every((m) => !m.elite && m.s.named === "")).toBe(true);
+    w.mm.kill(w.all.find((m) => m.named)!, w.now());
+    w.run(def({ level: 100 }).respawnMs + 6000);
+    expect([...w.mm.all()].filter((m) => m.named)).toHaveLength(1);
+  });
+
+  it("chance 0 e tipo sem nomeado: nunca nasce", () => {
+    expect(spawnNamed(0).all[0]!.named).toBeUndefined();
+    const w = world({
+      grid: openGrid(30, 30), spawns: [{ defId: "dummy", x: 10, y: 10, count: 1, radius: 0 }], namedChance: 1, eliteChance: 0,
+      defs: () => def({ level: 100, hp: 100, xp: 10, aggroRange: 0 }),
+    });
+    w.mm.spawnAll();
+    expect([...w.mm.all()][0]!.named).toBeUndefined();
+  });
+
+  it("nomeado dá XP ×8", () => {
+    const w = spawnNamed(1, 1, { armor: 0 });
+    const m = w.all[0]!;
+    const p = w.add(player("k", m.s.x + 1, m.s.y, { hp: 50_000, maxHp: 50_000 }));
+    w.combat.onAttack(p, { targetId: m.s.id });
+    for (let i = 0; i < 300 && w.mm.get(m.s.id); i++) w.run(PLAYER_ATTACK_MS);
+    expect(w.mm.get(m.s.id)).toBeUndefined();
+    expect(of(w.sent, S2C.XpGain).map((s) => s.msg.amount)).toEqual([10 * NAMED_ELITE.xp]);
   });
 });
 

@@ -62,6 +62,8 @@ export class MonsterState extends Schema implements MonsterView {
   @type("string") targetId = "";
   @type("string") ownerId = "";
   @type("boolean") elite = false;
+  /** Elite nomeado (C12-8): nome próprio ("" = não é). */
+  @type("string") named = "";
 }
 
 /** Deve espelhar GroundItemView (packages/shared/src/types.ts). Bônus ficam só no servidor (systems/ground.ts). */

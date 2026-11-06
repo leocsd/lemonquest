@@ -1,5 +1,30 @@
 # Changelog
 
+## [Não lançado] — 2026-11-06 · Jogos juntos e contra, paladino, elites nomeados, Murphy e chefes mais frequentes
+
+Dono: "deixe o respawn dos bosses ... menos de 1 hora, todos", "traga mais jogos para jogar juntos e contra para animar"
+(escolheu os quatro: raide, corrida, duelo, Coliseu competitivo) e itens 1 e 2 da lista de melhorias (paladino e chefe).
+- **Chefes em menos de 1 hora** (`BOSS_RESPAWN_MULT = 0.15`): todo chefe volta em < 60 min; o prazo salvo de antes é
+  encurtado no boot (`spawnAll`), sem esperar o ciclo antigo.
+- **Paladino** (`PALADIN_SPELL_DAMAGE_MULT = 1.15` nas magias de dano só dele, fora a Onda Sagrada para não roubar a
+  identidade de área do mago): sobe sem liderar (teste "paladino ≥0,84 sem liderar"). Efeito colateral medido: o
+  Coliseu com paladino fica ~5 levels mais fácil; a meta do modificador passou para lv 105.
+- **Elites nomeados** (`NAMED_ELITES`): Trovão-de-Pedra (Behemoth), Belzor, o Insaciável (Demônio) e Gorvak, o
+  Inabalável (Colosso). 1,5% por nascimento, um vivo por nome, aviso no servidor, ×4 vida, ×1,4 dano, ×8 XP, ×5 ouro e loot.
+- **Murphy, o Corretor** (lv 44): chefe no Portal de Inspeção (objeto novo no fim do mapa, 0 tiles alterados), missão
+  "A Lei de Murphy" (depois de "Passagem Duplicada"), título "À Prova de Murphy" e duas conquistas.
+- **Raide de Sexta** (sexta 16h, 45 min, `systems/raid.ts`): um chefe gigante ao norte da Vila, O Grande Auditor ou A
+  Impressora Possuída conforme a semana. Vida cresce com a soma dos levels de quem luta; dano acompanha o menor level
+  presente. Quem lutou ≥ 1 min ganha 1 Baú de Recompensa (+1 na vitória). Conquistas "Força-Tarefa".
+- **Corrida de Caça** (segunda 18h, 30 min, `systems/huntRace.ts`): Time Limão × Time Laranja sorteados por level,
+  pontos por abate (crédito de grupo), placar no topo (`RaceBar`); quem pontuou no time vencedor ganha baú.
+- **Arena de Duelo** (`systems/duel.ts`): clique direito → desafiar 1×1 (ou 2×2 com o grupo); a luta usa uma sala livre
+  do Coliseu, sem perder XP/itens e sem caveira; 3 min, depois vence quem tem mais vida. `/duelos` = ranking da semana.
+- **Coliseu competitivo** (`systems/arenaWeekly.ts`): toda partida entra no ranking semanal de ondas (o 1º grupo ganha
+  3 baús na virada, entregues no login); desafio grupo × grupo pela janela do Coliseu (duas salas, mesmas ondas, vence
+  quem passar mais; 1 baú para cada vencedor). `/coliseu` = ranking.
+- Raide, corrida e duelo vivem só na memória: reiniciar o servidor no meio recomeça o evento.
+
 ## [Não lançado] — 2026-11-05 · Estagiário: seguir sem disputa com o F8 e sem perder o colega
 
 Dono: "O auto ataque do personagem está conflitando com o follow ataque do modo seguir no bot" e "quando eu perco o

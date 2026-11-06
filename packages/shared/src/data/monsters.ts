@@ -1280,6 +1280,59 @@ export const MONSTERS: Record<string, MonsterDef> = {
     ],
     sprite: grid4(M + "TRex/SpriteSheet.png", { tint: 0x8898b8, scale: 2 }),
   },
+  // Chefe do Portal de Inspeção (C10-4, 2026-11-06; dono: área que já existe, sem sala nova): a Lei de Murphy em pessoa.
+  // Tudo que pode dar errado dá: a passagem duplica, o frame descartado volta e a carta lacrada nunca chega. Nível entre
+  // o Capitão (42) e o Rei Kongra (45); a Carta Lacrada (100%) fecha a missão do Técnico do CLP.
+  murphy: {
+    id: "murphy", name: "Murphy, o Corretor", level: 44, hp: 8000, xp: 8000, damage: [72, 135], damageKind: "energy", armor: 16,
+    abilities: [
+      ability.blast({ name: "Tudo Que Pode Dar Errado", radius: 1, range: 5, min: 75, max: 135, kind: "energy", fx: "energy", windupMs: 800, condition: { id: "slow", durationMs: 3000, value: 30 } }),
+      ability.summon({ name: "Retrabalho!", monsterId: "frame_descartado", count: 1, max: 2, cooldownMs: 25_000 }),
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 330, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [2500, 4500],
+    loot: [
+      { itemId: "mensagem_retida", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 2, max: 4 },
+      { itemId: "anel_do_rodeiro", chance: 0.25 },
+      { itemId: "mithril_armor", chance: 0.3 },
+      { itemId: "master_archer_armor", chance: 0.3 },
+      { itemId: "archmage_armor", chance: 0.3 },
+      { itemId: "ring_dragon", chance: 0.15 },
+    ],
+    sprite: grid4(C + "NinjaMageBlack/SpriteSheet.png", { tint: 0xb8ffc8, scale: 1.5 }),
+  },
+
+  // ===== Chefes de raide (2026-11-06; regras em shared/data/raid.ts). Nascem só no evento da Agenda, ao norte da Vila:
+  // vida e dano daqui são os do lv de referência (RAID_REF_LEVEL); o servidor troca a vida pela soma dos levels de quem
+  // luta e o dano pelo menor level engajado. Sem armadura: o lv baixo também tira vida. O prêmio de verdade é o Baú de
+  // Recompensa de todo mundo que se engajou; o loot daqui (de quem mais bateu) é pequeno de propósito.
+  raid_auditor: {
+    id: "raid_auditor", name: "O Grande Auditor", level: 60, hp: 20_000, xp: 40_000, damage: [90, 170], damageKind: "physical", armor: 0,
+    abilities: [
+      ability.stomp({ name: "Carimbo de Reprovado", radius: 1, min: 110, max: 190, windupMs: 900, cooldownMs: 9000 }),
+      ability.blast({ name: "Não Conformidade", radius: 2, range: 6, min: 80, max: 150, kind: "energy", fx: "energy", windupMs: 1100, cooldownMs: 12_000 }),
+      ability.summon({ name: "Equipe de Auditoria!", monsterId: "skeleton", count: 2, max: 4, cooldownMs: 30_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [3000, 5000],
+    loot: [{ itemId: "health_potion_large", chance: 1, min: 2, max: 4 }],
+    // Idle.png 360x60 = 6 frames de 60x60 (guaxinim gigante dourado: o auditor de óculos e máscara).
+    sprite: strip(B + "GiantRacoonGold/Idle.png", 60, 6, { scale: 1.8 }),
+  },
+  raid_impressora: {
+    id: "raid_impressora", name: "A Impressora Possuída", level: 60, hp: 20_000, xp: 40_000, damage: [80, 160], damageKind: "earth", armor: 0,
+    abilities: [
+      ability.breath({ name: "Atolamento de Papel", length: 5, width: 3, min: 100, max: 180, kind: "physical", fx: "physical", windupMs: 1000, cooldownMs: 10_000 }),
+      ability.blast({ name: "Toner Explosivo", radius: 2, range: 6, min: 80, max: 150, kind: "earth", fx: "earth", windupMs: 1100, cooldownMs: 12_000, condition: { id: "poison", durationMs: 6000, value: 10 } }),
+      ability.summon({ name: "Fila de Impressão!", monsterId: "slime", count: 3, max: 6, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 420, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [3000, 5000],
+    loot: [{ itemId: "mana_potion_large", chance: 1, min: 2, max: 4 }],
+    // Idle.png 310x52 = 5 frames de 62x52 (gosma gigante, tingida de toner).
+    sprite: strip(B + "GiantSlime/Idle.png", 52, 5, { frameWidth: 62, tint: 0x606070, scale: 1.9 }),
+  },
 
   // ===== Caves profundas (ciclo 13, pedido do dono: "mais caves"): duas criaturas novas por cave, com sprites do pack
   // ainda sem uso. Atributos interpolados dos vizinhos de level (aranha/esqueleto, crocodilo/minotauro mago, necromante/
@@ -2145,6 +2198,12 @@ export const MONSTER_DAMAGE_TIERS: readonly { fromLevel: number; mult: number }[
 ];
 /** Respawn dos monstros comuns (não chefes): ×0,7 (~30% mais rápido). */
 export const MONSTER_RESPAWN_MULT = 0.7;
+/**
+ * Respawn dos chefes (pedido do dono: todos abaixo de 1 h): ×0,15 sobre a tabela (2 h → 18 min, 3 h → 27 min,
+ * 4 h → 36 min, 6 h → 54 min). Os dados continuam escritos nas horas "de tabela" para a proporção entre chefes ficar
+ * legível. Prazo já salvo no banco por um abate antigo é encurtado no boot (MonsterManager.spawnAll).
+ */
+export const BOSS_RESPAWN_MULT = 0.15;
 
 /**
  * Resistência elemental (pedido do dono): bicho do elemento X toma menos dano de X (dragão de fogo resiste a fogo, de
@@ -2220,7 +2279,8 @@ for (const d of Object.values(MONSTERS)) {
     d.damage = [Math.round(d.damage[0] * k), Math.round(d.damage[1] * k)];
     d.abilities = d.abilities?.map((a) => a.damage ? { ...a, damage: { ...a.damage, min: Math.round(a.damage.min * k), max: Math.round(a.damage.max * k) } } : a);
   }
-  if (!d.boss && scalesWithLevel(d)) d.respawnMs = Math.round(d.respawnMs * MONSTER_RESPAWN_MULT);
+  if (d.boss) d.respawnMs = Math.round(d.respawnMs * BOSS_RESPAWN_MULT);
+  else if (scalesWithLevel(d)) d.respawnMs = Math.round(d.respawnMs * MONSTER_RESPAWN_MULT);
 }
 
 // ---------------------------------------------------------------------------
@@ -2234,6 +2294,29 @@ export const ELITE_MIN_LEVEL = 10;
 export const ELITE = { hp: 2.5, dmg: 1.3, xp: 3, gold: 2, loot: 2 } as const;
 /** Cor do nome da elite (dourado). */
 export const ELITE_COLOR = "#f0c040";
+
+/**
+ * Elite nomeado (C12-8, F2-8 do plano; 2026-11-06): de vez em quando, no lugar de um monstro comum do fim de jogo,
+ * nasce um único indivíduo com nome próprio, aviso para o mundo todo e recompensa bem maior. Um vivo por vez de cada
+ * nome; chance por nascimento NAMED_ELITE_CHANCE (o Demônio tem 16 vagas no mapa: um grupo que caça ~100/h vê um a
+ * cada ~40 min). Nomes originais, sem nome de jogo existente.
+ */
+export const NAMED_ELITES: Readonly<Record<string, string>> = {
+  behemoth: "Trovão-de-Pedra",
+  demon: "Belzor, o Insaciável",
+  juggernaut: "Gorvak, o Inabalável",
+};
+export const NAMED_ELITE_CHANCE = 0.015;
+/** Multiplicadores do nomeado (no lugar dos de ELITE): vida, dano, XP, ouro e chance de cada item do loot. */
+export const NAMED_ELITE = { hp: 4, dmg: 1.4, xp: 8, gold: 5, loot: 5 } as const;
+/** Nome próprio deste tipo de monstro, se ele tiver um nomeado. */
+export function namedEliteOf(defId: string): string | undefined {
+  return Object.hasOwn(NAMED_ELITES, defId) ? NAMED_ELITES[defId] : undefined;
+}
+/** Multiplicador de uma recompensa/atributo para o monstro: nomeado, elite ou comum (1). */
+export function eliteMult(m: { elite?: boolean; named?: string }, k: keyof typeof ELITE): number {
+  return m.named ? NAMED_ELITE[k] : m.elite ? ELITE[k] : 1;
+}
 
 /**
  * Invocações escalam com o level de quem invoca (ciclo 9, GD-05): o catálogo descreve a criatura no seu `level` base
@@ -2252,6 +2335,10 @@ export function summonScaled(def: MonsterDef, casterLevel: number): MonsterDef {
   return { ...def, hp: def.hp + SUMMON_HP_PER_LEVEL * over, damage: [Math.round(def.damage[0] * mult), Math.round(def.damage[1] * mult)] };
 }
 export const eliteName = (name: string): string => `Elite ${name}`;
+/** Nome mostrado (loot, avisos, tela): o do nomeado, "Elite <nome>" ou o nome do tipo. */
+export function monsterDisplayName(m: { elite?: boolean; named?: string }, name: string): string {
+  return m.named || (m.elite ? eliteName(name) : name);
+}
 
 /** Este tipo pode nascer elite? (o servidor ainda exclui invocações, ondas do Coliseu e salas de quest). */
 export function canBeElite(d: Pick<MonsterDef, "boss" | "level" | "xp" | "stationary" | "invulnerable">): boolean {

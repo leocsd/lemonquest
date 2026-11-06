@@ -1084,6 +1084,31 @@ const { map: world6 } = expand6({ old: world5, ts, S, L: LEMON, spawnTile: SPAWN
 // (Caminhão de Bobinas). Roda por último: é a única etapa que aloca L.factory() (os tiles Lemon antigos mantêm o id).
 const { map: world7 } = expand7({ old: world6, ts, S, L: LEMON, spawnTile: SPAWN });
 
+// ===================================================================== MURPHY (C10-4, 2026-11-06)
+// Chefe novo numa área que já existe (dono: sem sala nova): só um objeto monster_spawn no fim da lista, 0 tiles
+// alterados (provar com diff-world). Leste do Portal de Inspeção, a ≥ 9 tiles dos spawns da zona e ≥ 8 dos NPCs.
+const lateObjects21 = { murphy: { x: 182, y: 385, radius: 3, level: 44, zone: 'Portal de Inspeção' } };
+{
+  const { x, y, radius, level, zone } = lateObjects21.murphy;
+  const z = world7.objects.find((o) => o.type === 'zone' && o.name === zone);
+  if (!z) fail(`murphy: zona ${zone} não existe`);
+  const inZone = (tx, ty) => tx * 16 >= z.x && tx * 16 < z.x + z.width && ty * 16 >= z.y && ty * 16 < z.y + z.height;
+  if (!inZone(x - radius, y - radius) || !inZone(x + radius, y + radius)) fail(`murphy em ${x},${y} (raio ${radius}) fora de ${zone}`);
+  if (world7.blocked(x, y)) fail(`murphy em ${x},${y}: tile bloqueado`);
+  const tileOf = (o) => [Math.floor(o.x / 16), Math.floor(o.y / 16)];
+  for (const o of world7.objects) {
+    if (o.type !== 'monster_spawn' && o.type !== 'npc') continue;
+    const [ox, oy] = tileOf(o);
+    const d = Math.max(Math.abs(ox - x), Math.abs(oy - y));
+    if (o.type === 'npc' && d < 8) fail(`murphy em ${x},${y} a ${d} tile(s) do NPC ${o.name}`);
+    if (o.type === 'monster_spawn' && inZone(ox, oy) && d < 9) fail(`murphy em ${x},${y} a ${d} tile(s) do spawn ${o.name}`);
+  }
+  const r = bfs(world7, SPAWN[0], SPAWN[1], portals5);
+  if (!r[world7.idx(x, y)]) fail(`murphy em ${x},${y}: inalcançável a partir do templo`);
+  world7.tileObj('monster_spawn', x, y, { monster: 'murphy', count: 1, radius, level }, 'murphy');
+  console.log(`lateObjects21: Murphy em ${x},${y} (${zone})`);
+}
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
 fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world7.toTiled()));

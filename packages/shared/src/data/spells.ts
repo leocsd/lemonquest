@@ -488,6 +488,21 @@ export function spellsFor(vocation: Vocation): SpellDef[] {
   return Object.values(SPELLS).filter((s) => s.vocations.includes(vocation)).sort((a, b) => a.level - b.level);
 }
 
+/**
+ * Magias de ataque só do paladino ×1,15 (2026-11-06, C12-9 do roadmap): ele era o mais fraco no modelo (P 0,79–0,82 da
+ * melhor vocação no balanceKit) e na produção (XP/h do lv 60–79 ≈ metade do cavaleiro). Com ×1,15 vai a 0,85/0,88/0,91
+ * nos lv 30/60/100 sem liderar em nenhum (×1,25 empatava no lv 100). Os números de cada magia acima ficam os de antes
+ * (proporção legível); a tabela do fim do arquivo já mostra o valor final. Curas e utilidades não mudam. A Onda Sagrada
+ * fica de fora: a área do lv 30 é a marca
+ * dos magos (spells.test "AoE de mago no level 30 supera a do paladino"; com ×1,15 ela passava o Inferno, 213 × 200).
+ */
+export const PALADIN_SPELL_DAMAGE_MULT = 1.15;
+for (const s of Object.values(SPELLS)) {
+  if (!s.damage || s.vocations.length !== 1 || s.vocations[0] !== "paladin" || s.id === "holy_wave") continue;
+  const k = PALADIN_SPELL_DAMAGE_MULT;
+  s.damage = { ...s.damage, base: s.damage.base * k, perLevel: s.damage.perLevel * k, perMagic: s.damage.perMagic * k };
+}
+
 /** Procura a magia pelas palavras (ignora maiúsculas e espaços extras). */
 export function spellByWords(text: string): SpellDef | undefined {
   const t = text.trim().toLowerCase().replace(/\s+/g, " ");
@@ -515,16 +530,16 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Golpe Aniquilador     exori gran ico        knight     90   100   12   dano 1204 (6.8x auto)
  * Muralha de Escudos    utamo mas res         knight    100   120   40   utilidade
  * Cura                  exura                 paladin     1    20    1   cura 21 (14% da vida)
- * Flecha Perfurante     exori con             paladin     1     8    2   dano 14 (1.6x auto)
+ * Flecha Perfurante     exori con             paladin     1     8    2   dano 16 (1.8x auto)
  * Pés Ligeiros          utani hur             paladin     5    20   15   utilidade
- * Chuva de Flechas      exevo mas con         paladin    15    35    6   dano 69 (1.7x auto)
- * Flecha Sagrada        exori san             paladin    20    30    4   dano 141 (3.3x auto)
+ * Chuva de Flechas      exevo mas con         paladin    15    35    6   dano 79 (1.9x auto)
+ * Flecha Sagrada        exori san             paladin    20    30    4   dano 162 (3.8x auto)
  * Onda Sagrada          exevo mas san         paladin    30    90    8   dano 185 (3x auto)
  * Cura Divina           exura san             paladin    35    60    1   cura 112 (19% da vida)
- * Flecha Explosiva      exevo con flam        paladin    35    50    6   dano 209 (2.4x auto)
- * Flecha Paralisante    exori con hur         paladin    50    40    8   dano 316 (3x auto)
- * Julgamento Divino     exori gran san        paladin    70   120    8   dano 458 (3.4x auto)
- * Chuva de Estrelas     exevo gran mas con    paladin    90   160    8   dano 594 (3.8x auto)
+ * Flecha Explosiva      exevo con flam        paladin    35    50    6   dano 240 (2.8x auto)
+ * Flecha Paralisante    exori con hur         paladin    50    40    8   dano 363 (3.4x auto)
+ * Julgamento Divino     exori gran san        paladin    70   120    8   dano 527 (3.9x auto)
+ * Chuva de Estrelas     exevo gran mas con    paladin    90   160    8   dano 683 (4.4x auto)
  * Luz Restauradora      exura mas san         paladin   100   150   20   utilidade
  * Cura                  exura                 sorcerer    1    20    1   cura 21 (14% da vida)
  * Bola de Fogo          exori flam            sorcerer    1     8    2   dano 12 (1.5x auto)

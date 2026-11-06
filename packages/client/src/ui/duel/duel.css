@@ -1,0 +1,14 @@
+/* Arena de Duelo: convites e barra na pilha do topo (App: .top-stack), como o grupo e o Coliseu. */
+.duel-invites { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.duel-invite { display: flex; align-items: center; gap: 12px; padding: 8px 12px; font-size: 14px; border-color: rgba(255, 123, 114, 0.6); }
+.duel-invite b { color: #ffb09a; }
+.duel-invite-btns { display: flex; gap: 6px; }
+.duel-bar {
+  display: flex; align-items: center; gap: 7px; padding: 4px 12px;
+  background: rgba(36, 12, 10, 0.9); border: 1px solid rgba(255, 123, 114, 0.6); border-radius: 6px;
+  font-size: 12.5px; color: var(--hud-text); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35); white-space: nowrap;
+  font-variant-numeric: tabular-nums; max-width: calc(100vw - var(--hud-right, 0px) - 24px); overflow: hidden; text-overflow: ellipsis;
+}
+.duel-bar.countdown { border-color: rgba(240, 200, 64, 0.8); }
+.duel-bar.result { white-space: normal; }
+.duel-bar.result.won { background: rgba(14, 32, 14, 0.9); border-color: rgba(143, 224, 143, 0.6); }

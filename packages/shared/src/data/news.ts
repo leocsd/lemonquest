@@ -12,6 +12,20 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-06",
+    date: "6 de novembro",
+    title: "Jogos juntos e contra: raide, corrida, duelo e Coliseu competitivo",
+    items: [
+      "Raide de Sexta (16h): um chefe gigante ao norte da Vila. Quanto mais gente, mais vida ele tem; o dano acompanha o menor level da luta. Lutou 1 minuto? Ganha Baú de Recompensa.",
+      "Corrida de Caça (segunda, 18h): Time Limão × Time Laranja, sorteados na hora. Cada bicho conta ponto; quem pontuou no time vencedor ganha baú.",
+      "Duelo: clique direito num jogador e desafie para 1×1 (ou 2×2 com o seu grupo). Sem perder XP nem itens, sem caveira. Ranking no chat: /duelos.",
+      "Coliseu competitivo: toda partida entra no ranking de ondas da semana (o 1º grupo ganha 3 baús) e dá para desafiar outro grupo na janela do Coliseu. Ranking: /coliseu.",
+      "Chefes voltam em menos de 1 hora. Novo chefe: Murphy, o Corretor, no Portal de Inspeção, com a missão \"A Lei de Murphy\".",
+      "Paladino mais forte: as magias de ataque dele batem 15% mais.",
+      "Elites raros com nome (Belzor, Gorvak e Trovão-de-Pedra): todo mundo é avisado quando aparecem, e valem muito mais XP e loot.",
+    ],
+  },
+  {
     id: "2026-11-05",
     date: "5 de novembro",
     title: "Estagiário: caçar com amigo mais esperto",

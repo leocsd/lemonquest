@@ -42,6 +42,9 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Abrir baú de quest / puxar alavanca | clique no baú ou na alavanca (o personagem anda até o lado) |
 | Chat | `Enter` · comandos do chat (grupo etc.): `/ajuda` |
 | Eventos da semana | botão **Agenda** (calendário) no trilho à direita, ou o selo "Próximo: …" no topo; no chat (todos): `/agenda` (a semana, um dia por linha) e `/evento` (o que vale agora e o próximo). Aviso no chat e no título da aba 10 min antes de cada evento |
+| Duelo | botão direito num jogador → **Desafiar para duelo 1×1** (ou **2×2**, cada lado com o colega do grupo de 2); o desafiado aceita no cartão do topo. A luta é numa sala livre do Coliseu, sem perder XP nem itens e sem caveira; máximo de 3 min. `/duelos` mostra o ranking de vitórias da semana |
+| Coliseu competitivo | na janela do Coliseu: ranking de **ondas da semana** (todo grupo entra; o 1º ganha 3 Baús de Recompensa na virada) e botão **Desafiar** em outro grupo aberto (os dois começam juntos; vence quem passar mais ondas). No chat: `/coliseu` |
+| Jogos em grupo | **Raide de Sexta** (sexta 16h: chefe gigante ao norte da Vila, para todos os levels juntos; 1 minuto na luta = Baú de Recompensa) e **Corrida de Caça** (segunda 18h: Time Limão × Time Laranja sorteados na hora, placar no topo) |
 | Modo de luta | `F2` ofensivo, `F3` equilibrado, `F4` defensivo (`F5` continua sendo o "atualizar" do navegador) |
 | Mapa | `M` |
 | Janelas | `I` equipamento/mochila · `K` habilidades · `O` roupas (com ♂/♀: o sexo escolhido na criação pode ser trocado aqui) · `L` missões · `J` conquistas · `R` ranking · `B` bestiário |

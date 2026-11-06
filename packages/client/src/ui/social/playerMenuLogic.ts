@@ -16,6 +16,8 @@ export interface PlayerMenuState {
 export interface PlayerMenuActions {
   attack(): void; follow(): void; trade(): void;
   invite(): void; lead(): void; kick(): void;
+  /** Arena de Duelo (2026-11-06): desafio 1×1 e 2×2 (com o colega do grupo de 2). */
+  duel(mode: "1x1" | "2x2"): void;
 }
 
 /**
@@ -30,6 +32,11 @@ export function playerMenuItems(s: PlayerMenuState, a: PlayerMenuActions): CtxMe
     items.push({ label: "Convidar para o grupo", run: a.invite });
   }
   items.push({ label: "Trocar itens", run: a.trade });
+  // Duelo: o 2×2 só aparece para quem está num grupo e o clicado não é do grupo (cada lado é um grupo de 2).
+  if (!s.member) {
+    items.push({ label: "Desafiar para duelo 1×1", run: () => a.duel("1x1") });
+    if (s.inParty) items.push({ label: "Desafiar para duelo 2×2", run: () => a.duel("2x2") });
+  }
   items.push(s.attacking ? { label: "Parar de atacar", run: a.attack } : { label: "Atacar", run: a.attack, danger: true });
   return items;
 }

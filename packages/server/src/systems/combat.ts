@@ -1,6 +1,6 @@
 // Combate estilo Tibia: alvo + ataque automático a cada PLAYER_ATTACK_MS; dano de monstros; XP, level e morte.
 import {
-  DEATH_RECAP_MAX, DEATH_RECAP_MS, ELITE, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, PVP_DAMAGE_MULT, S2C, VOCATION_ATTACK, baseStats, critChance, deathXpLoss, levelForXp, manaShieldSplit, mitigate, shieldArmorBonus,
+  DEATH_RECAP_MAX, DEATH_RECAP_MS, eliteMult, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, PVP_DAMAGE_MULT, S2C, VOCATION_ATTACK, baseStats, critChance, deathXpLoss, levelForXp, manaShieldSplit, mitigate, shieldArmorBonus,
   applyXpStage, autoAttackRange, damageTakenMult, imbuementSpellValue, mitigateSpell, rollAttack, rollInt, splitXp, xpStage,
   type AttackMsg, type ItemDef, type SkillId, type CombatEvent, type CombatMsg, type CreatureDiedMsg, type DiedMsg, type LevelUpMsg,
   type DamageKind, type ImbuementBonus, type NoticeMsg, type XpGainMsg,
@@ -508,7 +508,7 @@ export class CombatSystem {
     // Invocações, monstros do coliseu (recompensa por onda) e ajudantes invocados por monstros não dão XP por abate;
     // os ajudantes também não dão loot, missão nem conquista (senão dava para "farmar" um invocador).
     const online = m.s.ownerId || m.arenaId || m.minionOf ? [] : killCredit(m, this.o.getPlayer);
-    const byDamage = splitXp(m.elite ? m.def.xp * ELITE.xp : m.def.xp, online);
+    const byDamage = splitXp(m.def.xp * eliteMult(m, "xp"), online);
     const shares = this.hooks.xpShares && byDamage.size ? this.hooks.xpShares(m, byDamage, now) : byDamage;
     const rewards = !m.s.ownerId && !m.minionOf;
     if (rewards) this.hooks.onMonsterKilled?.(m);

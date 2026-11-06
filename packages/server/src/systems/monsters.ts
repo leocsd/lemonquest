@@ -2,7 +2,7 @@
 // A IA (decisões) fica em ai.ts; o dano/morte em combat.ts (via `attackHook`).
 import {
   DIAGONAL_COST, DIR_DELTA, ELITE, ELITE_CHANCE, HELP_RADIUS, TICK_MS, Dir, applySpeedPct, canBeElite, canStepTerrain, findObjects,
-  isDiagonal, lineOfSight, monsterDef, objectTile,
+  isDiagonal, lineOfSight, monsterDef, NAMED_ELITE, NAMED_ELITE_CHANCE, namedEliteOf, objectTile,
   type CollisionGrid, type GroundSpeedGrid, type MonsterDef, type TiledMap,
 } from "@lemonquest/shared";
 import { MonsterState, type PlayerState } from "../state.ts";
@@ -102,6 +102,8 @@ export interface Monster {
   minionOf?: string;
   /** Elite (nasceu com ELITE_CHANCE): vida ×2,5 e dano ×1,3 aqui; XP, ouro e loot maiores no abate. */
   elite?: boolean;
+  /** Elite nomeado (C12-8): o nome próprio. Usa NAMED_ELITE no lugar de ELITE (`elite` também fica true). */
+  named?: string;
   /** Pedidos de reforço já feitos nesta vida (bits HELP_*), para gritar uma vez por motivo. */
   helpCalled?: number;
   /** Último dano recebido e início da fuga atual: fuga sem dano por FLEE_GIVE_UP_MS (ai.ts) desiste e volta. */
@@ -147,6 +149,8 @@ export interface MonsterManagerOptions {
   notice?: (text: string, kind: "info" | "warn" | "good") => void;
   /** Chance de um monstro comum nascer elite (padrão ELITE_CHANCE; testes usam 0 ou 1). */
   eliteChance?: number;
+  /** Chance de um monstro com nomeado nascer o nomeado (padrão NAMED_ELITE_CHANCE; testes usam 0 ou 1). */
+  namedChance?: number;
   log?: (msg: string) => void;
   /** Log de erros (IA que lança): padrão ErrorLog com 1 linha/10 s. */
   errors?: ErrorLog;
@@ -376,7 +380,9 @@ export class MonsterManager {
     for (const sp of this.o.spawns) {
       const def = this.def(sp.defId);
       if (!def) continue;
-      const due = def.boss ? this.bossDue(def.id) : undefined;
+      // Prazo gravado com um respawn mais longo (antes de encurtarem o do chefe) não passa do respawn atual.
+      const saved = def.boss ? this.bossDue(def.id) : undefined;
+      const due = saved ? Math.min(saved, now + def.respawnMs) : undefined;
       if (due && due > now) {
         // Chefe morto antes do reinício: volta no prazo original, não no boot.
         for (let i = 0; i < sp.count; i++) this.respawns.push({ spawn: sp, at: due, due });
@@ -448,8 +454,20 @@ export class MonsterManager {
       nextAttackAt: 0, path: null, pathAt: 0, pathGoal: { x: -1, y: -1 }, lostSince: 0, returnSince: 0,
       lastAttackerId: "", lastCreditId: "", damageBy: new Map(),
     };
-    // Elite: só monstros comuns dos spawns do mapa (nunca chefe, invocação, onda do Coliseu ou sala de quest).
-    if (canBeElite(def) && this.rng() < (this.o.eliteChance ?? ELITE_CHANCE)) {
+    // Elite nomeado: um vivo por vez de cada nome; sorteado antes da elite comum (e no lugar dela).
+    const named = canBeElite(def) ? namedEliteOf(def.id) : undefined;
+    if (named && !this.namedAlive(named) && this.rng() < (this.o.namedChance ?? NAMED_ELITE_CHANCE)) {
+      m.elite = true;
+      m.named = named;
+      m.dmgMult = NAMED_ELITE.dmg;
+      s.elite = true;
+      s.named = named;
+      s.maxHp = Math.round(def.hp * NAMED_ELITE.hp);
+      s.hp = s.maxHp;
+      this.o.notice?.(`⚔ ${named} (${def.name}) apareceu!`, "warn");
+      this.o.log?.(`[nomeado] ${named} nasceu em ${t.x},${t.y}`);
+    } else if (canBeElite(def) && this.rng() < (this.o.eliteChance ?? ELITE_CHANCE)) {
+      // Elite: só monstros comuns dos spawns do mapa (nunca chefe, invocação, onda do Coliseu ou sala de quest).
       m.elite = true;
       m.dmgMult = ELITE.dmg;
       s.elite = true;
@@ -464,6 +482,12 @@ export class MonsterManager {
       this.o.notice?.(`${def.name} apareceu!`, "warn");
     }
     return m;
+  }
+
+  /** Já há um elite nomeado vivo com este nome? */
+  private namedAlive(name: string): boolean {
+    for (const m of this.list.values()) if (m.named === name) return true;
+    return false;
   }
 
   /** Remove o monstro (morte) e agenda o respawn. */

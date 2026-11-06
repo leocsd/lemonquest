@@ -16,6 +16,17 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Jogos juntos e contra (2026-11-06)
+
+Typecheck 3× tsc; suíte unitária inteira verde (161 arquivos, 2002 testes). Novos: `raid.test.ts` (8: vida pela soma
+dos levels, dano pelo menor level, baú por ≥ 1 min, vitória, alavanca), `huntRace.test.ts` (7: sorteio equilibrado,
+pontos com crédito de grupo, empate, vencedores), `duel.test.ts` (7: convite expira, contagem, morte interceptada sem
+perda, tempo esgotado, desistência ao sair, sala reservada), `arenaWeekly.test.ts` (5: ranking por grupo, coroação uma
+vez, prêmio entregue uma vez), `arena.test.ts` (+3: desafio grupo × grupo, recusa, duas salas livres), Murphy em
+`monsters.test.ts`/`quests.test.ts`, elites nomeados, paladino em `vocationBalance.test.ts`. Mapa: `diff-world` 0 tiles,
+1397/1397 objetos antigos idênticos, 1 objeto novo (spawn do Murphy). **Sem E2E nem conferência visual** das barras de
+corrida e duelo, dos botões de desafio e dos sprites novos: pendente no servidor de dev.
+
 ## Resultados — Estagiário: caçar com amigo e a janela repensada (2026-11-02)
 
 Typecheck 3× tsc; suíte unitária inteira verde. `server/src/systems/estagiario.test.ts` ganha "caçar com amigo" (+5, 108

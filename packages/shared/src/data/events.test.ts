@@ -58,7 +58,9 @@ describe("eventos semanais", () => {
     expect(nextScheduled(at(2026, 10, 15, 12, 30))!.at).toBe(at(2026, 10, 15, 13, 0).getTime());
     expect(nextScheduled(at(2026, 10, 15, 13, 0))!.def.id).toBe("orshabaal_no_expediente");
     expect(nextScheduled(at(2026, 10, 15, 18, 0))!.def.id).toBe("furia_de_demodras");
-    expect(nextScheduled(at(2026, 10, 16, 13, 0))!.def.id).toBe("sextou"); // sexta depois de Demodras: Sextou 17h
+    // 2026-11-06: o Raide de Sexta (16h) entrou entre Demodras e o Sextou.
+    expect(nextScheduled(at(2026, 10, 16, 13, 0))!.def.id).toBe("raide_de_sexta"); // sexta depois de Demodras: Raide 16h
+    expect(nextScheduled(at(2026, 10, 16, 16, 0))!.def.id).toBe("sextou"); // sexta depois do começo do Raide: Sextou 17h
     expect(nextScheduled(at(2026, 10, 16, 18, 0))!.def.id).toBe("noite_de_cacada"); // sexta depois do Sextou: 19h
     expect(nextScheduled(at(2026, 10, 16, 20, 0))!.def.id).toBe("tarde_de_sabado"); // sexta à noite: sábado 14h
     expect(nextScheduled(at(2026, 10, 17, 17, 0))!.def.id).toBe("invasao_de_orshabaal"); // sábado depois das 16h: 21h
@@ -89,7 +91,9 @@ describe("eventos semanais", () => {
     expect(scheduledEvent(at(2026, 10, 19, 12, 14))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 19, 13, 0))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 19, 17, 30))).toMatchObject({ id: "sangria_do_alto_forno", boss: "golem_convertedor" }); // segunda 17h–18h
-    expect(scheduledEvent(at(2026, 10, 19, 18, 0))).toBeNull();
+    // 2026-11-06: a Corrida de Caça ocupa a segunda 18h–18h30, logo depois da Sangria.
+    expect(scheduledEvent(at(2026, 10, 19, 18, 0))).toMatchObject({ id: "corrida_de_caca", race: true });
+    expect(scheduledEvent(at(2026, 10, 19, 18, 30))).toBeNull();
     expect(scheduledEvent(at(2026, 10, 18, 15, 30))).toMatchObject({ id: "retorno_de_ferumbras", boss: "ferumbras" }); // domingo
   });
 
