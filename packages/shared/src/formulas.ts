@@ -210,9 +210,10 @@ export function mitigate(raw: number, armor: number): number {
 /**
  * Fração do dano que o Escudo de Mana tira da mana (o resto vai na vida). Ciclo 15: era 1 (tudo na mana) e o
  * feiticeiro lv 100 aguentava 5.124 de dano com o escudo cheio (2,3× o cavaleiro) e 900/s bebendo poção de mana;
- * com 0,5: 2.288 e 360/s. Constante única: dá para voltar a 0,6 sem mexer em mais nada.
+ * com 0,5: 2.288 e 360/s. 2026-11-07: o dono pediu de volta o escudo clássico (todo o dano na mana enquanto houver;
+ * só o que a mana não cobre vai na vida). Constante única: dá para voltar a 0,5 sem mexer em mais nada.
  */
-export const MANA_SHIELD_ABSORB = 0.5;
+export const MANA_SHIELD_ABSORB = 1;
 
 /**
  * Divide um dano (já mitigado) entre mana e vida com o Escudo de Mana: `absorb` do dano sai da mana enquanto houver;
