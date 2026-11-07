@@ -210,6 +210,14 @@ interface Estado {
   /** Posição do colega no tick anterior (para ver o salto de portal) e se o alarme desta perda já tocou. */
   colegaPos: Point;
   colegaAlarmado: boolean;
+  /**
+   * Portal que o colega pegou e o seguidor ainda não atravessou (null = nenhum). Enquanto houver, o seguidor vai ao
+   * portal mesmo com o colega "perto" em linha reta: a saída pode ficar a poucos tiles, atrás de parede, e o follow
+   * direto travaria nela. Some quando o seguidor salta (atravessou) ou pisa nele sem ser levado (portal trancado).
+   */
+  colegaPortal: Point | null;
+  /** Posição do seguidor no tick anterior (para ver que ele atravessou o portal). */
+  seguidorPos: Point;
   /** Líder com rota esperando um seguidor longe: desde quando e quem (0/"" = ninguém). */
   esperandoDesde: number;
   esperandoQuem: string;
@@ -243,7 +251,7 @@ export class EstagiarioSystem {
       grav: null, gravPos: { x: p.x, y: p.y },
       pausa: "", pausaAte: 0, emPz: false, estadoEm: 0, buscaEm: 0, comeuEm: 0, retomar: false, pararEnviado: 0, avisos: avisosNovos(),
       suspenso: false, carenciaAte: algo ? now + CARENCIA_LOGIN_MS : 0, diario: [], diarioNovos: [], diarioTudo: false, esperaAnotadaEm: 0, curaOffAnotadaEm: 0,
-      seguindo: null, seguindoNome: "", colegaLongeDesde: 0, colegaVisto: null, colegaPos: { x: -1, y: -1 }, colegaAlarmado: false, esperandoDesde: 0, esperandoQuem: "",
+      seguindo: null, seguindoNome: "", colegaLongeDesde: 0, colegaVisto: null, colegaPos: { x: -1, y: -1 }, colegaAlarmado: false, colegaPortal: null, seguidorPos: { x: -1, y: -1 }, esperandoDesde: 0, esperandoQuem: "",
     });
   }
 
@@ -330,6 +338,8 @@ export class EstagiarioSystem {
     s.colegaVisto = { x: c.x, y: c.y };
     s.colegaPos = { x: c.x, y: c.y };
     s.colegaAlarmado = false;
+    s.colegaPortal = null;
+    s.seguidorPos = { x: p.x, y: p.y };
     s.lutando = false;
     s.pausa = "";
     s.pausaAte = 0;
@@ -355,6 +365,7 @@ export class EstagiarioSystem {
     s.colegaLongeDesde = 0;
     s.colegaVisto = null;
     s.colegaAlarmado = false;
+    s.colegaPortal = null;
     s.ignorados.clear();
     s.alvoId = "";
     s.alvoAnterior = "";
@@ -735,23 +746,37 @@ export class EstagiarioSystem {
   }
 
   /**
-   * Onde procurar o colega: perto, o lugar dele; saiu de perto num salto (portal), o portal (o tile para onde ele olhava,
-   * como na gravação de rota); saiu andando ou por teleporte sem portal (templo, viagem de NPC), o último tile visto.
+   * Onde procurar o colega: perto, o lugar dele; saltou por um portal (visto de perto), o portal (o tile para onde ele
+   * olhava, como na gravação de rota) até o seguidor atravessá-lo; saiu andando ou por teleporte sem portal (templo,
+   * viagem de NPC), o último tile visto.
    */
   private rastrearColega(p: PlayerState, s: Estado, c: PlayerState, now: number): void {
     const antes = s.colegaPos;
     s.colegaPos = { x: c.x, y: c.y };
+    const eu = s.seguidorPos;
+    s.seguidorPos = { x: p.x, y: p.y };
+    // Antes da distância: a saída do portal pode ficar a até SEGUIR_MAX_TILES em linha reta, do outro lado de uma parede.
+    if (cheb(antes.x, antes.y, c.x, c.y) > 1 && cheb(p.x, p.y, antes.x, antes.y) <= SEGUIR_MAX_TILES) {
+      const portal = this.portalDoSalto(c, antes);
+      if (portal) {
+        s.colegaPortal = portal;
+        s.colegaVisto = portal;
+        this.anotar(s, now, "rota", `indo atrás de ${s.seguindoNome} pelo portal`);
+      }
+      s.caminhoAlvo = -1; // destino novo: recalcula o caminho
+    }
+    const pt = s.colegaPortal;
+    if (pt && (cheb(eu.x, eu.y, p.x, p.y) > 1 || (p.x === pt.x && p.y === pt.y))) s.colegaPortal = null;
+    if (s.colegaPortal) {
+      if (!s.colegaLongeDesde) s.colegaLongeDesde = now; // anda até o portal (andarSeguindo), sem o follow direto
+      return;
+    }
     if (cheb(p.x, p.y, c.x, c.y) <= SEGUIR_MAX_TILES) {
       if (s.colegaLongeDesde) this.anotar(s, now, "rota", `reencontrou ${s.seguindoNome}`);
       s.colegaLongeDesde = 0;
       s.colegaAlarmado = false;
       s.colegaVisto = { x: c.x, y: c.y };
       return;
-    }
-    if (cheb(antes.x, antes.y, c.x, c.y) > 1 && cheb(p.x, p.y, antes.x, antes.y) <= SEGUIR_MAX_TILES) {
-      const portal = this.portalDoSalto(c, antes);
-      if (portal) s.colegaVisto = portal;
-      s.caminhoAlvo = -1; // destino novo: recalcula o caminho
     }
     if (!s.colegaLongeDesde) {
       s.colegaLongeDesde = now;

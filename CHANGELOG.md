@@ -1,5 +1,13 @@
 # Changelog
 
+## [Não lançado] — 2026-11-07 · Estagiário: seguir pelo portal com a saída perto
+
+Dono: "o bot tá seguindo no teleporte certinho?". Não quando a saída do portal fica a até 15 tiles (SEGUIR_MAX_TILES)
+do seguidor em linha reta, do outro lado de uma parede: ele dava o colega por reencontrado, largava o portal e o follow
+direto travava na parede. Agora o salto de portal é visto antes da distância e o seguidor vai ao portal
+(`colegaPortal`) até atravessá-lo; se pisar e não for levado (portal trancado), desiste dele e procura como antes.
+Diário: "indo atrás de X pelo portal".
+
 ## [Não lançado] — 2026-11-07 · Escudo de Mana clássico
 
 Dono: "eu quero que se tiver com utamo vita ele tome todo o dano na mana". Desfaz o 15-3 (metade na mana, metade na

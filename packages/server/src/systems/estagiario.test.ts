@@ -1966,6 +1966,36 @@ describe("Estagiário v3: caçar com amigo (seguir um colega do grupo)", () => {
     expect(w.p.followId).toBe("q");
   });
 
+  it("saída do portal a até 15 tiles atrás de parede: o seguidor atravessa o portal em vez de travar na parede", () => {
+    // Antes (2026-11-07): com o colega a ≤ 15 em linha reta, o seguidor o dava por reencontrado, largava o portal e o
+    // follow direto travava na parede em (21,10). A parede em x = 28 isola o lado da saída (36,30).
+    const w = comColega({ andar: true, lutaReal: true, paredes: Array.from({ length: 40 }, (_, y) => ({ x: 28, y })), portalTiles: ["24,10"], portais: { "24,10": { x: 36, y: 30 } } });
+    w.sys.onToggle(w.p, { seguir: "q" });
+    w.tick(300);
+    w.q.x = 23; w.q.dir = Dir.E; w.tick();
+    w.q.x = 36; w.q.y = 31; w.tick();
+    expect(w.st().colegaPortal).toEqual({ x: 24, y: 10 });
+    // O colega segue andando para o norte (um tile a cada 250 ms), entrando nos 15 tiles do seguidor pelo outro lado.
+    for (let k = 0; k < 29; k++) { w.q.y--; w.q.dir = Dir.N; w.tick(250); }
+    w.tick(8000);
+    expect(w.p.x).toBeGreaterThan(28); // atravessou
+    expect(Math.max(Math.abs(w.p.x - w.q.x), Math.abs(w.p.y - w.q.y))).toBeLessThanOrEqual(2);
+    expect(w.p.followId).toBe("q");
+    expect(w.st().colegaPortal).toBeNull();
+    expect(w.sys.diario("p").map((d) => d.texto)).toContain("indo atrás de Quico pelo portal");
+  });
+
+  it("portal trancado (pisa e não é levado): desiste do portal e volta a procurar normalmente", () => {
+    const w = comColega({ andar: true, lutaReal: true, portalTiles: ["14,10"] }); // sem destino: pisar não leva
+    w.sys.onToggle(w.p, { seguir: "q" });
+    w.tick(300);
+    w.q.x = 13; w.q.dir = Dir.E; w.tick();
+    w.q.x = 36; w.q.y = 31; w.tick();
+    expect(w.st().colegaPortal).toEqual({ x: 14, y: 10 });
+    w.tick(3000);
+    expect(w.st().colegaPortal).toBeNull();
+  });
+
   it("um ou outro: ligar a rota para de seguir e vice-versa; morrer e a queda param de seguir; gravar não começa seguindo", () => {
     const w = comColega({ saved: { config: comRota() } });
     w.sys.onToggle(w.p, { seguir: "q" });
