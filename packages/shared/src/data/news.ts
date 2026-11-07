@@ -12,6 +12,17 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-06d",
+    date: "6 de novembro",
+    title: "Janela do Estagiário nova",
+    items: [
+      "A janela abre direto na Rota e não passa mais da borda da tela: o Aplicar fica sempre à vista.",
+      "Cura, Ataque e Buffs viraram listas curtas: cada regra é uma frase. Clique numa regra para editar.",
+      "Perfil novo: escolha o estilo (Seguro, Equilibrado, Agressivo) e veja nas barras de vida e mana onde ele cura.",
+      "As explicações longas ficaram em \"Como funciona\", e apagar uma rota agora pede confirmação.",
+    ],
+  },
+  {
     id: "2026-11-06c",
     date: "6 de novembro",
     title: "Estagiário: Stamina e recuo que não trava",

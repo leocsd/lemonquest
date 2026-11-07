@@ -16,6 +16,13 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Janela do Estagiário v4 (2026-11-06)
+
+Só cliente. Typecheck do cliente; `ui/estagiario/*.test.ts` 36/36. E2E `estagiario.spec.ts` e `estagiarioGrupo.spec.ts`
+verdes. Uma versão com a janela a 56 px do topo falhou o de grupo duas vezes (a janela cobria o "Aceitar" do convite de
+grupo, que fica na pilha do topo): voltou a 80 px. Uma falha isolada do de grupo ("B chega ao lado de A", servidor) passou
+ao repetir, sem relação com a janela. Visual conferido no `?uitest` (druida lv 20) em todas as abas, simples e avançado.
+
 ## Resultados — Salão de Minijogos (2026-11-06)
 
 Typecheck 3× tsc. Novos: `shared/data/minigames.test.ts` (10: padrões da Chuva sempre com ≥ 9 tiles livres em 60 ondas ×

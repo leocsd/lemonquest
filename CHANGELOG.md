@@ -1,5 +1,27 @@
 # Changelog
 
+## [Não lançado] — 2026-11-06 · Janela do Estagiário v4
+
+Dono: "melhore essa tela do estagiário, está muito ruim de mexer e feia"; "me irrita quando entro em ataque ... tela
+poluída e a altura da janela atrapalha"; "eu quero que você arrume a parte do Perfil, achei feia demais". Só cliente
+(`ui/estagiario/EstagiarioWindow.tsx`, `estagiario.css`); regras, servidor e `data-testid` iguais.
+- **Altura presa à tela**: a janela passava da borda de baixo e escondia o Aplicar; agora a altura acompanha a posição
+  (arrastada para baixo, o corpo rola). Mais larga (580 → 760 px) e, com espaço (container ≥ 660 px), o que empilhava
+  fica lado a lado; abaixo disso volta a empilhar. Continua a 80 px do topo (não cobre convites de grupo/troca: o E2E de
+  grupo pegou isso numa versão a 56 px).
+- **Rota primeiro**: abre na Rota e reabre na última aba da sessão; abas em grupos (Rota | Perfil, Cura, Ataque, Buffs |
+  Alarmes, Diário).
+- **Regras em lista enxuta** (Cura, Ataque, Buffs): cada regra é uma linha-frase ("Onda de Gelo · 1+ bicho a até 4 sqm na
+  onda virada para o alvo"; opcionais só quando valem) e o editor abre ao clicar, uma por vez, em linhas rotuladas.
+  Ataque com 5 regras: 830 → 423 px.
+- **Perfil**: estilo de caça como botões segmentados com só a dica do escolhido; "Quando curar" com as barras de vida e
+  de mana pintadas nas faixas (vermelho poção+magia, amarelo só magia, verde nada; azul reserva) e o deslizador na cor
+  da faixa; a explicação longa foi para o "Como funciona".
+- **Ajuda recolhida**: cada aba tem uma linha de resumo e o resto em "Como funciona". Números com o sufixo (%, sqm, +)
+  dentro da caixa e sem setinhas; alarmes como tabela (duas colunas na janela larga); botões com hierarquia (Ligar/Seguir/
+  Salvar verdes, "Usar recomendado" discreto); apagar rota pede um segundo clique.
+- Fundo translúcido do `.hud-card`, igual às outras janelas.
+
 ## [Não lançado] — 2026-11-06 · Estagiário: recuo que não trava e a Stamina do Estagiário
 
 Dono: "tem hora que o char para de correr do bicho, mesmo com o tile 4" e "Vamos levar a stamina para o estagiário.
