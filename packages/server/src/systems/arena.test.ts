@@ -562,7 +562,7 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
       .map((g) => ({ ...g, onda: reach(GROUP, g.level), "golpes no da frente": reach(GROUP, g.level, { targeting: "front" }) }));
     console.table(group);
     // Modificador da semana (ondas 61–70): onda em que o grupo de 4 cai em cada semana.
-    console.table([110, 115, 120, 125, 130, 140].map((L) => ({
+    console.table([95, 100, 105, 110, 115, 120, 125, 130, 140].map((L) => ({
       level: L, sem: reach(GROUP, L), ...Object.fromEntries(ARENA_MOD_ORDER.map((m) => [ARENA_MODS[m].name, reach(GROUP, L, {}, m)])),
     })));
     expect(solo.length).toBe(3);
@@ -580,37 +580,44 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
     }
   });
 
-  it("solo: ninguém passa da onda 30, nem no level 120 (o muro da onda 30)", () => {
-    for (const v of VOCS) expect(reach([v], 120), `${v} lv 120`).toBeLessThanOrEqual(30);
+  // 2026-11-07 (Escudo de Mana clássico, MANA_SHIELD_ABSORB = 1, decisão do dono): o druida lv 120 solo foi da 29 à
+  // 34; o muro da onda 30 continua para quem não tem o escudo. A meta afrouxou para o druida em vez de endurecer as ondas.
+  it("solo: ninguém passa da onda 30 no level 120, exceto o druida com o escudo clássico (até a 34)", () => {
+    for (const v of VOCS) expect(reach([v], 120), `${v} lv 120`).toBeLessThanOrEqual(v === "druid" ? 34 : 30);
   });
 
-  it("feiticeiro solo lv 120 nem com o escudo de antes (tudo na mana) passa da 30: o buraco de 10 s do escudo derruba", () => {
-    // O plano (15-1) esperava 34–35 com o escudo de antes (modelo de planejamento, escudo sempre ativo). Com a recarga
+  it("feiticeiro solo lv 120 nem com o escudo clássico (tudo na mana) passa da 30: o buraco de 10 s do escudo derruba", () => {
+    // O plano (15-1) esperava 34–35 com o escudo clássico (modelo de planejamento, escudo sempre ativo). Com a recarga
     // de verdade (20 s de escudo a cada 30 s) a onda 29 cai no buraco, e os espíritos de chama das ondas 26–30 resistem
     // ao fogo.
     expect(reach(["sorcerer"], 120, { absorb: 1 })).toBeLessThanOrEqual(30);
   });
 
-  it("grupo de 4 no level justo da onda X cai entre X−5 e X+3 (na 60, até o portão do Abismo)", () => {
+  // 2026-11-07 (Escudo de Mana clássico): o grupo com dois magos ficou ~10 levels mais forte. Justo da 40/45/50/55/60:
+  // 40/52/55/61/completa (era 38/46/48/54/61 no 15-14). A meta afrouxou de X+3 para X+7 e o justo da 60 pode completar.
+  it("grupo de 4 no level justo da onda X cai entre X−5 e X+7 (o justo da 60 pode completar)", () => {
     for (const x of [40, 45, 50, 55, 60]) {
       const w = reach(GROUP, arenaWave(x)!.level);
       expect(w, `justo da ${x}`).toBeGreaterThanOrEqual(x - 5);
-      // 2026-10-27 (cura como no Tibia): o grupo justo da 60 fecha o bloco e cai dentro do Abismo (62–69), não antes.
-      expect(w, `justo da ${x}`).toBeLessThanOrEqual(x === 60 ? 70 : x + 3);
+      // 2026-10-27 (cura como no Tibia): o grupo justo da 60 fecha o bloco e entra no Abismo.
+      expect(w, `justo da ${x}`).toBeLessThanOrEqual(x === 60 ? DONE : x + 7);
     }
   });
 
-  it("passar do portão do Abismo (61) pede grupo de level alto: lv 100 não passa, lv 120 passa", () => {
+  it("passar do portão do Abismo (61) pede grupo de level alto: lv 95 não passa, lv 100 passa", () => {
     // 2026-10-27 (cura como no Tibia): o grupo lv 100 passou a aguentar a onda 60 e cai no portão (61, ×2,6); a meta
-    // virou "não passa do portão" (era "não passa da 60").
-    expect(reach(GROUP, 100)).toBeLessThanOrEqual(61);
-    expect(reach(GROUP, 120)).toBeGreaterThan(61);
+    // virou "não passa do portão" (era "não passa da 60"). 2026-11-07 (Escudo de Mana clássico): o lv 100 passa do
+    // portão e cai na 67; a meta desceu para o lv 95 (cai na 61).
+    expect(reach(GROUP, 95)).toBeLessThanOrEqual(61);
+    expect(reach(GROUP, 100)).toBeGreaterThan(61);
   });
 
   // Ciclo 16 (16-6): ondas 61–70. Medido com o Shogun Abissal dos covis e sem o tier 8: grupo lv 110 cai na 61 (o
   // portão do Abismo), lv 115 na 63, lv 120 em diante completa.
-  it("completar as 70 pede ainda mais: lv 110 não completa, lv 130 completa", () => {
-    expect(reach(GROUP, 110)).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+  // 2026-11-07 (Escudo de Mana clássico): lv 100 cai na 67, lv 105 na 68 e o lv 110 completa (antes: o lv 115).
+  it("completar as 70 pede ainda mais: lv 105 não completa, lv 110 completa", () => {
+    expect(reach(GROUP, 105)).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+    expect(reach(GROUP, 110)).toBe(DONE);
     expect(reach(GROUP, 130)).toBe(DONE);
     expect(reach(GROUP, 140)).toBe(DONE);
   });
@@ -621,11 +628,13 @@ describe("coliseu: balanço (modelo de balanceKit.ts)", () => {
   // sem modificador 68 e com Sem Trégua completa (era 69); lv 115 sem modificador completa (era 69); o lv 105 não
   // completa com nenhum. A meta passou de "nenhum deixa o lv 110" para "nenhum deixa o lv 105" (decisão registrada no
   // roadmap, C12-9); o lv 110 sem modificador segue sem completar (teste acima).
-  it("modificador da semana: nenhum deixa o lv 105 completar as 70 e com todos o lv 135 completa", () => {
+  // 2026-11-07 (Escudo de Mana clássico): a escada desceu ~10 levels. lv 95 não completa com nenhum; lv 100 só com
+  // Sem Trégua; lv 105 com Calmaria e Sem Trégua; lv 125 completa com todos (era 135). Metas: lv 95 e lv 125.
+  it("modificador da semana: nenhum deixa o lv 95 completar as 70 e com todos o lv 125 completa", () => {
     for (const m of ARENA_MOD_ORDER) {
-      expect(reach(GROUP, 105, {}, m), `${m} lv 105`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
-      if (m !== "sem_tregua") expect(reach(GROUP, 110, {}, m), `${m} lv 110`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
-      expect(reach(GROUP, 135, {}, m), `${m} lv 135`).toBe(DONE);
+      expect(reach(GROUP, 95, {}, m), `${m} lv 95`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+      if (m !== "sem_tregua") expect(reach(GROUP, 100, {}, m), `${m} lv 100`).toBeLessThanOrEqual(ARENA_MAX_WAVE);
+      expect(reach(GROUP, 125, {}, m), `${m} lv 125`).toBe(DONE);
     }
   }, 30_000);
 

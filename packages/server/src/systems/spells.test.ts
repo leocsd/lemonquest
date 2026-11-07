@@ -315,31 +315,31 @@ describe("conditions", () => {
     expect(w.sent.filter((s) => s.type === S2C.Conditions).at(-1)!.msg.list).toEqual([{ id: "combat" }]);
   });
 
-  it("manashield (ciclo 15): metade do dano na mana e metade na vida; sem mana, tudo na vida; protect reduz o dano", () => {
+  it("manashield: todo o dano na mana; o que a mana não cobre vai na vida; sem mana, tudo na vida; protect reduz o dano", () => {
     const w = setup({ monsters: [{ x: 11, y: 10, def: { aggroRange: 5, damage: [20, 20], attackMs: 1000 } }] });
-    const p = w.addP("p", 10, 10, { mana: 15, hp: 200 });
+    const p = w.addP("p", 10, 10, { mana: 25, hp: 200 });
     w.spells.cast(p, "shield");
     w.run(600);
-    // 20 de dano: 10 da mana, 10 da vida.
+    // 20 de dano: tudo da mana, nada da vida.
     expect(p.mana).toBe(5);
-    expect(p.hp).toBe(190);
+    expect(p.hp).toBe(200);
     let ev = w.events().filter((e: any) => e.targetId === "p");
-    expect(ev[0]).toMatchObject({ kind: "mana", amount: 10 });
-    expect(ev[1]).toMatchObject({ kind: "physical", amount: 10 });
+    expect(ev.map((e: any) => e.kind)).toEqual(["mana"]);
+    expect(ev[0]).toMatchObject({ kind: "mana", amount: 20 });
     // Só 5 de mana: a mana cobre 5, a vida leva 15.
     w.run(1000);
     expect(p.mana).toBe(0);
-    expect(p.hp).toBe(175);
+    expect(p.hp).toBe(185);
     // Mana zerada: tudo na vida, sem evento de mana.
     w.sent.length = 0;
     w.run(1000);
-    expect(p.hp).toBe(155);
+    expect(p.hp).toBe(165);
     ev = w.events().filter((e: any) => e.targetId === "p");
     expect(ev.map((e: any) => e.kind)).toEqual(["physical"]);
     w.conditions.clear("p");
     w.spells.cast(p, "prot");
     w.run(1000);
-    expect(p.hp).toBe(145);
+    expect(p.hp).toBe(155);
   });
 
   it("regen heals every second", () => {

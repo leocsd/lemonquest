@@ -1,5 +1,19 @@
 # Changelog
 
+## [Não lançado] — 2026-11-07 · Escudo de Mana clássico
+
+Dono: "eu quero que se tiver com utamo vita ele tome todo o dano na mana". Desfaz o 15-3 (metade na mana, metade na
+vida): `MANA_SHIELD_ABSORB` 0,5 → 1 (`shared/formulas.ts`). Vale para o Escudo de Mana (feiticeiro e druida) e para
+o Banho de Espuma (fada), que usam a mesma condição.
+- Com o escudo, todo o dano sai da mana; só o que a mana não cobre vai na vida (sem mana, tudo na vida). Descrições das
+  duas magias reescritas (o teste trava o texto na constante).
+- **Coliseu (modelo do `balanceKit`)**: o grupo com dois magos ficou ~10 levels mais forte. Decisão do dono: aceitar e
+  afrouxar as metas em vez de endurecer as ondas. Druida solo lv 120 chega à 34 (muro da 30 segue para os outros);
+  grupo justo da 45 → 52; lv 100 passa do portão (67) e o lv 110 completa as 70 (antes o 115); com modificador, lv 95
+  não completa com nenhum e o lv 125 completa com todos (antes 105 e 135). A tabela de modificadores mede também 95–105.
+- O `vocationBalance` mede com 0,5 a vida efetiva que o ciclo 15 queria (≤ 1,1× a do cavaleiro); com 1 o mago lv 100
+  aguenta vida + mana (2,3× o cavaleiro).
+
 ## [Não lançado] — 2026-11-06 · Janela do Estagiário v4
 
 Dono: "melhore essa tela do estagiário, está muito ruim de mexer e feia"; "me irrita quando entro em ataque ... tela

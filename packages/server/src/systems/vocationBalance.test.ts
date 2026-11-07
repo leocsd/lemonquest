@@ -124,11 +124,12 @@ describe("balanço das vocações (P = dano × sobrevivência)", () => {
     }
   });
 
-  it("Escudo de Mana: vida efetiva do mago lv 100 com o escudo cheio ≤ 1,1× a do cavaleiro (era 2,3× com tudo na mana)", () => {
+  it("Escudo de Mana: tudo na mana (escudo clássico, 2026-11-07); com 0,5 a vida efetiva do mago lv 100 seria ≤ 1,1× a do cavaleiro", () => {
     const s = fighter("sorcerer", 100)!, k = fighter("knight", 100, "shield")!;
     expect(effectiveHp(s, 1)).toBe(s.hp + s.mana); // escudo de antes: 1.144 de vida + 3.980 de mana
     expect(effectiveHp(s, 1) / effectiveHp(k)).toBeGreaterThan(2);
-    expect(effectiveHp(s, MANA_SHIELD_ABSORB) / effectiveHp(k)).toBeLessThanOrEqual(1.1);
+    expect(effectiveHp(s, MANA_SHIELD_ABSORB)).toBe(s.hp + s.mana); // o escudo clássico
+    expect(effectiveHp(s, 0.5) / effectiveHp(k)).toBeLessThanOrEqual(1.1);
     expect(effectiveHp(fighter("druid", 100)!)).toBe(effectiveHp(s)); // o druida tem o mesmo escudo
     expect(effectiveHp(fighter("paladin", 100)!)).toBe(fighter("paladin", 100)!.hp);
   });

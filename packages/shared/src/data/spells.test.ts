@@ -119,8 +119,8 @@ describe("SPELLS", () => {
   });
 
   it("descrição do Escudo de Mana acompanha MANA_SHIELD_ABSORB (mudar a constante exige reescrever o texto)", () => {
-    expect(MANA_SHIELD_ABSORB, "o texto diz \"metade\": reescreva a descrição de mana_shield").toBe(0.5);
-    expect(SPELLS.mana_shield!.description).toMatch(/metade/);
+    expect(MANA_SHIELD_ABSORB, "o texto diz \"todo o dano\": reescreva a descrição de mana_shield").toBe(1);
+    expect(SPELLS.mana_shield!.description).toMatch(/todo o dano/);
   });
 
   it("Escudo de Mana (utamo vita, lv 15): feiticeiro e druida, a mesma magia (ciclo 15)", () => {

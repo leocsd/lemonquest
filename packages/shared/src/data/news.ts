@@ -12,6 +12,15 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-07",
+    date: "7 de novembro",
+    title: "Escudo de Mana como antigamente",
+    items: [
+      "Com o Escudo de Mana (utamo vita) ativo, todo o dano sai da mana. A vida só cai quando a mana não dá conta, então beba poção de mana.",
+      "O Banho de Espuma da fada funciona igual.",
+    ],
+  },
+  {
     id: "2026-11-06d",
     date: "6 de novembro",
     title: "Janela do Estagiário nova",

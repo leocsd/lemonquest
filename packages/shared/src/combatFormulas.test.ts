@@ -160,26 +160,26 @@ describe("baseStats", () => {
   });
 });
 
-describe("Escudo de Mana (ciclo 15)", () => {
-  it("metade do dano na mana, metade na vida; o que a mana não cobre vai na vida", () => {
-    expect(MANA_SHIELD_ABSORB).toBe(0.5);
-    expect(manaShieldSplit(100, 1000)).toEqual({ fromMana: 50, fromHp: 50 });
-    expect(manaShieldSplit(101, 1000)).toEqual({ fromMana: 51, fromHp: 50 }); // arredonda, soma sempre o dano
+describe("Escudo de Mana (ciclo 15; clássico desde 2026-11-07)", () => {
+  it("todo o dano na mana; o que a mana não cobre vai na vida", () => {
+    expect(MANA_SHIELD_ABSORB).toBe(1);
+    expect(manaShieldSplit(100, 1000)).toEqual({ fromMana: 100, fromHp: 0 });
+    expect(manaShieldSplit(101, 1000, 0.5)).toEqual({ fromMana: 51, fromHp: 50 }); // arredonda, soma sempre o dano
     expect(manaShieldSplit(100, 20)).toEqual({ fromMana: 20, fromHp: 80 });
     expect(manaShieldSplit(100, 0)).toEqual({ fromMana: 0, fromHp: 100 });
     expect(manaShieldSplit(1, 10)).toEqual({ fromMana: 1, fromHp: 0 });
     expect(manaShieldSplit(0, 10)).toEqual({ fromMana: 0, fromHp: 0 });
     expect(manaShieldSplit(100, 1000, 0.6)).toEqual({ fromMana: 60, fromHp: 40 });
-    expect(manaShieldSplit(100, 1000, 1)).toEqual({ fromMana: 100, fromHp: 0 }); // a regra antiga
+    expect(manaShieldSplit(100, 1000, 0.5)).toEqual({ fromMana: 50, fromHp: 50 }); // a regra do ciclo 15
     expect(manaShieldSplit(Number.NaN, 10)).toEqual({ fromMana: 0, fromHp: 0 });
-    for (const [d, m] of [[7, 3], [250, 9999], [33, 16]] as const) {
-      const s = manaShieldSplit(d, m);
+    for (const [d, m, a] of [[7, 3, 1], [250, 9999, 0.5], [33, 16, 0.5]] as const) {
+      const s = manaShieldSplit(d, m, a);
       expect(s.fromMana + s.fromHp).toBe(d);
       expect(s.fromMana).toBeLessThanOrEqual(m);
     }
   });
 
-  it("vida efetiva com o escudo e mana cheios cai para 2× a vida (feiticeiro lv 100 sem itens: 3.764 → 1.488)", () => {
+  it("vida efetiva com o escudo e mana cheios: vida + mana (feiticeiro lv 100 sem itens: 3.764; com 0,5 seria 1.488)", () => {
     const { maxHp, maxMana } = baseStats("sorcerer", 100);
     // Golpes de 2 até a vida acabar: quanto dano o feiticeiro aguenta.
     const effective = (absorb: number) => {
@@ -189,9 +189,9 @@ describe("Escudo de Mana (ciclo 15)", () => {
     };
     expect(effective(1)).toBe(maxHp + maxMana);
     expect(effective(1)).toBe(3764);
-    expect(effective(MANA_SHIELD_ABSORB)).toBe(2 * maxHp);
-    expect(effective(MANA_SHIELD_ABSORB)).toBe(1488);
-    expect(effective(MANA_SHIELD_ABSORB)).toBeLessThan(baseStats("knight", 100).maxHp);
+    expect(effective(MANA_SHIELD_ABSORB)).toBe(effective(1));
+    expect(effective(0.5)).toBe(2 * maxHp);
+    expect(effective(0.5)).toBe(1488);
   });
 });
 

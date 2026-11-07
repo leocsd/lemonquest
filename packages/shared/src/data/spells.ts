@@ -198,7 +198,7 @@ export const SPELLS: Record<string, SpellDef> = {
     // Ciclo 15: o druida também conjura (era só do feiticeiro; a sobrevivência do druida no lv 30 ficava em 43%).
     id: "mana_shield", name: "Escudo de Mana", words: "utamo vita", vocations: ["sorcerer", "druid"], level: 15, mana: 30, cooldownMs: 30_000,
     target: "self", condition: { id: "manashield", durationMs: 20_000 }, fx: "buff",
-    description: "Por 20 segundos, metade do dano recebido sai da mana e metade da vida (sem mana, tudo na vida). Use a Cura junto.",
+    description: "Por 20 segundos, todo o dano recebido sai da mana; só o que a mana não cobrir vai na vida. Beba poção de mana.",
   },
   energy_beam: {
     id: "energy_beam", name: "Raio de Energia", words: "exori vis", vocations: ["sorcerer"], level: 20, mana: 45, cooldownMs: 4000,
@@ -431,7 +431,7 @@ export const SPELLS: Record<string, SpellDef> = {
   bubble_bath: {
     id: "bubble_bath", name: "Banho de Espuma", words: "plim espuma", vocations: ["fairy"], level: 15, mana: 30, cooldownMs: 30_000,
     target: "self", condition: { id: "manashield", durationMs: 20_000 }, fx: "buff",
-    description: "Por 20 segundos, metade do dano recebido estoura bolhas da sua mana e metade vai na vida (sem mana, tudo na vida). Use o Beijinho junto.",
+    description: "Por 20 segundos, todo o dano recebido estoura bolhas da sua mana; só o que a mana não cobrir vai na vida. Beba poção de mana.",
   },
   lullaby: {
     id: "lullaby", name: "Cantiga de Ninar", words: "plim naninha", vocations: ["fairy"], level: 15, mana: 80, cooldownMs: 5000,

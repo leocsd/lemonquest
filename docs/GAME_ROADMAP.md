@@ -291,7 +291,7 @@ nos lv 30/60/100. Detalhes no CHANGELOG.
 |---|---|---|---|
 | 15-1 | Modelo honesto (`balanceKit.ts`), `skillEstimate` pela produção | ✅ | `vocationBalance.test.ts`, `arena.test.ts`, `skills.test.ts` |
 | 15-2 | Telemetria: causa da morte (`deathsBy`) e skills reais no `admin telemetria` | ✅ | `telemetry.test.ts`, `admincli.test.ts` |
-| 15-3 | Escudo de Mana pela metade | ✅ | `combatFormulas`, `spells` (servidor), descrição travada |
+| 15-3 | Escudo de Mana pela metade (desfeito em 2026-11-07 a pedido do dono: tudo na mana de novo, metas do Coliseu afrouxadas) | ↩️ | `combatFormulas`, `spells` (servidor), descrição travada |
 | 15-4 | Druida com Escudo de Mana | ✅ | `shared/data/spells.test.ts`, `hotkeys.test.ts` |
 | 15-5 | `spellPower` de cavaleiro/paladino (skill da arma + level) | ✅ | `combatFormulas.test.ts`, `spells.test.ts` |
 | 15-6 | Fraquezas elementais + Bestiário | ✅ | `shared/data/monsters.test.ts`, `bestiaryLogic.test.ts` |
