@@ -1,5 +1,14 @@
 # Changelog
 
+## [Não lançado] — 2026-11-07 · Estagiário: a rota não pula pontos depois da luta
+
+Dono: "gravei a rota do abissal toda, incluindo portal, e ele sempre pula alguns passos de um ciclo". A gravação estava
+certa; o pulo vinha da retomada depois de cada luta, que ia ao ponto mais perto **da rota inteira**: numa rota de ida e
+volta (ou com o outro lado do portal perto em coordenada), a luta perto do trecho de volta fazia o bot seguir dali e o
+resto da ida ficava sem fazer. Agora (`indiceRetomada`, `RETOMAR_JANELA` = 1) retoma no ponto em que estava, ou no
+seguinte se a luta o levou para mais perto dele, nunca depois de um portal. A pausa manual e trocar de rota continuam
+pelo mais perto da rota toda (o jogador pode ter andado para qualquer lugar).
+
 ## [Não lançado] — 2026-11-07 · Estagiário: seguir pelo portal com a saída perto
 
 Dono: "o bot tá seguindo no teleporte certinho?". Não quando a saída do portal fica a até 15 tiles (SEGUIR_MAX_TILES)

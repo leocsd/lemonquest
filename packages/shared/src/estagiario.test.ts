@@ -4,7 +4,7 @@ import {
   ALARMES, BUSCA_TILES, DISTANCIAS, NOME_ROTA_MAX, PONTOS_MAX, RECUO_MAX_TILES, REGRAS_MAX, STAMINA_BAIXA_MS, staminaXpMult, ROTAS_MAX, TURNO_MAX_MS,
   alarmeLigado, ataqueRecomendado, avancarTurno, buffsDaVocacao, buffsRecomendados, curaRecomendada, distanciaPadrao, ehBuff, ehInvocacao,
   escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao, fecharGravacao, gravarPasso,
-  indiceMaisProximo, novaGravacao, pisoDeMana, sanitizeEstagiario, sanitizeLigado, type ContextoBuff, type Recuo, type RegraCura,
+  indiceMaisProximo, indiceRetomada, novaGravacao, RETOMAR_JANELA, pisoDeMana, sanitizeEstagiario, sanitizeLigado, type ContextoBuff, type Recuo, type RegraCura,
 } from "./estagiario.ts";
 
 const VOCS = ["knight", "paladin", "sorcerer", "druid", "fairy"] as const;
@@ -327,6 +327,29 @@ describe("estagiário: decisões", () => {
     expect(indiceMaisProximo(pts, { x: 5, y: 5 })).toBe(0);
     expect(indiceMaisProximo([], { x: 1, y: 1 })).toBe(-1);
     expect(BUSCA_TILES).toBe(12);
+  });
+
+  it("rota: depois da luta retoma só entre o ponto atual e os seguintes, sem cruzar portal (não pula trecho)", () => {
+    // Ida e volta: ida em y = 0, volta em y = 2. Lutando perto do ponto 1 da ida, a volta (ponto 6) está mais perto.
+    const ida = [{ x: 0, y: 0 }, { x: 6, y: 0 }, { x: 12, y: 0 }, { x: 18, y: 0 }, { x: 24, y: 0 }];
+    const volta = [{ x: 24, y: 2 }, { x: 12, y: 2 }, { x: 7, y: 2 }, { x: 0, y: 2 }];
+    const pts = [...ida, ...volta];
+    const pos = { x: 7, y: 2 };
+    expect(indiceMaisProximo(pts, pos)).toBe(7); // o jeito antigo: pulava os pontos 2–6
+    expect(indiceRetomada(pts, 2, pos)).toBe(2);
+    // A luta levou o bot para perto do ponto seguinte: segue dele, sem voltar; mais longe que isso, nunca pula.
+    expect(indiceRetomada(pts, 1, { x: 12, y: 1 })).toBe(2);
+    expect(RETOMAR_JANELA).toBe(1);
+    expect(indiceRetomada(pts, 1, { x: 24, y: 1 })).toBe(2);
+    expect(indiceRetomada(pts, 3, { x: 23, y: 2 })).toBe(4); // na ponta da ida: o 5 (início da volta) fica para depois
+    // Portal: o ponto do portal entra, o outro lado (perto em coordenada) não.
+    const comPortal = [{ x: 0, y: 0 }, { x: 5, y: 0, portal: true }, { x: 2, y: 1 }, { x: 9, y: 9 }];
+    expect(indiceRetomada(comPortal, 0, { x: 2, y: 1 })).toBe(0);
+    expect(indiceRetomada(comPortal, 0, { x: 5, y: 1 })).toBe(1);
+    // Circuito: do último ponto a janela continua no início.
+    expect(indiceRetomada(pts, 8, { x: 0, y: 0 })).toBe(0);
+    // Índice inválido: o mais perto da rota toda.
+    expect(indiceRetomada(pts, -1, pos)).toBe(7);
   });
 });
 

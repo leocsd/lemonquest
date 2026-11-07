@@ -12,12 +12,13 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
-    id: "2026-11-07b",
+    id: "2026-11-07c",
     date: "7 de novembro",
     title: "Escudo de Mana como antigamente e Estagiário no portal",
     items: [
       "Com o Escudo de Mana (utamo vita) ativo, todo o dano sai da mana. A vida só cai quando a mana não dá conta, então beba poção de mana.",
       "O Banho de Espuma da fada funciona igual.",
+      "Rota do Estagiário: depois de cada luta ele volta ao ponto em que estava e não pula mais trechos da rota (rotas de ida e volta e com portal).",
       "Estagiário seguindo um colega: quando o colega entra num portal com a saída logo ali do outro lado da parede, ele agora atravessa o portal em vez de ficar parado na parede.",
     ],
   },
