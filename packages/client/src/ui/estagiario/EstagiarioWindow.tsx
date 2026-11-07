@@ -9,6 +9,7 @@ import {
   type AlarmeTipo, type CuraAcao, type CuraQuando, type DiarioCanal, type DiarioItem, type EstagiarioConfig, type EstagiarioEstadoMsg,
   type Perfil, type RegraAtaque, type RegraBuff, type RegraCura, type Vocation,
 } from "@lemonquest/shared";
+import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { groupsStore } from "../hotkeys/hotkeys.ts";
 import { itemsFor, type SpellItem } from "../hotkeys/spellsModel.ts";
@@ -31,10 +32,16 @@ import "./estagiario.css";
 bindOverlay("estagiario", estagiarioOpen, (v) => v, () => closeEstagiario(), ".est-win");
 
 type Aba = "perfil" | "cura" | "ataque" | "buffs" | "rota" | "alarmes" | "diario";
+// Rota primeiro (dono, 2026-11-06: é o que mais se usa; cura/ataque/buffs quase não se mexe). Grupos: usar | configurar | acompanhar.
 const ABAS: { id: Aba; label: string }[] = [
-  { id: "perfil", label: "Perfil" }, { id: "cura", label: "Cura" }, { id: "ataque", label: "Ataque" }, { id: "buffs", label: "Buffs" }, { id: "rota", label: "Rota" },
+  { id: "rota", label: "Rota" },
+  { id: "perfil", label: "Perfil" }, { id: "cura", label: "Cura" }, { id: "ataque", label: "Ataque" }, { id: "buffs", label: "Buffs" },
   { id: "alarmes", label: "Alarmes" }, { id: "diario", label: "Diário" },
 ];
+/** Começo de grupo de abas (leva um separador antes). */
+const ABA_GRUPO: readonly Aba[] = ["perfil", "alarmes"];
+/** A janela reabre na última aba vista (na sessão); a primeira vez, na Rota. */
+let ultimaAba: Aba = "rota";
 /** As abas de regras só aparecem no modo avançado (v3). */
 const ABAS_REGRAS: readonly Aba[] = ["cura", "ataque", "buffs"];
 
@@ -80,9 +87,12 @@ function EstagiarioDialog() {
   const e = useStore(estagiarioStore);
   const r = useStore(rascunhoStore);
   const me = useStore(meStore);
-  const [aba, setAba] = useState<Aba>("perfil");
+  const [aba, setAbaState] = useState<Aba>(ultimaAba);
+  const setAba = (a: Aba) => { ultimaAba = a; setAbaState(a); };
   const drag = useWindowDrag("estagiario");
   useDialogFocus(drag.ref);
+  // A altura acompanha a posição: arrastada para baixo, a janela encolhe (o corpo rola) e a barra do Aplicar segue à vista.
+  const estilo = drag.pos && drag.pos.x >= 0 ? { ...drag.style, maxHeight: `max(240px, calc(100vh - ${Math.round(drag.pos.y)}px - 8px))` } : drag.style;
   const simples = r?.modo === "simples";
   const abas = simples ? ABAS.filter((a) => !ABAS_REGRAS.includes(a.id)) : ABAS;
   // Voltou ao modo simples com uma aba de regras aberta: ela some, o Perfil fica.
@@ -93,7 +103,7 @@ function EstagiarioDialog() {
   useEffect(() => { if (aba === "diario" && diario.length) setVistoAte(diario[diario.length - 1]!.t); }, [aba, diario]);
   const novas = aba === "diario" ? 0 : diario.filter((i) => i.t > vistoAte).length;
   return (
-    <div ref={drag.ref} class={`hud-card hud-window est-win${drag.dragging ? " dragging" : ""}`} style={drag.style} role="dialog" aria-label="Estagiário">
+    <div ref={drag.ref} class={`hud-card hud-window est-win${drag.dragging ? " dragging" : ""}`} style={estilo} role="dialog" aria-label="Estagiário">
       <div class="win-title" onPointerDown={drag.onTitleDown}>
         <span class="win-grip" aria-hidden="true" />
         <span>Estagiário</span>
@@ -103,15 +113,16 @@ function EstagiarioDialog() {
         <>
           <Cabecalho e={e} />
           <div class="est-tabs" role="tablist">
-            {abas.map((a) => (
+            {abas.map((a) => [
+              ABA_GRUPO.includes(a.id) && <span key={`sep-${a.id}`} class="est-tab-sep" aria-hidden="true" />,
               <button
                 key={a.id} role="tab" aria-selected={aba === a.id} class={`est-tab${aba === a.id ? " active" : ""}`}
                 onClick={() => setAba(a.id)} data-testid={`est-tab-${a.id}`}
               >
                 {a.label}
                 {a.id === "diario" && novas > 0 && <span class="est-tab-badge" aria-label={`${novas} linhas novas`}>{novas > 9 ? "9+" : novas}</span>}
-              </button>
-            ))}
+              </button>,
+            ])}
           </div>
           <div class="est-body">
             {aba === "perfil" && <AbaPerfil c={{ ...e.config, ...r }} voc={me.vocation} />}
@@ -124,7 +135,7 @@ function EstagiarioDialog() {
           </div>
           {rascunhoSujo(r, e.config) && (
             <div class="est-pend" role="status">
-              <span>Alterações não aplicadas</span>
+              <span><span class="est-pend-dot" aria-hidden="true" />Alterações não aplicadas</span>
               <button class="est-btn" onClick={descartarRascunho} data-testid="est-descartar">Descartar</button>
               <button class="est-btn est-aplicar" onClick={aplicarRascunho} data-testid="est-aplicar">Aplicar</button>
             </div>
@@ -174,10 +185,11 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
           <span class="est-turno-bar" role="progressbar" aria-label="Stamina do Estagiário" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
             <span class="est-turno-fill" style={{ width: `${pct}%` }} />
           </span>
-          <span class="est-turno-num" data-testid="est-stamina">{fmtTurno(turno)}{xpPct < 100 && <> · XP {xpPct}%</>}</span>
+          <span class="est-turno-num" data-testid="est-stamina">{fmtTurno(turno)}{xpPct < 100 && <span class="est-turno-xp"> · XP {xpPct}%</span>}</span>
         </div>
       </div>
       <div class="est-switches">
+        <span class="est-switches-label">{cacando ? "Ligados" : "Ligar"}</span>
         <Interruptor
           label="Cura" on={e.cura} disabled={cacando} hint={cacando ? `ligada ${porQue}` : undefined}
           onClick={() => ligar({ cura: !e.cura })} testid="est-cura"
@@ -195,15 +207,14 @@ function Cabecalho({ e }: { e: EstagiarioEstadoMsg }) {
   );
 }
 
-function Interruptor({ label, on, disabled, hint, onClick, testid }: { label: string; on: boolean; disabled?: boolean; hint?: string; onClick: () => void; testid: string }) {
+function Interruptor({ label, on, disabled, hint, onClick, testid, compacto }: { label: string; on: boolean; disabled?: boolean; hint?: string; onClick: () => void; testid: string; compacto?: boolean }) {
   return (
     <button
-      class={`est-switch${on ? " on" : ""}`} role="switch" aria-checked={on} disabled={disabled} onClick={onClick} data-testid={testid}
-      data-tip={hint ? `${label}: ${hint}` : undefined}
+      class={`est-switch${on ? " on" : ""}${compacto ? " compacto" : ""}`} role="switch" aria-checked={on} disabled={disabled} onClick={onClick} data-testid={testid}
+      data-tip={hint ? `${label}: ${hint}` : undefined} aria-label={compacto ? label : undefined}
     >
       <span class="est-knob" aria-hidden="true" />
-      <span>{label}</span>
-      {hint && <span class="est-hint">{hint}</span>}
+      {!compacto && <span>{label}</span>}
     </button>
   );
 }
@@ -214,17 +225,60 @@ function Interruptor({ label, on, disabled, hint, onClick, testid }: { label: st
  * vai cru ao rascunho (NaN se inválido) e a faixa só vale no Aplicar; quando o valor muda por fora (Aplicar com o número
  * limitado, Descartar, recomendado), o texto passa a mostrá-lo.
  */
-function CampoNumero({ label, lim, value, onValor, step }: { label: string; lim: { lo: number; hi: number }; value: number; onValor: (v: number) => void; step?: number }) {
+function CampoNumero({ label, lim, value, onValor, step, sufixo }: { label: string; lim: { lo: number; hi: number }; value: number; onValor: (v: number) => void; step?: number; sufixo?: string }) {
   const [texto, setTexto] = useState(() => (Number.isFinite(value) ? String(value) : ""));
   // Layout (antes de pintar): sem um quadro com o texto velho depois do Aplicar/Descartar.
   useLayoutEffect(() => {
     if (!Object.is(lerNumero(texto), value)) setTexto(Number.isFinite(value) ? String(value) : "");
   }, [value]);
-  return (
+  const input = (
     <input
       class="est-num" type="number" min={lim.lo} max={lim.hi} step={step} aria-label={label} value={texto}
       onInput={(ev) => { const t = val(ev); setTexto(t); onValor(lerNumero(t)); }}
     />
+  );
+  return sufixo ? <span class="est-numbox" style={{ "--suf": sufixo.length }}>{input}<span class="est-numsuf" aria-hidden="true">{sufixo}</span></span> : input;
+}
+
+/**
+ * Uma linha curta sempre à vista e o "como funciona" recolhido (antes cada aba abria com um parágrafo inteiro em cima das
+ * regras). Aberto/fechado vale para a sessão, por aba.
+ */
+const ajudaAberta = new Set<string>();
+function Ajuda({ id, resumo, children }: { id: string; resumo: string; children?: ComponentChildren }) {
+  const [aberta, setAberta] = useState(() => ajudaAberta.has(id));
+  return (
+    <div class="est-ajuda">
+      <span class="est-ajuda-resumo">{resumo}</span>
+      {children && (
+        <details open={aberta} onToggle={(ev) => { const o = (ev.currentTarget as HTMLDetailsElement).open; setAberta(o); if (o) ajudaAberta.add(id); else ajudaAberta.delete(id); }}>
+          <summary>Como funciona</summary>
+          <div class="est-ajuda-texto">{children}</div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** Rodapé das listas de regras: adicionar à esquerda, voltar ao recomendado à direita. */
+function RodapeRegras({ children, recomendado, cheio }: { children: ComponentChildren; recomendado: ComponentChildren; cheio: boolean }) {
+  return (
+    <div class="est-rules-foot">
+      {children}
+      {cheio && <span class="est-note">Máximo de {REGRAS_MAX}.</span>}
+      <span class="est-foot-gap" />
+      {recomendado}
+    </div>
+  );
+}
+
+/** Linha de opção: título e nota à esquerda, o controle à direita (Comer sozinho, Modo avançado, reserva, distância). */
+function Opcao({ titulo, nota, children }: { titulo: string; nota: string; children: ComponentChildren }) {
+  return (
+    <div class="est-opcao">
+      <div class="est-opcao-txt"><span class="est-opcao-titulo">{titulo}</span><span class="est-note">{nota}</span></div>
+      {children}
+    </div>
   );
 }
 
@@ -233,81 +287,110 @@ function CampoNumero({ label, lim, value, onValor, step }: { label: string; lim:
 /**
  * Modo simples: um preset (Seguro / Equilibrado / Agressivo) ou os três números à mão (emergência, conforto, reserva de
  * mana); ataque, buffs e distância são os recomendados da vocação. Modo avançado: as abas Cura, Ataque e Buffs valem.
+ * v4 (dono: "achei feia demais"): estilo como botões segmentados com só a dica do escolhido; os números como faixas na
+ * barra de vida e na de mana (a cor do deslizador é a da faixa); a explicação longa foi para o "Como funciona".
  */
 function AbaPerfil({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
   const simples = c.modo === "simples";
   // Mexer num número tira o preset (o servidor guardaria os números do preset, não os seus).
   const setPerfil = (patch: Partial<Perfil>) => editarRascunho({ preset: null, perfil: { ...c.perfil, ...patch } });
+  const p = c.perfil;
+  const pct = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0);
+  const emerg = pct(p.emergencia), conf = Math.max(emerg, pct(p.conforto)), res = pct(p.reserva);
   return (
     <div class="est-pane">
       {simples ? (
         <>
           <section class="est-section">
-            <h4 class="est-h">Perfil de caça</h4>
-            <div class="est-presets" role="radiogroup" aria-label="Perfil">
+            <h4 class="est-h">Estilo de caça</h4>
+            <div class="est-seg" role="radiogroup" aria-label="Perfil">
               {PRESETS.map((pr) => (
                 <button
-                  key={pr} role="radio" aria-checked={c.preset === pr} class={`est-preset${c.preset === pr ? " on" : ""}`}
+                  key={pr} role="radio" aria-checked={c.preset === pr} class={`est-seg-btn${c.preset === pr ? " on" : ""}`}
                   onClick={() => editarRascunho({ preset: pr, perfil: perfilDoPreset(pr, voc) })} data-testid={`est-preset-${pr}`}
                 >
-                  <span class="est-preset-nome">{PRESET_LABEL[pr].nome}{pr === "equilibrado" && <span class="est-badge">padrão</span>}</span>
-                  <span class="est-preset-dica">{PRESET_LABEL[pr].dica}</span>
+                  {PRESET_LABEL[pr].nome}{pr === "equilibrado" && <span class="est-seg-padrao">padrão</span>}
                 </button>
               ))}
-              {c.preset === null && (
-                <span class="est-preset on est-preset-proprio" data-testid="est-preset-proprio">
-                  <span class="est-preset-nome">Números seus</span>
-                  <span class="est-preset-dica">escolha um perfil para voltar ao recomendado</span>
-                </span>
-              )}
+              {c.preset === null && <span class="est-seg-btn on est-seg-proprio" data-testid="est-preset-proprio">Números seus</span>}
             </div>
-          </section>
-          <section class="est-section">
-            <h4 class="est-h">Ajuste fino</h4>
-            <Deslizador label="Emergência" lim={LIMITES.emergencia} value={c.perfil.emergencia} onValor={(v) => setPerfil({ emergencia: v })} testid="est-emergencia" />
-            <Deslizador label="Conforto" lim={LIMITES.conforto} value={c.perfil.conforto} onValor={(v) => setPerfil({ conforto: v })} testid="est-conforto" />
-            <Deslizador label="Reserva de mana" lim={LIMITES.reserva} value={c.perfil.reserva} onValor={(v) => setPerfil({ reserva: v })} testid="est-reserva" />
-            <ul class="est-perfil-desc" data-testid="est-perfil-desc">
-              {descricaoPerfil(c.perfil).map((t) => <li key={t}>{t}</li>)}
-            </ul>
-            <p class="est-note">
-              {c.preset ? "Com um perfil escolhido o jogo guarda só o nome: quando o perfil melhora, você recebe a versão nova sozinho. " : "Números seus ficam como estão. "}
-              Ataque, buffs e distância são os recomendados da sua vocação. A poção e a magia de cura são recargas diferentes e saem juntas quando precisa.
+            <p class="est-seg-dica">
+              {c.preset ? PRESET_LABEL[c.preset].dica : "Você ajustou os números à mão. Escolha um estilo para voltar ao recomendado."}
             </p>
           </section>
           <section class="est-section">
-            <div class="est-row">
-              <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" />
-              <span class="est-note">com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando</span>
+            <h4 class="est-h">Quando curar</h4>
+            <div class="est-vitais">
+              <div class="est-vital">
+                <div class="est-vital-top"><span class="est-vital-nome">Vida</span></div>
+                <div class="est-faixas" aria-hidden="true">
+                  <span class="est-faixa f-emerg" style={{ width: `${emerg}%` }} />
+                  <span class="est-faixa f-conf" style={{ width: `${conf - emerg}%` }} />
+                  <span class="est-faixa f-ok" style={{ width: `${100 - conf}%` }} />
+                </div>
+                <Deslizador cor="emerg" label="Emergência" sub="poção e magia juntas" lim={LIMITES.emergencia} value={p.emergencia} onValor={(v) => setPerfil({ emergencia: v })} testid="est-emergencia" />
+                <Deslizador cor="conf" label="Conforto" sub="só a magia de cura" lim={LIMITES.conforto} value={p.conforto} onValor={(v) => setPerfil({ conforto: v })} testid="est-conforto" />
+              </div>
+              <div class="est-vital">
+                <div class="est-vital-top"><span class="est-vital-nome">Mana</span></div>
+                <div class="est-faixas" aria-hidden="true">
+                  <span class="est-faixa f-mana" style={{ width: `${res}%` }} />
+                  <span class="est-faixa f-livre" style={{ width: `${100 - res}%` }} />
+                </div>
+                <Deslizador cor="mana" label="Reserva" sub="poção de mana, sem ataque" lim={LIMITES.reserva} value={p.reserva} onValor={(v) => setPerfil({ reserva: v })} testid="est-reserva" />
+              </div>
             </div>
+            <Ajuda id="perfil" resumo="Ataque, buffs e distância seguem o recomendado da sua vocação.">
+              <ul class="est-perfil-desc" data-testid="est-perfil-desc">
+                {descricaoPerfil(p).map((t) => <li key={t}>{t}</li>)}
+              </ul>
+              {c.preset ? "Com um estilo escolhido o jogo guarda só o nome: quando o estilo melhora, você recebe a versão nova sozinho." : "Números seus ficam como estão."}
+            </Ajuda>
           </section>
         </>
       ) : (
         <section class="est-section">
           <h4 class="est-h">Modo avançado</h4>
-          <p class="est-note">Valem as regras das abas Cura, Ataque e Buffs. O perfil do modo simples fica guardado para quando você voltar.</p>
+          <div class="est-empty">Valem as regras das abas <b>Cura</b>, <b>Ataque</b> e <b>Buffs</b>. O perfil do modo simples fica guardado para quando você voltar.</div>
         </section>
       )}
-      <div class="est-row est-modo-row">
-        <Interruptor label="Modo avançado" on={!simples} onClick={() => editarRascunho({ modo: simples ? "avancado" : "simples" })} testid="est-modo" />
-        <span class="est-note">{simples ? "Prefere montar as regras uma a uma? As abas Cura, Ataque e Buffs aparecem." : "Desligue para voltar ao perfil de três números."}</span>
-      </div>
+      <section class="est-section">
+        <h4 class="est-h">Opções</h4>
+        <ul class="est-alarms est-opcoes">
+          {simples && (
+            <li class="est-alarm">
+              <div class="est-opcao-txt">
+                <span class="est-opcao-titulo">Comer sozinho</span>
+                <span class="est-note">com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando</span>
+              </div>
+              <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" compacto />
+            </li>
+          )}
+          <li class="est-alarm">
+            <div class="est-opcao-txt">
+              <span class="est-opcao-titulo">Modo avançado</span>
+              <span class="est-note">{simples ? "monte as regras uma a uma: aparecem as abas Cura, Ataque e Buffs" : "desligue para voltar ao estilo de caça"}</span>
+            </div>
+            <Interruptor label="Modo avançado" on={!simples} onClick={() => editarRascunho({ modo: simples ? "avancado" : "simples" })} testid="est-modo" compacto />
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
 
 /** Deslizador com o número ao lado (os dois mexem no mesmo valor do rascunho; a faixa só vale no Aplicar). */
-function Deslizador({ label, lim, value, onValor, testid }: { label: string; lim: { lo: number; hi: number }; value: number; onValor: (v: number) => void; testid: string }) {
+function Deslizador({ cor, label, sub, lim, value, onValor, testid }: { cor: string; label: string; sub: string; lim: { lo: number; hi: number }; value: number; onValor: (v: number) => void; testid: string }) {
   const v = Number.isFinite(value) ? value : lim.lo;
   return (
-    <div class="est-slider">
-      <span class="est-slider-label">{label}</span>
+    <div class={`est-slider c-${cor}`}>
+      <span class="est-slider-dot" aria-hidden="true" />
+      <span class="est-slider-label">{label}<span class="est-slider-sub">{sub}</span></span>
       <input
-        type="range" min={lim.lo} max={lim.hi} step={1} value={v} aria-label={label} style={{ "--pct": `${((v - lim.lo) / (lim.hi - lim.lo)) * 100}%` }}
+        type="range" min={lim.lo} max={lim.hi} step={1} value={v} aria-label={label}
         onInput={(ev) => onValor(Number(val(ev)))} data-testid={testid}
       />
-      <CampoNumero label={`${label} (%)`} lim={lim} value={value} onValor={onValor} />
-      <span class="est-note">%</span>
+      <CampoNumero label={`${label} (%)`} lim={lim} value={value} onValor={onValor} sufixo="%" />
     </div>
   );
 }
@@ -325,6 +408,9 @@ function AbaCura({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
   // Cura em grupo (druida/fada): a regra "Aliado" (colega de grupo abaixo de X %) só existe com ela.
   const emGrupo = useMemo(() => curas.filter((s) => s.target === "party"), [curas]);
   const set = (cura: readonly RegraCura[]) => editarRascunho({ cura: [...cura] });
+  const [aberta, setAberta] = useState<number | null>(null);
+  const reordenar = (l: readonly RegraCura[]) => { setAberta(null); set(l); };
+  const nomeAcao = (a: CuraAcao) => ("pocao" in a ? (a.pocao === "mana" ? "Poção de mana" : "Poção de vida") : spellDef(a.magia)?.name ?? a.magia);
   const mudarQuando = (i: number, raw: string) => {
     const quando: CuraQuando = raw === "mana" || (raw === "aliado" && emGrupo.length) ? (raw as CuraQuando) : "vida";
     const r = c.cura[i]!;
@@ -334,41 +420,50 @@ function AbaCura({ c, voc }: { c: EstagiarioConfig; voc: Vocation }) {
   };
   return (
     <div class="est-pane">
-      <p class="est-note">
-        Avaliadas de cima para baixo a cada instante: a primeira que vale e está pronta sai. Respeita as recargas de magia e poção; a poção
+      <Ajuda id="cura" resumo="De cima para baixo: sai a primeira regra que vale e está pronta.">
+        Avaliadas a cada instante. Respeita as recargas de magia e poção (são recargas diferentes e podem sair juntas); a poção
         bebida é a menor que cobre o que falta.{emGrupo.length > 0 && " \"Aliado\": um colega de grupo ao alcance da cura em grupo abaixo da porcentagem."}
-      </p>
+      </Ajuda>
       {c.cura.length === 0 && <div class="est-empty">Nenhuma regra de cura.</div>}
       <ol class="est-rules">
         {c.cura.map((r, i) => (
-          <li key={i} class="est-rule">
-            <span class="est-idx">{i + 1}</span>
-            <select class="est-sel" aria-label="Quando" value={r.quando} onChange={(e) => mudarQuando(i, val(e))}>
-              {QUANDO_CURA.filter((q) => q.id !== "aliado" || emGrupo.length > 0).map((q) => <option key={q.id} value={q.id}>{q.label}</option>)}
-            </select>
-            <span>abaixo de</span>
-            <CampoNumero label="Porcentagem" lim={LIMITES.abaixoDe} value={r.abaixoDe} onValor={(v) => set(setRegra(c.cura, i, { abaixoDe: v }))} />
-            <span>% →</span>
-            <select class="est-sel est-grow" aria-label="Ação" value={acaoKey(r.acao)} onChange={(e) => set(setRegra(c.cura, i, { acao: acaoDe(val(e)) }))}>
-              {r.quando !== "aliado" && <option value="pocao:hp">Poção de vida</option>}
-              {r.quando !== "aliado" && <option value="pocao:mana">Poção de mana</option>}
-              {(r.quando === "aliado" ? emGrupo : curas).map((s) => <option key={s.id} value={`magia:${s.id}`}>{s.name} (lv {s.level})</option>)}
-              {"magia" in r.acao && !curas.some((s) => "magia" in r.acao && s.id === r.acao.magia) && (
-                <option value={acaoKey(r.acao)}>{spellDef(r.acao.magia)?.name ?? r.acao.magia}</option>
-              )}
-            </select>
-            <Mover l={c.cura} i={i} set={set} />
-          </li>
+          <RegraLinha
+            key={i} i={i} l={c.cura} reordenar={reordenar} aberta={aberta} setAberta={setAberta} testid={`est-cura-regra-${i}`}
+            nome={nomeAcao(r.acao)} resumo={resumoCura(r)}
+          >
+            <div class="est-edit-linha">
+              <span class="est-edit-rot">Quando</span>
+              <select class="est-sel" aria-label="Quando" value={r.quando} onChange={(e) => mudarQuando(i, val(e))}>
+                {QUANDO_CURA.filter((q) => q.id !== "aliado" || emGrupo.length > 0).map((q) => <option key={q.id} value={q.id}>{q.label}</option>)}
+              </select>
+              <span class="est-txt">abaixo de</span>
+              <CampoNumero label="Porcentagem" lim={LIMITES.abaixoDe} value={r.abaixoDe} onValor={(v) => set(setRegra(c.cura, i, { abaixoDe: v }))} sufixo="%" />
+            </div>
+            <label class="est-edit-linha">
+              <span class="est-edit-rot">Usa</span>
+              <select class="est-sel est-grow" aria-label="Ação" value={acaoKey(r.acao)} onChange={(e) => set(setRegra(c.cura, i, { acao: acaoDe(val(e)) }))}>
+                {r.quando !== "aliado" && <option value="pocao:hp">Poção de vida</option>}
+                {r.quando !== "aliado" && <option value="pocao:mana">Poção de mana</option>}
+                {(r.quando === "aliado" ? emGrupo : curas).map((s) => <option key={s.id} value={`magia:${s.id}`}>{s.name} (lv {s.level})</option>)}
+                {"magia" in r.acao && !curas.some((s) => "magia" in r.acao && s.id === r.acao.magia) && (
+                  <option value={acaoKey(r.acao)}>{spellDef(r.acao.magia)?.name ?? r.acao.magia}</option>
+                )}
+              </select>
+            </label>
+          </RegraLinha>
         ))}
       </ol>
-      <button class="est-btn" onClick={() => set(addRegraCura(c.cura))} disabled={c.cura.length >= REGRAS_MAX}>+ Regra</button>
-      {" "}
-      <button class="est-btn" onClick={() => set(curaRecomendada(voc))} data-tip="Recomendado" data-tip-sub="Troca as regras pelas recomendadas da vocação" data-testid="est-cura-recomendada">Usar recomendado</button>
-      {c.cura.length >= REGRAS_MAX && <span class="est-note"> Máximo de {REGRAS_MAX} regras.</span>}
-      <div class="est-row">
-        <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" />
-        <span class="est-note">com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando (menos de 1 min)</span>
-      </div>
+      <RodapeRegras
+        cheio={c.cura.length >= REGRAS_MAX}
+        recomendado={<button class="est-btn est-ghost" onClick={() => reordenar(curaRecomendada(voc))} data-tip="Recomendado" data-tip-sub="Troca as regras pelas recomendadas da vocação" data-testid="est-cura-recomendada">Usar recomendado</button>}
+      >
+        <button class="est-btn" onClick={() => { set(addRegraCura(c.cura)); setAberta(c.cura.length); }} disabled={c.cura.length >= REGRAS_MAX}>+ Regra</button>
+      </RodapeRegras>
+      <section class="est-section">
+        <Opcao titulo="Comer sozinho" nota={'com a Cura ligada, come a primeira comida da mochila quando o "alimentado" está acabando (menos de 1 min)'}>
+          <Interruptor label="Comer sozinho" on={c.comer} onClick={() => editarRascunho({ comer: !c.comer })} testid="est-comer" compacto />
+        </Opcao>
+      </section>
     </div>
   );
 }
@@ -381,6 +476,43 @@ function Mover<T>({ l, i, set }: { l: readonly T[]; i: number; set: (l: readonly
       <button class="est-mini est-del" onClick={() => set(removerRegra(l, i))} aria-label="Remover" data-tip="Remover">×</button>
     </span>
   );
+}
+
+/**
+ * Uma regra fechada = uma linha (nome em destaque e a condição como frase); clicar abre o editor embaixo, uma por vez
+ * (v4, dono: a aba virava um muro de campos). Reordenar ou remover fecha o editor (o índice aberto mudaria de regra).
+ */
+function RegraLinha<T>({ i, l, reordenar, aberta, setAberta, nome, resumo, testid, children }: {
+  i: number; l: readonly T[]; reordenar: (l: readonly T[]) => void; aberta: number | null; setAberta: (i: number | null) => void;
+  nome: string; resumo: string; testid: string; children: ComponentChildren;
+}) {
+  const editando = aberta === i;
+  const alternar = () => setAberta(editando ? null : i);
+  return (
+    <li class={`est-rule est-rule-linha${editando ? " aberta" : ""}`}>
+      <span class="est-idx">{i + 1}</span>
+      <button class="est-resumo" onClick={alternar} aria-expanded={editando} data-testid={testid}>
+        <span class="est-resumo-nome">{nome}</span>
+        <span class="est-resumo-cond">{resumo}</span>
+      </button>
+      <span class="est-move">
+        <button class={`est-mini${editando ? " on" : ""}`} onClick={alternar} aria-label="Editar" data-tip={editando ? "Fechar" : "Editar"}>✎</button>
+        <Mover l={l} i={i} set={reordenar} />
+      </span>
+      {editando && (
+        <div class="est-edit">
+          {children}
+          <div class="est-edit-fim"><button class="est-btn" onClick={() => setAberta(null)}>Pronto</button></div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+const QUANDO_CURA_FRASE: Record<CuraQuando, string> = { vida: "vida", mana: "mana", aliado: "um aliado" };
+/** "vida abaixo de 30%": a condição da regra de cura fechada. */
+export function resumoCura(r: RegraCura): string {
+  return `${QUANDO_CURA_FRASE[r.quando]} abaixo de ${Number.isFinite(r.abaixoDe) ? r.abaixoDe : "?"}%`;
 }
 
 // ---------- Ataque ----------
@@ -404,6 +536,8 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
   const [nova, setNova] = useState("");
   const escolhida = todas.some((s) => s.id === nova) ? nova : todas[0]?.id ?? "";
   const set = (ataque: readonly RegraAtaque[]) => editarRascunho({ ataque: [...ataque] });
+  const [aberta, setAberta] = useState<number | null>(null);
+  const reordenar = (l: readonly RegraAtaque[]) => { setAberta(null); set(l); };
   const nome = (id: string) => todas.find((s) => s.id === id)?.name ?? spellDef(id)?.name ?? id;
   const opts = (atual?: string) => (
     <>
@@ -417,62 +551,77 @@ function AbaAtaque({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; leve
   );
   return (
     <div class="est-pane">
-      <p class="est-note">
-        Alvo: o monstro mais próximo à vista (nunca jogador). Regras de cima para baixo: conta os monstros em volta de você (em volta
-        do alvo nas magias de área no alvo; nos tiles da onda virada para o alvo nas ondas) e conjura a primeira que bate, está pronta e
-        alcança o alvo. Família e grupo escolhem a magia pronta como as teclas inteligentes. "Mana ≥" troca a reserva geral só naquela
-        regra (0 = a reserva); "alvo com ≥ X% de vida" poupa a magia grande no bicho quase morto (0 = qualquer).
-      </p>
+      <Ajuda id="ataque" resumo="Alvo: o monstro mais perto (nunca jogador). Sai a primeira regra que bate e está pronta.">
+        Conta os monstros em volta de você (em volta do alvo nas magias de área no alvo; nos tiles da onda virada para o alvo nas
+        ondas) e conjura a primeira regra que bate, está pronta e alcança o alvo. Família e grupo escolhem a magia pronta como as
+        teclas inteligentes. "Mana ≥" troca a reserva geral só naquela regra (0 = a reserva); "alvo com ≥ X% de vida" poupa a magia
+        grande no bicho quase morto (0 = qualquer).
+      </Ajuda>
       {c.ataque.length === 0 && <div class="est-empty">Nenhuma regra: só o ataque básico.</div>}
       <ol class="est-rules">
         {c.ataque.map((r, i) => (
-          <li key={i} class="est-rule">
-            <span class="est-idx">{i + 1}</span>
-            <span>≥</span>
-            <CampoNumero label="Monstros" lim={LIMITES.minBichos} value={r.minBichos} onValor={(v) => set(setRegra(c.ataque, i, { minBichos: v }))} />
-            <span>bichos a até</span>
-            <CampoNumero label="Raio em tiles" lim={LIMITES.raio} value={r.raio} onValor={(v) => set(setRegra(c.ataque, i, { raio: v }))} />
-            <span>tiles {ondeConta(r.magia)} →</span>
-            <select class="est-sel est-grow" aria-label="Magia" value={r.magia} onChange={(e) => set(setRegra(c.ataque, i, { magia: val(e) }))}>
-              {opts(r.magia)}
-            </select>
-            <Mover l={c.ataque} i={i} set={set} />
-            <span class="est-inline est-opc">
-              mana ≥ <CampoNumero label="Mana mínima da regra" lim={LIMITES.pctOpcional} value={r.manaMin ?? 0} onValor={(v) => set(setRegra(c.ataque, i, { manaMin: v }))} />%
-              {" · "}alvo com ≥ <CampoNumero label="Vida mínima do alvo" lim={LIMITES.pctOpcional} value={r.vidaAlvoMin ?? 0} onValor={(v) => set(setRegra(c.ataque, i, { vidaAlvoMin: v }))} />% de vida
-            </span>
-          </li>
+          <RegraLinha
+            key={i} i={i} l={c.ataque} reordenar={reordenar} aberta={aberta} setAberta={setAberta} testid={`est-ataque-regra-${i}`}
+            nome={nome(r.magia)} resumo={resumoAtaque(r)}
+          >
+            <label class="est-edit-linha">
+              <span class="est-edit-rot">Magia</span>
+              <select class="est-sel est-grow" aria-label="Magia" value={r.magia} onChange={(e) => set(setRegra(c.ataque, i, { magia: val(e) }))}>
+                {opts(r.magia)}
+              </select>
+            </label>
+            <div class="est-edit-linha">
+              <span class="est-edit-rot">Quando</span>
+              <CampoNumero label="Monstros" lim={LIMITES.minBichos} value={r.minBichos} onValor={(v) => set(setRegra(c.ataque, i, { minBichos: v }))} sufixo="+" />
+              <span class="est-txt">bichos a até</span>
+              <CampoNumero label="Raio em tiles" lim={LIMITES.raio} value={r.raio} onValor={(v) => set(setRegra(c.ataque, i, { raio: v }))} sufixo="sqm" />
+              <span class="est-txt">{ondeConta(r.magia)}</span>
+            </div>
+            <div class="est-edit-linha">
+              <span class="est-edit-rot">Só se</span>
+              <span class="est-txt">mana ≥</span>
+              <CampoNumero label="Mana mínima da regra" lim={LIMITES.pctOpcional} value={r.manaMin ?? 0} onValor={(v) => set(setRegra(c.ataque, i, { manaMin: v }))} sufixo="%" />
+              <span class="est-txt">e alvo com ≥</span>
+              <CampoNumero label="Vida mínima do alvo" lim={LIMITES.pctOpcional} value={r.vidaAlvoMin ?? 0} onValor={(v) => set(setRegra(c.ataque, i, { vidaAlvoMin: v }))} sufixo="%" />
+              <span class="est-txt">de vida <span class="est-faint">(0 = sempre)</span></span>
+            </div>
+          </RegraLinha>
         ))}
       </ol>
-      <div class="est-row">
-        <select class="est-sel est-grow" aria-label="Magia da regra nova" value={escolhida} onChange={(e) => setNova(val(e))} disabled={!todas.length}>
+      <RodapeRegras
+        cheio={c.ataque.length >= REGRAS_MAX}
+        recomendado={<button class="est-btn est-ghost" onClick={() => reordenar(ataqueRecomendado(voc))} data-tip="Recomendado" data-tip-sub="Uma regra por magia de área (com o raio dela) e a tecla de alvo da vocação no fim" data-testid="est-ataque-recomendado">Usar recomendado</button>}
+      >
+        <select class="est-sel est-nova" aria-label="Magia da regra nova" value={escolhida} onChange={(e) => setNova(val(e))} disabled={!todas.length}>
           {opts()}
         </select>
-        <button class="est-btn" onClick={() => set(addRegraAtaque(c.ataque, escolhida))} disabled={c.ataque.length >= REGRAS_MAX || !escolhida}>+ Regra</button>
-      </div>
-      <button class="est-btn" onClick={() => set(ataqueRecomendado(voc))} data-tip="Recomendado" data-tip-sub="Uma regra por magia de área (com o raio dela) e a tecla de alvo da vocação no fim" data-testid="est-ataque-recomendado">Usar recomendado</button>
-      <label class="est-row">
-        <span>Reserva de mana: não conjura ataque abaixo de</span>
-        <CampoNumero label="Reserva de mana" lim={LIMITES.reservaMana} step={5} value={c.reservaMana} onValor={(v) => editarRascunho({ reservaMana: v })} />
-        <span>% de mana</span>
-      </label>
-      {/* Manter distância (v2, decisão do dono): só para quem ataca à distância; o cavaleiro luta colado. */}
-      {voc !== "knight" && (
-        <>
-          <label class="est-row">
-            <span>Manter distância do alvo:</span>
+        <button class="est-btn" onClick={() => { set(addRegraAtaque(c.ataque, escolhida)); setAberta(c.ataque.length); }} disabled={c.ataque.length >= REGRAS_MAX || !escolhida}>+ Regra</button>
+      </RodapeRegras>
+      <section class="est-section">
+        <h4 class="est-h">Geral</h4>
+        <Opcao titulo="Reserva de mana" nota="não conjura magia de ataque abaixo disso">
+          <CampoNumero label="Reserva de mana" lim={LIMITES.reservaMana} step={5} value={c.reservaMana} onValor={(v) => editarRascunho({ reservaMana: v })} sufixo="%" />
+        </Opcao>
+        {/* Manter distância (v2, decisão do dono): só para quem ataca à distância; o cavaleiro luta colado. */}
+        {voc !== "knight" && (
+          <Opcao titulo="Manter distância do alvo" nota="só com a rota: para de perseguir a essa distância e recua um passo quando um bicho corpo a corpo encosta (com arma corpo a corpo, fica colado)">
             <select class="est-sel" aria-label="Distância" value={String(c.distancia)} onChange={(e) => editarRascunho({ distancia: Number(val(e)) })} data-testid="est-distancia">
               {DISTANCIAS.map((d) => <option key={d} value={String(d)}>{rotuloDistancia(d)}</option>)}
             </select>
-          </label>
-          <p class="est-note">
-            Só com a rota rodando: para de perseguir a essa distância (com visão) e recua um passo quando um bicho corpo a corpo encosta.
-            Monstro que ataca à distância não faz recuar; com arma corpo a corpo, fica colado.
-          </p>
-        </>
-      )}
+          </Opcao>
+        )}
+      </section>
     </div>
   );
+}
+
+/** "2+ bichos a até 4 sqm em volta de você · mana ≥ 40%": a regra fechada em uma linha (os opcionais só quando valem). */
+export function resumoAtaque(r: RegraAtaque): string {
+  const n = (v: number | undefined) => (Number.isFinite(v) ? String(v) : "?");
+  const partes = [`${n(r.minBichos)}+ ${r.minBichos === 1 ? "bicho" : "bichos"} a até ${n(r.raio)} sqm ${ondeConta(r.magia)}`];
+  if (r.manaMin) partes.push(`mana ≥ ${n(r.manaMin)}%`);
+  if (r.vidaAlvoMin) partes.push(`alvo ≥ ${n(r.vidaAlvoMin)}% de vida`);
+  return partes.join(" · ");
 }
 
 // ---------- Buffs ----------
@@ -483,42 +632,62 @@ function AbaBuffs({ c, voc, level }: { c: EstagiarioConfig; voc: Vocation; level
   const [nova, setNova] = useState("");
   const escolhida = livres.some((s) => s.id === nova) ? nova : livres[0]?.id ?? "";
   const set = (buffs: readonly RegraBuff[]) => editarRascunho({ buffs: [...buffs] });
+  const [aberta, setAberta] = useState<number | null>(null);
+  const reordenar = (l: readonly RegraBuff[]) => { setAberta(null); set(l); };
   const rotulo = (id: string) => { const s = spellDef(id); return s ? rotuloBuff(s, level) : id; };
   return (
     <div class="est-pane">
-      <p class="est-note">
-        Mantém os buffs (e a invocação) ativos: quando um acaba, conjura de novo (um por vez, depois da cura). "Em combate" = deu ou levou
-        dano há pouco. Sai sempre que a magia tem mana (a reserva de mana do ataque não segura buff); "mana ≥" é uma exigência a mais
-        sua (0 = nenhuma). Acima do seu level, o buff é pulado.
-      </p>
+      <Ajuda id="buffs" resumo="Quando um buff acaba, conjura de novo (um por vez, depois da cura).">
+        Vale também para a invocação. "Em combate" = deu ou levou dano há pouco. Sai sempre que a magia tem mana (a reserva de mana
+        do ataque não segura buff); "mana ≥" é uma exigência a mais sua (0 = nenhuma). Acima do seu level, o buff é pulado.
+      </Ajuda>
       {c.buffs.length === 0 && <div class="est-empty">Nenhum buff.</div>}
       <ol class="est-rules">
         {c.buffs.map((r, i) => (
-          <li key={i} class="est-rule">
-            <span class="est-idx">{i + 1}</span>
-            <select class="est-sel est-grow" aria-label="Buff" value={r.magia} onChange={(e) => set(setRegra(c.buffs, i, { magia: val(e) }))}>
-              {opcoes.filter((s) => s.id === r.magia || !c.buffs.some((x) => x.magia === s.id)).map((s) => <option key={s.id} value={s.id}>{rotulo(s.id)}</option>)}
-              {!opcoes.some((s) => s.id === r.magia) && <option value={r.magia}>{rotulo(r.magia)}</option>}
-            </select>
-            <select class="est-sel" aria-label="Quando" value={r.quando} onChange={(e) => { const q = val(e); set(setRegra(c.buffs, i, { quando: q === "combate" || q === "fora" ? q : "sempre" })); }}>
-              {QUANDO_BUFF.map((q) => <option key={q.id} value={q.id}>{q.label}</option>)}
-            </select>
-            <Mover l={c.buffs} i={i} set={set} />
-            <span class="est-inline est-opc">
-              mana ≥ <CampoNumero label="Mana mínima do buff" lim={LIMITES.pctOpcional} value={r.manaMin ?? 0} onValor={(v) => set(setRegra(c.buffs, i, { manaMin: v }))} />%
-            </span>
-          </li>
+          <RegraLinha
+            key={i} i={i} l={c.buffs} reordenar={reordenar} aberta={aberta} setAberta={setAberta} testid={`est-buff-regra-${i}`}
+            nome={rotulo(r.magia)} resumo={resumoBuff(r)}
+          >
+            <label class="est-edit-linha">
+              <span class="est-edit-rot">Buff</span>
+              <select class="est-sel est-grow" aria-label="Buff" value={r.magia} onChange={(e) => set(setRegra(c.buffs, i, { magia: val(e) }))}>
+                {opcoes.filter((s) => s.id === r.magia || !c.buffs.some((x) => x.magia === s.id)).map((s) => <option key={s.id} value={s.id}>{rotulo(s.id)}</option>)}
+                {!opcoes.some((s) => s.id === r.magia) && <option value={r.magia}>{rotulo(r.magia)}</option>}
+              </select>
+            </label>
+            <div class="est-edit-linha">
+              <span class="est-edit-rot">Quando</span>
+              <select class="est-sel" aria-label="Quando" value={r.quando} onChange={(e) => { const q = val(e); set(setRegra(c.buffs, i, { quando: q === "combate" || q === "fora" ? q : "sempre" })); }}>
+                {QUANDO_BUFF.map((q) => <option key={q.id} value={q.id}>{q.label}</option>)}
+              </select>
+              <span class="est-txt">· mana ≥</span>
+              <CampoNumero label="Mana mínima do buff" lim={LIMITES.pctOpcional} value={r.manaMin ?? 0} onValor={(v) => set(setRegra(c.buffs, i, { manaMin: v }))} sufixo="%" />
+              <span class="est-faint">(0 = sem exigência)</span>
+            </div>
+          </RegraLinha>
         ))}
       </ol>
-      <div class="est-row">
-        <select class="est-sel est-grow" aria-label="Buff novo" value={escolhida} onChange={(e) => setNova(val(e))} disabled={!livres.length}>
-          {livres.map((s) => <option key={s.id} value={s.id}>{rotulo(s.id)}</option>)}
-        </select>
-        <button class="est-btn" onClick={() => set(addRegraBuff(c.buffs, escolhida))} disabled={c.buffs.length >= REGRAS_MAX || !escolhida}>+ Buff</button>
-      </div>
-      <button class="est-btn" onClick={() => set(buffsRecomendados(voc))} data-tip="Recomendado" data-tip-sub="Troca a lista pelos buffs recomendados da vocação" data-testid="est-buffs-recomendado">Usar recomendado</button>
+      <RodapeRegras
+        cheio={c.buffs.length >= REGRAS_MAX}
+        recomendado={<button class="est-btn est-ghost" onClick={() => reordenar(buffsRecomendados(voc))} data-tip="Recomendado" data-tip-sub="Troca a lista pelos buffs recomendados da vocação" data-testid="est-buffs-recomendado">Usar recomendado</button>}
+      >
+        {livres.length > 0 ? (
+          <>
+            <select class="est-sel est-nova" aria-label="Buff novo" value={escolhida} onChange={(e) => setNova(val(e))}>
+              {livres.map((s) => <option key={s.id} value={s.id}>{rotulo(s.id)}</option>)}
+            </select>
+            <button class="est-btn" onClick={() => { set(addRegraBuff(c.buffs, escolhida)); setAberta(c.buffs.length); }} disabled={c.buffs.length >= REGRAS_MAX || !escolhida}>+ Buff</button>
+          </>
+        ) : <span class="est-note">Todos os buffs da vocação já estão na lista.</span>}
+      </RodapeRegras>
     </div>
   );
+}
+
+/** "sempre · mana ≥ 40%": a condição do buff fechado (a mana só quando exige algo). */
+export function resumoBuff(r: RegraBuff): string {
+  const quando = QUANDO_BUFF.find((q) => q.id === r.quando)?.label ?? r.quando;
+  return r.manaMin ? `${quando.toLowerCase()} · mana ≥ ${Number.isFinite(r.manaMin) ? r.manaMin : "?"}%` : quando.toLowerCase();
 }
 
 // ---------- Rota ----------
@@ -550,11 +719,11 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
   return (
     <div class="est-pane">
       <section class="est-section">
-      <h4 class="est-h">Rotas gravadas</h4>
-      <p class="est-note">
-        Grave andando pela caça. Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê, pega o loot pelo seu loot
-        automático e volta ao começo no fim. Gasta stamina; se você se mexer, pausa 10 s.
-      </p>
+      <h4 class="est-h">Rotas gravadas <span class="est-h-num">{c.rotas.length}/{ROTAS_MAX}</span></h4>
+      <Ajuda id="rota" resumo="Grave andando pela caça; ligada, ele anda o circuito e mata o que vê.">
+        Rodando, o Estagiário anda de ponto em ponto, para e mata o que vê, pega o loot pelo seu loot automático e volta ao começo
+        no fim. Gasta stamina; se você se mexer, pausa 10 s.{c.rotas.length >= ROTAS_MAX && " Com as rotas cheias, salvar com o nome de uma existente a substitui."}
+      </Ajuda>
       {c.rotas.length === 0 && !e.gravando && <div class="est-empty">Nenhuma rota gravada ainda. Aperte "Gravar" e ande pela caça.</div>}
       <ul class="est-routes">
         {c.rotas.map((r) => {
@@ -566,8 +735,8 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
                   <CampoNome
                     label="Novo nome" value={renomear.para} onInput={(v) => setRenomear({ de: r.nome, para: v })} onEnter={confirmarRenome}
                   />
-                  <button class="est-mini" onClick={confirmarRenome}>OK</button>
-                  <button class="est-mini" onClick={() => { setRenomear(null); setErro(""); }}>Cancelar</button>
+                  <button class="est-btn est-go" onClick={confirmarRenome}>OK</button>
+                  <button class="est-btn" onClick={() => { setRenomear(null); setErro(""); }}>Cancelar</button>
                 </>
               ) : (
                 <>
@@ -575,9 +744,11 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
                   <span class="est-route-pts">{r.pontos.length} pontos</span>
                   {ativa
                     ? <button class="est-btn est-stop" onClick={() => ligar({ rota: null })} data-testid="est-desligar">Desligar</button>
-                    : <button class="est-btn" onClick={() => ligar({ rota: r.nome })} disabled={e.gravando} data-testid={`est-ligar-${r.nome}`}>Ligar</button>}
-                  <button class="est-mini" onClick={() => setRenomear({ de: r.nome, para: r.nome })} disabled={ativa} data-tip={ativa ? "Desligue a rota primeiro" : undefined}>Renomear</button>
-                  <button class="est-mini est-del" onClick={() => salvarConfig(apagarRota(c, r.nome))} disabled={ativa} data-tip={ativa ? "Desligue a rota primeiro" : undefined}>Apagar</button>
+                    : <button class="est-btn est-go" onClick={() => ligar({ rota: r.nome })} disabled={e.gravando} data-testid={`est-ligar-${r.nome}`}>Ligar</button>}
+                  <span class="est-move">
+                    <button class="est-mini" onClick={() => setRenomear({ de: r.nome, para: r.nome })} disabled={ativa} data-tip={ativa ? "Desligue a rota primeiro" : "Renomear"} aria-label="Renomear">✎</button>
+                    <ApagarRota ativa={ativa} onApagar={() => salvarConfig(apagarRota(c, r.nome))} />
+                  </span>
                 </>
               )}
             </li>
@@ -590,34 +761,33 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
           <span>Gravando… {e.pontosGravados} {e.pontosGravados === 1 ? "ponto" : "pontos"}</span>
           <span class="est-note">termine perto de onde começou (a rota é um circuito)</span>
           {nome === null ? (
-            <button class="est-btn" onClick={() => { setNome(""); setErro(""); }} data-testid="est-parar">Parar e salvar</button>
+            <button class="est-btn est-go" onClick={() => { setNome(""); setErro(""); }} data-testid="est-parar">Parar e salvar</button>
           ) : (
             <>
               <CampoNome label="Nome da rota" value={nome} onInput={setNome} onEnter={salvar} testid="est-nome" />
-              <button class="est-btn" onClick={salvar} data-testid="est-salvar-rota">Salvar</button>
+              <button class="est-btn est-go" onClick={salvar} data-testid="est-salvar-rota">Salvar</button>
             </>
           )}
-          <button class="est-mini est-del" onClick={() => gravar({ acao: "descartar" })}>Descartar</button>
+          <button class="est-btn est-del" onClick={() => gravar({ acao: "descartar" })}>Descartar</button>
         </div>
       ) : (
         <div class="est-row">
           <button
-            class="est-btn" onClick={() => gravar({ acao: "iniciar" })} disabled={e.rota !== null || e.seguindo !== null} data-testid="est-gravar"
+            class="est-btn est-gravar" onClick={() => gravar({ acao: "iniciar" })} disabled={e.rota !== null || e.seguindo !== null} data-testid="est-gravar"
             data-tip={e.rota !== null ? "Desligue a rota para gravar outra" : e.seguindo ? "Pare de seguir para gravar" : undefined}
           >
-            ● Gravar
+            <span class="est-rec-dot" aria-hidden="true" />Gravar rota nova
           </button>
-          <span class="est-note">{c.rotas.length}/{ROTAS_MAX} rotas{c.rotas.length >= ROTAS_MAX ? " (salvar com o nome de uma existente substitui)" : ""}</span>
         </div>
       )}
       {erro && <div class="est-err" role="alert">{erro}</div>}
       </section>
       <section class="est-section">
         <h4 class="est-h">Caçar com um colega</h4>
-        <p class="est-note">
-          O Estagiário anda atrás de um colega do seu grupo, mata o que aparece (o alvo dele primeiro) e para se ele morrer ou sair do grupo.
-          Se ele sumir de vista, vai aonde o viu por último (entra no portal que ele pegou) e volta a segui-lo ao reencontrá-lo. Gasta stamina como a rota. Quem lidera com uma rota espera você chegar.
-        </p>
+        <Ajuda id="colega" resumo="Anda atrás de um colega do grupo e mata o que aparece (o alvo dele primeiro).">
+          Para se ele morrer ou sair do grupo. Se ele sumir de vista, vai aonde o viu por último (entra no portal que ele pegou) e
+          volta a segui-lo ao reencontrá-lo. Gasta stamina como a rota. Quem lidera com uma rota espera você chegar.
+        </Ajuda>
         {!party ? (
           <div class="est-empty" data-testid="est-sem-grupo">Você não está num grupo. Clique com o botão direito num colega e escolha "Convidar para o grupo".</div>
         ) : colegas.length === 0 ? (
@@ -634,7 +804,7 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
                   <span class="est-route-pts"><span style={{ color: v.color }}>{v.label}</span> · lv {m.level}</span>
                   {seguindo
                     ? <button class="est-btn est-stop" onClick={() => ligar({ seguir: null })} data-testid="est-parar-seguir">Parar de seguir</button>
-                    : <button class="est-btn" onClick={() => ligar({ seguir: m.id })} disabled={e.gravando} data-testid={`est-seguir-${m.name}`}>Seguir</button>}
+                    : <button class="est-btn est-go" onClick={() => ligar({ seguir: m.id })} disabled={e.gravando} data-testid={`est-seguir-${m.name}`}>Seguir</button>}
                 </li>
               );
             })}
@@ -643,6 +813,15 @@ function AbaRota({ e }: { e: EstagiarioEstadoMsg }) {
       </section>
     </div>
   );
+}
+
+/** Apagar rota em dois cliques (o primeiro arma por 3 s): rota gravada andando não volta. */
+function ApagarRota({ ativa, onApagar }: { ativa: boolean; onApagar: () => void }) {
+  const [armado, setArmado] = useState(false);
+  useEffect(() => { if (!armado) return; const t = setTimeout(() => setArmado(false), 3000); return () => clearTimeout(t); }, [armado]);
+  return armado
+    ? <button class="est-mini est-del est-armado" onClick={onApagar}>Apagar?</button>
+    : <button class="est-mini est-del" onClick={() => setArmado(true)} disabled={ativa} data-tip={ativa ? "Desligue a rota primeiro" : "Apagar"} aria-label="Apagar">×</button>;
 }
 
 /** Campo de nome de rota (até 20 letras, como o servidor guarda), com foco ao aparecer e Enter para confirmar. */
@@ -667,10 +846,10 @@ function AbaDiario() {
   const linhas = useMemo(() => [...diario].reverse().filter((l) => !canais.length || canais.includes(l.canal)), [diario, filtro]);
   return (
     <div class="est-pane">
-      <p class="est-note">
-        As últimas {DIARIO_MAX} decisões do Estagiário nesta sessão: cada cura, poção, buff e comida, por que ele esperou (poção em
-        recarga, magia sem mana, nenhuma poção que você possa beber), a rota e os alarmes.
-      </p>
+      <Ajuda id="diario" resumo={`As últimas ${DIARIO_MAX} decisões desta sessão, a mais nova em cima.`}>
+        Cada cura, poção, buff e comida, por que ele esperou (poção em recarga, magia sem mana, nenhuma poção que você possa beber),
+        a rota e os alarmes.
+      </Ajuda>
       <div class="est-chips" role="radiogroup" aria-label="Mostrar">
         {FILTROS.map((f) => (
           <button key={f.id} role="radio" aria-checked={filtro === f.id} class={`est-chip${filtro === f.id ? " on" : ""}`} onClick={() => setFiltro(f.id)} data-testid={`est-diario-${f.id}`}>
@@ -700,21 +879,20 @@ function AbaDiario() {
 function AbaAlarmes({ c }: { c: EstagiarioConfig }) {
   return (
     <div class="est-pane">
-      <p class="est-note">Só avisam (som, aviso e o título da aba); a caça continua.</p>
+      <Ajuda id="alarmes" resumo="Só avisam (som, aviso e o título da aba); a caça continua." />
       <ul class="est-alarms">
         {ALARMES.map((t) => {
           const on = t === "morte" || c.alarmes[t] !== false;
           return (
-            <li key={t} class="est-alarm">
-              <Interruptor label={ALARME_LABEL[t].nome} on={on} disabled={t === "morte"} onClick={() => editarRascunho({ alarmes: alternarAlarme(c, t).alarmes })} testid={`est-alarme-${t}`} />
-              <span class="est-note">{ALARME_LABEL[t].quando}</span>
+            <li key={t} class={`est-alarm${on ? "" : " off"}`}>
+              <div class="est-opcao-txt">
+                <span class="est-opcao-titulo">{ALARME_LABEL[t].nome}</span>
+                <span class="est-note">{ALARME_LABEL[t].quando}</span>
+              </div>
               {t === "vidaBaixa" && (
-                <label class="est-inline">
-                  abaixo de
-                  <CampoNumero label="Vida do alarme" lim={LIMITES.vidaAlarme} value={c.vidaAlarme} onValor={(v) => editarRascunho({ vidaAlarme: v })} />
-                  %
-                </label>
+                <CampoNumero label="Vida do alarme" lim={LIMITES.vidaAlarme} value={c.vidaAlarme} onValor={(v) => editarRascunho({ vidaAlarme: v })} sufixo="%" />
               )}
+              <Interruptor label={ALARME_LABEL[t].nome} on={on} disabled={t === "morte"} onClick={() => editarRascunho({ alarmes: alternarAlarme(c, t).alarmes })} testid={`est-alarme-${t}`} compacto />
             </li>
           );
         })}
