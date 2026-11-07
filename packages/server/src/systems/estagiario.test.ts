@@ -970,6 +970,19 @@ describe("Estagiário: rodar a rota", () => {
     expect(w.visitados.has("10,10")).toBe(true); // circuito: voltou ao primeiro
   });
 
+  it("depois da luta perto do trecho de volta, retoma no ponto em que estava (não pula a ida)", () => {
+    // Ida em y = 10 até x = 30, volta em y = 12. Antes (2026-11-07) retomava pelo mais perto da rota toda: o ponto 6 da volta.
+    const pontos = [{ x: 10, y: 10 }, { x: 16, y: 10 }, { x: 22, y: 10 }, { x: 30, y: 10 }, { x: 30, y: 12 }, { x: 22, y: 12 }, { x: 16, y: 12 }, { x: 10, y: 12 }];
+    const w = setup({ saved: { config: comRota({ rotas: [{ nome: "Ida e volta", pontos }] }) } });
+    w.sys.onToggle(w.p, { rota: "Ida e volta" });
+    w.tick();
+    w.st().indice = 2; // indo para (22,10)
+    w.st().lutando = true; // a luta acabou em (17,12), colado no ponto 6 da volta
+    w.p.x = 17; w.p.y = 12;
+    w.tick();
+    expect(w.st().indice).toBe(2);
+  });
+
   it("ponto de portal: pisa nele, o teleporte leva ao ponto seguinte e a rota continua dali", () => {
     const w = setup({
       andar: true, portais: { "13,10": { x: 30, y: 30 } },
@@ -1118,7 +1131,7 @@ describe("Estagiário: rodar a rota", () => {
     expect([w.p.x, w.p.y]).toEqual([10, 10]);
   });
 
-  it("com alvo vivo não anda; ao matar, retoma pelo ponto mais próximo", () => {
+  it("com alvo vivo não anda; ao matar, retoma do ponto em que estava (ou do seguinte, se mais perto), sem pular pontos", () => {
     const w = setup({ andar: true, ratos: [{ x: 25, y: 25 }], saved: { config: rota([{ x: 10, y: 10 }, { x: 15, y: 10 }, { x: 20, y: 10 }]) } });
     const rato = [...w.mm.all()][0]!;
     w.luta.alvo = rato.s.id;
@@ -1130,8 +1143,11 @@ describe("Estagiário: rodar a rota", () => {
     w.luta.alvo = "";
     w.mm.kill(rato);
     w.tick();
-    expect(w.indice()).toBe(2);
-    w.tick(2000);
+    // Estava indo ao ponto 0 (a luta começou no primeiro tick): retoma no 1, o seguinte, mais perto de (19,12). Antes
+    // (até 2026-11-07) ia ao mais perto da rota toda, o 2, e pulava o 1.
+    expect(w.indice()).toBe(1);
+    w.tick(4000);
+    expect(w.visitados.has("15,10")).toBe(true);
     expect(w.visitados.has("20,10")).toBe(true);
   });
 

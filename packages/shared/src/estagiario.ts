@@ -622,6 +622,32 @@ export function indiceMaisProximo(pontos: readonly PontoRota[], pos: { x: number
   return best;
 }
 
+/**
+ * Quantos pontos à frente do atual a retomada depois da luta olha (`indiceRetomada`). 1: com mais, uma rota curta de
+ * ida e volta (pontos a cada GRAVAR_A_CADA tiles) já punha o trecho de volta na janela e pulava o resto da ida.
+ */
+export const RETOMAR_JANELA = 1;
+
+/**
+ * Ponto por onde a rota retoma depois de uma luta, como num cavebot: o ponto em que estava, ou o seguinte se a luta
+ * levou o bot para mais perto dele; nunca depois de um ponto de portal (o que vem depois é o outro lado). Antes (até
+ * 2026-11-07) era o mais perto da rota inteira: numa rota de ida e volta, ou com o outro lado do portal perto em
+ * coordenada, a luta jogava o bot num trecho adiante e o ciclo pulava os pontos do meio. Índice inválido: o mais perto
+ * da rota inteira.
+ */
+export function indiceRetomada(pontos: readonly PontoRota[], atual: number, pos: { x: number; y: number }): number {
+  const n = pontos.length;
+  if (atual < 0 || atual >= n) return indiceMaisProximo(pontos, pos);
+  let best = atual, bestD = cheb(pontos[atual]!, pos);
+  for (let k = 0; k <= RETOMAR_JANELA && k < n; k++) {
+    const i = (atual + k) % n, p = pontos[i]!;
+    const d = cheb(p, pos);
+    if (d < bestD) { best = i; bestD = d; }
+    if (p.portal) break;
+  }
+  return best;
+}
+
 export const novaGravacao = (pos: { x: number; y: number }): Gravacao => ({ pontos: [{ x: pos.x, y: pos.y }], dir: null, desdeUltimo: 0 });
 
 /**

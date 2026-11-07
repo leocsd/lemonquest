@@ -9,7 +9,7 @@ import {
   POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, SEGUIR_MAX_TILES, SEGUIR_SUMIU_MS,
   TURNO_AVISO_MS, alarmeLigado, avancarTurno, compactar, configEfetiva, curaEmGrupo, curaEstimada, curasProprias, decidirCura, dirFromDelta,
   ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao, RECUO_MAX_TILES, STAMINA_BAIXA_MS, staminaXpMult,
-  fecharGravacao, gravarPasso, indiceMaisProximo, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
+  fecharGravacao, gravarPasso, indiceMaisProximo, indiceRetomada, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
   resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef,
   type AlarmeTipo, type ConditionId, type CuraAcao, type DiarioCanal, type DiarioItem, type EstagiarioAlarmeMsg, type EstagiarioConfig,
   type EstagiarioConfigMsg, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioLigado,
@@ -1123,7 +1123,7 @@ export class EstagiarioSystem {
     if (this.esperarSeguidores(p, s, now)) { s.progressoEm = now; s.caminho = null; return; }
     // Sem luta: o relógio de "luta sem progresso" começa do zero na próxima (o alvo anterior não conta mais).
     if (!this.alvoVivo(p)) { s.alvoId = ""; s.alvoAnterior = ""; s.alvoProgressoEm = now; }
-    if (s.lutando) { s.lutando = false; this.irPara(s, indiceMaisProximo(pts, p), now); }
+    if (s.lutando) { s.lutando = false; this.irPara(s, indiceRetomada(pts, s.indice, p), now); }
     if (s.indice < 0 || s.indice >= n) this.irPara(s, 0, now);
     // Ponto com alguém parado em cima (monstro, outro jogador): ao lado já conta, senão cada volta perdia
     // PONTO_TRAVADO_MS ali. O de portal precisa ser pisado (é ele que leva ao outro lado).
