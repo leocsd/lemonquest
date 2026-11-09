@@ -118,6 +118,37 @@ export async function teleport(page: Page, x: number, y: number): Promise<void> 
   await waitSettled(page);
 }
 
+const sameTile = (a: Tile | null | undefined, b: Tile) => !!a && a.x === b.x && a.y === b.y;
+
+/** A porta em (x,y) está desenhada aberta (comum aberta, ou de level/missão com alguém dentro)? */
+export const doorOpen = (page: Page, door: Tile) => page.evaluate(([x, y]) =>
+  !!((window as any).__lq.doors() as { x: number; y: number; open: boolean }[]).find((d) => d.x === x && d.y === y)?.open, [door.x, door.y] as const);
+
+/**
+ * Porta de sala (ciclo 22): parte de `from` (ao lado da porta), usa a porta e anda até `to`, do outro lado. Porta de
+ * level/missão: o clique põe o jogador dentro dela; porta comum: o clique abre e o próximo clique é no destino (clicar
+ * de novo na porta a fecharia). Reclica até chegar (um clique pode se perder com o ator assentando).
+ */
+export async function passDoor(page: Page, door: Tile, from: Tile, to: Tile): Promise<void> {
+  await teleport(page, from.x, from.y);
+  await expect.poll(async () => {
+    const m = await me(page);
+    if (sameTile(m, to)) return true;
+    const through = sameTile(m, door) || (await doorOpen(page, door));
+    await clickTile(page, through ? to.x : door.x, through ? to.y : door.y);
+    await page.waitForTimeout(800);
+    return sameTile(await me(page), to);
+  }, { timeout: 25_000, intervals: [300], message: `porta ${door.x},${door.y}` }).toBe(true);
+}
+
+/** Clica na porta algumas vezes e confere que o jogador não entrou (porta trancada para ele). */
+export async function doorRefuses(page: Page, door: Tile, from: Tile): Promise<void> {
+  await teleport(page, from.x, from.y);
+  for (let i = 0; i < 3; i++) { await clickTile(page, door.x, door.y); await page.waitForTimeout(700); }
+  const m = await me(page);
+  expect(sameTile(m, from), `continua em ${from.x},${from.y} (está em ${m?.x},${m?.y})`).toBe(true);
+}
+
 /** Jogador parado e câmera parada e centrada nele: coordenadas de tela confiáveis. */
 export async function waitSettled(page: Page): Promise<void> {
   await page.waitForFunction(() => (window as any).__lq.settled(), null, { timeout: 15_000 });

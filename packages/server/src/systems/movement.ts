@@ -169,6 +169,31 @@ export class MovementSystem {
     return this.tryStep(p, m, dir, now);
   }
 
+  /**
+   * Passo para dentro de um tile que a colisão não deixa pisar (porta de level/missão, systems/doors.ts): a vizinho,
+   * fora de passo em curso, com a ocupação e o tempo de um passo normal (o cliente vê um passo, não um teleporte).
+   * Cancela tecla, buffer e caminho de clique.
+   */
+  stepInto(p: PlayerState, x: number, y: number, now: number): StepResult | "busy" {
+    const m = this.movers.get(p.id);
+    if (!m) return "busy";
+    if (now < m.stepEndsAt) return "busy";
+    const dx = x - p.x, dy = y - p.y;
+    const dir = dirFromDelta(dx, dy);
+    if (dir === null || Math.max(Math.abs(dx), Math.abs(dy)) !== 1) return "wall";
+    m.intent = null; m.pending = null; m.owed = null; m.path = null; m.recomputed = false;
+    p.dir = dir;
+    if (this.isOccupied(x, y, p.id)) return "player";
+    const speedPct = p.speedPct ?? 100;
+    if (speedPct <= 0) return "wall";
+    const dur = stepDuration(p.level, dir, this.groundSpeed?.speedAt(p.x, p.y), speedPct);
+    m.stepEndsAt = now + dur;
+    p.x = x;
+    p.y = y;
+    p.stepMs = dur;
+    return "ok";
+  }
+
   // --- internos -------------------------------------------------------------
 
   /** Se o jogador está livre, inicia o próximo passo (buffer > tecla segurada > caminho do clique). */

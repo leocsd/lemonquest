@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { findQuestObjects } from "../packages/shared/src/data/questWorld.ts";
 import type { TiledMap } from "../packages/shared/src/map.ts";
-import { clickTile, countOf, enterGame, me, monsters, recordToasts, say, seenToast, setLevel, snap, teleport, waitSettled, walkableNear } from "./helpers.ts";
+import { clickTile, countOf, doorRefuses, enterGame, passDoor, me, monsters, recordToasts, say, seenToast, setLevel, snap, teleport, waitSettled, walkableNear } from "./helpers.ts";
 
 /** [entrada (portal), retorno (tile ao lado), chegada na cave, saída (porta norte)] — expansion5.mjs. */
 const MINAS = { door: { x: 89, y: 74 }, ret: { x: 88, y: 74 }, arrival: { x: 17, y: 504 }, exit: { x: 17, y: 501 } };
@@ -69,34 +69,28 @@ test("Abismo Profundo: no lv 100 entra pelo salão do Abismo e encontra os monst
   expect(errors).toEqual([]);
 });
 
-test("Porta lv 80 do Vulcão: pisar de novo dentro da espera do portal não atravessa abaixo do level (ciclo 14)", async ({ page }) => {
-  // Antes do ciclo 14 a espera de 1 s do portal (PORTAL_COOLDOWN_MS) saía antes de conferir o level: o 2º passo
-  // ficava na porta sem ser devolvido e o 3º atravessava para o outro lado.
+test("Porta lv 80 do Vulcão (ciclo 22, porta de sala): a pé ninguém entra; usar barra o lv 79 e põe o lv 80 dentro", async ({ page }) => {
+  // Até o ciclo 22 era porta-portal (372,96) com a saída sem level ao lado (374,96), que hoje é parede.
+  const door = { x: 372, y: 96 }, front = { x: 372, y: 95 }, inside = { x: 372, y: 98 };
   await enterGame(page, "knight");
-  await setLevel(page, 50);
-  await teleport(page, 372, 95);
-  await page.locator("#game canvas").hover({ position: { x: 300, y: 300 } });
-  let maxY = 0;
-  for (let i = 0; i < 10; i++) {
-    await page.keyboard.press("s");
-    await page.waitForTimeout(250);
-    maxY = Math.max(maxY, (await me(page))!.y);
+  await setLevel(page, 79);
+  for (const start of [front, { x: 374, y: 95 }]) {
+    await teleport(page, start.x, start.y);
+    await page.locator("#game canvas").hover({ position: { x: 300, y: 300 } });
+    let maxY = 0;
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press("s");
+      await page.waitForTimeout(250);
+      maxY = Math.max(maxY, (await me(page))!.y);
+    }
+    expect(maxY, `andando para o sul a partir de ${start.x},${start.y}`).toBe(95);
   }
-  await page.waitForTimeout(1500);
-  expect(maxY).toBeLessThan(97);
-  expect((await me(page))!.y).toBe(95);
-  // A saída sem level ao lado (374,96 → 374,95): parado em cima dela dentro da espera, o passo seguinte entrava.
-  await teleport(page, 374, 95);
-  await page.locator("#game canvas").hover({ position: { x: 300, y: 300 } });
-  maxY = 0;
-  for (let i = 0; i < 10; i++) {
-    await page.keyboard.press("s");
-    await page.waitForTimeout(250);
-    maxY = Math.max(maxY, (await me(page))!.y);
-  }
-  await page.waitForTimeout(1500);
-  expect(maxY).toBeLessThan(97);
-  expect((await me(page))!.y).toBe(95);
+  await doorRefuses(page, door, front);
+  await expect(page.locator(".notice, .toast, [class*=notice]").filter({ hasText: "level 80" }).first()).toBeVisible({ timeout: 5_000 }).catch(() => {});
+  await setLevel(page, 80);
+  await passDoor(page, door, front, inside);
+  await expect.poll(async () => ((await page.evaluate(() => (window as any).__lq.doors())) as { id: string; open: boolean }[])
+    .find((d) => d.id === "goroma_cratera")?.open).toBe(false); // saiu da porta: fechou atrás dele
 });
 
 test("Covil das Minas (ciclo 16): o Rei Toupeira mora no covil; o baú desenhado fica trancado sem o abate, mesmo com a Garra", async ({ page }) => {

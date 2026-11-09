@@ -93,7 +93,9 @@ describe("portal desenhado: estado e posição", () => {
     const map = JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8")) as TiledMap;
     const idx = buildWorldIndex(map);
     expect(idx.portals.length).toBe(findObjects(map, "portal").length);
-    expect(idx.portals.length).toBeGreaterThanOrEqual(76);
+    // Ciclo 22: 46 portais viraram portas de sala ou saíram (viagem só nos NPCs); ficam as entradas de área.
+    expect(idx.portals.length).toBeGreaterThanOrEqual(30);
+
     const looks = (level: number, done: string[]) => idx.portals.map((p) => portalLook(p, level, st(done)));
     const newbie = looks(1, []);
     idx.portals.forEach((p, i) => {
@@ -101,11 +103,12 @@ describe("portal desenhado: estado e posição", () => {
       if (!portalHasLabel(p)) expect(newbie[i], `${p.x},${p.y}`).toBe("exit");
       else expect(newbie[i], `${p.x},${p.y}`).toBe(door ? "locked" : "open");
     });
-    expect(portalLook(idx.portalAt(372, 96)!, 79, st())).toBe("locked"); // porta lv 80 do Vulcão
-    expect(portalLook(idx.portalAt(372, 96)!, 80, st())).toBe("open");
-    expect(portalLook(idx.portalAt(374, 96)!, 1, st())).toBe("exit"); // a saída do Goroma, ao lado
+    // A porta lv 80 do Vulcão e a saída ao lado viraram porta de sala (ciclo 22): sem vórtice; nenhum portal é "exit".
+    expect(idx.portalAt(372, 96)).toBeUndefined();
     expect(portalLook(idx.portalAt(89, 74)!, 9, st())).toBe("locked"); // boca das Minas, lv 10
-    expect(newbie.filter((l) => l === "exit").length).toBeGreaterThan(0);
+    expect(portalLook(idx.portalAt(89, 74)!, 10, st())).toBe("open");
+    expect(newbie).not.toContain("exit");
+
     expect(idx.portals.some((p) => p.chestGroup)).toBe(false); // nenhuma porta de baú no mapa hoje
     expect(looks(200, Object.keys(QUESTS))).not.toContain("locked");
   });

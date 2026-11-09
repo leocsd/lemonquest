@@ -149,7 +149,10 @@ export interface SortContainerMsg { where: "depot" }
 /** C2S.WorkLink: token pessoal do ClickUp (pk_…). Nunca é guardado nem devolvido. */
 export interface WorkLinkMsg { token: string }
 
-export interface UseQuestObjectMsg { kind: "chest" | "lever"; id: string }
+/** Usar baú, alavanca ou porta (shared/data/doors.ts) ao lado. */
+export interface UseQuestObjectMsg { kind: "chest" | "lever" | "door"; id: string }
+/** S2C.Doors: ids das portas comuns abertas (estado completo: ao entrar, ao reconectar e a cada mudança, para todos). */
+export interface DoorsMsg { open: string[] }
 
 /** Ações de missão. accept/turnIn exigem a janela do NPC que dá a missão aberta (e perto). */
 export type QuestActionMsg =
@@ -303,6 +306,8 @@ export const S2C = {
   ArenaResult: "arenaResult",
   /** Você foi teletransportado (portal). x,y = novo tile. */
   Teleported: "teleported",
+  /** Portas comuns abertas (DoorsMsg). */
+  Doors: "doors",
   /** Anúncio de um administrador (faixa grande no centro da tela, para todos). */
   Announce: "announce",
   /** Estado das missões/recompensas diárias do jogador (QuestsMsg, shared/data/quests.ts): ao entrar e a cada mudança. */

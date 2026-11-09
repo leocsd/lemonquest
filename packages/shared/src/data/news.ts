@@ -12,6 +12,18 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-09a",
+    date: "9 de novembro",
+    title: "Portas de verdade nas salas",
+    items: [
+      "As salas com level (Siderúrgica, Montadora, Piratas, Banuta, Heróis, Cidadela, Goroma, Ninho do Yeti) agora têm porta: clique ao lado da porta para entrar.",
+      "Porta com level ou missão: se você pode passar, entra na porta e sai do outro lado andando; ela fecha atrás de você. Se não pode, ela diz o que falta.",
+      "A porta do tesouro da Aniquilação e a do Boxe dos Troféus abrem e fecham com um clique, para todo mundo. Monstro não passa por porta.",
+      "Os portais de viagem saíram: Oficina, Malha, Estação do Minério e Montadora agora só pelos cocheiros e chefes de estação.",
+      "Rota do Estagiário que passava por um desses portais: grave de novo. Ele sabe usar as portas sozinho.",
+    ],
+  },
+  {
     id: "2026-11-07c",
     date: "7 de novembro",
     title: "Escudo de Mana como antigamente e Estagiário no portal",

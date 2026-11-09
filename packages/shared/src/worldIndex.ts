@@ -7,6 +7,7 @@ import { monsterDef } from "./data/monsters.ts";
 import { NPCS } from "./data/npcs.ts";
 import { questDef } from "./data/quests.ts";
 import { doorRequirement, questChestGroup } from "./data/questWorld.ts";
+import { doorSides, findDoors, type DoorStyle } from "./data/doors.ts";
 
 export interface WorldRect { x0: number; y0: number; x1: number; y1: number }
 export interface WorldZone { name: string; rects: WorldRect[] }
@@ -19,9 +20,13 @@ export interface WorldPortal {
   zone?: string;
   /** "Minas Abandonadas · lv 10+": zona do destino + requisito da porta. */
   label: string;
+  /** Porta de sala (objeto "door", ciclo 22): passa-se usando, não pisando. toX/toY = o primeiro tile do lado de dentro. */
+  door?: true;
 }
+/** Porta de sala (shared/data/doors.ts) no índice: rótulo e "olhar" como os portais, com a zona do lado de dentro. */
+export interface WorldDoor extends WorldPortal { id: string; style: DoorStyle; door: true }
 /** Próximo passo para trocar de região: tile do portal ou do NPC de viagem. */
-export interface WorldHop { x: number; y: number; label: string; kind: "portal" | "travel" }
+export interface WorldHop { x: number; y: number; label: string; kind: "portal" | "travel" | "door" }
 /**
  * O personagem atravessa esta porta? (Mesma regra do rótulo vermelho: level, missão, baú.) Sem filtro, toda porta passa:
  * a rota de um lv 88 não pode passar pela porta lv 100 da Cidadela quando há demônio no Abismo, aberto.
@@ -47,6 +52,9 @@ export interface WorldIndex {
   /** Portais com rótulo calculado ("Minas Abandonadas · lv 10+"): zona do destino + minLevel/missão. */
   portals: WorldPortal[];
   portalAt(x: number, y: number): WorldPortal | undefined;
+  /** Portas de sala, com rótulo (zona de dentro + requisito). */
+  doors: WorldDoor[];
+  doorAt(x: number, y: number): WorldDoor | undefined;
   /** Região conectada a pé que contém o tile (ou a mais perto dele, para NPC/portal); 0 = nenhuma. */
   componentAt(x: number, y: number): number;
   /**
@@ -178,6 +186,23 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
     portalByTile.set(p.y * W + p.x, portal);
   }
 
+  // --- portas de sala (o tile da porta é parede na CollisionGrid: separa componentes e vira aresta, como um portal) ---
+  // `inside` (prop "x,y") é o primeiro tile do lado de dentro, gravado pelo mapgen: dá a zona do rótulo.
+  const doors: WorldDoor[] = [];
+  const doorByTile = new Map<number, WorldDoor>();
+  const doorObjs = new Map(findObjects(map, "door").map((o) => [String(prop(o, "doorId") ?? o.name ?? ""), o]));
+  for (const d of findDoors(map)) {
+    const inside = String(prop(doorObjs.get(d.id)!, "inside") ?? "").split(",").map(Number);
+    const [ix, iy] = inside.length === 2 && inside.every(Number.isFinite) ? inside as [number, number] : [d.x, d.y];
+    const zone = zoneAt(ix, iy);
+    const door: WorldDoor = {
+      id: d.id, style: d.style, door: true, x: d.x, y: d.y, toX: ix, toY: iy, ...d.req, ...(zone ? { zone } : {}),
+      label: portalLabel(zone, d.req),
+    };
+    doors.push(door);
+    doorByTile.set(d.y * W + d.x, door);
+  }
+
   // --- componentes conectados a pé (4-vizinhos bastam: o passo diagonal não corta quina) ---
   // Tile de portal conta como parede: pisar nele teleporta, então ninguém atravessa a pé (porta no meio do corredor).
   const grid = CollisionGrid.fromTiled(map);
@@ -235,6 +260,15 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
     const to = componentAt(p.toX, p.toY);
     if (!to) continue;
     for (const from of compsNear(p.x, p.y)) edges.push({ from, to, x: p.x, y: p.y, toX: p.toX, toY: p.toY, label: p.label, kind: "portal", portal: p });
+  }
+  // Porta: uma aresta de cada lado para o outro (o requisito vale nos dois sentidos, como no servidor).
+  for (const d of doors) {
+    const sides = doorSides(d, (x, y) => grid.isWalkable(x, y));
+    for (const a of sides) for (const b of sides) {
+      if (a === b) continue;
+      const from = compRaw(a.x, a.y), to = compRaw(b.x, b.y);
+      if (from && to && from !== to) edges.push({ from, to, x: d.x, y: d.y, toX: b.x, toY: b.y, label: d.label, kind: "door", portal: d });
+    }
   }
   for (const n of npcs) {
     const def = Object.hasOwn(NPCS, n.id) ? NPCS[n.id] : undefined;
@@ -299,7 +333,7 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
       // do outro lado da porta. Portal comum não conta (a Oficina continua "sem monstros por perto").
       if (!near.length) {
         // Só porta cujo outro lado fica perto (o portão da Estação); o atalho da Oficina para a Montadora leva longe.
-        const doors = (edgesFrom.get(c) ?? []).filter((i) => edges[i]!.kind === "portal" && (edges[i]!.portal?.minLevel ?? 0) > 0
+        const doors = (edgesFrom.get(c) ?? []).filter((i) => edges[i]!.kind !== "travel" && (edges[i]!.portal?.minLevel ?? 0) > 0
           && cheb(edges[i]!.toX, edges[i]!.toY, x, y) <= radius);
         near = inComps(new Set(doors.map((i) => edges[i]!.to)));
       }
@@ -314,6 +348,8 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
     spawnsOf: (id) => spawns.get(id) ?? [],
     npcAt: (id) => npcById.get(id),
     portalAt: (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? undefined : portalByTile.get(y * W + x)),
+    doors,
+    doorAt: (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? undefined : doorByTile.get(y * W + x)),
     componentAt,
     nextHop(from, to, canPass) {
       const r = route(from, to, canPass);

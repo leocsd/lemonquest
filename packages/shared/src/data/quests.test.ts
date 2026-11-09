@@ -12,6 +12,7 @@ import { REQUEST_BANDS } from "./materialRequest.ts";
 import { MONSTERS } from "./monsters.ts";
 import { NPCS, NPC_RANGE } from "./npcs.ts";
 import { BOUNTY_BANDS, QUESTS, QUEST_LIST, bountyLevelMargin, bountyTitle, pluralPt } from "./quests.ts";
+import { findDoors } from "./doors.ts";
 import { CHEST_LOCK_BOSSES, QUEST_CHESTS, QUEST_CHEST_GROUPS, chestLockText, findQuestLevers, findQuestObjects } from "./questWorld.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -22,7 +23,8 @@ const cheb = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.a
 
 /**
  * Tiles que um personagem do level `level` alcança a partir do templo, sem nenhuma missão feita: andando, pelos
- * portais (porta de level só com o level; porta de missão nunca) e pelas viagens dos NPCs (carroça, barco, trem).
+ * portais (porta de level só com o level; porta de missão nunca), pelas portas de sala (a mesma regra) e pelas viagens
+ * dos NPCs (carroça, barco, trem).
  */
 function reachable(level: number): Uint8Array {
   const W = map.width, seen = new Uint8Array(W * map.height);
@@ -32,6 +34,8 @@ function reachable(level: number): Uint8Array {
     const ok = !prop(o, "quest") && Number(prop(o, "minLevel") ?? 0) <= level;
     portals.set(t.y * W + t.x, { x: Number(prop(o, "toX")), y: Number(prop(o, "toY")), ok });
   }
+  const doors = new Map<number, boolean>();
+  for (const d of findDoors(map)) doors.set(d.y * W + d.x, !d.req?.quest && !d.req?.chestGroup && (d.req?.minLevel ?? 0) <= level);
   const travel = new Map<number, { x: number; y: number }[]>();
   for (const o of findObjects(map, "npc")) {
     const dests = NPCS[String(prop(o, "npcId"))]?.travel;
@@ -44,7 +48,7 @@ function reachable(level: number): Uint8Array {
   const queue: number[] = [];
   const visit = (x: number, y: number) => {
     const i = y * W + x;
-    if (!seen[i] && grid.isWalkable(x, y)) { seen[i] = 1; queue.push(i); }
+    if (!seen[i] && (grid.isWalkable(x, y) || doors.get(i))) { seen[i] = 1; queue.push(i); }
   };
   const start = mapSpawn(map, { x: 0, y: 0 });
   visit(start.x, start.y);
@@ -57,7 +61,11 @@ function reachable(level: number): Uint8Array {
       if (portal.ok) visit(portal.x, portal.y);
       continue;
     }
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && canStepTerrain(grid, x, y, dx, dy)) visit(x + dx, y + dy);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      // Porta: só de frente (usar põe o jogador nela; dela sai-se para qualquer lado andável).
+      if (canStepTerrain(grid, x, y, dx, dy) || (!(dx && dy) && doors.get((y + dy) * W + x + dx))) visit(x + dx, y + dy);
+    }
   }
   return seen;
 }

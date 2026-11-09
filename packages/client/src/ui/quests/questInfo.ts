@@ -91,9 +91,11 @@ export function nextStepLines(idx: HuntIndex | null, questId: string, ctx: Quest
  * Banner de level: missões que este level abriu (só as que dá para pegar agora, com quem) e portas, portais e baús de
  * quest liberados. `from` é o maior level já visto na sessão (morrer e subir de novo não repete o aviso).
  */
-export function levelUnlockLines(idx: (HuntIndex & Pick<WorldIndex, "portals">) | null, from: number, level: number, ctx: QuestCtx, limit = 4): string[] {
+export function levelUnlockLines(idx: (HuntIndex & Pick<WorldIndex, "portals"> & Partial<Pick<WorldIndex, "doors">>) | null, from: number, level: number, ctx: QuestCtx, limit = 4): string[] {
   // Porta que também pede missão (ou baú) só conta quando o resto já está cumprido.
-  const portals = (idx?.portals ?? []).filter((p) => !p.chestGroup && (!p.quest || ctx.done.includes(p.quest)));
+  // Bocas de caverna e portas de sala (ciclo 22) com level: "Liberado: Correias e Coqueria · lv 25+".
+  const portals = [...(idx?.portals ?? []), ...(idx?.doors ?? [])].filter((p) => !p.chestGroup && (!p.quest || ctx.done.includes(p.quest)));
+
   const u = unlocksBetween(from, level, portals);
   const quests = u.quests.filter((d) => isOpen(d.id, ctx) && questLockReason(d, ctx) === null)
     .map((d) => `Nova missão: ${d.name} (${npcDef(d.giver)?.name ?? d.giver})`);

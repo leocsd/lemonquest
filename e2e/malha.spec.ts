@@ -1,17 +1,13 @@
 // Malha da Ferrovia (ciclo 11): trem do Chefe da Estação da Vila leva à Estação Central da Malha (200 de ouro) e o
-// Chefe da Estação Central traz de volta; o portal oculto da Vila (99,104) liga à plataforma, o que deixa a Malha
-// alcançável do spawn e por isso quem desloga lá volta lá (e não no spawn); o Painel da Obra abre a aba "Na obra"
+// Chefe da Estação Central traz de volta; a Malha conta como alcançável do spawn pelas viagens (até o ciclo 22 era pelo
+// portal oculto da Vila, 99,104) e por isso quem desloga lá volta lá (e não no spawn); o Painel da Obra abre a aba "Na obra"
 // (sem token do ClickUp no E2E: estado sem notícias); a Cobra Listrada nasce no Pátio de Manobra.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
+import { enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
 
 /** Coordenadas de tools/mapgen/expansion4.mjs e shared/data/npcs.ts (o servidor usa o tile ou o livre mais perto). */
 const MALHA_ARRIVAL = { x: 60, y: 374 };
 const VILLAGE_ARRIVAL = { x: 97, y: 98 };
-const VILLAGE_PORTAL = { x: 99, y: 104 };
-const MALHA_PORTAL_ARRIVAL = { x: 47, y: 373 };
-const MALHA_PORTAL = { x: 44, y: 371 };
-const VILLAGE_RETURN = { x: 98, y: 103 };
 const COBRA_SPAWN = { x: 110, y: 370 };
 /** Retângulo da zona "Estação Central da Malha" (BLOCK4 40,360 + local 3,3, 34×25). */
 const STATION = { x0: 43, y0: 363, x1: 76, y1: 387 };
@@ -44,18 +40,6 @@ async function travel(page: Page, npcId: string, npcName: string, dest: string) 
   await expect(win).toBeHidden();
 }
 
-/** Pisa num portal a partir de um tile livre ao lado (como em oficina.spec), reclicando até chegar. */
-async function stepOnPortal(page: Page, portal: { x: number; y: number }, arrived: () => Promise<boolean>): Promise<void> {
-  const spot = (await walkableNear(page, portal.x, portal.y, 1)).find((t) => !(t.x === portal.x && t.y === portal.y));
-  if (!spot) throw new Error(`nenhum tile livre ao lado do portal ${portal.x},${portal.y}`);
-  await teleport(page, spot.x, spot.y);
-  await expect.poll(async () => {
-    if (await arrived()) return true;
-    await clickTile(page, portal.x, portal.y);
-    await page.waitForTimeout(700);
-    return arrived();
-  }, { timeout: 20_000, intervals: [300], message: `portal ${portal.x},${portal.y}` }).toBe(true);
-}
 
 test("trem da Vila leva à Estação Central da Malha e volta", async ({ page }) => {
   await enterGame(page, "knight");
@@ -98,7 +82,7 @@ test("deslogar na Malha volta na Malha", async ({ page }) => {
   await teleport(page, MALHA_ARRIVAL.x, MALHA_ARRIVAL.y);
   expect(await inStation(page)).toBe(true);
   // Recarrega a aba e espera a janela de reconexão (2 s no E2E) passar: o onLeave salva e tira o personagem do mundo;
-  // o próximo login lê a posição do banco e só a aceita se ela for alcançável do spawn (portal oculto).
+  // o próximo login lê a posição do banco e só a aceita se ela for alcançável do spawn (desde o ciclo 22, pelas viagens).
   await page.reload();
   const btn = page.getByRole("button", { name: `Jogar com ${p.name}` });
   await expect(btn).toBeVisible({ timeout: 30_000 });
@@ -109,16 +93,6 @@ test("deslogar na Malha volta na Malha", async ({ page }) => {
   expect(await inStation(page)).toBe(true);
 });
 
-test("portal oculto liga a Vila à Estação e a volta", async ({ page }) => {
-  await enterGame(page, "paladin");
-  await recordZones(page);
-  await stepOnPortal(page, VILLAGE_PORTAL, () => inStation(page));
-  await expect.poll(() => distTo(page, MALHA_PORTAL_ARRIVAL), { timeout: 10_000 }).toBeLessThanOrEqual(1);
-  await expect.poll(() => zonesSeen(page)).toContain(ZONE);
-
-  await stepOnPortal(page, MALHA_PORTAL, async () => !(await inStation(page)));
-  await expect.poll(() => distTo(page, VILLAGE_RETURN), { timeout: 10_000 }).toBeLessThanOrEqual(1);
-});
 
 test("Painel da Obra mostra a aba Na obra", async ({ page }) => {
   await enterGame(page, "druid");

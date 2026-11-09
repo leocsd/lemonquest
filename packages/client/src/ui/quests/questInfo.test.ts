@@ -90,6 +90,10 @@ describe("próximo passo (cartão de missão concluída e banner de level)", () 
       .toEqual(["Liberado: Minas Abandonadas · lv 10+", `Nova missão: Relatório do Pântano (${captain})`, turno, cracha]);
     // Missão de porta concluída: a porta com level também entra.
     expect(levelUnlockLines(withPortals, 9, 10, { level: 10, done: ["yeti_hunt"] })).toContain("Liberado: Porta com missão · lv 10+");
+    // Porta de sala (ciclo 22) com level também libera.
+    const door = { id: "sid_patio", style: "grade" as const, door: true as const, x: 0, y: 0, toX: 0, toY: 0, minLevel: 10, label: "Pátio de Minério · lv 10+" };
+    expect(levelUnlockLines({ ...withPortals, doors: [door] }, 9, 10, { level: 10, done: [] })).toContain("Liberado: Pátio de Minério · lv 10+");
+
     // Baú de quest (sem índice também).
     expect(levelUnlockLines(null, 64, 65, { level: 65, done: [] })).toContain("Baú de quest: A Quest dos Heróis (Caverna dos Heróis)");
     // Nada novo: morreu e voltou ao mesmo level.

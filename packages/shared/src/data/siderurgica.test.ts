@@ -9,6 +9,7 @@ import { CollisionGrid, canStepTerrain, findObjects, mapSpawn, objectTile, type 
 import { buildWorldIndex } from "../worldIndex.ts";
 import { MONSTERS } from "./monsters.ts";
 import { NPCS, NPC_RANGE } from "./npcs.ts";
+import { doorSides, findDoors } from "./doors.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const map = JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8")) as TiledMap;
@@ -31,14 +32,17 @@ const ZONES: [string, number, number, number, number, boolean, string | undefine
   ["Sala de Controle", 7, 628, 17, 16, true, undefined],
   ["Coração do Forno", 7, 680, 174, 38, false, "100-120"],
 ];
-/** Portas (§1.3, globais): porta com level → chegada; saída sem level → volta. */
+/**
+ * Portas (ciclo 22: tools/mapgen/doors22.mjs; antes, porta-portal com a saída ao lado): porta de level na parede →
+ * zona de dentro; `old` = os portais que ela substituiu (não existem mais).
+ */
 const DOORS = [
-  { minLevel: 10, door: [23, 606], arrive: [23, 609], exit: [24, 608], back: [24, 605], to: "Pátio de Minério" },
-  { minLevel: 25, door: [99, 604], arrive: [102, 604], exit: [101, 605], back: [98, 605], to: "Correias e Coqueria" },
-  { minLevel: 40, door: [152, 626], arrive: [152, 629], exit: [153, 628], back: [153, 625], to: "Alto-Forno" },
-  { minLevel: 60, door: [124, 652], arrive: [121, 652], exit: [122, 653], back: [125, 653], to: "Aciaria" },
-  { minLevel: 80, door: [66, 660], arrive: [63, 660], exit: [64, 661], back: [67, 661], to: "Lingotamento e Laminação" },
-  { minLevel: 100, door: [34, 672], arrive: [34, 686], exit: [34, 683], back: [35, 673], to: "Coração do Forno" },
+  { id: "sid_patio", minLevel: 10, door: [23, 607], to: "Pátio de Minério", old: [[23, 606], [24, 608]] },
+  { id: "sid_correias", minLevel: 25, door: [100, 604], to: "Correias e Coqueria", old: [[99, 604], [101, 605]] },
+  { id: "sid_altoforno", minLevel: 40, door: [152, 627], to: "Alto-Forno", old: [[152, 626], [153, 628]] },
+  { id: "sid_aciaria", minLevel: 60, door: [123, 652], to: "Aciaria", old: [[124, 652], [122, 653]] },
+  { id: "sid_lingotamento", minLevel: 80, door: [65, 660], to: "Lingotamento e Laminação", old: [[66, 660], [64, 661]] },
+  { id: "sid_coracao", minLevel: 100, door: [34, 677], to: "Coração do Forno", old: [[34, 672], [34, 683]] },
 ];
 /** NPCs e placas (§1.4, globais). */
 const NPC_TILES: [string, number, number][] = [
@@ -51,7 +55,8 @@ const BOSSES: [string, string][] = [["contramestre_fuligem", "Correias e Coqueri
 
 /**
  * Tiles que um personagem do level `level` alcança a partir do templo, sem missão feita: andando, pelos portais (porta de
- * level só com o level; porta de missão nunca) e pelas viagens dos NPCs. Cópia da função de quests.test.ts.
+ * level só com o level; porta de missão nunca), pelas portas de sala e pelas viagens dos NPCs. Cópia da função de
+ * quests.test.ts.
  */
 function reachable(level: number): Uint8Array {
   const W = map.width, seen = new Uint8Array(W * map.height);
@@ -61,6 +66,8 @@ function reachable(level: number): Uint8Array {
     const ok = !prop(o, "quest") && Number(prop(o, "minLevel") ?? 0) <= level;
     portals.set(t.y * W + t.x, { x: Number(prop(o, "toX")), y: Number(prop(o, "toY")), ok });
   }
+  const doors = new Map<number, boolean>();
+  for (const d of findDoors(map)) doors.set(d.y * W + d.x, !d.req?.quest && !d.req?.chestGroup && (d.req?.minLevel ?? 0) <= level);
   const travel = new Map<number, { x: number; y: number }[]>();
   for (const o of findObjects(map, "npc")) {
     const dests = NPCS[String(prop(o, "npcId"))]?.travel;
@@ -73,7 +80,7 @@ function reachable(level: number): Uint8Array {
   const queue: number[] = [];
   const visit = (x: number, y: number) => {
     const i = y * W + x;
-    if (!seen[i] && grid.isWalkable(x, y)) { seen[i] = 1; queue.push(i); }
+    if (!seen[i] && (grid.isWalkable(x, y) || doors.get(i))) { seen[i] = 1; queue.push(i); }
   };
   const start = mapSpawn(map, { x: 0, y: 0 });
   visit(start.x, start.y);
@@ -85,7 +92,10 @@ function reachable(level: number): Uint8Array {
       if (portal.ok) visit(portal.x, portal.y);
       continue;
     }
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && canStepTerrain(grid, x, y, dx, dy)) visit(x + dx, y + dy);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      if (canStepTerrain(grid, x, y, dx, dy) || (!(dx && dy) && doors.get((y + dy) * W + x + dx))) visit(x + dx, y + dy);
+    }
   }
   return seen;
 }
@@ -141,31 +151,33 @@ describe("Siderúrgica: geometria", () => {
 });
 
 describe("Siderúrgica: portas e acesso", () => {
-  it("seis portas com level crescente (10 → 100), cada uma com a saída sem level ao lado", () => {
+  it("seis portas de sala com level crescente (10 → 100), na parede entre duas zonas, sem portal nenhum", () => {
+    const doors = findDoors(map);
     let last = 0;
     for (const d of DOORS) {
-      const door = portalAt(d.door[0]!, d.door[1]!), exit = portalAt(d.exit[0]!, d.exit[1]!);
-      expect(prop(door, "minLevel"), `porta ${d.door}`).toBe(d.minLevel);
+      const door = doors.find((x) => x.id === d.id)!;
+      expect(door, d.id).toBeDefined();
+      expect([door.x, door.y]).toEqual(d.door);
+      expect(door.req).toEqual({ minLevel: d.minLevel });
       expect(d.minLevel).toBeGreaterThan(last);
       last = d.minLevel;
-      expect([prop(door, "toX"), prop(door, "toY")]).toEqual(d.arrive);
-      expect([prop(exit, "toX"), prop(exit, "toY")]).toEqual(d.back);
-      expect(prop(exit, "minLevel")).toBeUndefined();
-      expect(prop(exit, "quest")).toBeUndefined();
-      expect(cheb(d.back[0]!, d.back[1]!, d.door[0]!, d.door[1]!)).toBe(1);
-      expect(index.zoneAt(d.arrive[0]!, d.arrive[1]!)).toBe(d.to);
-      for (const p of [d.door, d.arrive, d.exit, d.back]) expect(grid.isWalkable(p[0]!, p[1]!), `${p}`).toBe(true);
+      expect(grid.isWalkable(door.x, door.y), "porta fechada é parede").toBe(false);
+      const sides = doorSides(door, (x, y) => grid.isWalkable(x, y));
+      expect(sides).toHaveLength(2);
+      expect(index.componentAt(sides[0]!.x, sides[0]!.y)).not.toBe(index.componentAt(sides[1]!.x, sides[1]!.y));
+      expect(index.doorAt(door.x, door.y)?.zone).toBe(d.to);
+      for (const [x, y] of d.old) expect(portalAt(x!, y!), `portal antigo ${x},${y}`).toBeUndefined();
     }
-    expect(index.portalAt(99, 604)?.label).toBe("Correias e Coqueria · lv 25+");
-    expect(index.portalAt(34, 672)?.label).toBe("Coração do Forno · lv 100+");
+    expect(index.doorAt(100, 604)?.label).toBe("Correias e Coqueria · lv 25+");
+    expect(index.doorAt(34, 677)?.label).toBe("Coração do Forno · lv 100+");
   });
 
-  it("atalho oculto: casinha de cargas da Malha (lv 10) ↔ Estação do Minério", () => {
-    const ida = portalAt(46, 384), volta = portalAt(8, 591);
-    expect([prop(ida, "toX"), prop(ida, "toY"), prop(ida, "minLevel")]).toEqual([11, 593, 10]);
-    expect([prop(volta, "toX"), prop(volta, "toY"), prop(volta, "minLevel")]).toEqual([46, 385, undefined]);
-    expect(index.zoneAt(11, 593)).toBe("Estação do Minério");
-    expect(grid.isWalkable(46, 385)).toBe(true);
+  it("sem o atalho oculto da Malha: Estação Central ↔ Estação do Minério só pelos chefes de estação", () => {
+    expect(portalAt(46, 384)).toBeUndefined();
+    expect(portalAt(8, 591)).toBeUndefined();
+    expect(NPCS.chefe_estacao_malha!.travel!.map((t) => t.label)).toContain("Estação do Minério");
+    expect(NPCS.chefe_estacao_minerio!.travel!.map((t) => t.label)).toContain("Estação Central da Malha");
+    expect(index.zoneAt(24, 594)).toBe("Estação do Minério");
   });
 
   it("caçável no level da porta, e não um level antes", () => {

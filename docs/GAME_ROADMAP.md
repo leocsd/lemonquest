@@ -13,6 +13,38 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Ciclo 22 (2026-11-09) — portas de sala no lugar dos portais
+
+Pedido do dono: tirar os portais "sem nexo" (entra na sala por um, sai pelo do lado), portas com ação de abrir e fechar
+como no Tibia nas salas e viagem só pelos NPCs. Decisões do dono (2026-11-09): cavar corredor onde a sala fica atrás de
+rocha (exceção ao "0 tiles alterados", `DOOR_RECTS`); porta como no Tibia; manter o portal de saída das salas de
+recompensa; entradas de área separada revistas uma a uma (tabela abaixo).
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 22-1 | 46 portais fora (8 de viagem + 38 das salas), 20 portas (`door`), 58 tiles de corredor, 4 saídas fechadas | ✅ | `diff-world.mjs --removed … --allow …`: 0 tiles fora dos 15 retângulos, 1409/1409 objetos antigos, atlas sem mudança; `doors22.mjs` valida porta na parede com 2 lados, sala só pela porta e alcançável |
+| 22-2 | `DoorSystem` (comum abre/fecha; level/missão = passo para dentro), `MovementSystem.stepInto`, S2C.Doors | ✅ | `doors.test.ts` (servidor), `shared/data/doors.test.ts` |
+| 22-3 | Alcance do login a partir das chegadas de viagem (sem portal para Oficina/Malha/Siderúrgica/Montadora) | ✅ | `hardening.test.ts`; E2E "deslogar na … volta na …" (Malha, Minério, Portaria) |
+| 22-4 | Índice do mundo, guia, banner de level e Estagiário pela porta | ✅ | `worldIndex.test.ts`, `guide.test.ts`, `questInfo.test.ts`, `estagiario.test.ts` (porta de level, comum, trancada, gravação) |
+| 22-5 | Tiles de arte de porta/portal que sobraram nos lugares dos portais de viagem (63,321 Oficina; 44,371 Malha; 8,591 Minério; 46,384 casinha de cargas; 83,332 e 219,776 Montadora): recantos andáveis que parecem porta e não levam a nada | 🧭 | tirar a arte muda tiles (nova exceção) |
+| 22-6 | Túnel da Serra: a boca fica na parede norte da Via Permanente e o túnel ao sul (17 tiles de rocha). Mantido como portal (arco dos dois lados); cavar o túnel de verdade seria a próxima exceção | 🧭 | — |
+| 22-7 | Ninho do Yeti e Sala dos Piratas: o corredor atravessa o vão escuro entre as paredes de rocha como uma faixa de chão (sem borda de penhasco); arte melhor é opcional | ⏳ | conferido no preview |
+
+Entradas de área separada (revistas uma a uma; todas ficam como portal, com o rótulo do destino):
+
+| Entrada | De → para | Por que fica |
+|---|---|---|
+| 128,62 | Pântano Turvo → Cavernas | buraco para baixo; as Cavernas ficam noutro canto do mapa |
+| 106,16 | Ruínas de Kael → Cripta | porta-caveira do mausoléu; cripta subterrânea |
+| 177,60 / 263,76 | Floresta Sombria → Labirinto dos Minotauros / Abismo | bocas de dungeon |
+| 387,42 / 291,10 | Ilha Gelada → Caverna dos Piratas / Caverna do Yeti | bocas de caverna |
+| 344,72 / 315,84 | Selva de Banuta → Templo de Banuta / Caverna dos Heróis | entrada de templo e de caverna |
+| 372,106 | Vulcão de Goroma → Cidadela de Ferumbras | descida para a cidadela |
+| 89,74 · 283,116 · 163,54 · 256,136 | as 4 caves (lv 10/35/60/100) | bocas desenhadas no ciclo 17 |
+| 62,415 | Via Permanente → Túnel da Serra | arco de túnel dos dois lados (ver 22-6) |
+| 79,106 | Vila → Salão de Minijogos | porta da casinha laranja; o Salão é um interior |
+| 209,273 / 270,853 | tesouro da Aniquilação / Boxe dos Troféus → entrada | saída de sala de recompensa (decisão do dono) |
+
 ## Jogos juntos e contra (2026-11-06)
 
 Pedido do dono: "mais coisas para fazermos juntos (como o Coliseu), jogos para jogar juntos e contra, para animar".
@@ -392,7 +424,7 @@ achados e corrigidos).
 | C11-4 | 9 monstros, 10 missões, 14 itens, 9 NPCs, 10 conquistas, evento Apito da Locomotiva | ✅ 2026-10-24 | `monsters`, `items`, `quests`, `questWorld`, `npcs`, `events`, `arena` |
 | C11-5 | NPC "EM-1000" (ciclo 10) neutralizado: código e métrica eram do cliente confidencial | ✅ 2026-10-24 | — |
 | C11-6 | Deploy: token pessoal do ClickUp no `.env` da produção e saída de rede para `api.clickup.com` (não testado daqui) | 🧭 | dono |
-| C11-7 | O portal oculto Vila ↔ Estação leva à Malha de graça e sem filtro de level (o trem cobra 200); aceito: é o caminho de conectividade | 🧭 | revisitar se virar atalho |
+| C11-7 | O portal oculto Vila ↔ Estação leva à Malha de graça e sem filtro de level (o trem cobra 200); aceito: é o caminho de conectividade | ✅ resolvido no ciclo 22 | o portal saiu: só o trem (22-1) |
 | C11-8 | Arte (ideias da frente de mapa): estrada da passagem de nível até o Pátio, emboque do túnel mais escuro, mirante na Serra, valetas e ponte rolante na Oficina, sinais de 3 luzes, locomotiva no Pátio; ocupar os gramados vazios | ⏳ | opcional |
 | C11-9 | Gitea dinâmico (commits/PRs viram eventos) e E2E do Chegou! com API falsa | ⏳ | próximo ciclo |
 
@@ -416,7 +448,7 @@ revisão cruzada independente.
 | C10-3 | 12 conquistas, 6 títulos, eventos Sextou!/Reunião Geral, dicas, Novidades | ✅ 2026-10-23 | `events.test.ts` (shared e server), `achievements.test.ts`, `news.test.ts` |
 | C10-4 | Onda 3: chefe "Murphy, o Corretor" + missão + conquista `boss:murphy`; anexo não-PZ "Sala dos Servidores"; NPCs do dono e dos manuais (item `mensagem_retida` já existe, sem fonte). Feito (2026-11-06; dono: área que já existe, sem sala nova): Murphy lv 44 no leste do Portal de Inspeção (182,385; objeto no fim do mapa, `lateObjects21`), larga a Carta Lacrada; missão "A Lei de Murphy" (Técnico do CLP, lv 42, depois da Tag Perdida; título à Prova de Murphy); conquistas Deu Errado Para Ele e Corretor de Rota. NPCs do dono e dos manuais seguem fora | ✅ 2026-11-06 | `diff-world` 0 tiles (1397/1397 objetos antigos), `monsters.test.ts`, `quests.test.ts` |
 | C10-5 | ClickUp vivo (ex.: "Chegou!" automático quando uma compra é entregue, placar de sprint) | 🧭 | exige token no servidor e decisão do dono |
-| C10-6 | Arte para a porta da Vila (hoje só uma luz marca o portal) e tipo de objeto `sign` (placa legível sem NPC) | ⏳ | opcional |
+| C10-6 | Arte para a porta da Vila (hoje só uma luz marca o portal) e tipo de objeto `sign` (placa legível sem NPC) | ⏳ | o portal da Vila saiu no ciclo 22 (sobra só o `sign`, opcional) |
 
 ## Ciclo 9 (2026-10-22) — auditoria completa do repositório e plano de evolução
 

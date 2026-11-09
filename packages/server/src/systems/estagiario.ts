@@ -6,11 +6,11 @@
 // (sanitização, turno, escolha de cura/ataque/buff/recuo, gravação de rota) estão em shared/estagiario.ts.
 import {
   BUSCA_TILES, COMER_ANTES_MS, DEFAULT_SPELL_RANGE, DIARIO_MAX, DIR_DELTA, Dir, ESPERAR_MAX_MS, ESPERAR_PERTO_TILES, ESPERAR_TILES, PAUSA_MANUAL_MS,
-  POCAO_ALARME_MIN, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, SEGUIR_MAX_TILES, SEGUIR_SUMIU_MS,
+  POCAO_ALARME_MIN, PONTO_TRAVADO_MS, PONTOS_MAX, ROTAS_MAX, S2C, SEGUIR_MAX_TILES, SEGUIR_SUMIU_MS,
   TURNO_AVISO_MS, alarmeLigado, avancarTurno, compactar, configEfetiva, curaEmGrupo, curaEstimada, curasProprias, decidirCura, dirFromDelta,
   ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao, RECUO_MAX_TILES, STAMINA_BAIXA_MS, staminaXpMult,
   fecharGravacao, gravarPasso, indiceMaisProximo, indiceRetomada, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
-  resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef,
+  resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef, doorSides,
   type AlarmeTipo, type ConditionId, type CuraAcao, type DiarioCanal, type DiarioItem, type EstagiarioAlarmeMsg, type EstagiarioConfig,
   type EstagiarioConfigMsg, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioLigado,
   type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao, type NoticeMsg, type PontoRota, type QuickPotionKind, type RegraCura,
@@ -20,7 +20,8 @@ import type { CharacterData } from "../persistence/types.ts";
 import type { PlayerState } from "../state.ts";
 import { cheb, type MonsterManager } from "./monsters.ts";
 import type { MovementSystem } from "./movement.ts";
-import { PATH_MAX_DIST, type Point } from "./pathfinding.ts";
+import type { DoorSystem } from "./doors.ts";
+import { PATH_MAX_DIST, findPath, type Point } from "./pathfinding.ts";
 import { waveTiles } from "./spells.ts";
 
 /** Intervalo do estado periódico com a rota rodando (o cliente mostra o turno restante). */
@@ -33,6 +34,8 @@ const AVISO_TURNO = "A stamina do Estagiário acabou. Ela recarrega com ele para
 const AVISO_PZ = "Saia da zona de proteção para ligar a rota.";
 /** Caminho até o ponto recalculado no máximo a cada 300 ms (= CHASE_REPATH_MS da perseguição): A* a cada tick pesa. */
 const CAMINHO_MS = 300;
+/** Até quantos tiles (Chebyshev) o bot procura uma porta de sala quando não há caminho direto. */
+export const PORTA_BUSCA_TILES = 15;
 /** Monstro largado por não dar para chegar nele (água, cerca): a busca o ignora por este tempo e a rota segue. */
 export const IGNORAR_ALVO_MS = 30_000;
 /** Alarme "atacado" no máximo a cada 10 s (cada golpe do PvP chama o gancho) e "mochila" a cada 60 s (todo abate cheio). */
@@ -94,6 +97,11 @@ export interface EstagiarioOptions {
   sameParty?: (a: string, b: string) => boolean;
   /** Tile de portal de verdade (PortalSystem): só um salto a partir dele vira ponto de portal na gravação. */
   isPortalTile?: (x: number, y: number) => boolean;
+  /**
+   * Portas de sala (ciclo 22): sem caminho até o ponto (ou o colega), o bot procura uma porta perto que leve até lá e a
+   * usa, com o requisito de quem joga (porta trancada para ele = ponto travado, como antes). Ausente = sem portas.
+   */
+  doors?: Pick<DoorSystem, "list" | "doorAt" | "isDoorTile" | "use" | "grid">;
   /** Em combate (deu/levou dano há pouco; CombatSystem.inCombat): os buffs "em combate"/"fora". Ausente = tem alvo monstro. */
   inCombat?: (id: string, now: number) => boolean;
   /** Invocações vivas do jogador (SummonSystem.ownedBy): a regra de invocação espera elas sumirem. Ausente = 0. */
@@ -143,6 +151,8 @@ interface Estado {
   caminho: Point[] | null;
   caminhoEm: number;
   caminhoAlvo: number;
+  /** Porta (tile) que o caminho guardado leva até o lado: ao chegar perto, usa (null = caminho direto). */
+  porta: Point | null;
   /** Menor distância ao ponto atual e quando ela diminuiu pela última vez (ponto travado → pula). */
   melhorDist: number;
   progressoEm: number;
@@ -245,7 +255,7 @@ export class EstagiarioSystem {
     this.st.set(p.id, {
       config, efetiva: configEfetiva(config, p.vocation),
       turno: avancarTurno(saved?.turno, now, false), cura: !!ligado.cura, ataque: !!ligado.ataque, buffs: !!ligado.buffs, rota: null, indice: 0,
-      caminho: null, caminhoEm: 0, caminhoAlvo: -1, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
+      caminho: null, caminhoEm: 0, caminhoAlvo: -1, porta: null, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
       inalcancavelAte: 0, recuandoAte: 0, foraAlcanceAte: 0, semManaBuffAte: 0, motivoEnviado: "", lutando: false,
       alvoId: "", alvoAnterior: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
@@ -661,6 +671,11 @@ export class EstagiarioSystem {
     const antes = g.pontos.length;
     const salto = cheb(p.x, p.y, s.gravPos.x, s.gravPos.y) > 1;
     s.grav = gravarPasso(g, s.gravPos, p, salto ? this.portalDoSalto(p, s.gravPos) : undefined);
+    // Entrou numa porta de sala: a porta vira ponto da rota (é ali que o bot vai usá-la), mesmo no meio de uma reta.
+    const pts = s.grav.pontos, last = pts[pts.length - 1];
+    if (this.o.doors?.isDoorTile(p.x, p.y) && (!last || last.x !== p.x || last.y !== p.y) && pts.length < PONTOS_MAX) {
+      s.grav = { pontos: [...pts, { x: p.x, y: p.y }], dir: null, desdeUltimo: 0 };
+    }
     s.gravPos = { x: p.x, y: p.y };
     if (s.grav.pontos.length !== antes) this.enviarEstado(p, now);
   }
@@ -1218,8 +1233,23 @@ export class EstagiarioSystem {
   private passo(p: PlayerState, s: Estado, alvo: Point, now: number, chave = s.indice): void {
     const mv = this.o.movement;
     if (!mv.isIdle(p, now)) return;
+    // Chegou ao lado da porta escolhida: usa (entra nela) e recalcula dali.
+    const porta = s.porta, doors = this.o.doors;
+    if (porta && doors && !s.caminho?.length && cheb(p.x, p.y, porta.x, porta.y) <= 1 && (p.x !== porta.x || p.y !== porta.y)) {
+      const d = doors.doorAt(porta.x, porta.y);
+      s.porta = null;
+      s.caminho = null;
+      s.caminhoEm = 0;
+      if (d && doors.use(p, d.id)) this.anotar(s, now, "rota", "passando pela porta");
+      return;
+    }
     if (s.caminhoAlvo !== chave || (now - s.caminhoEm >= CAMINHO_MS && !s.caminho?.length)) {
       s.caminho = mv.pathFor(p, { x: alvo.x, y: alvo.y });
+      s.porta = null;
+      if (!s.caminho) {
+        const via = this.viaPorta(p, alvo);
+        if (via) { s.caminho = via.caminho; s.porta = via.porta; }
+      }
       s.caminhoEm = now;
       s.caminhoAlvo = chave;
     }
@@ -1230,6 +1260,39 @@ export class EstagiarioSystem {
     const r = mv.follow(p, dir, now);
     if (r === "ok") s.caminho!.shift();
     else if (r !== "busy") s.caminho = null; // bloqueado: recalcula no próximo tick permitido
+  }
+
+  /**
+   * Sem caminho direto até `alvo`: a porta de sala a até PORTA_BUSCA_TILES que leva mais perto, com o caminho até o
+   * lado de cá dela. Custo = passos até o lado + passos do outro lado até o alvo (o alvo pode ser a própria porta).
+   * O requisito não é conferido aqui: a porta trancada recusa no `use` e o ponto acaba travado, como o portal trancado.
+   */
+  private viaPorta(p: PlayerState, alvo: Point): { caminho: Point[]; porta: Point } | null {
+    const doors = this.o.doors;
+    if (!doors) return null;
+    const grid = doors.grid;
+    const walk = (x: number, y: number) => grid.isWalkable(x, y);
+
+    let best: { caminho: Point[]; porta: Point } | null = null, bestCost = Infinity;
+    for (const d of doors.list) {
+      if (cheb(p.x, p.y, d.x, d.y) > PORTA_BUSCA_TILES) continue;
+      const sides = doorSides(d, walk);
+      const ehAlvo = d.x === alvo.x && d.y === alvo.y;
+      for (const a of sides) {
+        const ate = a.x === p.x && a.y === p.y ? [] : this.o.movement.pathFor(p, a);
+        if (!ate) continue;
+        let resto = 0;
+        if (!ehAlvo) {
+          const b = sides.find((t) => t !== a);
+          const depois = b && findPath(grid, b, alvo);
+          if (!depois) continue;
+          resto = depois.length + 1;
+        }
+        const cost = ate.length + resto;
+        if (cost < bestCost) { bestCost = cost; best = { caminho: ate, porta: { x: d.x, y: d.y } }; }
+      }
+    }
+    return best;
   }
 
   /**
