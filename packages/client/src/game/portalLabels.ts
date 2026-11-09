@@ -16,7 +16,8 @@ export class PortalLabels {
   private paintedFor: { level: number; quests: QuestsMsg | null } | null = null;
 
   constructor(scene: Phaser.Scene, uiLayer: Phaser.GameObjects.Layer, private readonly index: WorldIndex) {
-    for (const p of index.portals) {
+    // Portas de sala (ciclo 22) usam o mesmo rótulo: zona do lado de dentro + requisito.
+    for (const p of [...index.portals, ...index.doors]) {
       if (!portalHasLabel(p)) continue; // saída colada na porta: o rótulo só cobriria o da porta
       const text = scene.add.text(0, 0, p.label, {
         fontFamily: FONT, fontSize: "10px", fontStyle: "bold", color: PORTAL_COLOR, stroke: "#10131c", strokeThickness: 3,
@@ -54,7 +55,7 @@ export class PortalLabels {
 
   /** "Olhar" no tile (x,y), se for portal. */
   lookAt(x: number, y: number, level: number): LookContent | null {
-    const p = this.index.portalAt(x, y);
+    const p = this.index.portalAt(x, y) ?? this.index.doorAt(x, y);
     if (!p) return null;
     const levels = (p.zone ? this.index.zoneLevels(p.zone) : undefined) ?? this.index.levelsNear(p.toX, p.toY);
     return lookPortal(p, level, questStore.get(), levels);

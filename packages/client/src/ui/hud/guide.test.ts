@@ -67,12 +67,16 @@ describe("guia de uma missão pedida (botão Guiar)", () => {
     expect(index.spawnsOf("slime").some((s) => s.x === slime.dest.x && s.y === slime.dest.y)).toBe(true);
     expect(slime.label).toMatch(/^Gosma — .+ \(Floresta Sussurrante\)$/);
 
-    // "Chegou!" começa na Oficina dos Engenhos (região fechada): o destino é a Floresta e a seta aponta a porta da Oficina.
+    // "Chegou!" começa na Oficina dos Engenhos (região fechada): o destino é a Floresta e a seta aponta o cocheiro da
+    // Oficina (desde o ciclo 22 a viagem é só pelos NPCs; o portal da Vila saiu).
     const juliao = index.npcAt("juliao")!;
     const t = guideTarget(input({ level: 6, me: juliao, request: { kind: "quest", id: "chegou" }, quests: qs({ active: [{ id: "chegou", progress: [0, 0, 0] }] }) }))!;
     expect(index.zoneAt(t.dest.x, t.dest.y)).toBe("Floresta Sussurrante");
-    expect(t.hop).toMatchObject({ kind: "portal", label: "Vila de Pedra Clara" });
-    expect(t.label).toBe("Ir à Floresta atrás dos ratos\n→ Vila de Pedra Clara");
+    const coach = index.npcAt("coach_oficina")!;
+    expect(t.hop).toMatchObject({ kind: "travel", x: coach.x, y: coach.y });
+    expect(t.hop!.label).toMatch(/ → Vila de Pedra Clara$/);
+    expect(t.label).toBe(`Ir à Floresta atrás dos ratos\n→ ${t.hop!.label}`);
+
     expect({ x: t.x, y: t.y }).toEqual({ x: t.hop!.x, y: t.hop!.y });
   });
 

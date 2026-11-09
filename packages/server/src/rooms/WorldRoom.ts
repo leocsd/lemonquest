@@ -5,7 +5,7 @@ import {
   type ArenaActionMsg, type AttackMsg, type CastMsg, type ChatSendMsg, type DiscardItemMsg, type ItemInstance, type DropItemMsg, type FeedMsg, type FightModeMsg, type FollowMsg, type JoinOptions,
   type DuelActionMsg, type MoveItemMsg, type MoveMsg, type NoticeMsg, type PartyActionMsg, type NpcInteractMsg, type NpcTradeMsg, type PickupItemMsg, type QuickPotionMsg, type SetOutfitMsg, type SetTitleMsg, type TurnMsg,
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
-  type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
+  type QuestActionMsg, type UseQuestObjectMsg, NPCS, doorBlockReason, doorSides, findDoors, findObjects, findQuestLevers, findQuestObjects, questDef,
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
   npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg, type ExcursionActionMsg, type SocialActionMsg, buildWorldIndex, excursionDestinations, type WorldIndex,
   DEFAULT_LOOT_FILTER, isDefaultLootFilter, sanitizeLootFilter, type LootFilter, type LootFilterMsg, type SetLootFilterMsg,
@@ -16,6 +16,7 @@ import { loadMap, type LoadedMap } from "../world/map.ts";
 import { MovementSystem } from "../systems/movement.ts";
 import { ExplorationSystem } from "../systems/exploration.ts";
 import { PortalSystem } from "../systems/portals.ts";
+import { DoorSystem } from "../systems/doors.ts";
 import { MonsterManager, parseSafeZones, parseSpawns } from "../systems/monsters.ts";
 import { CombatSystem, attackProfile, playerArmor } from "../systems/combat.ts";
 import { RegenSystem } from "../systems/regen.ts";
@@ -136,6 +137,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private movement!: MovementSystem;
   private exploration!: ExplorationSystem;
   private portals!: PortalSystem;
+  private doors!: DoorSystem;
   private monsters!: MonsterManager;
   private combat!: CombatSystem;
   private regen!: RegenSystem;
@@ -251,6 +253,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const send = (id: string, type: string, msg: unknown) => this.clients.getById(id)?.send(type, msg);
     const broadcast = (type: string, msg: unknown) => this.broadcast(type, msg);
     const getPlayer = (id: string) => this.state.players.get(id);
+    // Portas de sala (ciclo 22): monstros, NPCs e missões só existem mais abaixo; os predicados só rodam em jogo.
+    this.doors = new DoorSystem({
+      doors: findDoors(this.map.tiled), grid: this.map.grid, movement: this.movement,
+      occupied: (x, y, selfId) => this.monsters.isMonsterAt(x, y) || this.npcs.isNpcAt(x, y)
+        || [...this.state.players.values()].some((o) => o.id !== selfId && o.hp > 0 && o.x === x && o.y === y),
+      canPass: (p, req) => doorBlockReason(req, p.level, (q) => this.quests.isDone(p.id, q), (g) => this.quests.chestDone(p.id, g), (q) => questDef(q)?.name ?? q),
+      send, broadcast,
+    });
 
     this.party = new PartySystem({ getPlayer, players: () => this.state.players.values(), send });
     this.monsters = new MonsterManager({
@@ -258,7 +268,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       groundSpeed: this.map.groundSpeed,
       spawns: parseSpawns(this.map.tiled),
       safeZones: parseSafeZones(this.map.tiled),
-      isPortalTile: (x, y) => this.portals.isPortalTile(x, y),
+      // Monstro não pisa em portal nem em porta (nem na porta comum aberta: o bicho da sala fica na sala).
+      isPortalTile: (x, y) => this.portals.isPortalTile(x, y) || this.doors.isDoorTile(x, y),
       collection: this.state.monsters,
       players: () => this.state.players.values(),
       getPlayer,
@@ -343,7 +354,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       partyMembers: (p) => this.party.membersOf(p.id), // linha no chat do grupo quando um membro pega raro+ do loot de grupo
       onDropped: (p) => { this.transferred.add(p.id); this.ach?.event(p.id, "drop"); },
       onPickedUp: (p) => { this.transferred.add(p.id); this.ach?.event(p.id, "pickup"); },
-      canHold: (x, y) => this.map.grid.isWalkable(x, y) && !this.npcs.isNpcAt(x, y) && !this.portals.isPortalTile(x, y),
+      canHold: (x, y) => this.map.grid.isWalkable(x, y) && !this.npcs.isNpcAt(x, y) && !this.portals.isPortalTile(x, y) && !this.doors.isDoorTile(x, y),
       seeThrough: (x, y) => this.map.grid.isWalkable(x, y),
     });
     console.log(`[world] itens no chão restaurados: ${this.ground.restore()}`);
@@ -406,7 +417,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       weaponSkillBonus: (p) => this.inventory.stat(p.id, attackSkillOf(p.vocation)),
       dealtMult: (p) => this.dealtMult(p),
       // Investida não para em NPC nem em portal (cair num portal teleportava o cavaleiro sem querer).
-      isBlocked: (x, y) => this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y),
+      isBlocked: (x, y) => this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y) || this.doors.isDoorTile(x, y),
       isAlly: (a, b) => this.party.sameParty(a.id, b.id),
       areaHitsPlayer: (a, b) => !this.pvp.canAttack(a, b) && (b.id === a.targetId || this.pvp.justified(a, b)),
       castBlocked: (p) => !!this.minigames?.inGame(p.id),
@@ -435,6 +446,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       players: () => this.state.players.values(), send,
       sameParty: (a, b) => this.party.sameParty(a, b),
       isPortalTile: (x, y) => this.portals.isPortalTile(x, y),
+      // Porta de sala no caminho: o bot usa a porta (o requisito é o mesmo de quem joga).
+      doors: this.doors,
       // v2: buffs "em combate" pela condição de combate, invocação mantida, comer sozinho, cura em grupo e distância.
       inCombat: (id, now) => this.combat.inCombat(id, now),
       invocacoes: (id) => this.summons.ownedBy(id).length,
@@ -624,7 +637,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     console.log(`[lemonquest] ${this.monsters.size} monstros em ${parseSpawns(this.map.tiled).length} spawns, ${this.npcs.list.length} NPCs`);
 
     // Alcançabilidade a partir do spawn (inclui portais) — valida a posição salva no onJoin.
-    this.reachable = reachableFrom(this.map.grid, this.map.spawn, (x, y) => this.portals.destination(x, y));
+    // Porta conta como passagem (fechada ou não): quem salvou dentro de uma sala com porta continua lá. Desde o ciclo 22
+    // a viagem é só pelos NPCs (sem portal Vila ↔ Oficina/Malha): as chegadas das viagens também são ponto de partida.
+    const grid = this.map.grid;
+    const travelArrivals = Object.values(NPCS).flatMap((n) => n.travel ?? []).map((t) => ({ x: t.x, y: t.y }));
+    this.reachable = reachableFrom(
+      { width: grid.width, height: grid.height, isWalkable: (x, y) => grid.isWalkable(x, y) || this.doors.isDoorTile(x, y) },
+      [this.map.spawn, ...travelArrivals], (x, y) => this.portals.destination(x, y),
+    );
     let nReach = 0;
     for (const v of this.reachable) nReach += v;
     console.log(`[lemonquest] ${nReach} tiles alcançáveis a partir do spawn`);
@@ -772,7 +792,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<NpcTradeMsg>(C2S.NpcTrade, (p, m) => this.npcs.onTrade(p, m));
     this.on<TravelMsg>(C2S.Travel, (p, m) => this.npcs.onTravel(p, m));
     this.on<QuestActionMsg>(C2S.Quest, (p, m) => this.quests.onAction(p, m));
-    this.on<UseQuestObjectMsg>(C2S.UseQuestObject, (p, m) => this.questWorld.onUse(p, m));
+    this.on<UseQuestObjectMsg>(C2S.UseQuestObject, (p, m) => {
+      if (m && typeof m === "object" && m.kind === "door") this.doors.use(p, String(m.id));
+      else this.questWorld.onUse(p, m);
+    });
     this.on<FightModeMsg>(C2S.FightMode, (p, m) => this.fight.onFightMode(p, m));
     this.on<TrainOpenMsg>(C2S.TrainOpen, (p, m) => this.training.onOpen(p, m));
     this.on<TrainOfflineMsg>(C2S.TrainOffline, (p, m, c) => this.startOfflineTraining(p, m, c));
@@ -1064,6 +1087,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.inventory.applyStats(p);
     // Saiu/caiu no meio de uma partida do coliseu: volta na saída do coliseu.
     const start = this.arena.loginPosition(rec.x, rec.y) ?? this.minigames.loginPosition(rec.x, rec.y)
+      ?? this.offDoor(rec.x, rec.y)
       ?? (this.validStart(rec.x, rec.y) ? { x: rec.x!, y: rec.y! } : this.map.spawn);
     p.x = start.x;
     p.y = start.y;
@@ -1099,6 +1123,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (trained) client.send(S2C.TrainingResult, trained);
     const barRebuilt = this.upgradeHotkeys(rec, p.vocation);
     client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
+    this.doors.sendTo(sid);
     client.send(S2C.LootFilter, { filter: this.lootFilterOf(sid) } satisfies LootFilterMsg);
     this.estagiario.load(p, rec.data.estagiario);
     client.send(S2C.EstagiarioEstado, this.estagiario.estado(p));
@@ -1177,6 +1202,13 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     c.leave(CLOSE_TRAINING, "Treinando offline");
   }
 
+  /** Saiu do jogo parado numa porta: volta num dos lados dela, o primeiro livre (null = não estava numa porta). */
+  private offDoor(x: number | null, y: number | null): { x: number; y: number } | null {
+    if (x == null || y == null || !this.doors.isDoorTile(x, y)) return null;
+    const sides = doorSides({ x, y }, (tx, ty) => this.map.grid.isWalkable(tx, ty));
+    return sides.find((t) => this.validStart(t.x, t.y)) ?? null;
+  }
+
   /** A posição salva serve? (andável, alcançável do spawn, sem portal/NPC/monstro). */
   validStart(x: number | null, y: number | null): boolean {
     return isValidStart(x, y, {
@@ -1199,7 +1231,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
 
   /** Tile livre para chegar por portal (andável, sem monstro/NPC/portal/outro jogador). */
   private isFreeTile(x: number, y: number, selfId: string): boolean {
-    if (!this.map.grid.isWalkable(x, y) || this.monsters.isMonsterAt(x, y) || this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y)) return false;
+    if (!this.map.grid.isWalkable(x, y) || this.monsters.isMonsterAt(x, y) || this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y) || this.doors.isDoorTile(x, y)) return false;
     for (const o of this.state.players.values()) if (o.id !== selfId && o.x === x && o.y === y) return false;
     return true;
   }
@@ -1425,6 +1457,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     { const p = this.state.players.get(sid); if (p) { this.race.removePlayer(sid); this.race.sendTo(p); } }
     this.duel.sendState(sid);
     this.minigames.resend(sid);
+    this.doors.sendTo(sid); // porta aberta/fechada durante a queda
     this.challenges.forget(sid); // a próxima passada do tick reenvia o estado dos desafios (ponto no trilho)
     console.log(`[world] ${this.names.get(sid) ?? sid} reconectou`);
   }

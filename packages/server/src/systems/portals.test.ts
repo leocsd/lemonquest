@@ -127,7 +127,9 @@ describe("PortalSystem", () => {
     }
     // portas de quest: requisitos válidos (missão existe; level razoável)
     const doors = objs.filter((o) => sys.requirement(o.x / 16, o.y / 16));
-    expect(doors.length).toBeGreaterThanOrEqual(6);
+    // Ciclo 22: as portas de sala viraram objetos "door"; com requisito sobram as bocas das quatro caves.
+    expect(doors.length).toBeGreaterThanOrEqual(4);
+
     for (const o of doors) {
       const req = sys.requirement(o.x / 16, o.y / 16)!;
       if (req.quest) expect(QUESTS[req.quest], req.quest).toBeDefined();

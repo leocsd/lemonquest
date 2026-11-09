@@ -6,8 +6,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import {
-  MONSTERS, NPCS, TRAVEL_FREE_LEVEL, findObjects, monsterDef, questChestGroup,
-  type TiledMap, type WorldPortal,
+  CollisionGrid, MONSTERS, NPCS, TRAVEL_FREE_LEVEL, doorSides, findObjects, monsterDef, questChestGroup,
+  type TiledMap, type WorldDoor, type WorldPortal,
 } from "../../packages/shared/src/index.ts";
 import {
   ASSETS, creatureIcon, esc, fmt, link, monsterLink, npcIcon, npcLink, questLink, slug, table, up, zoneLink,
@@ -121,7 +121,7 @@ function mapView(img: string, alt: string, b: Box, markers: Marker[], depth: num
 }
 
 const LEGEND = `<ul class="legend">
-<li><span class="mk npc"></span>NPC</li><li><span class="mk portal"></span>Portal</li><li><span class="mk boss"></span>Chefe</li><li><span class="mk spawn"></span>Criaturas (spawn)</li>
+<li><span class="mk npc"></span>NPC</li><li><span class="mk portal"></span>Portal</li><li><span class="mk door"></span>Porta</li><li><span class="mk boss"></span>Chefe</li><li><span class="mk spawn"></span>Criaturas (spawn)</li>
 </ul>`;
 
 /** "lv 10–25" ou "sem monstros". */
@@ -200,6 +200,12 @@ export function renderMap(m: WikiModel): { pages: WikiPage[]; files: WikiFile[] 
     .map((n) => ({ x: n.x, y: n.y, cls: "mk npc", title: NPCS[n.id]?.name ?? n.id, href: `npcs/${slug(n.id)}.html` }));
   const portalMarkers = (zone?: string): Marker[] => m.index.portals.filter((p) => !zone || m.zoneOf(p.x, p.y) === zone)
     .map((p) => ({ x: p.x, y: p.y, cls: "mk portal", title: `Portal → ${p.label}`, ...(p.zone ? { href: `mapa/${slug(p.zone)}.html` } : {}) }));
+  // Portas de sala (ciclo 22): ficam na parede entre a zona de fora (`doorFrom`) e a de dentro (`zone`).
+  const grid = CollisionGrid.fromTiled(map);
+  const doorFrom = (d: WorldDoor): string | undefined => doorSides(d, (x, y) => grid.isWalkable(x, y))
+    .map((t) => m.zoneOf(t.x, t.y)).find((z) => z && z !== d.zone) ?? m.zoneOf(d.x, d.y);
+  const doorMarkers = (zone?: string): Marker[] => m.index.doors.filter((d) => !zone || doorFrom(d) === zone || d.zone === zone)
+    .map((d) => ({ x: d.x, y: d.y, cls: "mk door", title: `Porta → ${d.label}`, ...(d.zone ? { href: `mapa/${slug(d.zone)}.html` } : {}) }));
   const labels: Marker[] = zoneNames.map((name) => ({ ...centroid(name), cls: "zl", title: name, href: `mapa/${slug(name)}.html`, label: name }));
 
   const zoneRows = zoneNames.map((name) => {
@@ -213,7 +219,7 @@ export function renderMap(m: WikiModel): { pages: WikiPage[]; files: WikiFile[] 
   const worldBody = `<h1>Mapa do mundo</h1>
 <p class="lead">O mundo inteiro (${fmt(W)} × ${fmt(H)} tiles), com as cores do minimapa do jogo. Clique num nome para ver a zona: o que nasce lá, NPCs, portais e missões. Passe o mouse nos pontos para ver o que são.</p>
 ${LEGEND}
-${mapView("../mapa.png", "Mapa do mundo", world, [...portalMarkers(), ...npcMarkers(), ...bossSpawns, ...labels], 1, "world")}
+${mapView("../mapa.png", "Mapa do mundo", world, [...portalMarkers(), ...doorMarkers(), ...npcMarkers(), ...bossSpawns, ...labels], 1, "world")}
 <h2>Zonas (${zoneNames.length})</h2>
 ${table(["Zona", "Level", "Tipos de criatura", "NPCs"], zoneRows.map((z) => [
     `${zoneLink(z.name, 1)}${z.pz ? ' <span class="tag pz" title="Zona de proteção: sem combate">PZ</span>' : ""}`,
@@ -249,6 +255,8 @@ ${table(["Zona", "Level", "Tipos de criatura", "NPCs"], zoneRows.map((z) => [
     const npcsHere = m.index.npcs.filter((n) => n.zone === name);
     const portalsOut = m.index.portals.filter((p) => m.zoneOf(p.x, p.y) === name);
     const portalsIn = m.index.portals.filter((p) => p.zone === name && m.zoneOf(p.x, p.y) !== name);
+    const doorsOut = m.index.doors.filter((d) => doorFrom(d) === name && d.zone !== name);
+    const doorsIn = m.index.doors.filter((d) => d.zone === name && doorFrom(d) !== name);
     const lv = m.zoneLevels(name);
     // Sem monstro (vila, estação): a faixa do que há em volta, pela mesma conta do jogo (levelsNear do índice).
     const c = centroid(name);
@@ -264,7 +272,7 @@ ${table(["Zona", "Level", "Tipos de criatura", "NPCs"], zoneRows.map((z) => [
     ].filter(Boolean);
     parts.push(`<p class="facts">${facts.join(" · ")}</p>`);
     parts.push(LEGEND);
-    parts.push(mapView(`${s}.png`, `Mapa de ${name}`, box, [...portalMarkers(name), ...npcMarkers(name), ...spawnMarkers], 1));
+    parts.push(mapView(`${s}.png`, `Mapa de ${name}`, box, [...portalMarkers(name), ...doorMarkers(name), ...npcMarkers(name), ...spawnMarkers], 1));
 
     if (byMonster.size) {
       const rows = [...byMonster].map(([id, e]) => ({ id, def: MONSTERS[id], ...e }))
@@ -305,6 +313,16 @@ ${table(["Zona", "Level", "Tipos de criatura", "NPCs"], zoneRows.map((z) => [
         const from = [...new Set(portalsIn.map((p) => m.zoneOf(p.x, p.y)).filter(Boolean))];
         parts.push(`<p><b>Chega-se também por portal de:</b> ${from.map((z) => zoneLink(z, 1)).join(", ")}.</p>`);
       }
+    }
+
+    if (doorsOut.length || doorsIn.length) {
+      parts.push(`<h2>Portas</h2>`);
+      parts.push(`<p>Use a porta (clique ao lado dela) para passar. Porta com level ou missão só deixa entrar quem cumpre.</p>`);
+      const rows = [
+        ...doorsOut.map((d) => [`${d.x}, ${d.y}`, d.zone ? zoneLink(d.zone, 1) : "—", portalReq(d, 1)]),
+        ...doorsIn.map((d) => { const f = doorFrom(d); return [`${d.x}, ${d.y}`, f ? zoneLink(f, 1) : "—", portalReq(d, 1)]; }),
+      ];
+      parts.push(table(["Porta (tile)", "Leva a", "Requisito"], rows));
     }
 
     const given = npcsHere.flatMap((n) => m.questsOf(n.id)).sort((a, b) => a.minLevel - b.minLevel);

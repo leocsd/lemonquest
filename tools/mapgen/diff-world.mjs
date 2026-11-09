@@ -7,12 +7,16 @@
 // --allow (repetível; retângulo inclusivo em tiles): exceção controlada autorizada pelo dono (ex.: bocas de caverna do
 // ciclo 17, tools/mapgen/entrances14.mjs). Tiles DENTRO desses retângulos podem mudar e são contados por retângulo;
 // qualquer tile FORA deles que mude continua sendo erro. Sem --allow, o comportamento é o de sempre.
+// --removed id,id,... (repetível): objetos antigos que podem ter saído do mapa (portais trocados por portas no ciclo 22,
+// tools/mapgen/doors22.mjs). Com ele os objetos são comparados por id (a lista encolhe); os demais seguem idênticos.
 import fs from 'node:fs';
 
 const args = process.argv.slice(2);
 const allow = [];
 const paths = [];
+const removed = new Set();
 for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--removed') { for (const id of (args[++i] ?? '').split(',').filter(Boolean)) removed.add(Number(id)); continue; }
   if (args[i] !== '--allow') { paths.push(args[i]); continue; }
   const r = (args[++i] ?? '').split(',').map(Number);
   if (r.length !== 4 || r.some((v) => !Number.isInteger(v)) || r[0] > r[2] || r[1] > r[3]) { console.error(`--allow precisa de x0,y0,x1,y1 (inteiros, x0<=x1, y0<=y1): ${args[i]}`); process.exit(2); }
@@ -42,9 +46,17 @@ for (const name of ['ground', 'deco', 'above', 'collision']) {
   }
 }
 const oa = objects(a), ob = objects(b);
-let same = 0;
+let same = 0, gone = 0;
 const objSamples = [];
+const byId = new Map(ob.map((o) => [o.id, o]));
 for (let i = 0; i < oa.length; i++) {
+  if (removed.size) {
+    const o = byId.get(oa[i].id);
+    if (!o && removed.has(oa[i].id)) { same++; gone++; continue; }
+    if (o && JSON.stringify(oa[i]) === JSON.stringify(o)) { same++; continue; }
+    if (objSamples.length < 5) objSamples.push(`#${oa[i].id} ${oa[i].type}/${oa[i].name} @${oa[i].x / 16},${oa[i].y / 16} -> ${o ? 'mudou' : 'ausente (não está em --removed)'}`);
+    continue;
+  }
   if (JSON.stringify(oa[i]) === JSON.stringify(ob[i])) same++;
   else if (objSamples.length < 5) objSamples.push(`#${i} ${oa[i].type}/${oa[i].name} @${oa[i].x / 16},${oa[i].y / 16} -> ${ob[i] ? `${ob[i].type}/${ob[i].name} @${ob[i].x / 16},${ob[i].y / 16}` : 'ausente'}`);
 }
@@ -57,7 +69,7 @@ for (const ta of a.tilesets) {
 }
 const shrank = b.width < a.width || b.height < a.height;
 
-console.log(`tiles alterados${allow.length ? ' fora dos retângulos permitidos' : ''}: ${tiles}; objetos antigos idênticos: ${same}/${oa.length}; objetos novos: ${ob.length - oa.length}; tilesets estáveis: ${tilesets}; ${a.width}x${a.height} -> ${b.width}x${b.height}`);
+console.log(`tiles alterados${allow.length ? ' fora dos retângulos permitidos' : ''}: ${tiles}; objetos antigos idênticos: ${same}/${oa.length}; objetos novos: ${ob.length - oa.length + gone};${removed.size ? ` removidos (permitidos): ${gone}/${removed.size};` : ''} tilesets estáveis: ${tilesets}; ${a.width}x${a.height} -> ${b.width}x${b.height}`);
 allow.forEach(([x0, y0, x1, y1], k) => console.log(`  permitido ${x0},${y0}-${x1},${y1}: ${inside[k].size} de ${(x1 - x0 + 1) * (y1 - y0 + 1)} tiles mudaram`));
 for (const s of samples) console.log('  tile: ' + s);
 for (const s of objSamples) console.log('  objeto: ' + s);

@@ -21,6 +21,7 @@ export * from "./data/arena.ts";
 export * from "./data/outfits.ts";
 export * from "./data/quests.ts";
 export * from "./data/questWorld.ts";
+export * from "./data/doors.ts";
 export * from "./data/questUnlocks.ts";
 export * from "./daynight.ts";
 export * from "./data/achievements.ts";

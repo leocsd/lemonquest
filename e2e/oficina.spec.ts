@@ -1,14 +1,12 @@
-// Oficina dos Engenhos (ciclo 10): portal escondido da Vila (99,79) leva ao corredor da Oficina e a porta de saída
-// (63,321) traz de volta; a Geladeira da Copa vende o Ensopado do Viajante; a carroça do Bastião tem o destino
+// Oficina dos Engenhos (ciclo 10): desde o ciclo 22 não há mais o portal escondido da Vila (99,79): chega-se só pela
+// carroça (viagem só nos NPCs); a Geladeira da Copa vende o Ensopado do Viajante; a carroça do Bastião tem o destino
 // "Oficina dos Engenhos" (100 de ouro); o Rato Cinzento nasce na floresta antiga perto de (47,42).
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitSettled, walkableNear, npcTab } from "./helpers.ts";
+import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, walkableNear, npcTab } from "./helpers.ts";
 
-/** Coordenadas de tools/mapgen/expansion3.mjs (VILLAGE_DOOR, WORKSHOP_ARRIVAL, WORKSHOP_EXIT, VILLAGE_RETURN, WORKSHOP_COACH). */
+/** Coordenadas de tools/mapgen/expansion3.mjs (VILLAGE_DOOR = o antigo portal, VILLAGE_RETURN, WORKSHOP_COACH). */
 const VILLAGE_DOOR = { x: 99, y: 79 };
 const VILLAGE_RETURN = { x: 98, y: 80 };
-const WORKSHOP_ARRIVAL = { x: 65, y: 323 };
-const WORKSHOP_EXIT = { x: 63, y: 321 };
 const WORKSHOP_COACH = { x: 83, y: 330 };
 /** Retângulo do bloco da Oficina, em tiles (x 60..89 × y 312..333). */
 const WORKSHOP = { x0: 60, y0: 312, x1: 89, y1: 333 };
@@ -29,41 +27,14 @@ async function recordZones(page: Page): Promise<void> {
   });
 }
 const zonesSeen = (page: Page) => page.evaluate(() => (window as any).__zones as string[]);
-/** Nome da zona no rodapé do minimapa (fica enquanto o jogador estiver nela). */
-const zoneFooter = (page: Page) => page.locator(".minimap-zone-name").textContent().catch(() => "");
 
-/**
- * Pisa num portal: teleporta para um tile livre ao lado dele (nunca o próprio portal, que é o que se quer testar) e
- * clica no portal até o servidor mover o jogador para o destino. Um clique só pode se perder (o ator ainda assentando),
- * por isso o reclique dentro do `expect.poll`.
- */
-async function stepOnPortal(page: Page, portal: { x: number; y: number }, arrived: () => Promise<boolean>): Promise<void> {
-  const spot = (await walkableNear(page, portal.x, portal.y, 1)).find((t) => !(t.x === portal.x && t.y === portal.y));
-  if (!spot) throw new Error(`nenhum tile livre ao lado do portal ${portal.x},${portal.y}`);
-  await teleport(page, spot.x, spot.y);
-  await expect.poll(async () => {
-    if (await arrived()) return true;
-    await clickTile(page, portal.x, portal.y);
-    await page.waitForTimeout(700);
-    return arrived();
-  }, { timeout: 20_000, intervals: [300], message: `portal ${portal.x},${portal.y}` }).toBe(true);
-}
 
-test("portal da Vila leva à Oficina e a saída traz de volta", async ({ page }) => {
+test("sem portal na Vila (ciclo 22: viagem só pelos NPCs): pisar no antigo tile não leva à Oficina", async ({ page }) => {
   await enterGame(page, "knight");
-  await recordZones(page);
-  // O portal da Vila é um tile de chão sem arte (só a luz marca o lugar): pisar nele é o que teleporta.
-  await stepOnPortal(page, VILLAGE_DOOR, () => inWorkshop(page));
-  await expect.poll(() => distTo(page, WORKSHOP_ARRIVAL), { timeout: 10_000 }).toBeLessThanOrEqual(1);
-  await expect.poll(() => zonesSeen(page)).toContain(ZONE);
-  await expect.poll(() => zoneFooter(page)).toBe(ZONE);
-  await waitSettled(page);
-  await snap(page, "oficina-arrival");
-
-  // Porta de saída na parede norte do corredor: volta para o tile diagonal ao portal da Vila (nunca o próprio portal).
-  await stepOnPortal(page, WORKSHOP_EXIT, async () => !(await inWorkshop(page)));
-  await expect.poll(() => distTo(page, VILLAGE_RETURN), { timeout: 10_000 }).toBeLessThanOrEqual(1);
-  await expect.poll(() => zoneFooter(page)).not.toBe(ZONE);
+  await teleport(page, VILLAGE_RETURN.x, VILLAGE_RETURN.y);
+  for (let i = 0; i < 3; i++) { await clickTile(page, VILLAGE_DOOR.x, VILLAGE_DOOR.y); await page.waitForTimeout(700); }
+  await expect.poll(() => distTo(page, VILLAGE_DOOR), { timeout: 10_000 }).toBe(0);
+  expect(await inWorkshop(page)).toBe(false);
 });
 
 test("Geladeira da Copa abre a loja com o Ensopado do Viajante", async ({ page }) => {

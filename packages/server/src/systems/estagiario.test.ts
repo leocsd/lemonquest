@@ -2,14 +2,16 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BUSCA_TILES, DIARIO_MAX, Dir, ESPERAR_MAX_MS, ESPERAR_TILES, PAUSA_MANUAL_MS, POCAO_ALARME_MIN, RECUO_MAX_TILES, SEGUIR_SUMIU_MS, TURNO_AVISO_MS, STAMINA_BAIXA_MS, PONTO_TRAVADO_MS, ROTAS_MAX, S2C, TICK_MS, TURNO_MAX_MS,
-  estagiarioPadrao,
-  type EstagiarioConfig, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
+  doorBlockReason, estagiarioPadrao,
+  type DoorSpot, type EstagiarioConfig,
+ type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type MonsterDef, type PontoRota, type QuickPotionKind, type SpellGroup,
   type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { CARENCIA_LOGIN_MS, DIARIO_CURA_OFF_MS, DIARIO_ESPERA_MS, EstagiarioSystem } from "./estagiario.ts";
 /** Busca com alvo vivo a cada 400 ms (BUSCA_MS do sistema): um tick de folga. */
 const BUSCA_MS_TESTE = 450;
+import { DoorSystem } from "./doors.ts";
 import { FightModeSystem } from "./fightmode.ts";
 import { MovementSystem } from "./movement.ts";
 import { def, grid, openGrid, player, world } from "./testkit.ts";
@@ -38,6 +40,8 @@ interface SetupOpts {
   grupo?: string[];
   /** Tiles de portal de verdade ("x,y"), para a gravação (PortalSystem.isPortalTile). */
   portalTiles?: string[];
+  /** Portas de sala reais (DoorSystem na grade de andar); o tile da porta precisa estar em `paredes`. */
+  portas?: DoorSpot[];
   /** Ajustes no def do rato (v2: rato que anda e bate, para o recuo). */
   bicho?: Partial<MonsterDef>;
   /** Alcance do ataque básico do jogador (v2: manter distância só acima de 1). */
@@ -132,6 +136,12 @@ function setup(o: SetupOpts = {}) {
   const mv = new MovementSystem(gradeAndar, { now: () => clock });
   mv.setExtraBlocker((x, y) => w.mm.isMonsterAt(x, y));
   mv.addPlayer(p);
+  const portas = o.portas ? new DoorSystem({
+    doors: o.portas, grid: gradeAndar, movement: mv,
+    occupied: (x, y, self) => w.mm.isMonsterAt(x, y) || [...w.players.values()].some((q) => q.id !== self && q.x === x && q.y === y),
+    canPass: (pl, req) => doorBlockReason(req, pl.level, () => false, () => false),
+    send: (to, type, msg) => sent.push({ to, type, msg }), broadcast: () => {}, now: () => clock,
+  }) : undefined;
   // Como no WorldRoom: o ataque automático do jogador (F8) consulta os monstros que o Estagiário largou.
   const real: FightModeSystem | null = o.lutaReal
     ? new FightModeSystem({ movement: mv, monsters: w.mm, attackRange: () => 1, now: () => clock, getPlayer: (id) => w.players.get(id), send: (to, type, msg) => sent.push({ to, type, msg }), ignorado: (pid, mid): boolean => sys.ignorado(pid, mid), botMira: (pid): boolean => sys.mirando(pid) })
@@ -143,6 +153,7 @@ function setup(o: SetupOpts = {}) {
     players: () => w.players.values(), send: (to, type, msg) => sent.push({ to, type, msg }),
     sameParty: (a, b) => (a === "p" && (o.grupo ?? []).includes(b)) || (b === "p" && (o.grupo ?? []).includes(a)),
     isPortalTile: (x, y) => (o.portalTiles ?? []).includes(`${x},${y}`),
+    ...(portas ? { doors: portas } : {}),
     inCombat: () => combate.em ?? !!w.mm.wild(p.targetId),
     invocacoes: () => invoc.n,
     alimentadoMs: () => comida.restante,
@@ -846,7 +857,18 @@ describe("Estagiário: gravação de rota", () => {
     expect(w.sys.estado(w.p).config.rotas).toEqual([{ nome: "Caça dos ratos", pontos }]);
   });
 
+  it("passar por uma porta de sala grava o tile da porta como ponto (é ali que o bot vai usá-la)", () => {
+    const parede = Array.from({ length: 40 }, (_, y) => ({ x: 15, y }));
+    const w = setup({ paredes: parede, portas: [{ id: "porta", x: 15, y: 10, style: "arco" }] });
+    w.sys.onGravar(w.p, { acao: "iniciar" });
+    w.tick();
+    andarAte(w, 17, 10); // reta de (10,10) a (17,10) passando pela porta, sem mudar de direção
+    w.sys.onGravar(w.p, { acao: "parar", nome: "Porta" });
+    expect(w.sys.estado(w.p).config.rotas[0]!.pontos).toContainEqual({ x: 15, y: 10 });
+  });
+
   it("teleporte sem portal (Investida, /tp, viagem de NPC) não vira ponto de portal", () => {
+
     const w = setup({ portalTiles: ["20,20"] });
     w.sys.onGravar(w.p, { acao: "iniciar" });
     w.tick();
@@ -994,7 +1016,39 @@ describe("Estagiário: rodar a rota", () => {
     expect(w.visitados.has("33,30")).toBe(true);
   });
 
+  // Ciclo 22: parede em x = 15 (y 0..39) com uma porta em (15,10); a rota passa de um lado para o outro.
+  const parede = Array.from({ length: 40 }, (_, y) => ({ x: 15, y }));
+  const porta = (req?: { minLevel: number }): DoorSpot => ({ id: "porta", x: 15, y: 10, style: "arco", ...(req ? { req } : {}) });
+
+  it("porta de level no caminho: o bot chega ao lado, usa a porta (o requisito é o dele) e segue do outro lado", () => {
+    const w = setup({ andar: true, paredes: parede, portas: [porta({ minLevel: 20 })], saved: { config: rota([{ x: 10, y: 12 }, { x: 20, y: 8 }]) } });
+    w.sys.onToggle(w.p, { rota: "R" });
+    w.tick(6000);
+    expect(w.visitados.has("15,10")).toBe(true);
+    expect(w.visitados.has("20,8")).toBe(true);
+    // e volta pelo mesmo caminho (circuito)
+    w.visitados.clear();
+    w.tick(6000);
+    expect(w.visitados.has("15,10")).toBe(true);
+    expect(w.visitados.has("10,12")).toBe(true);
+  });
+
+  it("porta comum fechada no caminho: abre, passa; porta acima do level do bot: ponto travado, como portal trancado", () => {
+    const w = setup({ andar: true, paredes: parede, portas: [porta()], saved: { config: rota([{ x: 10, y: 10 }, { x: 20, y: 10 }]) } });
+    w.sys.onToggle(w.p, { rota: "R" });
+    w.tick(6000);
+    expect(w.visitados.has("20,10")).toBe(true);
+
+    const t = setup({ andar: true, paredes: parede, portas: [porta({ minLevel: 50 })], saved: { config: rota([{ x: 10, y: 10 }, { x: 20, y: 10 }, { x: 12, y: 14 }]) } });
+    t.sys.onToggle(t.p, { rota: "R" });
+    t.tick(PONTO_TRAVADO_MS + 3000);
+    expect(t.visitados.has("15,10")).toBe(false);
+    expect(t.indice()).not.toBe(1); // desistiu do ponto do outro lado
+    expect(t.notices().some((n) => /level 50/.test(n))).toBe(true);
+  });
+
   it("ponto inalcançável (fora do mapa, sem caminho): pula para o próximo depois de PONTO_TRAVADO_MS", () => {
+
     const w = setup({ andar: true, saved: { config: rota([{ x: 10, y: 10 }, { x: 500, y: 500 }, { x: 14, y: 10 }]) } });
     w.sys.onToggle(w.p, { rota: "R" });
     w.tick(PONTO_TRAVADO_MS - 500);

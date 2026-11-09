@@ -64,8 +64,10 @@ describe("índice do mundo (mapa real)", () => {
     const minas = idx.portalAt(89, 74)!;
     expect(minas).toMatchObject({ toX: 17, toY: 504, minLevel: 10, label: "Minas Abandonadas · lv 10+" });
     expect(idx.portalAt(17, 501)!.label).toBe("Floresta Sussurrante"); // volta, sem requisito
-    const yeti = idx.portals.find((p) => p.quest)!;
-    expect(yeti.label).toMatch(/ · missão /);
+    // A única porta de missão (Ninho dos Dragões de Gelo) virou porta de sala no ciclo 22: mesmo rótulo.
+    expect(idx.portals.some((p) => p.quest)).toBe(false);
+    const yeti = idx.doors.find((p) => p.quest)!;
+    expect(yeti.label).toBe("Ninho dos Dragões de Gelo · missão O Yeti");
     expect(portalLabel(undefined, undefined)).toBe("Passagem");
     for (const p of idx.portals) {
       expect(idx.componentAt(p.x, p.y), `portal ${p.x},${p.y}`).toBeGreaterThan(0);
@@ -103,7 +105,8 @@ describe("índice do mundo (mapa real)", () => {
     const celeste = idx.npcAt("port_priest")!;
     const heroes = { x: 291, y: 252 };
     expect(Number.isFinite(idx.travelCost(heroes, celeste))).toBe(true);
-    expect(idx.nextHop(heroes, celeste)).toMatchObject({ kind: "portal" });
+    expect(idx.nextHop(heroes, celeste)).toMatchObject({ kind: "door", x: 291, y: 242 });
+
     expect(idx.componentAt(celeste.x, celeste.y)).toBe(idx.componentAt(idx.npcAt("port_trader")!.x, idx.npcAt("port_trader")!.y));
     expect(idx.componentAt(idx.npcAt("frontier_priest")!.x, idx.npcAt("frontier_priest")!.y)).toBe(idx.componentAt(temple.x, temple.y));
   });

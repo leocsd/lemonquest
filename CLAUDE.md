@@ -16,8 +16,11 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
   cliente. Expansão nunca altera tiles antigos (meta "0 tiles alterados"); spawn/NPC novo entra como objeto no fim.
   Área nova cresce para baixo (`expansion3.mjs` … `expansion6.mjs` Siderúrgica, `expansion7.mjs` Montadora, mapa 400×888) e nunca acrescenta tileset; provar com `node tools/mapgen/diff-world.mjs <world-antigo.json>` (e o atlas Lemon com
   `diff-atlas.mjs <lemon-terrain-antigo.png>`: tiles antigos idênticos). Especificações das regiões em `docs/regioes/`.
-  Única exceção autorizada pelo dono: as bocas das 4 caves (`entrances14.mjs`, ciclo 17); provar com
-  `diff-world.mjs <antigo> --allow 87,71,92,75 --allow 282,113,285,116 --allow 162,52,164,55 --allow 254,134,256,138`.
+  Exceções autorizadas pelo dono: as bocas das 4 caves (`entrances14.mjs`, ciclo 17), provadas com
+  `diff-world.mjs <antigo> --allow 87,71,92,75 --allow 282,113,285,116 --allow 162,52,164,55 --allow 254,134,256,138`; e as
+  portas de sala (`doors22.mjs`, ciclo 22: tira 46 portais, cava corredores, fecha 4 saídas), provadas com
+  `--removed <ids que o gerador imprime>` e um `--allow` por retângulo de `DOOR_RECTS`. Sala nova = porta (`door`), não
+  portal; viagem entre regiões = NPC de viagem, não portal; portal só para entrar em área separada (cave, cripta).
 - Testes unitários ao lado do código (`x.ts` + `x.test.ts`, vitest; kits em `systems/testkit.ts` e `m4kit.ts`);
   E2E em `e2e/*.spec.ts` (Playwright, helpers em `e2e/helpers.ts`, sonda `window.__lq` com `?e2e`).
 

@@ -15,6 +15,7 @@ import { expand6 } from './expansion6.mjs';
 import { expand7 } from './expansion7.mjs';
 import { expand8 } from './expansion8.mjs';
 import { drawEntrances14 } from './entrances14.mjs';
+import { placeDoors22 } from './doors22.mjs';
 import { PNG } from 'pngjs';
 
 const SEED = 20260611;
@@ -1114,6 +1115,15 @@ const lateObjects21 = { murphy: { x: 182, y: 385, radius: 3, level: 44, zone: 'P
 // Oitava expansão para baixo: o mapa acima (400×888) fica intacto e o Salão entra nas linhas 912..928 (x 60..100), ligado
 // à Vila pela porta da casinha laranja do sul da praça (só um objeto portal). Sem tileset nem arte nova.
 const { map: world8 } = expand8({ old: world7, ts, S, spawnTile: SPAWN });
+
+// ===================================================================== PORTAS DE SALA (ciclo 22: tools/mapgen/doors22.mjs)
+// Exceção controlada ao "0 tiles alterados" (autorizada pelo dono): tira os portais de viagem e os pares porta-portal das
+// salas, cava os corredores de DOOR_RECTS e põe as portas (objetos "door") no fim. Provar com
+// `diff-world.mjs <antigo> --removed <ids> --allow <DOOR_RECTS> ...` (os ids saem no log abaixo).
+{
+  const { removedIds } = placeDoors22({ map: world8, spawnTile: SPAWN });
+  console.log(`doors22: ids removidos ${removedIds.join(',')}`);
+}
 
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });

@@ -23,6 +23,7 @@ const range = (r: { min: number; max: number }) => (r.min === r.max ? `lv ${r.mi
 
 /** Primeira linha do "olhar": porta que pede missão/baú, passagem que só pede level (9 de 10 portas) ou portal comum. */
 export function portalKind(p: WorldPortal): string {
+  if (p.door) return p.quest || p.chestGroup ? "Porta de missão" : p.minLevel ? `Porta lv ${p.minLevel}+` : "Porta";
   if (p.quest || p.chestGroup) return "Porta de missão";
   if (p.minLevel) return `Passagem lv ${p.minLevel}+`;
   return "Portal";
@@ -33,8 +34,8 @@ const DOOR_EXIT_MAX = 3;
 
 /**
  * O portal ganha rótulo no mapa? Não quando é a saída sem requisito de uma porta, com o destino a até DOOR_EXIT_MAX
- * tiles (Goroma: 374,96 → 374,95, ao lado da porta lv 80 em 372,96): o rótulo roxo cobria o vermelho da porta e não
- * dizia nada que não esteja à vista. O "olhar" continua funcionando nele.
+ * tiles (era o caso da saída do Goroma, 374,96, até o ciclo 22, quando as salas ganharam portas de verdade): o rótulo
+ * roxo cobria o vermelho da porta e não dizia nada que não esteja à vista. O "olhar" continua funcionando nele.
  */
 export function portalHasLabel(p: WorldPortal): boolean {
   if (p.minLevel || p.quest || p.chestGroup) return true;
@@ -48,6 +49,7 @@ export function lookPortal(p: WorldPortal, level: number, quests: QuestState, le
   const lines = [portalKind(p)];
   if (levels) lines.push(`Monstros do outro lado: ${range(levels)}${level < levels.min ? " · perigoso para o seu level" : ""}`);
   if (reason) lines.push(reason);
+  else if (p.door) lines.push(door ? "Você pode passar. Use a porta (clique ao lado dela) para entrar." : "Use a porta (clique ao lado dela) para abrir ou fechar.");
   else lines.push(door ? "Você pode passar. Pise para atravessar." : "Pise para atravessar.");
   return { title: p.label, color: reason ? PORTAL_BLOCKED_COLOR : PORTAL_COLOR, lines };
 }

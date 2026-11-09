@@ -16,6 +16,19 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — Portas de sala no lugar dos portais, ciclo 22 (2026-11-09)
+
+Mapa: `diff-world.mjs` com `--removed` (51 objetos: 46 portais + 5 luzes deles) e 15 `--allow` (`DOOR_RECTS`): 0 tiles
+alterados fora dos retângulos, 1409/1409 objetos antigos idênticos, 20 objetos novos, tilesets estáveis, atlas Lemon sem
+mudança; validações do `doors22.mjs` (porta na parede com 2 lados, sala só pela porta, alcançável do templo, das chegadas
+de viagem ou das alavancas). Typecheck limpo; unitários 166 arquivos, 2049 testes (novos: `shared/data/doors.test.ts`,
+`server/systems/doors.test.ts`, cenários de porta em `estagiario.test.ts` e `hardening.test.ts`; reescritos os de portas
+de `siderurgica`, `montadora`, `worldIndex`, `portalInfo`, `portalSprites`, `guide`, `quests`). E2E: `caves`, `siderurgica`,
+`montadora`, `malha`, `oficina`, `navigation` 32/33 na primeira rodada (o Crash Test falhou no helper novo: clicar de novo
+na porta comum aberta a fechava; `passDoor` agora clica no destino com a porta aberta) e 1/1 depois; `estagiario`,
+`estagiarioGrupo`, `guide`, `travel`, `quests`, `world`, `salao`, `look`, `montadora` 28/28. Capturas conferidas: porta
+em arco nas cavernas e na Montadora, grade na cerca do Pátio de Minério, arco aberto com o jogador dentro.
+
 ## Resultados — Janela do Estagiário v4 (2026-11-06)
 
 Só cliente. Typecheck do cliente; `ui/estagiario/*.test.ts` 36/36. E2E `estagiario.spec.ts` e `estagiarioGrupo.spec.ts`

@@ -1,5 +1,34 @@
 # Changelog
 
+## [Não lançado] — 2026-11-09 · Portas de sala no lugar dos portais (ciclo 22)
+
+Dono: "portal para entrar em uma sala e outro ao lado para sair, sem nexo. Avalie esses portais e retire. Deixe só os
+necessários. Para as salas, portas, aonde eu preciso ter uma ação para abrir e fechar, igual no Tibia. Para viagens, só
+nos NPCs." Dos 78 portais (39 pares), 46 saíram; ficam 32 (entradas de área separada e duas saídas de sala de recompensa).
+- **Portas de sala** (objeto `door`, `shared/data/doors.ts`, `server/systems/doors.ts`): 20 portas, desenhadas pelo
+  cliente com a porta em arco do `TilesetHouse` (fechada/aberta) ou a grade de ferro (cerca do Pátio de Minério). Usar =
+  clicar ao lado (a mesma mensagem de baú e alavanca, `UseQuestObject` com `kind: "door"`). **Porta comum** (tesouro da
+  Aniquilação, Boxe dos Troféus) abre e fecha para todos e não fecha com alguém em cima; monstro nunca passa. **Porta de
+  level/missão** (as outras 18) funciona como no Tibia: quem cumpre o requisito dá um passo para dentro da porta, sai
+  andando para qualquer lado e ela fecha atrás; quem não cumpre recebe o motivo. A porta é parede para a colisão (pelo
+  objeto, na `CollisionGrid`), então ninguém entra a pé nem pelo clique de caminho.
+- **Mapa** (`tools/mapgen/doors22.mjs`, última etapa do gerador): tira os portais de viagem (Vila ↔ Oficina, Vila ↔
+  Estação Central, Estação Central → Estação do Minério, Oficina → Montadora: os NPCs de viagem já faziam esses
+  trajetos) e os pares das salas; nas 9 salas atrás de rocha grossa cava um corredor de 1 tile com o chão da sala (58
+  tiles); fecha na colisão 4 saídas antigas que eram um tile andável no meio da parede (Goroma 374,96, Estamparia 320,769,
+  Funilaria 260,792, Pista 316,838), que sem o portal virariam passagem livre ao lado da porta. Rótulo e "olhar" da porta
+  como os do portal ("Correias e Coqueria · lv 25+"; vermelho se não passa).
+- **Servidor**: posição salva vale se for alcançável do templo **ou de uma chegada de viagem** (sem os portais, quem
+  deslogava na Oficina, Malha, Siderúrgica ou Montadora voltaria no templo); porta conta como passagem. Saiu do jogo
+  parado numa porta: volta num dos lados dela.
+- **Índice do mundo / guia / Estagiário**: a porta vira aresta da rota (`kind: "door"`, com o mesmo filtro de requisito);
+  a seta do guia aponta a porta e, de uma região fechada, o NPC de viagem. O Estagiário grava a porta como ponto da rota
+  e, sem caminho até o ponto (ou o colega seguido), procura uma porta a até 15 tiles que leve até lá, chega ao lado e a
+  usa (porta trancada para ele = ponto travado, como o portal trancado). **Rotas gravadas antes que passavam por um
+  desses portais precisam ser regravadas.**
+- Wiki: marcador e seção "Portas" nas zonas. Banner de level sobe: "Liberado: Correias e Coqueria · lv 25+" também para
+  as portas.
+
 ## [Não lançado] — 2026-11-07 · Estagiário: a rota não pula pontos depois da luta
 
 Dono: "gravei a rota do abissal toda, incluindo portal, e ele sempre pula alguns passos de um ciclo". A gravação estava

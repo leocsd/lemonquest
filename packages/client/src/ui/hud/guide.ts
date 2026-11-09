@@ -180,12 +180,13 @@ function monsterDest(index: WorldIndex, monsterId: string, me: Pt, label: string
   return s ? { x: s.x, y: s.y, label: s.zone ? `${label} — ${s.zone}` : label } : null;
 }
 
-/** Zona de "explorar": o spawn, NPC ou chegada de portal mais perto dentro dela (pontos andáveis); senão, o centro. */
+/** Zona de "explorar": o spawn, NPC ou chegada de portal/porta mais perto dentro dela (pontos andáveis); senão, o centro. */
 function zoneDest(index: WorldIndex, zone: string, me: Pt, label: string, pass?: PortalFilter): GuideDest | null {
   const inZone: Pt[] = [];
   for (const id of Object.keys(MONSTERS)) for (const s of index.spawnsOf(id)) if (s.zone === zone) inZone.push(s);
   for (const n of index.npcs) if (n.zone === zone) inZone.push(n);
-  for (const p of index.portals) if (p.zone === zone) inZone.push({ x: p.toX, y: p.toY });
+  for (const p of [...index.portals, ...index.doors]) if (p.zone === zone) inZone.push({ x: p.toX, y: p.toY });
+
   const best = nearest(index, me, inZone, pass);
   if (best) return { x: best.x, y: best.y, label };
   const r = index.zones.find((z) => z.name === zone)?.rects[0];

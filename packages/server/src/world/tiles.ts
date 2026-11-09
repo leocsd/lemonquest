@@ -6,10 +6,11 @@ export interface Pt { x: number; y: number }
 const STEPS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 
 /**
- * Bitmap (1 byte/tile) dos tiles alcançáveis a pé a partir de `start`, incluindo saltos por portal
- * (`portalDest(x,y)` devolve o destino se (x,y) for um portal). Calculado uma vez no onCreate.
+ * Bitmap (1 byte/tile) dos tiles alcançáveis a pé a partir de `start` (um ou vários pontos: o templo e as chegadas das
+ * viagens de NPC), incluindo saltos por portal (`portalDest(x,y)` devolve o destino se (x,y) for um portal). Calculado
+ * uma vez no onCreate.
  */
-export function reachableFrom(grid: CollisionGrid, start: Pt, portalDest: (x: number, y: number) => Pt | undefined): Uint8Array {
+export function reachableFrom(grid: Pick<CollisionGrid, "width" | "height" | "isWalkable">, start: Pt | readonly Pt[], portalDest: (x: number, y: number) => Pt | undefined): Uint8Array {
   const W = grid.width, H = grid.height;
   const seen = new Uint8Array(W * H);
   const queue = new Int32Array(W * H);
@@ -21,7 +22,7 @@ export function reachableFrom(grid: CollisionGrid, start: Pt, portalDest: (x: nu
     seen[i] = 1;
     queue[tail++] = i;
   };
-  push(start.x, start.y);
+  for (const s of Array.isArray(start) ? start : [start]) push(s.x, s.y);
   while (head < tail) {
     const i = queue[head++]!;
     const x = i % W, y = (i - x) / W;

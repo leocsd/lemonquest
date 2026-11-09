@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { Callbacks, type Room } from "@colyseus/sdk";
 import {
   C2S, DROP_RANGE, EMOTES, MONSTERS, S2C, TILE_SIZE, NPC_RANGE,
-  monsterDisplayName, lineOfSight, type MinigameFxMsg, monsterAbilitySpell, spellDef, spellsFor, type AttackMsg, type LookGroundMsg, type MonsterTelegraphMsg, type CombatEvent, type ChatMessage, type CombatMsg, type EmoteMsg, type FishCastMsg, type ConditionsMsg, type SkillUpMsg, type SpellCastMsg, type SpellDef, type CreatureDiedMsg, type DiedMsg, type Dir, type LevelUpMsg,
+  monsterDisplayName, lineOfSight, type MinigameFxMsg, monsterAbilitySpell, spellDef, spellsFor, type AttackMsg, type LookGroundMsg, type MonsterTelegraphMsg, type CombatEvent, type ChatMessage, type CombatMsg, type DoorsMsg, type EmoteMsg, type FishCastMsg, type ConditionsMsg, type SkillUpMsg, type SpellCastMsg, type SpellDef, type CreatureDiedMsg, type DiedMsg, type Dir, type LevelUpMsg,
   type GroundItemView, type MonsterView, type LootMsg, type MoveMsg, type NpcOpenMsg, type NpcSayMsg, type PickupTo, type PlayerView, type TurnMsg, type WalkToMsg, type XpGainMsg,
 } from "@lemonquest/shared";
 import { session } from "../session.ts";
@@ -25,6 +25,7 @@ import { STATUE_RANGE, StatueIndex } from "../game/statues.ts";
 import { QUEST_OBJECT_RANGE, QuestObjectIndex, useQuestObject } from "../game/questObjects.ts";
 import { ChestLabels } from "../game/chestLabels.ts";
 import { PortalLabels } from "../game/portalLabels.ts";
+import { DoorSprites } from "../game/doors.ts";
 import { PortalSprites, preloadPortalSprites } from "../game/portalSprites.ts";
 import { ensureWorldIndex } from "../game/worldIndex.ts";
 import { drawDrawnChests, preloadDrawnChests } from "../game/drawnChests.ts";
@@ -141,6 +142,7 @@ export class WorldScene extends Phaser.Scene {
   private chestLabels!: ChestLabels;
   private portalLabels!: PortalLabels;
   private portalSprites!: PortalSprites;
+  private doorSprites!: DoorSprites;
   private loot!: LootFx;
   private ground!: GroundItems;
   /** Item do chão clicado de longe: pega ao chegar ao lado (cancelado por movimento manual). */
@@ -277,6 +279,7 @@ export class WorldScene extends Phaser.Scene {
     this.portalLabels = new PortalLabels(this, this.uiLayer, ensureWorldIndex(this.world.tiled));
     this.portalSprites = new PortalSprites(this, this.worldLayer, ensureWorldIndex(this.world.tiled).portals, { quests: questStore.get, reducedMotion });
     drawDrawnChests(this, this.worldLayer, this.questObjs.list);
+    this.doorSprites = new DoorSprites(this, this.worldLayer, this.questObjs.doors, this.world.grid);
     this.loot = new LootFx(this, this.worldLayer, this.uiLayer, this.fx, () => {
       const me = this.actors.get(this.myId);
       return me ? { x: me.bodyX, y: me.bodyY, headY: me.headY } : null;
@@ -386,6 +389,7 @@ export class WorldScene extends Phaser.Scene {
     msg<LootMsg>(S2C.Loot, (m) => this.onLoot(m));
     msg<DiedMsg>(S2C.Died, (m) => this.onDied(m.killerName, m.lostXp, m));
     msg<CreatureDiedMsg>(S2C.CreatureDied, (m) => this.onCreatureDied(m));
+    msg<DoorsMsg>(S2C.Doors, (m) => this.doorSprites.apply(m));
     room.onLeave(() => { if (this.room === room) this.unbindRoom(); });
     this.startPerf(room);
   }
@@ -833,7 +837,7 @@ export class WorldScene extends Phaser.Scene {
     if (nid) return show(lookNpc(nid));
     const qid = this.questObjAtPointer(ptr);
     const q = qid ? this.questObjs.get(qid) : undefined;
-    if (q) return show(lookQuestObject(q.kind, q.id));
+    if (q) return show(q.kind === "door" ? this.portalLabels.lookAt(q.x, q.y, this.myLevel) : lookQuestObject(q.kind, q.id));
     const t = this.pointerTile(ptr);
     if (!t) return;
     const me = this.actors.get(this.myId);
@@ -1092,6 +1096,8 @@ export class WorldScene extends Phaser.Scene {
       guide: () => this.guide?.shown ?? null,
       /** Rótulos de portal na tela ("Minas Abandonadas · lv 10+"), com a cor (vermelho = não passa). */
       portalLabels: () => this.portalLabels?.shown() ?? [],
+      /** Portas de sala e se estão desenhadas abertas. */
+      doors: () => this.doorSprites?.shown() ?? [],
       /** Água (pesca) e quantas boias estão na tela. */
       isWater: (x: number, y: number) => this.world.water.isWater(x, y),
       bobbers: () => this.bobbers?.count ?? 0,
@@ -1155,6 +1161,7 @@ export class WorldScene extends Phaser.Scene {
     this.chestLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height);
     this.portalLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height, this.myLevel);
     this.portalSprites.update(this.cameras.main, this.myLevel, time);
+    this.doorSprites.update((x, y) => { for (const a of this.actors.values()) if (a.tileX === x && a.tileY === y) return true; return false; });
     this.updateGuide(me, dt);
     this.bobbers.update((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.checkPendingNpc();

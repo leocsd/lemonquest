@@ -102,6 +102,12 @@ describe("posição salva / tiles", () => {
     const noPortal = reachableFrom(g, { x: 0, y: 0 }, () => undefined);
     expect(noPortal[2 * 10 + 8]).toBe(0);
   });
+  it("vários pontos de partida (templo + chegadas das viagens de NPC, ciclo 22): o outro lado conta sem portal", () => {
+    const both = reachableFrom(g, [{ x: 0, y: 0 }, { x: 8, y: 3 }], () => undefined);
+    expect(both[0]).toBe(1);
+    expect(both[2 * 10 + 8]).toBe(1);
+    expect(both[0 * 10 + 6]).toBe(0); // a parede continua parede
+  });
   it("isValidStart: parede, fora do mapa, portal, NPC, monstro, inalcançável → false", () => {
     const base = { grid: g, reachable: reach, isPortal: (x: number, y: number) => x === 1 && y === 1, isNpc: (x: number, y: number) => x === 2 && y === 2, isMonster: (x: number, y: number) => x === 3 && y === 3 };
     expect(isValidStart(4, 0, base)).toBe(true);

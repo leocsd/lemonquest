@@ -9,7 +9,8 @@
  *   - Quests de mundo (shared/data/questWorld.ts): "quest_chest" (ponto; prop `chestId`, tile bloqueado; com `drawn=true`
  *     o baú não tem tile: o cliente desenha e CollisionGrid bloqueia pelo objeto) e "quest_lever"
  *     (ponto; props `leverId`, `plates`/`dests`/`spawns` = "x,y;x,y", `room` = "x0,y0,x1,y1"). "portal" com `minLevel`,
- *     `quest` ou `chestGroup` é uma porta de quest: quem não cumpre o requisito volta para o tile de onde veio.
+ *     `quest` ou `chestGroup` tem requisito (bocas das caves): quem não cumpre volta para o tile de onde veio.
+ *   - "door" (ponto; props `doorId`, `style`, requisito opcional): porta de sala que se usa para abrir (data/doors.ts).
  *   - Coliseu: "arena" (RETÂNGULO; props `arenaId` 1..ARENA_COUNT) = área de luta da instância;
  *     "arena_entry" (ponto; prop `arenaId`) = onde o grupo nasce; "arena_spawn" (ponto; prop `arenaId`) = pontos
  *     de spawn de monstros (vários por arena); "arena_exit" (ponto) = para onde volta quem sai (na vila, perto do NPC).
@@ -74,7 +75,19 @@ export class CollisionGrid {
       const t = objectTile(o, map.tilewidth);
       if (t.x >= 0 && t.y >= 0 && t.x < map.width && t.y < map.height) blocked[t.y * map.width + t.x] = 1;
     }
+    // Porta (objeto "door", ciclo 22: shared/data/doors.ts): começa fechada. A porta comum aberta é liberada com
+    // setWalkable; a de level/missão nunca libera (entra-se nela pelo "usar").
+    for (const o of findObjects(map, "door")) {
+      const t = objectTile(o, map.tilewidth);
+      if (t.x >= 0 && t.y >= 0 && t.x < map.width && t.y < map.height) blocked[t.y * map.width + t.x] = 1;
+    }
     return new CollisionGrid(map.width, map.height, blocked);
+  }
+
+  /** Abre/fecha um tile em jogo (só portas comuns: servidor e cliente aplicam o mesmo estado). */
+  setWalkable(x: number, y: number, walkable: boolean): void {
+    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+    this.blocked[y * this.width + x] = walkable ? 0 : 1;
   }
 
   isWalkable(x: number, y: number): boolean {
@@ -255,7 +268,7 @@ export function isNearSpawn(spawn: { x: number; y: number } | null | undefined, 
  * Checa só o terreno para um passo de (x,y) em (dx,dy): o destino precisa ser andável e,
  * em diagonais, os dois vizinhos ortogonais também (sem cortar quina).
  */
-export function canStepTerrain(grid: CollisionGrid, x: number, y: number, dx: number, dy: number): boolean {
+export function canStepTerrain(grid: Pick<CollisionGrid, "isWalkable">, x: number, y: number, dx: number, dy: number): boolean {
   if (!grid.isWalkable(x + dx, y + dy)) return false;
   if (dx !== 0 && dy !== 0) return grid.isWalkable(x + dx, y) && grid.isWalkable(x, y + dy);
   return true;

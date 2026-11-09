@@ -1,21 +1,17 @@
 // Montadora (ciclo 20, docs/regioes/montadora.md §13.2; mapa em tools/mapgen/expansion7.mjs): a cegonha da Vila e o
-// Cocheiro Dito até a Portaria e a volta; o atalho oculto do Pátio de Encomendas da Oficina (lv 10), que deixa a região
-// alcançável a pé (e por isso quem desloga lá volta lá); a porta de level da Estamparia com a saída sem level ao lado; um
+// Cocheiro Dito até a Portaria e a volta (desde o ciclo 22 sem o atalho oculto da Oficina: quem desloga lá volta lá porque
+// o servidor conta as viagens no alcance); a porta de sala da Estamparia (lv 25); um
 // monstro do Pátio; o Crash Test (alavanca, sala, porta dos troféus e baú); o Caminhão de Bobinas entre a Portaria e a
 // Estação do Minério; o posto avançado da Sala de Descanso; e as capturas de cada setor.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
+import { clickTile, enterGame, passDoor, doorRefuses, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
 
 /** Coordenadas globais de expansion7.mjs e shared/data/npcs.ts (o servidor usa o tile ou o livre mais perto). */
 const PORTARIA_ARRIVAL = { x: 232, y: 758 };
 const VILLAGE_ARRIVAL = { x: 97, y: 98 };
 const MINERIO_ARRIVAL = { x: 24, y: 594 };
-const OFICINA_PORTAL = { x: 83, y: 332 }; // recanto do Pátio de Encomendas (lv 10)
-const OFICINA_RETURN = { x: 83, y: 331 };
-const SERVICE_GATE = { x: 219, y: 776 };   // portão de serviço da Portaria → Oficina
-const SHORTCUT_ARRIVAL = { x: 222, y: 774 };
-/** Porta da Estamparia (Pátio → Estamparia, lv 25): vão da parede, chegada, saída sem level, volta. */
-const DOOR = { door: { x: 320, y: 766 }, arrive: { x: 323, y: 766 }, exit: { x: 320, y: 769 }, back: { x: 318, y: 769 } };
+/** Porta da Estamparia (Pátio → Estamparia, lv 25; porta de sala desde o ciclo 22): a porta e os tiles dos dois lados. */
+const DOOR = { door: { x: 320, y: 766 }, front: { x: 319, y: 766 }, inside: { x: 321, y: 766 } };
 /** Retângulo da zona "Portaria da Montadora" (BLOCK7 216,746 + local 3,3, 28×30). */
 const PORTARIA = { x0: 219, y0: 749, x1: 246, y1: 778 };
 /** Crash Test: alavanca, as duas placas da ponta (quem puxa fica na do lado da alavanca), destinos dessas placas, sala. */
@@ -41,19 +37,6 @@ async function travel(page: Page, npcId: string, npcName: string, dest: string, 
   await expect(win).toBeHidden();
 }
 
-/** Pisa num portal a partir de um tile livre ao lado (como em siderurgica.spec), reclicando até chegar. */
-async function stepOnPortal(page: Page, portal: { x: number; y: number }, arrived: () => Promise<boolean>, from?: { x: number; y: number }): Promise<void> {
-  const spot = from ?? (await walkableNear(page, portal.x, portal.y, 1)).find((t) => !(t.x === portal.x && t.y === portal.y));
-  if (!spot) throw new Error(`nenhum tile livre ao lado do portal ${portal.x},${portal.y}`);
-  await teleport(page, spot.x, spot.y);
-  await page.waitForTimeout(1100); // espera do portal (PORTAL_COOLDOWN_MS) depois de um teleporte para perto dele
-  await expect.poll(async () => {
-    if (await arrived()) return true;
-    await clickTile(page, portal.x, portal.y);
-    await page.waitForTimeout(700);
-    return arrived();
-  }, { timeout: 20_000, intervals: [300], message: `portal ${portal.x},${portal.y}` }).toBe(true);
-}
 
 /** Teleporta para um tile andável perto de (x,y). */
 async function goNear(page: Page, x: number, y: number, r = 3) {
@@ -88,29 +71,14 @@ test("Cocheiro Dito leva da Oficina à Portaria da Montadora por 200", async ({ 
   await expect.poll(() => gold(page)).toBe(0);
 });
 
-test("atalho oculto: o recanto da Oficina barra o lv 9; no lv 10 leva ao portão de serviço e o portão volta", async ({ page }) => {
-  await enterGame(page, "druid");
-  await setLevel(page, 9);
-  await teleport(page, OFICINA_RETURN.x, OFICINA_RETURN.y);
-  await page.waitForTimeout(1100);
-  for (let i = 0; i < 3; i++) { await clickTile(page, OFICINA_PORTAL.x, OFICINA_PORTAL.y); await page.waitForTimeout(700); }
-  expect((await me(page))!.y).toBeLessThan(500); // continua na Oficina
 
-  await setLevel(page, 10);
-  await stepOnPortal(page, OFICINA_PORTAL, () => inPortaria(page), OFICINA_RETURN);
-  await expect.poll(() => distTo(page, SHORTCUT_ARRIVAL), { timeout: 10_000 }).toBeLessThanOrEqual(1);
-
-  await stepOnPortal(page, SERVICE_GATE, async () => (await me(page))!.y < 500);
-  await expect.poll(() => distTo(page, OFICINA_RETURN), { timeout: 10_000 }).toBeLessThanOrEqual(1);
-});
-
-test("deslogar na Portaria volta na Portaria (o atalho deixa a região alcançável do templo)", async ({ page }) => {
+test("deslogar na Portaria volta na Portaria (a viagem deixa a região alcançável do templo)", async ({ page }) => {
   const p = await enterGame(page, "sorcerer");
   await setLevel(page, 30);
   await teleport(page, PORTARIA_ARRIVAL.x, PORTARIA_ARRIVAL.y);
   expect(await inPortaria(page)).toBe(true);
   // Recarrega e espera a janela de reconexão (2 s no E2E): o próximo login só aceita a posição salva se ela for
-  // alcançável a pé do templo (pelo portal do Pátio de Encomendas).
+  // alcançável do templo (desde o ciclo 22, pelas viagens dos NPCs).
   await page.reload();
   const btn = page.getByRole("button", { name: `Jogar com ${p.name}` });
   await expect(btn).toBeVisible({ timeout: 30_000 });
@@ -121,24 +89,20 @@ test("deslogar na Portaria volta na Portaria (o atalho deixa a região alcançá
   expect(await inPortaria(page)).toBe(true);
 });
 
-test("porta da Estamparia: barra o lv 24, abre no lv 25; a saída sem level devolve ao Pátio", async ({ page }) => {
-  const front = { x: DOOR.door.x - 1, y: DOOR.door.y }; // tile do Pátio encostado no vão
+test("porta da Estamparia (porta de sala): barra o lv 24, deixa o lv 25 entrar e sair; a antiga saída é parede", async ({ page }) => {
   await enterGame(page, "knight");
   await setLevel(page, 24);
-  await teleport(page, front.x, front.y);
-  await page.waitForTimeout(1100);
-  for (let i = 0; i < 3; i++) { await clickTile(page, DOOR.door.x, DOOR.door.y); await page.waitForTimeout(700); }
-  expect((await me(page))!.x).toBeLessThan(DOOR.door.x); // continua no Pátio
+  await doorRefuses(page, DOOR.door, DOOR.front);
 
   await setLevel(page, 25);
-  await stepOnPortal(page, DOOR.door, async () => (await me(page))!.x > DOOR.door.x, front);
-  await expect.poll(() => distTo(page, DOOR.arrive), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+  await passDoor(page, DOOR.door, DOOR.front, DOOR.inside);
   await expect.poll(() => zoneFooter(page)).toBe("Estamparia");
-
-  await setLevel(page, 20);
-  await stepOnPortal(page, DOOR.exit, async () => (await me(page))!.x < DOOR.door.x, { x: DOOR.exit.x + 1, y: DOOR.exit.y });
-  await expect.poll(() => distTo(page, DOOR.back), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+  await passDoor(page, DOOR.door, DOOR.inside, DOOR.front);
   await expect.poll(() => zoneFooter(page)).toBe("Pátio de Carros");
+  // A saída sem level de antes (320,769) virou parede: clicar do lado da Estamparia não leva ao Pátio.
+  await teleport(page, 321, 769);
+  for (let i = 0; i < 3; i++) { await clickTile(page, 319, 769); await page.waitForTimeout(700); }
+  expect((await me(page))!.x).toBeGreaterThan(320);
 });
 
 test("Calota Rolante nasce no Pátio de Carros", async ({ page }) => {
@@ -172,7 +136,7 @@ test("Crash Test: dois nas placas, a alavanca leva os dois para a sala com 3 mon
     await expect.poll(() => zoneFooter(a)).toBe("Pista do Crash Test");
 
     // a porta da parede de impacto leva ao Boxe dos Troféus; o baú do cavaleiro dá o Anel do Para-Choque
-    await stepOnPortal(a, ARENA_DOOR, async () => (await me(a))!.x > ARENA_DOOR.x, { x: ARENA_DOOR.x - 1, y: ARENA_DOOR.y });
+    await passDoor(a, ARENA_DOOR, { x: ARENA_DOOR.x - 1, y: ARENA_DOOR.y }, { x: 266, y: 858 }); // porta comum: abre e passa
     await expect.poll(() => zoneFooter(a)).toBe("Boxe dos Troféus");
     await teleport(a, KNIGHT_CHEST.x - 1, KNIGHT_CHEST.y);
     await expect.poll(async () => {

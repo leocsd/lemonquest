@@ -10,7 +10,7 @@ const ABOVE_LAYERS = new Set(["above"]);
 /** Camadas lógicas que não são desenhadas. */
 const HIDDEN_LAYERS = new Set(["collision"]);
 
-const tilesetTexKey = (name: string) => `tileset:${name}`;
+export const tilesetTexKey = (name: string) => `tileset:${name}`;
 /** Cópia do mapa só com as camadas desenhadas, entregue ao Phaser (ver buildWorldMap). */
 const DRAWN_KEY = "world:drawn";
 /** Tile de vazio do gerador (TilesetHole, id local 12: sólido #141b1b) e a cor que o substitui no fundo da cena. */
