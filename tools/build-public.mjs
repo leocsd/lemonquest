@@ -70,6 +70,9 @@ export function buildPublic() {
   copy("icons", (src) => !/preview/i.test(basename(src)));
   copy("tiles", (src) => !/preview/i.test(basename(src))); // tileset gerado pelo mapgen (lemon-terrain.png)
   copy("addons", (src) => !/preview/i.test(basename(src)));
+  // _source/ guarda a folha de arte de origem (tools/mounts/generate.mjs); o cliente só precisa do resultado.
+  const mountsSource = join(assets, "mounts", "_source");
+  copy("mounts", (src) => !/preview/i.test(basename(src)) && src !== mountsSource && !src.startsWith(mountsSource + sep));
   copy("monsters", (src) => !/preview/i.test(basename(src))); // variações recoloridas (tools/monsters/recolor.mjs)
   copy("favicon", (src) => !/preview/i.test(basename(src))); // favicons + manifest.webmanifest
   // Só o mapa; os previews .png ficam de fora.

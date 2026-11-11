@@ -2,7 +2,7 @@
 import type { ItemDef, NpcDef } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { FoodSystem } from "./food.ts";
-import { InventorySystem } from "./inventory.ts";
+import { InventorySystem, type InventoryOptions } from "./inventory.ts";
 import { player } from "./testkit.ts";
 
 const icon = { url: "x.png" };
@@ -17,6 +17,7 @@ export const ITEMS_FX: Record<string, ItemDef> = {
   hp_pot_big: { id: "hp_pot_big", name: "Poção de Vida Média", kind: "potion", stackable: true, value: 120, level: 15, use: { heal: 200, cooldownMs: 1000 }, icon },
   hp_pot_huge: { id: "hp_pot_huge", name: "Poção de Vida Grande", kind: "potion", stackable: true, value: 300, level: 30, use: { heal: 450, cooldownMs: 1000 }, icon },
   mana_pot_big: { id: "mana_pot_big", name: "Poção de Mana Média", kind: "potion", stackable: true, value: 130, level: 15, use: { mana: 300, cooldownMs: 1000 }, icon },
+  train_wand: { id: "train_wand", name: "Varinha de Treino", kind: "potion", stackable: true, value: 200, use: { trainBoost: { skill: "melee", pct: 50, hours: 1 }, cooldownMs: 0 }, icon },
   ham: { id: "ham", name: "Presunto de Dragão", kind: "food", stackable: true, value: 150, level: 30, use: { food: { hpPerTick: 12, manaPerTick: 4, durationMs: 600_000 }, cooldownMs: 1000 }, icon },
   bread: { id: "bread", name: "Pão", kind: "food", stackable: true, value: 5, use: { food: { hpPerTick: 1, manaPerTick: 1, durationMs: 600_000 }, cooldownMs: 1000 }, icon },
   meat: { id: "meat", name: "Carne Assada", kind: "food", stackable: true, value: 12, use: { food: { hpPerTick: 3, manaPerTick: 0, durationMs: 240_000 }, cooldownMs: 1000 }, icon },
@@ -69,7 +70,7 @@ export const NPCS_FX: Record<string, NpcDef> = {
 };
 export const npcsFx = (id: string) => NPCS_FX[id];
 
-export function invWorld(o: { depotOpen?: (id: string) => boolean } = {}) {
+export function invWorld(o: { depotOpen?: (id: string) => boolean; applyTrainBoost?: InventoryOptions["applyTrainBoost"] } = {}) {
   let clock = 100_000;
   const sent: { to: string; type: string; msg: any }[] = [];
   const events: any[] = [];
@@ -81,7 +82,7 @@ export function invWorld(o: { depotOpen?: (id: string) => boolean } = {}) {
   const inv = new InventorySystem({
     eat: (p, f, now) => food.eat(p, f, now),
     send: (to, type, msg) => sent.push({ to, type, msg: structuredClone(msg) }),
-    defs: itemsFx, now: () => clock, depotOpen: o.depotOpen,
+    defs: itemsFx, now: () => clock, depotOpen: o.depotOpen, applyTrainBoost: o.applyTrainBoost,
     heal: (p, n) => { const h = Math.min(p.maxHp - p.hp, n); p.hp += h; events.push({ kind: "heal", amount: h }); },
     restoreMana: (p, n) => { const h = Math.min(p.maxMana - p.mana, n); p.mana += h; events.push({ kind: "mana", amount: h, sourceId: p.id, targetId: p.id }); },
   });

@@ -182,6 +182,8 @@ export interface InventoryOptions {
   onStatsChanged?: (p: PlayerState) => void;
   /** Baú (use.chest): o item já foi consumido; sorteia e entrega a recompensa (systems/quests.ts). */
   openChest?: (p: PlayerState, defId: string) => void;
+  /** Varinha de Treino (use.trainBoost): aplica (ou renova) a condição de +% de tentativas por N horas. */
+  applyTrainBoost?: (p: PlayerState, boost: NonNullable<NonNullable<ItemDef["use"]>["trainBoost"]>, now: number) => void;
   /** Ouro recebido (conquistas, telemetria). */
   onGold?: (p: PlayerState, n: number) => void;
   /** Ouro gasto com sucesso (telemetria). */
@@ -752,6 +754,14 @@ export class InventorySystem {
       if (it.count <= 0) inv.backpack[index] = null;
       this.dirty.add(p.id);
       this.o.openChest(p, it.defId);
+      return;
+    }
+    if (use.trainBoost) {
+      if (!this.o.applyTrainBoost) return this.warn(p, MSG.notUsable);
+      this.o.applyTrainBoost(p, use.trainBoost, now);
+      it.count -= 1;
+      if (it.count <= 0) inv.backpack[index] = null;
+      this.dirty.add(p.id);
       return;
     }
     if (use.food) {

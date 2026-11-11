@@ -33,7 +33,7 @@ import { PixelCamera } from "../game/pixelCamera.ts";
 import { Predictor } from "../game/predictor.ts";
 import { sfx, type SfxName } from "../game/sfx.ts";
 import { SpellEffects } from "../game/spellFx.ts";
-import { ADDON_SHEET_LIST, ALL_SHEETS, outfitLook } from "../game/sprites.ts";
+import { ADDON_SHEET_LIST, ALL_SHEETS, MOUNT_RIDER_RISE, MOUNT_SHEET_LIST, mountLayer, outfitLook } from "../game/sprites.ts";
 import { closeCtxMenu, openCtxMenu } from "../ui/outfit/outfit.ts";
 import { openPlayerMenu, openSelfMenu } from "../ui/social/playerMenu.ts";
 import { lookCreature, lookNpc, lookPlayer, lookQuestObject, type LookContent } from "../game/lookInfo.ts";
@@ -167,7 +167,7 @@ export class WorldScene extends Phaser.Scene {
   preload() {
     this.trackLoading();
     preloadWorldMap(this);
-    for (const s of [...ALL_SHEETS, ...ADDON_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()]) {
+    for (const s of [...ALL_SHEETS, ...ADDON_SHEET_LIST, ...MOUNT_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()]) {
       this.load.spritesheet(s.key, `${import.meta.env.BASE_URL}${s.url}`, { frameWidth: s.frameWidth, frameHeight: s.frameHeight });
     }
     CombatFx.preload(this);
@@ -177,7 +177,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Alimenta a tela de carregamento com o progresso REAL do loader (mapa, tilesets, sprites, efeitos). */
   private trackLoading() {
-    const sheetKeys = new Set([...ALL_SHEETS, ...ADDON_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()].map((s) => s.key));
+    const sheetKeys = new Set([...ALL_SHEETS, ...ADDON_SHEET_LIST, ...MOUNT_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets()].map((s) => s.key));
     const labelFor = (key: string) =>
       key === MAP_KEY || key.startsWith("tileset:") ? "Carregando mapa…" : sheetKeys.has(key) ? "Carregando personagens…" : "Carregando efeitos…";
     this.load.on(Phaser.Loader.Events.PROGRESS, (v: number) => loading.report("files", v));
@@ -191,7 +191,7 @@ export class WorldScene extends Phaser.Scene {
 
   create() {
     createFxTextures(this);
-    createCharacterAnims(this, [...ALL_SHEETS, ...allCreatureSheets(), ...allNpcSheets().filter((s) => this.textures.exists(s.key))]);
+    createCharacterAnims(this, [...ALL_SHEETS, ...MOUNT_SHEET_LIST, ...allCreatureSheets(), ...allNpcSheets().filter((s) => this.textures.exists(s.key))]);
     CombatFx.createAnims(this);
     LootFx.createAnims(this);
     // Fonte pixel dos números flutuantes (a CSS é carregada pelo styles.css; garante antes do 1º uso).
@@ -408,11 +408,19 @@ export class WorldScene extends Phaser.Scene {
     return { scene: this, worldLayer: this.worldLayer, uiLayer: this.uiLayer, snap: this.pcam.snap, onStepStart: (x, y) => this.footstep(x, y) };
   }
 
+  /** Visual do jogador com a montaria (se houver) na frente da lista de overlays (mais atrás de tudo). */
+  private lookWithMount(p: PlayerView) {
+    const look = outfitLook(p.outfit, p.addons, p.vocation, p.tone);
+    const mount = mountLayer(p.mount);
+    if (mount) { look.addons = [mount, ...(look.addons ?? [])]; look.riderRise = MOUNT_RIDER_RISE; }
+    return look;
+  }
+
   addPlayer(id: string, p: PlayerView) {
     if (this.actors.has(id)) return;
     const isMe = id === this.myId;
-    const actor = new Actor(this.actorDeps(), outfitLook(p.outfit, p.addons, p.vocation, p.tone), p.name, isMe, p.x, p.y, p.dir, { hpName: true });
-    this.lookSig.set(id, `${p.outfit}|${p.addons}|${p.tone}`);
+    const actor = new Actor(this.actorDeps(), this.lookWithMount(p), p.name, isMe, p.x, p.y, p.dir, { hpName: true });
+    this.lookSig.set(id, `${p.outfit}|${p.addons}|${p.tone}|${p.mount}`);
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
     actor.setHp(p.hp, p.maxHp, true);
@@ -446,8 +454,8 @@ export class WorldScene extends Phaser.Scene {
     actor.setHp(p.hp, p.maxHp);
     actor.setTitle(p.title ?? "");
     actor.setSkull(p.skull ?? "");
-    const sig = `${p.outfit}|${p.addons}|${p.tone}`;
-    if (this.lookSig.get(id) !== sig) { this.lookSig.set(id, sig); actor.setLook(outfitLook(p.outfit, p.addons, p.vocation, p.tone)); }
+    const sig = `${p.outfit}|${p.addons}|${p.tone}|${p.mount}`;
+    if (this.lookSig.get(id) !== sig) { this.lookSig.set(id, sig); actor.setLook(this.lookWithMount(p)); }
     const moved = p.x !== k.x || p.y !== k.y;
     const turned = p.dir !== k.dir;
     k.x = p.x; k.y = p.y; k.dir = p.dir; k.stepMs = p.stepMs;

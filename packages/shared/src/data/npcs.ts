@@ -69,6 +69,8 @@ export const NPCS: Record<string, NpcDef> = {
       sells: [
         ...sells(
           "health_potion", "health_potion_medium", "mana_potion", "mana_potion_medium", "nuts", "meat", "fish", "onigiri", "beaf", "sushi",
+          // Varinha de Treino (roadmap 15-16): treino mais rápido, à vista, pra qualquer vocação.
+          "treino_melee", "treino_distance", "treino_magic", "treino_shield",
           // tier 1 (lv 1): todas as vocações
           "short_sword", "wooden_club", "short_bow", "apprentice_wand", "twig_rod",
           "leather_helmet", "leather_armor", "leather_legs", "leather_boots", "leather_shield",

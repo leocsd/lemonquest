@@ -1,4 +1,5 @@
 import type { DamageKind, Vocation } from "../types.ts";
+import type { SkillId } from "../skills.ts";
 
 export type EquipSlot = "helmet" | "amulet" | "armor" | "weapon" | "shield" | "legs" | "ring" | "boots";
 export const EQUIP_SLOTS: EquipSlot[] = ["helmet", "amulet", "armor", "weapon", "shield", "legs", "ring", "boots"];
@@ -65,7 +66,9 @@ export interface ItemDef {
   /** Itens usáveis: poções (cura/mana instantâneas) e comida (`food`: regeneração ao longo do tempo). */
   use?: { heal?: number; mana?: number; food?: { hpPerTick: number; manaPerTick: number; durationMs: number }; cooldownMs: number;
     /** Baú: abrir (usar) sorteia uma recompensa (servidor, systems/quests.ts). */
-    chest?: boolean };
+    chest?: boolean;
+    /** Varinha de Treino: concede (ou renova) +pct% de tentativas na skill por `hours` horas. */
+    trainBoost?: { skill: SkillId; pct: number; hours: number } };
   /**
    * Item único (ciclo 16): prêmio de um lugar só (baús da Aniquilação). Fica fora de loja, do Baú de Recompensa e de
    * qualquer sorteio genérico de equipamento (ver `isExclusiveItem`).
@@ -579,6 +582,16 @@ add({ id: "calca_brim_refletiva", name: "Calças de Couro Batido", kind: "legs",
   description: "Couro batido até ficar duro. Aguenta cascalho, espinho e mordida de ratazana." });
 add({ id: "botina_seguranca", name: "Botas do Andarilho", kind: "boots", slot: "boots", icon: gear("boots", "bronze"), level: 45, stats: { armor: 1, hpMax: 40, speed: 6 }, value: 3800,
   description: "Já cruzaram a serra três vezes. Pisam em pedra molhada sem medo." });
+
+// Varinha de Treino (NPC, roadmap 15-16: skill de arma real parada em ~30–35, corpo a corpo 60 ≈ 19 h de golpes).
+// Consumível "por hora": não equipa, só concede (ou renova) +50% de tentativas na skill por 1 h ao usar — soma em
+// cima do golpe/mana gasta de sempre, sem precisar de arma ou monstro novos (combat.ts, spells.ts já fazem a conta).
+const trainWand = (id: string, name: string, icon: ItemIcon, skill: SkillId, description: string): void =>
+  add({ id, name, kind: "potion", stackable: true, value: 200, use: { trainBoost: { skill, pct: 50, hours: 1 }, cooldownMs: 0 }, icon, description });
+trainWand("treino_melee", "Espada de Treino", img(W + "Sword/Sprite.png", 0x9a9aa0), "melee", "Gasta ao usar: +50% de tentativas em Luta Corpo a Corpo por 1 hora.");
+trainWand("treino_distance", "Arco de Treino", img(W + "Bow/Sprite.png", 0x9a9aa0), "distance", "Gasta ao usar: +50% de tentativas em Pontaria por 1 hora.");
+trainWand("treino_magic", "Varinha de Treino", img(W + "MagicWand/Sprite.png", 0x9a9aa0), "magic", "Gasta ao usar: +50% de tentativas em Magia por 1 hora.");
+trainWand("treino_shield", "Escudo de Treino", gear("shield_round", "leather"), "shield", "Gasta ao usar: +50% de tentativas em Escudo por 1 hora.");
 
 // ---------------------------------------------------------------------------
 // Anéis e amuletos (level 10+)

@@ -1,5 +1,5 @@
 // Estado da janela de roupas (tecla O / trilho do HUD / botão direito no próprio personagem) e do menu de contexto.
-import { C2S, S2C, ADDON_BITS, OUTFITS, type BuyOutfitToneMsg, type OutfitTonesMsg, type SetOutfitMsg } from "@lemonquest/shared";
+import { C2S, S2C, ADDON_BITS, MOUNTS, OUTFITS, type BuyOutfitToneMsg, type OutfitTonesMsg, type SetMountMsg, type SetOutfitMsg } from "@lemonquest/shared";
 import { session } from "../../session.ts";
 import { send } from "../items/net.ts";
 import { createStore } from "../hud/store.ts";
@@ -31,6 +31,12 @@ export function sendOutfit(outfit: string, addons: number, tone?: string): void 
 
 export function buyOutfitTone(toneId: string): void {
   send(C2S.BuyOutfitTone, { toneId } satisfies BuyOutfitToneMsg);
+}
+
+/** Troca a montaria ativa ("" = sem montaria, anda a pé). O servidor valida; o estado sincronizado traz o resultado. */
+export function sendMount(mount: string): void {
+  if (mount !== "" && !MOUNTS[mount]) return;
+  send(C2S.SetMount, { mount } satisfies SetMountMsg);
 }
 
 session.onRoom((room) => {

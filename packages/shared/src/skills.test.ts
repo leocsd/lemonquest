@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SKILLS, SKILL_ESTIMATE, SKILL_ESTIMATE_LEVELS, SKILL_START, skillEstimate, skillTriesFor } from "./skills.ts";
+import { SKILLS, SKILL_ESTIMATE, SKILL_ESTIMATE_LEVELS, SKILL_START, TRAIN_CONDITION, skillEstimate, skillTriesFor, trainBoostMult } from "./skills.ts";
 import type { Vocation } from "./types.ts";
 
 const VOCS: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
@@ -50,5 +50,20 @@ describe("skillEstimate (modelos de balanço)", () => {
     const r = manaTo(skillEstimate("sorcerer", 100).magic) / manaTo(skillEstimate("sorcerer", 60).magic);
     expect(r).toBeGreaterThan(3);
     expect(r).toBeLessThan(8);
+  });
+});
+
+describe("trainBoostMult (Varinha de Treino)", () => {
+  it("0% não muda; 50% dá 1,5×; negativo e NaN não reduzem abaixo de 1×", () => {
+    expect(trainBoostMult(0)).toBe(1);
+    expect(trainBoostMult(50)).toBe(1.5);
+    expect(trainBoostMult(100)).toBe(2);
+    expect(trainBoostMult(-10)).toBe(1);
+    expect(trainBoostMult(NaN)).toBe(1);
+  });
+
+  it("uma condição por skill, batendo com o catálogo visual do HUD", () => {
+    expect(TRAIN_CONDITION).toEqual({ melee: "trainMelee", distance: "trainDistance", magic: "trainMagic", shield: "trainShield" });
+    expect(new Set(Object.values(TRAIN_CONDITION)).size).toBe(SKILLS.length); // uma por skill, sem colisão
   });
 });

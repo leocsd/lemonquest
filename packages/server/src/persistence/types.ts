@@ -50,6 +50,8 @@ export interface CharacterData {
   addons?: number;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; precisa estar liberado na conta). Ausente = cor natural. */
   tone?: string;
+  /** Montaria ativa (id em MOUNT_LIST). Ausente/desconhecida = anda a pé. */
+  mount?: string;
   /**
    * Encantamento ativo (systems/imbuement.ts): efeito (IMBUEMENTS), tier 1–3 e combate PvE restante. Ausente = nenhum.
    */

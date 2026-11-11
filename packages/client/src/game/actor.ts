@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { BASE_STEP_MS, TILE_SIZE, type Dir, type Facing } from "@lemonquest/shared";
 import { dirToFacing } from "./facing.ts";
 import { playSegments, type Segment } from "./segments.ts";
-import { ADDON_ORIGIN_Y, walkAnimKey, type CharacterLook } from "./sprites.ts";
+import { ADDON_ORIGIN_Y, walkAnimKey, type CharacterLook, type CharacterSheet } from "./sprites.ts";
 import { TEX } from "./textures.ts";
 import { textRes } from "./textRes.ts";
 
@@ -123,8 +123,10 @@ export class Actor {
   private baseY = 0;
   private contentH: number;
   /** Overlays de addon (roupas de jogador): seguem o frame da base, na frente ou atrás dela. */
-  private overlays: { spr: Phaser.GameObjects.Sprite; back: boolean }[] = [];
+  private overlays: { spr: Phaser.GameObjects.Sprite; back: boolean; grounded: boolean; sheet: CharacterSheet }[] = [];
   private extraTop = 0;
+  /** Px que o personagem sobe (montado): aplicado no sprite e refletido no nome/barra/origem de ataque. */
+  private riderRise = 0;
   /** Marca de grupo (escudinho) e cor original do nome. */
   private partyIcon: Phaser.GameObjects.Image | null = null;
   private skullIcon: Phaser.GameObjects.Image | null = null;
@@ -335,15 +337,16 @@ export class Actor {
     const frame = this.sprite.frame.name;
     for (const layer of this.look.addons ?? []) {
       if (!scene.textures.exists(layer.sheet.key)) continue;
-      const spr = scene.add.sprite(0, 0, layer.sheet.key, frame).setOrigin(0.5, ADDON_ORIGIN_Y).setScale(this.scale);
+      const spr = scene.add.sprite(0, 0, layer.sheet.key, frame).setOrigin(0.5, layer.originY ?? ADDON_ORIGIN_Y).setScale(this.scale);
       if (this.look.tint !== 0xffffff) spr.setTint(this.look.tint);
       // atrás: logo antes da base; frente: depois da base (e dos overlays de frente anteriores)
       const baseIdx = this.root.getIndex(this.sprite);
       if (layer.back) this.root.addAt(spr, baseIdx);
       else this.root.addAt(spr, this.root.length);
-      this.overlays.push({ spr, back: layer.back });
+      this.overlays.push({ spr, back: layer.back, grounded: layer.grounded ?? false, sheet: layer.sheet });
     }
     this.extraTop = this.overlays.length ? this.look.extraTop ?? 0 : 0;
+    this.riderRise = this.look.riderRise ?? 0;
   }
 
   private restoreTint() {
@@ -539,22 +542,25 @@ export class Actor {
     // mesmo com o valor igual: só escreve quando mudou (PERF-14, ciclo 9).
     const depth = 10 + this.ry + TILE_SIZE;
     if (this.root.depth !== depth) this.root.setDepth(depth);
-    this.sprite.setPosition(Math.round(this.kbx), Math.round(this.kby) + this.baseY);
+    const gx = Math.round(this.kbx), gy = Math.round(this.kby) + this.baseY;
+    this.sprite.setPosition(gx, gy - this.riderRise);
     if (this.overlays.length) {
       const f = this.sprite.frame.name;
       for (const o of this.overlays) {
-        o.spr.setPosition(this.sprite.x, this.sprite.y);
-        if (o.spr.frame.name !== f) o.spr.setFrame(f);
+        // A montaria fica no chão (sem riderRise): é o personagem que sobe pra sentar nela, não os dois juntos.
+        o.spr.setPosition(gx, o.grounded ? gy : this.sprite.y);
+        // Montaria anima sozinha (playWalk/showIdle) — não copia o frame da base, só os addons normais.
+        if (!o.grounded && o.spr.frame.name !== f) o.spr.setFrame(f);
       }
     }
   }
 
   /** Ponto (mundo) acima da cabeça, para o nome. */
   get headX() { return this.deps.snap(this.rx) + TILE_SIZE / 2; }
-  get headY() { return this.deps.snap(this.ry) + TILE_SIZE - (this.contentH + this.extraTop) * this.scale - 1; }
+  get headY() { return this.deps.snap(this.ry) + TILE_SIZE - (this.contentH + this.extraTop) * this.scale - 1 - this.riderRise; }
   /** Centro do corpo (px de mundo) — origem/destino de projéteis e efeitos. */
   get bodyX() { return this.rx + TILE_SIZE / 2; }
-  get bodyY() { return this.ry + TILE_SIZE - (this.contentH * this.scale) / 2; }
+  get bodyY() { return this.ry + TILE_SIZE - (this.contentH * this.scale) / 2 - this.riderRise; }
 
   private onSegmentStart = (s: Segment) => {
     if (!s.walk) return;
@@ -573,7 +579,21 @@ export class Actor {
     return this.facing;
   }
 
+  /** Montaria ativa (overlay "grounded"), se houver — ela anima sozinha; o personagem fica sentado. */
+  private get mount() { return this.overlays.find((o) => o.grounded); }
+
   private playWalk() {
+    const mount = this.mount;
+    if (mount) {
+      // Montado: sentado (parado) na sela, é a montaria que mexe as pernas, no ritmo do passo.
+      if (this.sprite.anims.isPlaying) this.sprite.anims.stop();
+      this.sprite.setFrame(this.look.sheet.idle[this.facing]);
+      const key = walkAnimKey(mount.sheet, this.facing);
+      const anims = mount.spr.anims;
+      if (anims.currentAnim?.key !== key || !anims.isPlaying) anims.play(key, true);
+      anims.timeScale = BASE_STEP_MS / this.stepMs;
+      return;
+    }
     const key = walkAnimKey(this.look.sheet, this.facing);
     const anims = this.sprite.anims;
     if (anims.currentAnim?.key !== key || !anims.isPlaying) anims.play(key, true);
@@ -583,6 +603,11 @@ export class Actor {
   private showIdle() {
     if (this.sprite.anims.isPlaying) this.sprite.anims.stop();
     this.sprite.setFrame(this.look.sheet.idle[this.facing]);
+    const mount = this.mount;
+    if (mount) {
+      if (mount.spr.anims.isPlaying) mount.spr.anims.stop();
+      mount.spr.setFrame(mount.sheet.idle[this.facing]);
+    }
   }
 
   destroy() {

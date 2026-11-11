@@ -5,6 +5,7 @@ export type ConditionId =
   | "combat" | "poison" | "burn" | "energy" | "bleed" | "freeze"
   | "protect" | "haste" | "slow" | "drunk" | "regen" | "pz"
   | "manashield" | "rooted" | "taunted" | "fed" | "berserk" | "exposed" | "imbued"
+  | "trainMelee" | "trainDistance" | "trainMagic" | "trainShield"
   /** Só no cliente (ciclo 17): a bênção vem do estado do jogador (blessed), não da lista de condições do servidor. */
   | "blessed";
 
@@ -35,6 +36,11 @@ export const CONDITION_DEFS: Record<ConditionId, ConditionDef> = {
   exposed: { label: "Exposto (sem resistência)", color: "#b48cf2", glyph: "bolt" },
   // Encantamento da Dona Marta: o tempo é de combate PvE, então vem como selo fixo (label), sem contagem local.
   imbued: { label: "Encantado", color: "#c080ff", glyph: "gem" },
+  // Varinha de Treino (NPC, consumível "por hora"): +% de tentativas na skill enquanto dura.
+  trainMelee: { label: "Treino: Luta Corpo a Corpo", color: "#d97a4a", glyph: "swords" },
+  trainDistance: { label: "Treino: Pontaria", color: "#d9a441", glyph: "target" },
+  trainMagic: { label: "Treino: Magia", color: "#8cc2f2", glyph: "bolt" },
+  trainShield: { label: "Treino: Escudo", color: "#6fa8d9", glyph: "shield" },
   // Bênção da Liora (templo): fica até a próxima morte com XP a perder; só exibição (ConditionsStrip lê o meStore).
   blessed: { label: "Abençoado", color: "#ffe9a8", glyph: "ankh" },
 };

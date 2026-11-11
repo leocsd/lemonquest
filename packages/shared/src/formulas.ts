@@ -55,7 +55,7 @@ export function xpForLevel(level: number): number {
 // 15-13 em vocationBalance.test.ts). Era o mais frágil depois dos magos sem ter escudo de mana nem cura forte. A vida
 // máxima não é salva: o login a recalcula por aqui (WorldRoom).
 const VOC_GROWTH: Record<Vocation, { hp: number; mana: number }> = {
-  knight: { hp: 15, mana: 5 },
+  knight: { hp: 15, mana: 6 },
   paladin: { hp: 13, mana: 15 },
   sorcerer: { hp: 6, mana: 30 },
   druid: { hp: 6, mana: 30 },

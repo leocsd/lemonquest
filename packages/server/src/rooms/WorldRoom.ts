@@ -7,7 +7,7 @@ import {
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
   PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
-  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg,
+  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg, type SetMountMsg,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -35,6 +35,7 @@ import { isFirstLogin, welcomeFeed } from "../systems/welcome.ts";
 import { ConditionSystem } from "../systems/conditions.ts";
 import { SkillSystem } from "../systems/skills.ts";
 import { TrainingSystem, parseStatues } from "../systems/training.ts";
+import { TrainWandSystem } from "../systems/trainwand.ts";
 import { SummonSystem } from "../systems/summons.ts";
 import { SpellSystem } from "../systems/spells.ts";
 import { GOLD_ID, InventorySystem, makeItem } from "../systems/inventory.ts";
@@ -52,6 +53,7 @@ import { handleDevCommand, isDevAdmin } from "../systems/devcommands.ts";
 import { HELP_COMMANDS, handleAdminCommand, helpLines, muteRemaining } from "../systems/admin.ts";
 import { addWorkTasks, grantUnlock } from "../systems/achievements.ts";
 import { applySetOutfit, loadOutfit } from "../systems/outfit.ts";
+import { applySetMount, loadMount } from "../systems/mount.ts";
 import { AchievementSystem, setActiveAchievements } from "../systems/achievements.ts";
 import { PartySystem } from "../systems/party.ts";
 import { ErrorLog, runSafe, runSteps } from "../systems/safe.ts";
@@ -83,7 +85,7 @@ export const KICK_DEFAULT_REASON = "Expulso por um administrador";
 export const MAX_MESSAGES_PER_SECOND = 60;
 /** Limites por tipo de mensagem (excesso descartado em silêncio). */
 export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
-  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1,
+  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetMount]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1,
   // Chat inclui comandos (/convidar...) e palavras mágicas, que não passam pelo limite de fala do chat.ts.
   [C2S.Chat]: 6,
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
@@ -123,6 +125,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private food!: FoodSystem;
   private imbue!: ImbuementSystem;
   private skills!: SkillSystem;
+  private trainWand!: TrainWandSystem;
   private summons!: SummonSystem;
   private spells!: SpellSystem;
   private monsterAbilities!: MonsterAbilitySystem;
@@ -246,6 +249,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       send,
       broadcast,
     });
+    this.trainWand = new TrainWandSystem();
     this.inventory = new InventorySystem({
       send,
       depotOpen: (id) => this.npcs.depotOpen(id),
@@ -260,6 +264,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       onSpend: (p, n) => this.telemetry.onSpend(p.id, n),
       onStatsChanged: (p) => this.conditions.refreshPlayer(p.id),
       openChest: (p) => this.quests.openChest(p),
+      applyTrainBoost: (p, b, now) => this.trainWand.apply(p.id, b.skill, b.pct, b.hours, now),
     });
     this.food = new FoodSystem({
       heal: (p, n) => this.combat.healPlayer(p, p.id, n),
@@ -354,12 +359,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       monsters: this.monsters, combat: this.combat, send,
       getPlayer, players: () => this.state.players.values(),
       speedBonus: (id) => this.inventory.stat(id, "speed"),
-      extra: (p, now) => [this.food.condition(p.id, now), this.imbue.condition(p.id)],
+      extra: (p, now) => [this.food.condition(p.id, now), this.imbue.condition(p.id), ...this.trainWand.condition(p.id)],
     });
     this.summons = new SummonSystem({ monsters: this.monsters, combat: this.combat, getPlayer });
     this.spells = new SpellSystem({
       grid: this.map.grid, monsters: this.monsters, combat: this.combat, conditions: this.conditions,
-      summons: this.summons, skills: this.skills,
+      summons: this.summons, skills: this.skills, trainWand: this.trainWand,
       players: () => this.state.players.values(), getPlayer,
       teleport: (p, x, y) => this.movement.teleport(p, x, y),
       send, broadcast,
@@ -390,12 +395,20 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       xpMult: () => this.events?.xpMult() ?? 1,
       damageTakenPct: (id) => this.conditions.damageTakenPct(id),
       manaShield: (id) => this.conditions.manaShield(id),
-      onAutoAttack: (p) => {
-        if (p.vocation === "knight") this.skills.addTries(p, "melee", 1);
-        else if (p.vocation === "paladin") this.skills.addTries(p, "distance", 1);
+      onAutoAttack: (p, now) => {
+        if (p.vocation === "knight") {
+          this.skills.addTries(p, "melee", this.trainWand.mult(p.id, "melee"));
+          this.trainWand.consume(p.id, "melee", now);
+        } else if (p.vocation === "paladin") {
+          this.skills.addTries(p, "distance", this.trainWand.mult(p.id, "distance"));
+          this.trainWand.consume(p.id, "distance", now);
+        }
       },
       hasShield: (p) => !!this.inventory.get(p.id)?.equipment.shield,
-      onShieldTry: (p) => this.skills.addTries(p, "shield", 1),
+      onShieldTry: (p, now) => {
+        this.skills.addTries(p, "shield", this.trainWand.mult(p.id, "shield"));
+        this.trainWand.consume(p.id, "shield", now);
+      },
       onPlayerDied: (p, killer, killerKey) => {
         this.telemetry.onDeath(p.id, killerKey);
         this.conditions.clear(p.id);
@@ -625,6 +638,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       const rec = this.records.get(p.id);
       applySetOutfit(p, rec, m, rec ? getAccountTones(rec.accountId) : []);
     });
+    this.on<SetMountMsg>(C2S.SetMount, (p, m) => applySetMount(p, this.records.get(p.id), m));
     this.on<BuyOutfitToneMsg>(C2S.BuyOutfitTone, (p, m, c) => {
       const rec = this.records.get(p.id);
       const tone = rec && m && typeof m.toneId === "string" ? toneDef(m.toneId) : undefined;
@@ -871,6 +885,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const look = loadOutfit(rec);
     p.outfit = look.outfit;
     p.addons = look.addons;
+    p.mount = loadMount(rec);
     const unlockedTones = getAccountTones(rec.accountId);
     p.tone = rec.data.tone && unlockedTones.includes(rec.data.tone) ? rec.data.tone : "";
     this.skills.load(p, rec.data.skills);
@@ -1230,6 +1245,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["conditions", () => this.conditions.removePlayer(sid)],
         ["spells", () => this.spells.removePlayer(sid)],
         ["skills", () => this.skills.removePlayer(sid)],
+        ["trainwand", () => this.trainWand.removePlayer(sid)],
         ["regen", () => this.regen.removePlayer(sid)],
         ["food", () => this.food.removePlayer(sid)],
         ["imbue", () => this.imbue.removePlayer(sid)],

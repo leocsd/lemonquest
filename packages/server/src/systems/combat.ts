@@ -67,14 +67,14 @@ export interface CombatHooks {
   /** Escudo de mana ativo: parte do dano sai da mana (manaShieldSplit, MANA_SHIELD_ABSORB) e o resto da vida. */
   manaShield?: (id: string) => boolean;
   /** Cada tentativa de ataque básico do jogador (skill de arma). */
-  onAutoAttack?: (p: PlayerState) => void;
+  onAutoAttack?: (p: PlayerState, now: number) => void;
   /** Está com escudo equipado (armadura da skill Escudo e treino dela). Ausente = nunca. */
   hasShield?: (p: PlayerState) => boolean;
   /**
    * Uma tentativa de skill Escudo: o jogador, com escudo equipado, foi alvo de um golpe (corpo a corpo, distância ou
    * magia de monstro/jogador; venenos e queimaduras não contam).
    */
-  onShieldTry?: (p: PlayerState) => void;
+  onShieldTry?: (p: PlayerState, now: number) => void;
   /**
    * Jogador morreu (já foi levado ao templo). `killerKey` = causa estável para a telemetria (`deathsBy`): id do monstro,
    * "monstro/habilidade", "condição@monstro", "pvp" ou "?" (formato em telemetry.ts).
@@ -208,7 +208,7 @@ export class CombatSystem {
     if (o.monsterLevel !== undefined && o.monsterLevel * 3 < p.level && !((o.raw ?? 0) > this.armorOf(p))) return;
     if (now < (this.nextShieldTryAt.get(p.id) ?? 0)) return;
     this.nextShieldTryAt.set(p.id, now + SHIELD_TRY_MS);
-    this.hooks.onShieldTry?.(p);
+    this.hooks.onShieldTry?.(p, now);
   }
 
   /** Agenda algo para depois do lote de combate do tick (mensagens de loot etc.). */
@@ -258,7 +258,7 @@ export class CombatSystem {
       const imb = this.imbuementVs(p, m);
       this.nextAttackAt.set(p.id, now + Math.round(PLAYER_ATTACK_MS * (imb?.effect === "haste" ? 1 - imb.value : 1)));
       this.lastCombatAt.set(p.id, now);
-      this.hooks.onAutoAttack?.(p);
+      this.hooks.onAutoAttack?.(p, now);
       const roll = rollAttack(va.damage, va.critPct, this.rng);
       const raw = Math.round(roll.amount * (this.hooks.dealtMult?.(p) ?? 1));
       const armor = Math.round(m.def.armor * (imb?.effect === "pierce" ? 1 - imb.value : 1));
@@ -305,7 +305,7 @@ export class CombatSystem {
     if (va.ranged && !this.o.monsters.los(p.x, p.y, victim.x, victim.y)) return;
     this.nextAttackAt.set(p.id, now + PLAYER_ATTACK_MS);
     this.lastCombatAt.set(p.id, now);
-    this.hooks.onAutoAttack?.(p);
+    this.hooks.onAutoAttack?.(p, now);
     const roll = rollAttack(va.damage, va.critPct, this.rng);
     const raw = Math.round(roll.amount * (this.hooks.dealtMult?.(p) ?? 1));
     const amount = roll.miss ? 0 : mitigate(raw, this.armorOf(victim));

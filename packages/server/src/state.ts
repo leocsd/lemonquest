@@ -36,6 +36,8 @@ export class PlayerState extends Schema implements PlayerView {
   @type("string") skull: Skull = "";
   @type("string") outfit = "cavaleiro";
   @type("uint8") addons = 0;
+  /** Montaria ativa (id em MOUNTS; "" = nenhuma). Só cosmético por enquanto, sem persistência (ciclo de prova). */
+  @type("string") mount = "";
   /** Título ativo (texto). Conquistas. */
   @type("string") title = "";
   @type("string") partyId = "";

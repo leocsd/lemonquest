@@ -257,6 +257,30 @@ describe("inventory: potions", () => {
   });
 });
 
+describe("inventory: Varinha de Treino (use.trainBoost)", () => {
+  it("sem o hook: recusa e não consome", () => {
+    const w = invWorld();
+    const p = w.mk();
+    w.inv.addItem(p, makeItem("train_wand", 2));
+    w.inv.onUseItem(p, { index: 0 });
+    expect(w.notices().at(-1)).toBe(MSG.notUsable);
+    expect(bp(w)[0]?.count).toBe(2);
+  });
+
+  it("com o hook: aplica o boost (skill/pct/hours do item) e consome 1, sem a recarga de poção", () => {
+    const calls: unknown[] = [];
+    const w = invWorld({ applyTrainBoost: (p, b, now) => calls.push({ id: p.id, ...b, now }) });
+    const p = w.mk("p1");
+    w.inv.addItem(p, makeItem("train_wand", 2));
+    w.inv.addItem(p, makeItem("hp_pot", 1)); // a recarga de poção não deve travar isto
+    w.inv.onUseItem(p, { index: 0 });
+    expect(calls).toEqual([{ id: "p1", skill: "melee", pct: 50, hours: 1, now: w.now() }]);
+    expect(bp(w)[0]?.count).toBe(1);
+    w.inv.onUseItem(p, { index: 1 }); // poção de vida na sequência: não foi bloqueada pela varinha
+    expect(w.events.at(-1)).toMatchObject({ kind: "heal" });
+  });
+});
+
 describe("inventory: organizar o depot (ciclo 17)", () => {
   const ids = (a: (ReturnType<typeof makeItem> | null)[]) => a.map((x) => (x ? `${x.defId}×${x.count}` : "-"));
 

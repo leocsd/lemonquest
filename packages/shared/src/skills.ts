@@ -1,7 +1,13 @@
+import type { ConditionId } from "./data/spells.ts";
 import type { Vocation } from "./types.ts";
 
 export type SkillId = "melee" | "distance" | "magic" | "shield";
 export const SKILLS: SkillId[] = ["melee", "distance", "magic", "shield"];
+
+/** Condição da Varinha de Treino que acelera cada skill (ConditionSystem; value = % de tentativas a mais). */
+export const TRAIN_CONDITION: Record<SkillId, ConditionId> = {
+  melee: "trainMelee", distance: "trainDistance", magic: "trainMagic", shield: "trainShield",
+};
 
 export const SKILL_START: Record<SkillId, number> = { melee: 10, distance: 10, magic: 0, shield: 10 };
 
@@ -55,6 +61,11 @@ export const SKILL_ESTIMATE: Record<Vocation, Record<SkillId, readonly number[]>
  * pontos de `table` (padrão `SKILL_ESTIMATE`; outra tabela serve para comparar hipóteses); acima do último, segue a
  * inclinação do último trecho. Inteiras (arredondadas para baixo).
  */
+/** Multiplicador de tentativas pela Varinha de Treino (NPC, "por hora"): pct=50 → 1,5× tentativas por golpe/mana gasta. */
+export function trainBoostMult(pct: number): number {
+  return 1 + Math.max(0, Number.isFinite(pct) ? pct : 0) / 100;
+}
+
 export function skillEstimate(vocation: Vocation, level: number, table = SKILL_ESTIMATE): Record<SkillId, number> {
   const L = Math.max(1, Number.isFinite(level) ? level : 1);
   const lv = SKILL_ESTIMATE_LEVELS;

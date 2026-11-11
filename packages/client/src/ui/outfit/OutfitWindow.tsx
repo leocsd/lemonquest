@@ -1,14 +1,14 @@
-// Janela de roupas estilo Tibia: prévia animada grande, grade de roupas, 2 addons, OK/Cancelar.
+// Janela de roupas estilo Tibia: prévia animada grande, grade de roupas, 2 addons, montaria, OK/Cancelar.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { OUTFIT_LIST, OUTFIT_TONES, OUTFIT_TONE_PRICE, resolveOutfit, toneColor, unlockRequirement, type Facing } from "@lemonquest/shared";
+import { MOUNT_LIST, OUTFIT_LIST, OUTFIT_TONES, OUTFIT_TONE_PRICE, resolveOutfit, toneColor, unlockRequirement, type Facing } from "@lemonquest/shared";
 import { useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
 import { meStore } from "../hud/world.ts";
-import { OutfitCanvas } from "./OutfitCanvas.tsx";
+import { MountThumb, OutfitCanvas } from "./OutfitCanvas.tsx";
 import { PixelIcon } from "../hud/icons.tsx";
 import { achievementsStore, outfitUnlockedFor } from "../achievements/achievements.ts";
 import "../achievements/achievements.css";
-import { buyOutfitTone, closeOutfit, outfitOpen, outfitTonesStore, sendOutfit } from "./outfit.ts";
+import { buyOutfitTone, closeOutfit, outfitOpen, outfitTonesStore, sendMount, sendOutfit } from "./outfit.ts";
 import { buyClick, buyLabel, toneStatus, toneToWear } from "./toneShop.ts";
 import { inventoryStore } from "../items/inventory.ts";
 import { bindOverlay } from "../overlays.ts";
@@ -43,6 +43,7 @@ function OutfitDialog() {
   const [auto, setAuto] = useState(true);
   const [row, setRow] = useState(0);
   const [walk, setWalk] = useState(true);
+  const [mountSel, setMountSel] = useState(me?.mount ?? "");
   const outfit = resolveOutfit(sel, me?.vocation ?? "knight");
   const ach = useStore(achievementsStore);
   const unlockedTones = useStore(outfitTonesStore);
@@ -72,7 +73,7 @@ function OutfitDialog() {
   }, [auto]);
 
   const rotate = (d: number) => { setAuto(false); setFace((f) => (f + d + 4) % 4); };
-  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, wearTone); closeOutfit(); };
+  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, wearTone); sendMount(mountSel); closeOutfit(); };
   const buy = () => {
     if (toneSt !== "buy") return;
     const r = buyClick(confirmBuy);
@@ -105,7 +106,7 @@ function OutfitDialog() {
         <div class="outfit-body">
           <div class="outfit-stage">
             <div class="outfit-preview" onClick={() => setWalk((w) => !w)} data-tip={walk ? "Parar" : "Andar"}>
-              <OutfitCanvas outfit={outfit} addons={effAddons} facing={facing} row={walk ? row : 0} scale={6} tint={toneColor(tone)} />
+              <OutfitCanvas outfit={outfit} addons={effAddons} facing={facing} row={walk ? row : 0} scale={6} tint={toneColor(tone)} mount={mountSel} />
             </div>
             <div class="outfit-rotate">
               <button class="outfit-arrow" onClick={() => rotate(-1)} aria-label="Girar para a esquerda" data-tip="Girar" data-tip-sub="Seta ←"><span class="outfit-tri left" aria-hidden="true" /></button>
@@ -131,6 +132,31 @@ function OutfitDialog() {
                   </label>
                 );
               })}
+            </div>
+            <div class="outfit-mounts" role="listbox" aria-label="Montaria">
+              <button
+                class={`outfit-mount${mountSel === "" ? " sel" : ""}`}
+                onClick={() => setMountSel("")}
+                data-tip="A pé"
+                aria-label="A pé"
+                aria-selected={mountSel === ""}
+              >
+                <span class="outfit-mount-none" aria-hidden="true">✕</span>
+                <span class="outfit-mount-name">A pé</span>
+              </button>
+              {MOUNT_LIST.map((mo) => (
+                <button
+                  key={mo.id}
+                  class={`outfit-mount${mountSel === mo.id ? " sel" : ""}`}
+                  onClick={() => setMountSel(mo.id)}
+                  data-tip={mo.name}
+                  aria-label={mo.name}
+                  aria-selected={mountSel === mo.id}
+                >
+                  <MountThumb mountId={mo.id} scale={2} />
+                  <span class="outfit-mount-name">{mo.name}</span>
+                </button>
+              ))}
             </div>
             <div class="outfit-tones" role="listbox" aria-label="Tons de tingimento">
               <button

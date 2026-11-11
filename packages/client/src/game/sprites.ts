@@ -1,6 +1,6 @@
 // Configuração ÚNICA de sprites de personagem. Trocar o pack de arte = mexer só aqui.
 import {
-  ADDON_FRAME, ADDON_OFFSET_Y, OUTFIT_LIST, activeAddons, resolveOutfit, toneColor,
+  ADDON_FRAME, ADDON_OFFSET_Y, MOUNT_LIST, OUTFIT_LIST, activeAddons, mountDef, resolveOutfit, toneColor,
   type Facing, type OutfitDef,
 } from "@lemonquest/shared";
 
@@ -23,6 +23,10 @@ export interface CharacterSheet {
 export interface AddonLayer {
   sheet: CharacterSheet;
   back: boolean;
+  /** Origem Y (0..1) do overlay; padrão ADDON_ORIGIN_Y. Montaria usa a própria (canvas maior, âncora própria). */
+  originY?: number;
+  /** Fica no chão (ignora riderRise do personagem) — a montaria não sobe junto, só ele senta mais alto nela. */
+  grounded?: boolean;
 }
 
 export interface CharacterLook {
@@ -33,6 +37,8 @@ export interface CharacterLook {
   addons?: AddonLayer[];
   /** Px acima do topo da base ocupados pelos addons (nome/barra sobem). */
   extraTop?: number;
+  /** Px que o personagem sobe (monta em cima da montaria, em vez de ficar "ao lado" dela no chão). */
+  riderRise?: number;
 }
 
 /**
@@ -74,6 +80,27 @@ export const ADDON_ORIGIN_Y = (ADDON_OFFSET_Y + 16) / ADDON_FRAME;
 export const ALL_SHEETS: CharacterSheet[] = Object.values(OUTFIT_SHEETS);
 /** Overlays de addon (só carregados; o frame segue a base). */
 export const ADDON_SHEET_LIST: CharacterSheet[] = Object.values(ADDON_SHEETS).flatMap((s) => (s.back ? [s.front, s.back] : [s.front]));
+
+// Montaria: canvas PRÓPRIO (36x40, âncora na linha 34, não o formato apertado de addon de chapéu) — recortado
+// de arte real (assets/mounts/_source/, pack licenciado à parte) por tools/mounts/generate.mjs. Desenhada
+// atrás da base, como uma capa, mas com origem Y diferente.
+// ATENÇÃO: estes 3 números têm que bater com FRAME_W/FRAME_H/ANCHOR_Y de tools/mounts/generate.mjs — mudou lá, muda aqui.
+export const MOUNT_FRAME_W = 36, MOUNT_FRAME_H = 40, MOUNT_ANCHOR_Y = 34;
+export const MOUNT_ORIGIN_Y = MOUNT_ANCHOR_Y / MOUNT_FRAME_H;
+/** Px que o personagem sobe pra ficar sentado no lombo da montaria em vez de "do lado" dela no chão. */
+export const MOUNT_RIDER_RISE = 16;
+const MOUNT_SHEETS: Record<string, CharacterSheet> = Object.fromEntries(
+  MOUNT_LIST.map((m) => [m.id, gridSheet(`mount_${m.id}`, m.sheet, MOUNT_FRAME_W, MOUNT_FRAME_H)]),
+);
+export const MOUNT_SHEET_LIST: CharacterSheet[] = Object.values(MOUNT_SHEETS);
+
+/** Layer da montaria ativa (atrás da base, âncora própria), se houver e for conhecida. */
+export function mountLayer(mountId: string | undefined): AddonLayer | undefined {
+  const m = mountDef(mountId);
+  if (!m) return undefined;
+  const sheet = MOUNT_SHEETS[m.id];
+  return sheet ? { sheet, back: true, originY: MOUNT_ORIGIN_Y, grounded: true } : undefined;
+}
 
 /** Visual de um jogador: roupa + addons ativos + tom de tingimento (roupa desconhecida/ausente → padrão da vocação). */
 export function outfitLook(outfit: string | undefined, addons: number, vocation: string, tone?: string): CharacterLook {

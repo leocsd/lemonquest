@@ -84,7 +84,8 @@ describe("ITEMS", () => {
     for (const d of all) {
       if (d.stackable) expect(d.maxStack ?? 100, d.id).toBeGreaterThanOrEqual(1);
       else expect(d.maxStack, d.id).toBeUndefined();
-      if (d.kind === "potion") { expect(d.stackable).toBe(true); expect(d.use?.heal || d.use?.mana, d.id).toBeTruthy(); }
+      // Varinha de Treino (use.trainBoost): poção sem cura/mana, de propósito (ver "recarga das poções" abaixo).
+      if (d.kind === "potion") { expect(d.stackable).toBe(true); expect(d.use?.heal || d.use?.mana || d.use?.trainBoost, d.id).toBeTruthy(); }
       if (!d.stackable) expect(["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "key", "quest"]).toContain(d.kind);
     }
   });
@@ -238,7 +239,7 @@ describe("livros de magia (escudo dos magos)", () => {
 describe("ciclo 8: recarga das poções", () => {
   it("vida 2 s, mana 1 s (o temporizador é um só para qualquer poção)", () => {
     for (const it of Object.values(ITEMS)) {
-      if (it.kind !== "potion") continue;
+      if (it.kind !== "potion" || it.use!.trainBoost) continue; // Varinha de Treino não entra na recarga de poção.
       expect(it.use!.cooldownMs, it.id).toBe(it.use!.heal ? HEALTH_POTION_CD_MS : MANA_POTION_CD_MS);
     }
     expect([HEALTH_POTION_CD_MS, MANA_POTION_CD_MS]).toEqual([2000, 1000]);

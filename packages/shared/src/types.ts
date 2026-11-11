@@ -84,6 +84,8 @@ export interface PlayerView {
   outfit: string;
   /** Addons ativos da roupa: bit 1 = addon 1, bit 2 = addon 2. */
   addons: number;
+  /** Montaria ativa (id em MOUNTS, shared/data/mounts.ts; "" = nenhuma). Cosmético. */
+  mount: string;
   /** Título ativo (texto exibido ao lado do nome; "" = nenhum). Conquistas. */
   title: string;
   /** Grupo (party) atual ("" = nenhum). Mesmo valor = mesmo grupo (nomes verdes, pontos no minimapa). */

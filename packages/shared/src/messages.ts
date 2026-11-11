@@ -59,6 +59,8 @@ export const C2S = {
   SetOutfit: "setOutfit",
   /** Comprar um tom de tingimento (vale pra conta inteira). */
   BuyOutfitTone: "buyOutfitTone",
+  /** Trocar montaria ativa (janela de roupas). "" = sem montaria, anda a pé. */
+  SetMount: "setMount",
   /** Missões e recompensas diárias: aceitar/entregar/abandonar/rastrear (QuestActionMsg). */
   Quest: "quest",
   /** Encomenda semanal de material (Quadro de Recompensas): listar/entregar. */
@@ -119,6 +121,8 @@ export type PartyActionMsg =
 /** `tone` ausente ou "" = cor natural; senão precisa estar liberado na conta (ver OutfitTonesMsg). */
 export interface SetOutfitMsg { outfit: string; addons: number; tone?: string }
 export interface BuyOutfitToneMsg { toneId: string }
+/** "" = sem montaria (anda a pé); senão precisa existir em MOUNT_LIST. */
+export interface SetMountMsg { mount: string }
 /** S2C.OutfitTones: tons liberados NA CONTA (valem pra qualquer personagem). */
 export interface OutfitTonesMsg { unlocked: string[] }
 

@@ -1,7 +1,8 @@
 // Comandos de desenvolvimento no chat. Resposta só para quem digitou (Notice).
 // Ligados SÓ com LEMONQUEST_DEV_COMMANDS=1, NODE_ENV != production e para nomes listados em LEMONQUEST_ADMINS (vírgulas).
-//   /level N · /item <id> [count] [rarity] · /gold N · /heal · /tp x y · /ml N · /quest list|reset <id>|complete <id>
-import { RARITIES, S2C, isEquipable, xpForLevel, type NoticeMsg, type Rarity, type TeleportedMsg } from "@lemonquest/shared";
+//   /level N · /item <id> [count] [rarity] · /gold N · /heal · /tp x y · /ml N · /quest list|reset <id>|complete <id> ·
+//   /mount <id|off> (atalho de dev; não persiste — o jeito normal é a janela de Roupas, systems/mount.ts)
+import { MOUNTS, RARITIES, S2C, isEquipable, xpForLevel, type NoticeMsg, type Rarity, type TeleportedMsg } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { InventorySystem } from "./inventory.ts";
 import { createItem } from "./loot.ts";
@@ -39,7 +40,7 @@ export interface DevContext {
   env?: Env;
 }
 
-const COMMANDS = ["/level", "/item", "/gold", "/heal", "/tp", "/ml", "/quest"];
+const COMMANDS = ["/level", "/item", "/gold", "/heal", "/tp", "/ml", "/quest", "/mount"];
 
 /** Trata um comando de dev. Retorna true se o texto era um comando (não vai para o chat). */
 export function handleDevCommand(p: PlayerState, text: string, ctx: DevContext): boolean {
@@ -107,6 +108,14 @@ export function handleDevCommand(p: PlayerState, text: string, ctx: DevContext):
       if (!(n >= 0 && n <= 200)) { reply("Uso: /ml N (0–200)", "warn"); break; }
       ctx.setMagicLevel(p, n);
       reply(`Magic level ${n}.`, "good");
+      break;
+    }
+    case "/mount": {
+      const id = parts[1] ?? "";
+      if (id === "off" || id === "") { p.mount = ""; reply("Sem montaria.", "good"); break; }
+      if (!MOUNTS[id]) { reply(`Montaria desconhecida: ${id} (${Object.keys(MOUNTS).join(", ")})`, "warn"); break; }
+      p.mount = id;
+      reply(`Montaria: ${MOUNTS[id]!.name}.`, "good");
       break;
     }
   }
