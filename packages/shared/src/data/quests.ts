@@ -86,6 +86,23 @@ export const QUEST_LIST: QuestDef[] = [
     rewards: { xp: 180, gold: 50, items: [{ itemId: "health_potion", count: 3 }, { itemId: "mana_potion", count: 3 }] },
   }),
   q({
+    id: "pesquisa_de_clima", name: "Pesquisa de Clima", giver: "guard_captain", minLevel: 3,
+    summary: "Ninguém respondeu o formulário de clima do Capitão Rodrigo. Alguém vai ter que perguntar pessoalmente.",
+    steps: [
+      { kind: "talk", target: "shop", count: 1, label: "Perguntar ao Bento" },
+      { kind: "talk", target: "herbalist", count: 1, label: "Perguntar à Dona Marta" },
+      { kind: "talk", target: "old_hunter", count: 1, label: "Perguntar ao Tomé" },
+      { kind: "talk", target: "priest", count: 1, label: "Perguntar à Liora" },
+    ],
+    dialog: {
+      offer: "Recruta, ninguém respondeu o formulário de clima. Ninguém. Vá perguntar pessoalmente ao Bento, à Dona Marta, ao Tomé e à Sacerdotisa Liora como está o clima por aqui.",
+      accept: "Anote tudo. E não aceite 'tá ótimo' como resposta... bom, aceite, mas anote.",
+      progress: "Faltam respostas. Bento, Dona Marta, Tomé e Liora. É uma pesquisa, não uma sugestão.",
+      complete: "Todo mundo disse 'tá ótimo'. Ótimo. Arquivado. Tome umas nozes pelo trabalho de campo.",
+    },
+    rewards: { xp: 250, gold: 80, items: [{ itemId: "nuts", count: 5 }] },
+  }),
+  q({
     id: "bee_hunt", name: "Caça às Abelhas", giver: "old_hunter", minLevel: 4,
     summary: "O Velho Caçador Tomé quer ensinar a caçar abelhas sem levar ferroada (muitas).",
     steps: [
@@ -114,6 +131,84 @@ export const QUEST_LIST: QuestDef[] = [
       complete: "As estradas estão seguras de novo. A vila te deve uma. Tome, e não gaste tudo em mel.",
     },
     rewards: { xp: 900, gold: 250, items: [{ itemId: "health_potion", count: 10 }] },
+  }),
+  // --- Oficina dos Engenhos (5–22) --------------------------------------------------------------------
+  q({
+    id: "chegou", name: "Chegou!", giver: "juliao", minLevel: 5,
+    summary: "Julião dos Embarcados espera uma encomenda de iluminadores que nunca chega inteira. Os Ratos Cinzentos da Floresta Sussurrante levaram a caixa e só sobraram brasas apagadas: recupere o lote e mostre ao Pedrão.",
+    steps: [
+      { kind: "explore", target: "Floresta Sussurrante", count: 1, label: "Ir à Floresta atrás dos ratos" },
+      { kind: "deliver", target: "iluminador_queimado", count: 9, label: "Brasas Apagadas" },
+      { kind: "talk", target: "pedrao", count: 1, label: "Mostrar ao Pedrão" },
+    ],
+    dialog: {
+      offer: "Chegou! ...Não, era o vento. Olha, nove de cada dez iluminadores chegam queimados, e os Ratos Cinzentos levam o resto para a Floresta Sussurrante, logo ao norte da Vila. Do jeito que eles roem, só sobra brasa apagada. Traga nove Brasas Apagadas, para eu contar o prejuízo, e depois mostre uma ao Pedrão: ele diz se dá para aproveitar.",
+      accept: "Chegou! ...Não, ainda não. Quando chegar, eu aviso. Com foto.",
+      progress: "Nove brasas e uma palavra do Pedrão. Enquanto isso, a caixa continua vazia.",
+      complete: "Nove queimados, um aproveitável. É a média. Tome este Selo de Cera: carimba na testa de quem duvidar que chegou.",
+    },
+    rewards: { xp: 500, gold: 150, items: [{ itemId: "health_potion", count: 5 }, { itemId: "selo_chegou", count: 1 }] },
+  }),
+  q({
+    id: "git_caiu", name: "git caiu?", giver: "luan", minLevel: 8, requires: ["chegou"],
+    summary: "O Luan do Cubo jura que o repositório caiu. Antes de culpar o servidor, alguém precisa perguntar na bancada se foi só o cabo.",
+    steps: [
+      { kind: "talk", target: "iago", count: 1, label: "Perguntar ao Iago" },
+      { kind: "talk", target: "juliao", count: 1, label: "Perguntar ao Julião" },
+      { kind: "talk", target: "pedrao", count: 1, label: "Perguntar ao Pedrão" },
+    ],
+    dialog: {
+      offer: "git caiu? Caiu, né? Ninguém consegue puxar nada. Vá perguntar ao Iago, ao Julião e ao Pedrão se para eles também caiu. Se caiu para todo mundo, é o servidor. Se caiu só para mim... é o cabo.",
+      accept: "Volte com as três respostas. Enquanto isso vou girar o cubo. Ajuda a pensar.",
+      progress: "E aí, caiu para eles também? Preciso das três respostas antes de abrir chamado.",
+      complete: "Ninguém mais caiu? Então era o meu cabo. De novo. Tome, pela consultoria. E não conte para o Tomé.",
+    },
+    rewards: { xp: 900, gold: 200, items: [{ itemId: "mana_potion", count: 5 }] },
+  }),
+  q({
+    id: "bombonas_fugitivas", name: "Bombonas Fugitivas", giver: "bianca", minLevel: 12, requires: ["chegou"],
+    summary: "Oito Gosmas Azuis saíram quicando do Pátio de Encomendas, cada uma com uma etiqueta grudada. Bianca da Logística quer as gosmas paradas e as etiquetas de volta para o inventário.",
+    steps: [
+      { kind: "kill", target: "runaway_drum", count: 8, label: "Gosmas Azuis" },
+      { kind: "deliver", target: "rotulo_isca", count: 5, label: "Etiquetas Rasgadas" },
+    ],
+    dialog: {
+      offer: "Oito Gosmas Azuis engoliram as etiquetas das bombonas e saíram quicando do pátio até a estrada dos lobos. Quicando. Sozinhas. Pare oito delas e me traga cinco Etiquetas Rasgadas, porque sem rótulo o inventário não fecha.",
+      accept: "Elas fogem quando veem gente. Encurrale. E cuidado com os pés: gosma cheia pesa.",
+      progress: "Oito gosmas e cinco etiquetas. O inventário é sexta, e eu não vou explicar bombona a menos.",
+      complete: "Inventário fechado! Tome estas Botas Reforçadas: a próxima gosma que quicar no seu pé vai se arrepender.",
+    },
+    rewards: { xp: 1800, gold: 400, items: [{ itemId: "botas_biqueira", count: 1 }] },
+  }),
+  q({
+    id: "rotaciona_a_senha", name: "Rotaciona a Senha", giver: "iago", minLevel: 16, requires: ["git_caiu"],
+    summary: "Iago do Cofre descobriu bilhetes amassados com senha espalhados pelo mundo. Recolha seis e confira se o boato das Cavernas é verdade.",
+    steps: [
+      { kind: "deliver", target: "post_it_senha", count: 6, label: "Bilhetes Amassados" },
+      { kind: "explore", target: "Cavernas", count: 1, label: "Conferir as Cavernas" },
+    ],
+    dialog: {
+      offer: "Papel não é cofre. Mas alguém achou que era, e agora tem Bilhete Amassado com senha rodando por aí, grudado em bicho. Recolha seis para eu rotacionar tudo, e vá até as Cavernas: dizem que tem um até lá.",
+      accept: "Não leia a senha. Quer dizer, pode ler, vou trocar mesmo. Mas não leia.",
+      progress: "Seis bilhetes e uma ida às Cavernas. Cada um que falta é uma senha que ainda vale.",
+      complete: "Seis senhas rotacionadas, e as Cavernas são só morcego mesmo. Tome este Anel de Ferro Batido: aguenta mais que a senha antiga.",
+    },
+    rewards: { xp: 3000, gold: 800, items: [{ itemId: "anel_trilho_din", count: 1 }] },
+  }),
+  q({
+    id: "frames_descartados", name: "Frames Descartados", giver: "pedrao", minLevel: 22, requires: ["bombonas_fugitivas"],
+    summary: "Pedrão, o Visionário, perde frame atrás de frame para a escória da Siderúrgica, que agora anda por aí em forma de Gosma Cinzenta. Ele quer as gosmas contidas e cristais trincados para estudar o estrago.",
+    steps: [
+      { kind: "kill", target: "slag_slime", count: 15, label: "Gosmas Cinzentas" },
+      { kind: "deliver", target: "lente_trincada", count: 3, label: "Cristais Trincados" },
+    ],
+    dialog: {
+      offer: "Go ou NoGo? NoGo. A escória da Siderúrgica cobre a lente em cinquenta milissegundos e eu descarto frame atrás de frame. Derrube quinze Gosmas Cinzentas nas Cavernas e no Pântano e me traga três Cristais Trincados: quero ver onde o vidro cede.",
+      accept: "A gosma queima. Não encare de perto, e não limpe a lente com a manga.",
+      progress: "Quinze gosmas e três cristais. Enquanto isso, a câmera só vê laranja.",
+      complete: "Go! Frame inspecionável! Em 26 decisões de arquitetura, uma deu certo. Tome este Elmo de Ferro Pintado: aqui, bom senso é equipamento de proteção.",
+    },
+    rewards: { xp: 6000, gold: 2000, items: [{ itemId: "capacete_obra", count: 1 }] },
   }),
   // --- Pântano e Cavernas (10–25) ---------------------------------------------------------------------
   q({
@@ -148,13 +243,14 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "cave_echoes", name: "Ecos nas Cavernas", giver: "old_hunter", minLevel: 16, requires: ["bee_hunt"],
-    summary: "Tomé ouviu ecos estranhos vindos das Cavernas ao sul. Morcegos demais, diz ele.",
+    summary: "Tomé ouviu ecos estranhos vindos das Cavernas, cuja boca se abre no meio do Pântano Turvo. Morcegos demais, diz ele.",
     steps: [
       { kind: "explore", target: "Cavernas", count: 1, label: "Explorar as Cavernas" },
       { kind: "kill", target: "bat", count: 12, label: "Morcegos" },
     ],
     dialog: {
-      offer: "Nas Cavernas ao sul os morcegos se multiplicaram. Espantam a caça inteira. Entre lá e derrube doze deles.",
+      // A única entrada das Cavernas é a gruta de pedra no Pântano Turvo (o texto antigo dizia "ao sul").
+      offer: "Nas Cavernas os morcegos se multiplicaram. Espantam a caça inteira. A boca fica no Pântano Turvo: siga a estrada da vila para nordeste até a gruta de pedra no meio do brejo. Entre e derrube doze deles.",
       accept: "Leve tocha. E não grite, que eles vêm todos de uma vez.",
       progress: "Doze morcegos. E vá até as Cavernas, não adianta caçar na praça.",
       complete: "Silêncio, finalmente! A caça vai voltar. Este anel me serviu bem por anos; agora é seu.",
@@ -163,16 +259,16 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "swamp_lich", name: "O Lich do Pântano", giver: "priest", minLevel: 22, requires: ["swamp_report"],
-    summary: "A Sacerdotisa Liora sente uma presença morta no Pântano Turvo: um lich. Ele guarda a chave da Cripta.",
-    steps: [
-      { kind: "boss", target: "swamp_lich", count: 1, label: "Lich do Pântano" },
-      { kind: "collect", target: "crypt_key", count: 1, label: "Chave da Cripta" },
-    ],
+    summary: "A Sacerdotisa Liora sente uma presença morta no Pântano Turvo: um lich, um morto que se recusa a descansar.",
+    // Ciclo 14: sem o passo "coletar a chave". A chave cai uma vez só para o grupo, e o passo "boss" já credita todos
+    // os membros; com ela, um grupo de quatro precisava de quatro abates. Quem salvou o progresso no passo antigo fica
+    // só com o índice 0 (o chefe), que já estava feito: a missão aparece pronta para entregar.
+    steps: [{ kind: "boss", target: "swamp_lich", count: 1, label: "Lich do Pântano" }],
     dialog: {
-      offer: "O Capitão me contou da névoa roxa. É um lich, viajante, um morto que se recusa a descansar. Derrote-o e traga a chave da Cripta que ele carrega. Não vá sozinho.",
+      offer: "O Capitão me contou da névoa roxa. É um lich, viajante, um morto que se recusa a descansar. Derrote-o e volte para me contar. Não vá sozinho.",
       accept: "Que a luz te proteja. Reúna amigos: ele é mais forte do que parece.",
-      progress: "O lich ainda caminha. Sinto sua presença daqui. Derrote-o e traga a Chave da Cripta.",
-      complete: "A chave da Cripta... Então é verdade. Guarde-a bem; precisaremos dela. Receba a bênção da luz.",
+      progress: "O lich ainda caminha. Sinto sua presença daqui. Derrote-o e volte.",
+      complete: "A névoa se desfez, senti daqui! Se ele deixou cair uma chave velha, guarde de lembrança: a Cripta nunca teve tranca que segurasse os mortos. Receba a bênção da luz.",
     },
     rewards: { xp: 8000, gold: 3000, items: [{ itemId: "health_potion_large", count: 5 }, { itemId: "mana_potion_large", count: 5 }], unlock: "addon:invocador:2" },
   }),
@@ -187,7 +283,8 @@ export const QUEST_LIST: QuestDef[] = [
     ],
     dialog: {
       offer: "A morte do lich acordou a Cripta. Esqueletos e fantasmas vagam sem paz. Entre lá e devolva-os ao descanso: quinze esqueletos e oito fantasmas.",
-      accept: "A Cripta fica no extremo sudeste. A luz vai contigo.",
+      // A Cripta só se entra pelo mausoléu das Ruínas de Kael (o texto antigo dizia "extremo sudeste").
+      accept: "A entrada da Cripta é o mausoléu com porta de caveira nas Ruínas de Kael, ao norte. A luz vai contigo.",
       progress: "Ainda ouço os lamentos da Cripta. Continue, viajante.",
       complete: "O silêncio voltou à Cripta. Este amuleto foi abençoado no altar; que ele te proteja.",
     },
@@ -211,16 +308,14 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "goblin_king", name: "A Coroa do Rei Goblin", giver: "guard_captain", minLevel: 35, requires: ["ruins_goblins"],
-    summary: "O Rei Goblin comanda os saqueadores das Ruínas de Kael. Derrote-o e traga sua coroa.",
-    steps: [
-      { kind: "boss", target: "goblin_king", count: 1, label: "Rei Goblin" },
-      { kind: "deliver", target: "goblin_crown", count: 1, label: "Coroa do Rei Goblin" },
-    ],
+    summary: "O Rei Goblin comanda os saqueadores das Ruínas de Kael. Derrote-o e volte ao Capitão.",
+    // Ciclo 14: sem o passo "entregar a coroa" (mesmo motivo do Lich: a coroa cai uma vez para o grupo inteiro).
+    steps: [{ kind: "boss", target: "goblin_king", count: 1, label: "Rei Goblin" }],
     dialog: {
-      offer: "Os goblins têm um rei, e ele está nas profundezas das Ruínas de Kael. Acabe com ele e traga a coroa. Leve os melhores guerreiros que conhecer.",
-      accept: "Pela vila de Pedra Clara! Volte vivo, de preferência com a coroa.",
-      progress: "O Rei Goblin ainda reina. Quero aquela coroa na minha mesa.",
-      complete: "A coroa do Rei Goblin! Os bardos vão cantar seu nome por anos. Aceite isto em nome da vila.",
+      offer: "Os goblins têm um rei, e ele está nas profundezas das Ruínas de Kael. Acabe com ele. Leve os melhores guerreiros que conhecer.",
+      accept: "Pela vila de Pedra Clara! Volte vivo, de preferência com uma boa história.",
+      progress: "O Rei Goblin ainda reina. Volte quando ele cair.",
+      complete: "O Rei Goblin caiu! Os bardos vão cantar seu nome por anos. A coroa? Pendure na parede de casa: na minha mesa só cabe relatório. Aceite isto em nome da vila.",
     },
     rewards: { xp: 20000, gold: 15000, items: [{ itemId: "mithril_bar", count: 2 }], unlock: "addon:assassino:2" },
   }),
@@ -321,16 +416,17 @@ export const QUEST_LIST: QuestDef[] = [
   }),
   q({
     id: "dragon_scales", name: "Escamas do Vale", giver: "frontier_scout", minLevel: 70, requires: ["black_fort"],
-    summary: "Os ferreiros da Fronteira precisam de escamas de dragão para forjar escudos.",
+    // Ciclo 14: o texto prometia escudo ao jogador e a recompensa nunca foi escudo; os escudos são da guarda do posto.
+    summary: "Os ferreiros da Fronteira precisam de escamas de dragão para forjar escudos para a guarda do posto.",
     steps: [
       { kind: "kill", target: "dragon", count: 25, label: "Dragões" },
       { kind: "deliver", target: "dragon_scale", count: 10, label: "Escamas de Dragão" },
     ],
     dialog: {
-      offer: "Escudo bom só se faz com escama de dragão. Mate vinte e cinco dragões no vale ao sul e me traga dez escamas.",
+      offer: "A guarda do posto está defendendo a estrada com escudo de madeira, e escudo bom só se faz com escama de dragão. Mate vinte e cinco dragões no vale ao sul e me traga dez escamas para o ferreiro.",
       accept: "Fique de lado quando eles respirarem fundo. O fogo vem reto.",
       progress: "Vinte e cinco dragões e dez escamas. O ferreiro está esperando.",
-      complete: "Escamas perfeitas! O ferreiro vai chorar de alegria. Tome.",
+      complete: "Escamas perfeitas! O ferreiro vai chorar de alegria, e a guarda vai ter escudo novo antes do inverno. Tome a sua parte.",
     },
     rewards: { xp: 45000, gold: 9000, items: [{ itemId: "dragon_ham", count: 10 }] },
   }),
@@ -361,8 +457,26 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 90000, gold: 20000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
   }),
+  // Ciclo 12 (GD-08): o 100–109 não tinha missão. Esta prepara o trono de Orshabaal (110) com o loot dos demônios.
   q({
-    id: "orshabaal_hunt", name: "O Senhor do Abismo", giver: "frontier_priest", minLevel: 110, requires: ["abyss_gates"],
+    id: "selo_do_abismo", name: "O Selo do Abismo", giver: "frontier_priest", minLevel: 100, requires: ["abyss_gates"],
+    summary: "Os portões do Abismo voltaram a rachar. O Irmão Tadeu quer forjar um selo com o que os próprios demônios carregam.",
+    steps: [
+      { kind: "kill", target: "demon", count: 20, label: "Demônios" },
+      { kind: "deliver", target: "demon_horn", count: 10, label: "Chifres de Demônio" },
+      { kind: "deliver", target: "demonic_essence", count: 5, label: "Essências Demoníacas" },
+    ],
+    dialog: {
+      offer: "Os portões que você fechou estão rachando de novo. Um selo de verdade se faz com o que os demônios carregam: dez chifres e cinco essências. E vinte deles a menos no caminho, para eu ter paz enquanto trabalho.",
+      accept: "Desça com o grupo. Os chifres caem fácil; as essências, só dos mais teimosos.",
+      progress: "Vinte demônios, dez chifres e cinco essências. O selo não se forja sozinho.",
+      complete: "O selo está pronto e brilha como brasa. Com ele, o trono de Orshabaal fica ao alcance de quem tiver coragem.",
+    },
+    rewards: { xp: 120000, gold: 25000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }] },
+  }),
+  q({
+    // Ciclo 14 (decisão do dono): o selo forjado na missão anterior é o que abre o caminho ao trono.
+    id: "orshabaal_hunt", name: "O Senhor do Abismo", giver: "frontier_priest", minLevel: 110, requires: ["abyss_gates", "selo_do_abismo"],
     summary: "No trono do Abismo, Orshabaal espera os tolos e os heróis.",
     steps: [{ kind: "boss", target: "orshabaal", count: 1, label: "Orshabaal" }],
     dialog: {
@@ -372,6 +486,25 @@ export const QUEST_LIST: QuestDef[] = [
       complete: "Orshabaal foi banido! A Fronteira inteira vai rezar por você. Daqui para frente, você é o Exorcista.",
     },
     rewards: { xp: 180000, gold: 40000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:exorcista" },
+  }),
+  // Ciclo 16: os chefes de covil das quatro caves profundas (lateObjects14 no mapa). Dá para fazer em qualquer ordem; o
+  // Shogun (lv 125) é o que segura a missão no fim de jogo.
+  q({
+    id: "quatro_covis", name: "Os Quatro Covis", giver: "frontier_scout", minLevel: 100,
+    summary: "Cada cave profunda tem um dono no covil do fundo. A Batedora Iara quer os quatro derrubados para fechar o mapa.",
+    steps: [
+      { kind: "boss", target: "lair_mole_king", count: 1, label: "Rei Toupeira" },
+      { kind: "boss", target: "lair_kraken", count: 1, label: "Kraken das Grutas" },
+      { kind: "boss", target: "lair_flame", count: 1, label: "Chama Ancestral" },
+      { kind: "boss", target: "lair_shogun", count: 1, label: "Shogun Abissal" },
+    ],
+    dialog: {
+      offer: "Meu mapa das caves fundas tem quatro manchas escritas 'aqui mora alguém'. O Rei Toupeira nas Minas, o Kraken nas Grutas, a Chama Ancestral nas Catacumbas e o Shogun no Abismo Profundo. Derrube os quatro e eu troco as manchas pelo seu nome.",
+      accept: "Cada covil fica no fim da cave, depois da galeria funda. O baú do covil só abre para quem estava no grupo que derrubou o dono, então ninguém fica de fora da luta. E leve um grupo: o Shogun não tem pressa nenhuma de morrer.",
+      progress: "Ainda tem covil com dono no meu mapa. Quatro chefes, quatro covis. Três e meio não conta.",
+      complete: "Quatro covis, quatro donos a menos! Vou ter que desenhar o mapa de novo, desta vez com o seu nome em cada sala. Daqui para a frente, você é o Caçador de Covis.",
+    },
+    rewards: { xp: 150000, gold: 40000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }], unlock: "title:cacador_covis" },
   }),
   // --- Costa Esmeralda: Porto Esperança (25–120) -------------------------------------------------------
   q({
@@ -518,10 +651,11 @@ export const QUEST_LIST: QuestDef[] = [
       { kind: "deliver", target: "frost_dragon_scale", count: 10, label: "Escamas de Dragão de Gelo" },
     ],
     dialog: {
-      offer: "Com o Yeti morto, o ninho dos dragões de gelo está aberto. Mate vinte e me traga dez escamas. Vou forjar o escudo mais frio do mundo!",
+      // Ciclo 14: o escudo é dos guerreiros do Jarl (a recompensa nunca foi escudo).
+      offer: "Com o Yeti morto, o ninho dos dragões de gelo está aberto. Mate vinte e me traga dez escamas: os ferreiros do acampamento vão forjar para os meus guerreiros os escudos mais frios do mundo!",
       accept: "O ninho fica depois da caverna do Yeti. O sopro deles congela o sangue.",
       progress: "Vinte dragões de gelo e dez escamas, guerreiro.",
-      complete: "Escamas lindas! O norte nunca vai esquecer o seu nome.",
+      complete: "Escamas lindas! Os escudos do norte vão aguentar qualquer sopro, e o norte nunca vai esquecer o seu nome. Tome.",
     },
     rewards: { xp: 70000, gold: 14000, items: [{ itemId: "dragon_ham", count: 10 }, { itemId: "health_potion_large", count: 10 }] },
   }),
@@ -569,35 +703,24 @@ export const QUEST_LIST: QuestDef[] = [
     },
     rewards: { xp: 90000, gold: 18000, items: [{ itemId: "health_potion_large", count: 20 }, { itemId: "mana_potion_large", count: 20 }] },
   }),
-  // Ciclo 9 (faixa 90-120): o buraco entre Os Cães do Inferno (95) e O Fim de Ferumbras (120) não tinha missão
-  // nenhuma. As duas abaixo reaproveitam monstros/itens que já existiam no mapa (demon e juggernaut, já no
-  // tools/mapgen/expansion2.mjs), sem pedir mapa ou arte novos.
+  // Ciclo 12 (GD-08): ponte entre os cães (95) e Ferumbras (120), na faixa 100–109 que não tinha missão.
   q({
-    id: "demon_gate", name: "Os Portões Demoníacos", giver: "sage_ignis", minLevel: 100, requires: ["hellhounds"],
-    summary: "Demônios guardam os portões que levam à Cidadela, mais abaixo na cratera.",
-    steps: [{ kind: "kill", target: "demon", count: 20, label: "Demônios" }],
+    id: "marcha_dos_colossos", name: "A Marcha dos Colossos", giver: "sage_ignis", minLevel: 105, requires: ["hellhounds"],
+    summary: "Colossos marcham pela Cidadela sob o vulcão. Mestre Ignis quer saber de que são feitos.",
+    steps: [
+      { kind: "kill", target: "juggernaut", count: 15, label: "Colossos" },
+      { kind: "deliver", target: "juggernaut_plate", count: 5, label: "Placas de Colosso" },
+    ],
     dialog: {
-      offer: "Passando os cães, vêm os demônios. Eles guardam os portões da Cidadela. Mate vinte e eles recuam.",
-      accept: "Chuva de fogo e paralisia. Não fique parado depois que eles abrirem a boca.",
-      progress: "Os portões ainda estão cheios de demônios. Vinte, lembra?",
-      complete: "Os portões ficaram livres. Falta só a ponte agora, antes da própria Cidadela.",
+      offer: "Com os cães calados, a Cidadela ficou à vista, e lá dentro marcham os colossos. Derrube quinze e me traga cinco placas da couraça deles. Se eu entender o metal, entendo quem os forjou.",
+      accept: "Eles são lentos, mas um golpe deles derruba muralha. Não fique na frente sem um escudo.",
+      progress: "Quinze colossos e cinco placas. A Cidadela não vai se abrir sozinha.",
+      complete: "Este metal... foi forjado com magia, não com fogo. Ferumbras está por trás disso, tenho certeza.",
     },
-    rewards: { xp: 120000, gold: 26000, items: [{ itemId: "health_potion_large", count: 22 }, { itemId: "mana_potion_large", count: 15 }] },
+    rewards: { xp: 150000, gold: 30000, items: [{ itemId: "health_potion_large", count: 25 }, { itemId: "mana_potion_large", count: 25 }] },
   }),
   q({
-    id: "colossus_bridge", name: "A Ponte dos Colossos", giver: "sage_ignis", minLevel: 108, requires: ["demon_gate"],
-    summary: "Uma ponte de pedra, guardada por colossos, é o último obstáculo antes da Cidadela.",
-    steps: [{ kind: "deliver", target: "juggernaut_plate", count: 8, label: "Placas de Colosso" }],
-    dialog: {
-      offer: "A ponte para a Cidadela é guardada por colossos. Me traga oito placas arrancadas deles e eu abro caminho.",
-      accept: "Cada placa é um colosso a menos de pé. Cuidado com o Terremoto: ele acerta uma área, não só você.",
-      progress: "Oito placas de colosso. Sei que você já derrubou alguns, mas preciso de mais.",
-      complete: "Oito placas. A ponte é sua agora. O que vem depois dela é entre você e Ferumbras.",
-    },
-    rewards: { xp: 160000, gold: 38000, items: [{ itemId: "health_potion_large", count: 26 }] },
-  }),
-  q({
-    id: "ferumbras_end", name: "O Fim de Ferumbras", giver: "sage_ignis", minLevel: 120, requires: ["colossus_bridge"],
+    id: "ferumbras_end", name: "O Fim de Ferumbras", giver: "sage_ignis", minLevel: 120, requires: ["hellhounds"],
     summary: "Na Cidadela, sob o vulcão, o feiticeiro Ferumbras prepara o seu retorno.",
     steps: [
       { kind: "kill", target: "juggernaut", count: 10, label: "Colossos" },
@@ -610,6 +733,174 @@ export const QUEST_LIST: QuestDef[] = [
       complete: "Você venceu Ferumbras! Ele vai voltar, sempre volta... mas hoje o mundo é seu, Algoz de Ferumbras.",
     },
     rewards: { xp: 200000, gold: 50000, items: [{ itemId: "health_potion_large", count: 30 }], unlock: "title:algoz_ferumbras" },
+  }),
+  // --- Malha da Ferrovia (25–55, ciclo 11) ------------------------------------------------------------------------
+  // Região só de trem. NPCs por papel; da equipe, só apelidos já existentes (Pedrão, Julião, Iago), que continuam na
+  // Oficina dos Engenhos: as missões que falam com eles mandam o jogador de volta pelo trem e pela carroça. Anedotas
+  // reais da inspeção (legenda S/N trocada, nove de dez iluminadores, VAG-TEMP, Enter duplo), cliente disfarçado.
+  q({
+    id: "engate_rapido", name: "Primeira Passagem", giver: "chefe_estacao_malha", minLevel: 25,
+    summary: "A primeira passagem do mês não pode atrasar, mas as Cobras Listradas tomaram conta do Pátio de Manobra e soltaram os engates. O Chefe da Estação quer o pátio livre e os pinos de volta.",
+    steps: [
+      { kind: "explore", target: "Pátio de Manobra", count: 1, label: "Ir ao Pátio de Manobra" },
+      { kind: "kill", target: "engate_solto", count: 12, label: "Cobras Listradas" },
+      { kind: "deliver", target: "pino_de_engate", count: 5, label: "Pinos de Ferro" },
+    ],
+    dialog: {
+      offer: "Recém-chegado? Ótimo, porque a primeira passagem do mês sai hoje e o Pátio de Manobra virou bagunça: as Cobras Listradas se enrolaram nos engates, o tranco soltou tudo e os pinos sumiram. Derrube doze cobras e me traga cinco Pinos de Ferro, que eu remonto a composição.",
+      accept: "O pátio fica logo depois da plataforma. Olhe para os dois lados antes de cruzar a linha. Sempre.",
+      progress: "Doze cobras e cinco pinos. Sem pino, o vagão vai para um lado e a locomotiva para o outro.",
+      complete: "Pátio livre, composição engatada, primeira passagem no horário! Tome, para a próxima manobra. E bem-vindo à Malha.",
+    },
+    rewards: { xp: 6000, gold: 1500, items: [{ itemId: "health_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "go_nogo", name: "A Legenda Trocada", giver: "inspetora_portal", minLevel: 28, requires: ["engate_rapido"],
+    summary: "Alguém trocou o S pelo N na legenda do Portal: quem apertava S para reprovar aprovava e avançava. Antes de liberar o pórtico, a Inspetora de Rodas quer o CLP conferido e o parecer do Pedrão.",
+    steps: [
+      { kind: "explore", target: "Portal de Inspeção", count: 1, label: "Conhecer o Portal de Inspeção" },
+      { kind: "talk", target: "operador_abrigo", count: 1, label: "Conferir o CLP no abrigo" },
+      { kind: "talk", target: "pedrao", count: 1, label: "Pedir o parecer do Pedrão" },
+    ],
+    dialog: {
+      offer: "Go ou NoGo? Hoje, nem um nem outro: alguém trocou o S pelo N na legenda, e quem apertava S para reprovar aprovava a roda e avançava. Vá ao pórtico, peça ao Técnico do CLP para conferir o abrigo e leve a pergunta ao Pedrão, lá na Oficina dos Engenhos. Ele desenhou as câmeras; ele diz se a luz está certa.",
+      accept: "Quatro câmeras, quatro iluminadores. Se algum piscar, anote. Se todos piscarem, corra.",
+      progress: "Ainda sem o CLP conferido e sem o parecer do Pedrão. O pórtico continua em NoGo.",
+      complete: "CLP conferido, legenda desvirada e o Pedrão disse 'Go'. Agora S é sim e N é não. Tome, pelo trabalho de campo.",
+    },
+    rewards: { xp: 4000, gold: 1200, items: [{ itemId: "mana_potion_medium", count: 10 }] },
+  }),
+  q({
+    id: "sapata_gasta", name: "Calo na Roda", giver: "mecanico_vagao", minLevel: 30, requires: ["engate_rapido"],
+    summary: "A sapata travou, a roda arrastou no trilho e as Toupeiras Douradas cavaram o Pátio de Manobra inteiro. O Engenheiro do Dark-field quer as toupeiras paradas e as placas de pedra para a análise de desgaste.",
+    // Ciclo 14: as toupeiras nascem no Pátio de Manobra, não na Oficina de Vagões (onde o próprio Engenheiro fica, o que
+    // tornava o "explorar" automático). Quem já cumpriu o passo antigo mantém o progresso (mesmo índice).
+    steps: [
+      { kind: "explore", target: "Pátio de Manobra", count: 1, label: "Ir ao Pátio de Manobra" },
+      { kind: "kill", target: "sapata_gasta", count: 15, label: "Toupeiras Douradas" },
+      { kind: "deliver", target: "pastilha_de_sapata", count: 6, label: "Placas de Pedra" },
+    ],
+    dialog: {
+      offer: "Calo é roda que arrastou: a sapata travou, a roda não girou e o trilho comeu um pedaço dela. Como se não bastasse, as Toupeiras Douradas cavaram o Pátio de Manobra e os trilhos afundaram. Volte ao pátio, pare quinze e me traga seis Placas de Pedra do piso: quero medir o desgaste antes de pedir peça nova.",
+      accept: "São lentos, mas duros. Não fique na frente quando um travar.",
+      progress: "Quinze toupeiras e seis placas. Enquanto isso, o vagão da linha 3 desce a rampa sozinho.",
+      complete: "Desgaste medido: tudo fora de tolerância, como eu disse. Vista este Gibão Reforçado. Na via, quem não se protege não volta.",
+    },
+    rewards: { xp: 9000, gold: 2500, items: [{ itemId: "colete_refletivo", count: 1 }] },
+  }),
+  q({
+    id: "nove_de_dez", name: "Nove de Dez", giver: "operador_abrigo", minLevel: 34, requires: ["go_nogo"],
+    summary: "Numa visita de campo, nove de dez iluminadores do pórtico chegaram queimados, e a luz que sobrou virou Lanterna Assombrada. O Técnico do CLP quer as lanternas apagadas, as brasas contadas e cristais novos na mão da Inspetora de Rodas.",
+    steps: [
+      { kind: "kill", target: "iluminador_rebelde", count: 12, label: "Lanternas Assombradas" },
+      { kind: "deliver", target: "iluminador_queimado", count: 9, label: "Brasas Apagadas" },
+      { kind: "deliver", target: "lente_industrial", count: 4, npc: "inspetora_portal", label: "Cristais Azuis para a Inspetora" },
+    ],
+    dialog: {
+      offer: "Nove de dez. Nove! Chegaram queimados, e o décimo acendeu tanto que virou assombração e saiu andando. Apague doze Lanternas Assombradas, me traga nove Brasas Apagadas para a garantia e leve quatro Cristais Azuis inteiros para a Inspetora de Rodas, um por câmera.",
+      accept: "Cuidado com o clarão: um piscar e você vê estrela até a próxima passagem.",
+      progress: "Doze lanternas, nove brasas e quatro cristais para a Inspetora. A garantia não espera.",
+      complete: "Garantia aberta, pórtico aceso, lentes trocadas. Tome este Elmo com Lampião: para o abrigo, onde a luz é sempre a última a chegar.",
+    },
+    rewards: { xp: 12000, gold: 3000, items: [{ itemId: "capacete_lanterna", count: 1 }] },
+  }),
+  q({
+    id: "dark_field", name: "Dark-field", giver: "mecanico_vagao", minLevel: 38, requires: ["nove_de_dez"],
+    summary: "Com luz rasante, a trinca no disco aparece; sem ela, o frame é descartado, e os descartados viraram Espectros Errantes. O Engenheiro do Dark-field quer os espectros pegos, os pergaminhos na mesa e o laudo levado à Inspetora de Rodas.",
+    steps: [
+      { kind: "kill", target: "frame_descartado", count: 12, label: "Espectros Errantes" },
+      { kind: "deliver", target: "frame_corrompido", count: 4, label: "Pergaminhos Borrados" },
+      { kind: "talk", target: "inspetora_portal", count: 1, label: "Levar o laudo à Inspetora" },
+    ],
+    dialog: {
+      offer: "Dark-field: luz rasante, quase de lado, e a trinca no disco salta na imagem. O problema é que o gravador estoura o backlog no começo da passagem e descarta os frames antes de eu ver, e o que é descartado aqui vira Espectro Errante. Pegue doze antes que sumam, me traga quatro Pergaminhos Borrados que eles carregam e leve o laudo à Inspetora de Rodas.",
+      accept: "Eles fogem quando enfraquecem. Feche o caminho; espectro que escapa vira 'sensor 1 missed 2 trigger(s)'.",
+      progress: "Doze espectros, quatro pergaminhos e a Inspetora avisada. Sem isso, a roda passa como 'sem defeito'.",
+      complete: "Trinca no disco, confirmada em dark-field e no laudo da Inspetora. Roda reprovada com o botão certo, desta vez. Tome as Calças de Couro Batido: aguentam cascalho e reunião de obra.",
+    },
+    rewards: { xp: 15000, gold: 4000, items: [{ itemId: "calca_brim_refletiva", count: 1 }] },
+  }),
+  q({
+    id: "passagem_duplicada", name: "Tag Perdida", giver: "operador_abrigo", minLevel: 40, requires: ["nove_de_dez"],
+    summary: "O leitor de tags não leu um vagão, o sistema o chamou de VAG-TEMP-3 e associou a tag à passagem seguinte: agora o mesmo trem aparece duas vezes. O Técnico do CLP quer a contagem conferida, os registros na mão e o VAG-TEMP-3 achado na via.",
+    steps: [
+      { kind: "talk", target: "chefe_estacao_malha", count: 1, label: "Conferir a contagem na Estação" },
+      { kind: "talk", target: "juliao", count: 1, label: "Perguntar ao Julião sobre o leitor" },
+      { kind: "talk", target: "iago", count: 1, label: "Pedir os registros ao Iago" },
+      { kind: "explore", target: "Via Permanente", count: 1, label: "Achar o VAG-TEMP-3 na Via Permanente" },
+    ],
+    dialog: {
+      offer: "Um vagão passou sem tag lida, virou VAG-TEMP-3, e a tag que faltava foi parar na passagem seguinte. Resultado: um trem, duas passagens. Confira a contagem com o Chefe da Estação, pergunte ao Julião dos Embarcados se o leitor de tags andou aceitando leitura inválida, peça os registros ao Iago do Cofre e ache o VAG-TEMP-3 na Via Permanente.",
+      accept: "Julião e Iago ficam na Oficina dos Engenhos. Trem até a Vila, carroça até a Oficina. Bom passeio.",
+      progress: "Faltam respostas. Estação, Julião, Iago e o VAG-TEMP-3. Até lá, a passagem fica duplicada.",
+      complete: "Leitura inválida aceita e grudada na passagem errada, está nos registros do Iago. VAG-TEMP-3 achado, tag devolvida, passagem duplicada apagada. Tome, e confira a tag antes do Enter.",
+    },
+    rewards: { xp: 12000, gold: 3000, items: [{ itemId: "mana_potion_large", count: 10 }, { itemId: "health_potion_large", count: 5 }] },
+  }),
+  q({
+    id: "rodeiro_trincado", name: "Trinca no Disco", giver: "mecanico_vagao", minLevel: 45, requires: ["sapata_gasta", "dark_field"],
+    summary: "Na Oficina de Vagões, Olhos Sangrentos e Feras das Brasas tomaram o galpão das rodas reprovadas. O Engenheiro do Dark-field quer a oficina de volta e as engrenagens salvas.",
+    steps: [
+      { kind: "kill", target: "rodeiro_trincado", count: 15, label: "Olhos Sangrentos" },
+      { kind: "kill", target: "truque_desalinhado", count: 10, label: "Feras das Brasas" },
+      { kind: "deliver", target: "rolamento_de_rodeiro", count: 5, label: "Engrenagens de Prata" },
+    ],
+    dialog: {
+      offer: "Vermelho é trinca no disco; laranja, aro fraturado. Na tela são só cores. Aqui na Oficina de Vagões, as rodas reprovadas atraíram Olhos Sangrentos e Feras das Brasas. Derrube quinze olhos e dez feras e me traga cinco Engrenagens de Prata: o rolamento estava bom, o disco é que não.",
+      accept: "Dois truques por vagão, dois eixos por truque. Conte antes de entrar, e conte de novo na saída.",
+      progress: "Olhos, feras e engrenagens. A oficina continua parada.",
+      complete: "Galpão limpo, engrenagens salvas. Calce estas Botas do Andarilho: na Oficina, quem pisa em engrenagem solta aprende rápido.",
+    },
+    rewards: { xp: 22000, gold: 6000, items: [{ itemId: "botina_seguranca", count: 1 }] },
+  }),
+  q({
+    id: "revisao_na_via", name: "Revisão na Via", giver: "inspetora_portal", minLevel: 46, requires: ["rodeiro_trincado"],
+    summary: "Revisão na via: enfrentar de perto um de cada bicho da Malha e, enfim, derrubar o Ciclope de Pedra que trava a fila da Oficina de Vagões.",
+    steps: [
+      { kind: "kill", target: "rodeiro_trincado", count: 1, label: "Olho Sangrento" },
+      { kind: "kill", target: "truque_desalinhado", count: 1, label: "Fera das Brasas" },
+      { kind: "kill", target: "sapata_gasta", count: 1, label: "Toupeira Dourada" },
+      { kind: "kill", target: "engate_solto", count: 1, label: "Cobra Listrada" },
+      { kind: "boss", target: "vagao_nao_inspecionavel", count: 1, label: "Ciclope de Pedra" },
+    ],
+    dialog: {
+      offer: "A tela diz 'com defeito'; a revisão na via diz se é verdade. Derrube de perto um de cada: Olho Sangrento, Fera das Brasas, Toupeira Dourada e Cobra Listrada. E pare o Ciclope de Pedra no fundo da Oficina de Vagões: ele senta no vagão que não tem foto de roda, e sem esse vagão a passagem nunca encerra. Leve gente: ele chama as toupeiras.",
+      accept: "Olho, fera, toupeira, cobra. Se aparecer uma quinta coisa, me chame, porque isso não existe.",
+      progress: "Um de cada bicho e o Ciclope no chão. A revisão não fecha pela metade.",
+      complete: "Quarteto conferido, Ciclope no chão e o vagão, finalmente, inspecionado. Tudo com defeito, mas inspecionado! Agora só falta o trem encerrar.",
+    },
+    rewards: { xp: 20000, gold: 5000, items: [{ itemId: "health_potion_large", count: 10 }, { itemId: "mana_potion_large", count: 10 }] },
+  }),
+  q({
+    id: "o_tunel", name: "O Túnel", giver: "maquinista_aposentado", minLevel: 48, requires: ["passagem_duplicada"],
+    summary: "O Maquinista jura que o lastro do Túnel da Serra está andando. Ele quer alguém lá dentro, as Ratazanas Negras contadas e cascalho de prova.",
+    steps: [
+      { kind: "explore", target: "Túnel da Serra", count: 1, label: "Entrar no Túnel da Serra" },
+      { kind: "kill", target: "rato_de_lastro", count: 20, label: "Ratazanas Negras" },
+      { kind: "deliver", target: "brita_de_lastro", count: 10, label: "Cascalho" },
+    ],
+    dialog: {
+      offer: "Lastro bom é lastro que não anda. O do Túnel da Serra anda, e de bando: são as Ratazanas Negras carregando a brita. Entre lá, derrube vinte e me traga dez punhados de Cascalho, que eu quero ver de perto o que está comendo o meu lastro.",
+      accept: "Lá dentro é escuro, e uma ratazana chama as outras. Leve luz e alguém para segurar a lanterna.",
+      progress: "Vinte ratazanas e dez punhados de cascalho. E se ouvir um rugido, saia do trilho.",
+      complete: "Roído por dentro! Não é ratazana comum, é coisa do Tirano da Serra. Tome as poções: você vai precisar delas na quarta.",
+    },
+    rewards: { xp: 24000, gold: 6000, items: [{ itemId: "health_potion_large", count: 15 }] },
+  }),
+  q({
+    id: "locomotiva_fantasma", name: "O Trem Que Nunca Encerra", giver: "maquinista_aposentado", minLevel: 52, requires: ["o_tunel", "revisao_na_via"],
+    summary: "Toda quarta, às cinco da tarde, o Tirano da Serra desce ao Túnel bem na hora da composição de 1.124 eixos, a locomotiva fica sem eixo lido e a passagem nunca encerra. O Maquinista quer que ele pare de vez.",
+    steps: [
+      { kind: "boss", target: "locomotiva_fantasma", count: 1, label: "Tirano da Serra" },
+      { kind: "talk", target: "chefe_estacao_malha", count: 1, label: "Avisar a Estação" },
+    ],
+    dialog: {
+      offer: "Quarenta anos de cabine e eu nunca vi aquele trem encerrar. A locomotiva não tem eixo lido, então todo vagão atrás dela cai na posição errada, a roda sem imagem não fecha, e a passagem fica aberta para sempre. Toda quarta, às cinco, o Tirano da Serra desce ao túnel e fica rugindo em cima da linha. Junte um grupo, derrube o Tirano e avise o Chefe da Estação para fechar a passagem.",
+      accept: "Quando ouvir o rugido, é ele. Fique fora da frente do bafo e não deixe as ratazanas te cercarem.",
+      progress: "O Tirano ainda ruge, e a passagem continua aberta. A Estação ainda não sabe.",
+      complete: "Encerrou! Passagem fechada, eixos contados, quarenta anos esperando por isso. Fique com este Anel das Engrenagens e com o título: daqui para a frente, você é o Maquinista.",
+    },
+    rewards: { xp: 40000, gold: 12000, items: [{ itemId: "anel_do_rodeiro", count: 1 }], unlock: "title:maquinista" },
   }),
 ];
 
@@ -731,19 +1022,29 @@ export const BOUNTY_CHEST_ID = "bounty_chest";
 export const BOUNTY_RESET_HOUR = 6;
 export const BOUNTY_TZ = "America/Sao_Paulo";
 
-/** Faixas de level → monstros possíveis para as recompensas. */
+/**
+ * Faixas de level → monstros possíveis para as recompensas. Desde o ciclo 14 a lista do dia é gravada com o id do
+ * monstro (systems/quests.ts), então mudar uma faixa não troca o alvo de quem já tem recompensa aceita. Ainda assim,
+ * troque no mesmo lugar (mesma posição, mesmo tamanho): o sorteio de quem gravou antes do ciclo 14 depende disso.
+ * Todo alvo precisa ser caçável no level mínimo da faixa: level ≤ mínimo + bountyLevelMargin e spawn fora de área de
+ * missão (teste em data/quests.test.ts).
+ */
 export const BOUNTY_BANDS: { minLevel: number; monsters: string[] }[] = [
-  { minLevel: 1, monsters: ["rat", "slime", "bee", "wolf"] },
-  { minLevel: 10, monsters: ["wolf", "snake", "spider", "bat"] },
-  { minLevel: 18, monsters: ["spider", "bat", "skeleton", "goblin"] },
+  // Ciclo 14: o Rato Cinzento (lv 3) no lugar do Lobo (lv 8), que pedia lobos a quem acabou de nascer.
+  { minLevel: 1, monsters: ["rat", "slime", "bee", "datacenter_rat"] },
+  { minLevel: 10, monsters: ["wolf", "snake", "spider", "bat", "mine_larva"] },
+  { minLevel: 18, monsters: ["spider", "bat", "skeleton", "goblin", "mine_mole"] },
   { minLevel: 26, monsters: ["skeleton", "goblin", "ghost", "lizardman"] },
   { minLevel: 34, monsters: ["ghost", "lizardman", "flame_spirit", "goblin"] },
   // Faixas acrescentadas no fim (as antigas não mudam: a geração do dia depende do índice da faixa).
-  { minLevel: 42, monsters: ["orc_warrior", "orc_shaman", "crocodile", "pirate_buccaneer", "carniphila"] },
-  { minLevel: 52, monsters: ["minotaur", "minotaur_mage", "cyclops", "winter_wolf", "barbarian"] },
-  { minLevel: 62, monsters: ["bonelord", "black_knight", "ice_witch", "necromancer"] },
-  { minLevel: 72, monsters: ["dragon", "hero", "frost_dragon", "dragon_lord"] },
+  { minLevel: 42, monsters: ["orc_warrior", "orc_shaman", "crocodile", "pirate_buccaneer", "carniphila", "kappa"] },
+  { minLevel: 52, monsters: ["minotaur", "minotaur_mage", "cyclops", "winter_wolf", "barbarian", "cave_octopus"] },
+  { minLevel: 62, monsters: ["bonelord", "black_knight", "ice_witch", "necromancer", "flame_skull"] },
+  // Ciclo 14: o Crânio Flamejante no lugar do Dragão de Gelo, que só aparece depois da missão do Yeti.
+  { minLevel: 72, monsters: ["dragon", "hero", "flame_skull", "dragon_lord", "red_lantern"] },
   { minLevel: 88, monsters: ["behemoth", "magma_elemental", "hellhound", "demon"] },
+  // Ciclo 13: faixa do Abismo Profundo (o 88+ ficaria pesado demais com os monstros de 112–120).
+  { minLevel: 106, monsters: ["juggernaut", "abyss_tengu", "abyss_samurai", "demon"] },
 ];
 
 export function bountyBand(level: number): number {
@@ -752,21 +1053,50 @@ export function bountyBand(level: number): number {
   return b;
 }
 
-/** "Mate 20 Lobos" (nome do monstro no plural simples). */
+/**
+ * Quanto o monstro (ou a fonte do material da encomenda) pode passar do level mínimo da faixa. No começo do jogo a
+ * diferença pesa mais (lobo lv 8 contra personagem lv 1), então a margem é no máximo o próprio level mínimo + 4.
+ */
+export function bountyLevelMargin(minLevel: number): number {
+  return Math.min(14, minLevel + 4);
+}
+
+/** "Mate 20 Lobos" (nome do monstro no plural). */
 export function bountyTitle(d: { monster: string; count: number }): string {
   const name = monsterDef(d.monster)?.name ?? d.monster;
   return `Mate ${d.count} ${pluralPt(name)}`;
 }
 
-/** Plural simples em PT-BR da 1ª palavra ("Lobo" → "Lobos", "Homem-Lagarto" → "Homens-Lagarto", "Espírito de Chama" → "Espíritos de Chama"). */
+/** Plurais que a regra não acerta (palavra inteira). */
+const PLURAL_IRREGULAR: Record<string, string> = { "Cão": "Cães", "Capitão": "Capitães" };
+
+function pluralWord(w: string): string {
+  if (Object.hasOwn(PLURAL_IRREGULAR, w)) return PLURAL_IRREGULAR[w]!;
+  if (/ão$/.test(w)) return w.replace(/ão$/, "ões");
+  if (/m$/.test(w)) return w.replace(/m$/, "ns");
+  if (/[rsz]$/.test(w)) return w + "es";
+  if (/l$/.test(w)) return w.replace(/l$/, "is");
+  return w + "s";
+}
+
+/**
+ * Plural em PT-BR de nome de monstro: o substantivo e os adjetivos que vêm logo depois variam; a partir do primeiro
+ * conectivo em minúscula ("de", "do"...) nada muda. Em nome composto com hífen só varia a primeira parte.
+ * "Lobo" → "Lobos", "Cão Infernal" → "Cães Infernais", "Samurai Rubro" → "Samurais Rubros",
+ * "Homem-Lagarto" → "Homens-Lagarto", "Espírito de Chama" → "Espíritos de Chama".
+ * Feito para os monstros comuns do Quadro; nome próprio de chefe ("Rei Goblin") não passa por aqui.
+ */
 export function pluralPt(name: string): string {
   const parts = name.split(" ");
-  const head = parts[0]!;
-  const h = head.includes("-") ? head.split("-") : [head];
-  const w = h[0]!;
-  const pl = /ão$/.test(w) ? w.replace(/ão$/, "ões") : /m$/.test(w) ? w.replace(/m$/, "ns") : /[rsz]$/.test(w) ? w + "es" : /l$/.test(w) ? w.replace(/l$/, "is") : w + "s";
-  h[0] = pl;
-  parts[0] = h.join("-");
+  for (let i = 0; i < parts.length; i++) {
+    const w = parts[i]!;
+    if (!/^\p{Lu}/u.test(w)) break;
+    const h = w.split("-");
+    h[0] = pluralWord(h[0]!);
+    parts[i] = h.join("-");
+    // Depois de um composto ("Homem-Lagarto") o que vem é complemento, não adjetivo.
+    if (h.length > 1) break;
+  }
   return parts.join(" ");
 }
 

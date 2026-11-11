@@ -1,5 +1,5 @@
 // Janela de troca: sua oferta × oferta do outro, mochila para escolher, e confirmação dos dois lados.
-import { itemDef, type ItemInstance, type TradeSideView } from "@lemonquest/shared";
+import { itemDef, refinedName, type ItemInstance, type TradeSideView } from "@lemonquest/shared";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useStore } from "../hud/store.ts";
 import { useDialogFocus } from "../hud/useDialogFocus.ts";
@@ -15,13 +15,13 @@ import "./trade.css";
 // campo de ouro da própria janela (".trade-window"), cancela. Mudanças de oferta não sobem a troca na pilha.
 bindOverlay("trade", tradeStore, (s) => s.phase === "open", cancelTrade, ".trade-window");
 
-const nameOf = (i: ItemInstance) => itemDef(i.defId)?.name ?? i.defId;
+const nameOf = (i: ItemInstance) => refinedName(itemDef(i.defId), i);
 
 /** Depois que a oferta do outro muda, "Confirmar" fica travado por este tempo (dá para ver o que mudou antes de clicar). */
 export const CONFIRM_LOCK_MS = 1000;
 
 /** Assinatura da oferta (itens + quantidades + ouro): muda quando o conteúdo muda. */
-const offerKey = (s: TradeSideView) => `${s.gold}|${s.items.map((i) => `${i.uid}:${i.defId}:${i.count}`).join(",")}`;
+const offerKey = (s: TradeSideView) => `${s.gold}|${s.items.map((i) => `${i.uid}:${i.defId}:${i.count}:${i.refine ?? 0}`).join(",")}`;
 
 function Offer({ side, editable, title }: { side: TradeSideView; editable: boolean; title: string }) {
   const draft = useStore(goldDraftStore);

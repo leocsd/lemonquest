@@ -3,14 +3,18 @@
 // loja e "Pronto"). Sem penalidade de morte:
 // quem cai volta para "arena_exit" com vida cheia e fica com o que já ganhou (recompensa paga no fim de cada onda).
 // Tudo vem do mapa (objetos "arena", "arena_entry", "arena_spawn", "arena_exit"); sem eles o coliseu fica fechado.
+// Ciclo 16: ondas 61–70 com o modificador da semana (fixado no início da partida), marco de ouro na 60 e ranking de
+// tempo das 70 ondas no kv (arenaChampion.ts; o título rotativo "Campeão do Coliseu" sai de lá na virada da semana).
 import {
-  ARENA_COMPLETE_GOLD, ARENA_COMPLETE_XP_PCT, ARENA_COUNTDOWN_MS, ARENA_INTRO_MS, ARENA_LOBBY_RANGE,
-  ARENA_MAX_WAVE, ARENA_PAUSE_HEAL, ARENA_READY_MS, ARENA_SPAWN_DELAY_MS, ARENA_SPAWN_STAGGER_MS, S2C, applyXpStage, arenaPauseMs, arenaShopAfter,
-  arenaWaveGold, arenaWaveSpawns, arenaWaveXp, findObjects, monsterDef, objectTile, partyMinLevel,
-  type ArenaActionMsg, type ArenaLobbiesMsg, type ArenaLobbySummary, type ArenaPhase, type ArenaResultMsg,
+  ARENA_COMPLETE_GOLD, ARENA_COMPLETE_XP_PCT, ARENA_COUNTDOWN_MS, ARENA_INTRO_MS, ARENA_LOBBY_RANGE, ARENA_MODS,
+  ARENA_MAX_WAVE, ARENA_MOD_FROM_WAVE, ARENA_PAUSE_HEAL, ARENA_READY_MS, ARENA_SPAWN_DELAY_MS, ARENA_SPAWN_STAGGER_MS, S2C,
+  applyXpStage, arenaMilestoneGold, arenaModAt, arenaPauseMs, arenaShopAfter, arenaTimeText, arenaWaveGold, arenaWaveSpawns,
+  arenaWaveXp, findObjects, monsterDef, objectTile, partyMinLevel, weekEndsAt, weekId,
+  type ArenaActionMsg, type ArenaLobbiesMsg, type ArenaLobbySummary, type ArenaModId, type ArenaPhase, type ArenaResultMsg,
   type ArenaSpawnSpec, type ArenaStateMsg, type FeedMsg, type MonsterDef, type NoticeMsg, type TiledMap,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
+import { arenaTimes, submitArenaTime } from "./arenaChampion.ts";
 import { cheb, type MonsterManager, type TileRect } from "./monsters.ts";
 import type { Point } from "./pathfinding.ts";
 
@@ -88,6 +92,11 @@ export interface ArenaOptions {
   /** Recorde do servidor persistido: lido no construtor, gravado quando é batido. */
   loadServerBest?: () => number;
   saveServerBest?: (waves: number) => void;
+  /** Ranking de tempo das 70 ondas (ciclo 16): kv do servidor (chaves em arenaChampion.ts). Sem ele, não grava. */
+  getKv?: (key: string) => string | undefined;
+  setKv?: (key: string, value: string) => void;
+  /** Modificador da semana no instante `at` (padrão: rodízio por weekId; testes trocam). */
+  weekMod?: (at: number) => ArenaModId;
   /** Membros do grupo (party) do jogador, sem ele — "Criar grupo do Coliseu com meu grupo". */
   partyMates?: (id: string) => string[];
   /** O jogador é o líder do grupo (party)? */
@@ -127,6 +136,13 @@ interface Party {
   cleared: number;
   lastSentAt: number;
   dirty: boolean;
+  /** Modificador das ondas 61–70 (o da semana; fixado quando a onda 1 começa). */
+  mod: ArenaModId;
+  /** Início da onda 1 (ms): relógio do ranking de tempo. 0 = ainda não começou. */
+  startedAt: number;
+  /** Venceu as 70: tempo e recorde batido (para o resultado e o feed). */
+  timeMs?: number;
+  timeRecord?: "week" | "server";
 }
 
 const TOWN: ReadonlySet<ArenaPhase> = new Set(["lobby", "queued", "countdown"]);
@@ -140,6 +156,7 @@ export class ArenaSystem {
   private readonly now: () => number;
   private readonly rng: () => number;
   private readonly defs: (id: string) => MonsterDef | undefined;
+  private readonly weekMod: (at: number) => ArenaModId;
   private nextId = 1;
   private lobbiesDirty = false;
   /** Maior número de ondas vencidas no servidor, persistido entre reinícios (para "novo recorde" no feed). */
@@ -149,6 +166,7 @@ export class ArenaSystem {
     this.now = o.now ?? Date.now;
     this.rng = o.rng ?? Math.random;
     this.defs = o.defs ?? monsterDef;
+    this.weekMod = o.weekMod ?? arenaModAt;
     const saved = o.loadServerBest?.();
     if (typeof saved === "number" && Number.isFinite(saved) && saved > 0) this.serverBest = Math.floor(saved);
   }
@@ -210,7 +228,7 @@ export class ArenaSystem {
     const party: Party = {
       id: `L${this.nextId++}`, leader: p.id, members: [this.member(p)], phase: "lobby", arena: null, inArena: false,
       wave: 0, phaseEndsAt: 0, readyTriggered: false, spawns: [], pending: [], monsterIds: new Set(), monstersLeft: 0,
-      cleared: 0, lastSentAt: 0, dirty: false,
+      cleared: 0, lastSentAt: 0, dirty: false, mod: this.weekMod(this.now()), startedAt: 0,
     };
     this.parties.set(party.id, party);
     this.partyOf.set(p.id, party);
@@ -417,12 +435,13 @@ export class ArenaSystem {
     const alive = this.alivePlayers(party);
     if (!alive.length) { this.endMatch(party, "wiped"); return; }
     const avg = alive.reduce((s, p) => s + p.level, 0) / alive.length;
+    if (wave === 1) { party.mod = this.weekMod(now); party.startedAt = now; }
     party.wave = wave;
     party.phase = "fight";
     party.phaseEndsAt = 0;
     party.readyTriggered = false;
     for (const m of party.members) m.ready = false;
-    party.spawns = arenaWaveSpawns(wave, alive.length, avg);
+    party.spawns = arenaWaveSpawns(wave, alive.length, avg, party.mod);
     const points = arena.spawns.length ? [...arena.spawns] : [arena.entry];
     for (let i = points.length - 1; i > 0; i--) { const j = Math.floor(this.rng() * (i + 1)); [points[i], points[j]] = [points[j]!, points[i]!]; }
     party.pending = party.spawns.map((spec, i) => ({
@@ -466,7 +485,8 @@ export class ArenaSystem {
     party.cleared = wave;
     const alive = party.members.filter((m) => m.alive);
     const waveXp = arenaWaveXp(party.spawns, alive.length);
-    const gold = arenaWaveGold(wave);
+    const milestone = arenaMilestoneGold(wave);
+    const gold = arenaWaveGold(wave) + milestone;
     // Mesma faixa da XP compartilhada do grupo: quem está abaixo de 2/3 do maior level vivo não ganha XP nem ouro (sem
     // isso um level alto "carregava" personagens level 1 por ondas fáceis — as ondas escalam pela média — e o ouro de
     // cada alt carregado ia para o principal pela troca).
@@ -491,16 +511,24 @@ export class ArenaSystem {
       this.o.combat.restoreMana(p, Math.round(p.maxMana * ARENA_PAUSE_HEAL));
     }
     party.spawns = [];
-    if (wave >= ARENA_MAX_WAVE) { this.endMatch(party, "completed"); return; }
-    // Ondas comuns emendam (respiro curto); a pausa com o vendedor só vem depois das ondas-chefe.
-    party.phase = arenaShopAfter(wave) ? "pause" : "break";
-    party.phaseEndsAt = now + arenaPauseMs(wave);
+    if (wave >= ARENA_MAX_WAVE) {
+      this.recordTime(party, alive.filter((m) => m.inRange).map((m) => m.name), now);
+      this.endMatch(party, "completed");
+      return;
+    }
+    // Ondas comuns emendam (respiro curto); a pausa com o vendedor só vem depois das ondas-chefe (nas ondas 61–70 o
+    // modificador da semana pode mudar as duas).
+    party.phase = arenaShopAfter(wave, party.mod) ? "pause" : "break";
+    party.phaseEndsAt = now + arenaPauseMs(wave, party.mod);
     party.readyTriggered = false;
     for (const m of party.members) m.ready = false;
+    const mod = wave + 1 === ARENA_MOD_FROM_WAVE ? ARENA_MODS[party.mod] : null;
     for (const m of alive) {
       const xp = xpFor.get(m.id) ?? 0;
-      if (m.inRange) this.notice(m.id, `Onda ${wave} vencida! +${xp} XP, +${gold} de ouro.`, "good");
+      const extra = milestone ? ` (${milestone} do marco da onda ${wave})` : "";
+      if (m.inRange) this.notice(m.id, `Onda ${wave} vencida! +${xp} XP, +${gold} de ouro${extra}.`, "good");
       else this.notice(m.id, `Onda ${wave} vencida! Sem XP nem ouro: level abaixo de ${minLevel} (2/3 do maior do grupo).`, "info");
+      if (mod) this.notice(m.id, `Ondas ${ARENA_MOD_FROM_WAVE}–${ARENA_MAX_WAVE} desta semana: ${mod.icon} ${mod.name} — ${mod.desc}`, "info");
     }
     this.pushState(party);
   }
@@ -529,7 +557,9 @@ export class ArenaSystem {
     }
     this.o.monsters.clearTargetsOf(m.id);
     if (this.partyOf.get(m.id) === party) this.partyOf.delete(m.id); // livre para outro lobby
-    this.o.send(m.id, S2C.ArenaResult, { wavesCleared: m.cleared, xp: m.xp, gold: m.gold, best, reason } satisfies ArenaResultMsg);
+    const time = reason === "completed" && party.timeMs !== undefined
+      ? { timeMs: party.timeMs, ...(party.timeRecord ? { timeRecord: party.timeRecord } : {}) } : {};
+    this.o.send(m.id, S2C.ArenaResult, { wavesCleared: m.cleared, xp: m.xp, gold: m.gold, best, reason, ...time } satisfies ArenaResultMsg);
     this.o.send(m.id, S2C.ArenaState, { state: null } satisfies ArenaStateMsg);
     if (reason === "wiped") this.notice(m.id, "Você caiu no Coliseu — sem penalidade. A recompensa das ondas vencidas é sua.", "info");
     this.pushState(party);
@@ -565,10 +595,28 @@ export class ArenaSystem {
     const names = party.members.map((m) => m.name);
     const who = names.length > 1 ? `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}` : names[0] ?? "?";
     const verb = names.length > 1 ? "venceram" : "venceu";
+    const time = party.timeMs !== undefined ? ` em ${arenaTimeText(party.timeMs)}` : "";
+    const timeRec = party.timeRecord === "server" ? " Novo recorde de tempo!" : party.timeRecord === "week" ? " Melhor tempo da semana!" : "";
     const text = reason === "completed"
-      ? `🏟️ ${who} ${verb} as ${ARENA_MAX_WAVE} ondas do Coliseu!`
+      ? `🏟️ ${who} ${verb} as ${ARENA_MAX_WAVE} ondas do Coliseu${time}!${timeRec}`
       : `🏟️ ${who} ${names.length > 1 ? "chegaram" : "chegou"} à onda ${waves} do Coliseu!${record ? " Novo recorde!" : ""}`;
     this.o.broadcast(S2C.Feed, { text, kind: "info" } satisfies FeedMsg);
+  }
+
+  /**
+   * Venceu as 70: grava o tempo (melhor da semana / de todos) em nome dos sobreviventes na faixa de level. Vale a semana
+   * em que a partida COMEÇOU, a do modificador que ela usou (domingo 23h → segunda conta na semana que acabou).
+   */
+  private recordTime(party: Party, names: string[], now: number): void {
+    if (!party.startedAt) return;
+    party.timeMs = now - party.startedAt;
+    if (!names.length || !this.o.getKv || !this.o.setKv) return;
+    try {
+      party.timeRecord = submitArenaTime({ getKv: this.o.getKv, setKv: this.o.setKv },
+        { ms: party.timeMs, names, week: weekId(new Date(party.startedAt)), mod: party.mod, at: now });
+    } catch (e) {
+      console.error("[arena] falha ao gravar o tempo:", e);
+    }
   }
 
   /** Arena livre → próximo grupo da fila (FIFO). */
@@ -651,7 +699,11 @@ export class ArenaSystem {
         avgLevel: lv.length ? Math.round(lv.reduce((a, b) => a + b, 0) / lv.length) : 0,
       });
     }
-    return { lobbies, freeArenas: this.freeArenas, queue: this.queue.length };
+    const now = this.now();
+    let times: ReturnType<typeof arenaTimes> = {};
+    try { if (this.o.getKv) times = arenaTimes({ getKv: this.o.getKv }, weekId(new Date(now))); } catch { /* sem ranking */ }
+    const week = { mod: this.weekMod(now), endsAt: weekEndsAt(new Date(now)), ...times };
+    return { lobbies, freeArenas: this.freeArenas, queue: this.queue.length, week };
   }
 
   private stateMsg(party: Party, forId: string): ArenaStateMsg {
@@ -670,6 +722,8 @@ export class ArenaSystem {
         })),
         leader,
         earned: { xp: me?.xp ?? 0, gold: me?.gold ?? 0 },
+        mod: party.startedAt ? party.mod : this.weekMod(this.now()),
+        ...(party.startedAt ? { startedAt: party.startedAt } : {}),
       },
     };
   }

@@ -165,6 +165,19 @@ class Session {
     return room;
   }
 
+  /**
+   * "Trocar personagem" (menu em você): sai da sala por vontade própria e recarrega a página. A sessão da conta fica na
+   * aba (sessionStorage), então o login volta direto à lista de personagens. Soltar a sala antes de sair impede que o
+   * onLeave mostre "Você foi desconectado" no meio do caminho.
+   */
+  async switchCharacter(): Promise<void> {
+    const room = this.room;
+    this.room = null;
+    // Sem resposta do servidor em 2 s, recarrega mesmo assim (a queda vira saída normal do lado de lá).
+    try { await Promise.race([room?.leave(true), new Promise((r) => setTimeout(r, 2000))]); } catch { /* já caiu: recarregar resolve igual */ }
+    location.reload();
+  }
+
   onRoom(l: Listener): () => void {
     this.listeners.add(l);
     if (this.room) l(this.room);

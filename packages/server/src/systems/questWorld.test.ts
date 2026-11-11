@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  ITEMS, MONSTERS, QUEST_CHESTS, QUEST_OBJECT_RANGE, QUEST_CHEST_GROUPS, QUEST_LEVERS, S2C, TITLES, doorBlockReason, findQuestLevers, findQuestObjects,
-  isValidUnlockId, leverMonsters, monsterDef, type QuestLeverSpot, type QuestObjectSpot, type TiledMap,
+  ITEMS, MONSTERS, QUEST_CHESTS, QUEST_OBJECT_RANGE, QUEST_CHEST_GROUPS, QUEST_LEVERS, QUEST_LIST, S2C, TITLES, CHEST_LOCK_BOSSES, chestLockReason, doorBlockReason,
+  findObjects, findQuestLevers, findQuestObjects, isValidUnlockId, leverMonsters, monsterDef, type QuestLeverSpot, type QuestObjectSpot, type TiledMap,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
-import { InventorySystem } from "./inventory.ts";
+import { InventorySystem, makeItem } from "./inventory.ts";
 import { QuestSystem } from "./quests.ts";
 import { LEVER_ROOM_EMPTY_MS, QuestWorldSystem } from "./questWorld.ts";
 import { openGrid, player, seeded, world } from "./testkit.ts";
@@ -94,6 +94,75 @@ describe("baús de quest", () => {
   });
 });
 
+describe("baús dos covis (ciclo 16): trancados até o personagem derrotar o chefe", () => {
+  const LAIR: QuestObjectSpot[] = [
+    { kind: "chest", id: "lair_minas_furia", x: 10, y: 10, drawn: true }, { kind: "chest", id: "lair_minas_lich", x: 10, y: 12, drawn: true },
+  ];
+  const LOCKED = "Trancado: derrote o chefe do covil (Rei Toupeira) para abrir.";
+
+  it("sem o abate: trancado e nada muda; com o abate registrado: abre e entrega ouro, materiais e o equipamento", () => {
+    const t = setup({ objects: LAIR });
+    const p = t.mk("p1", 11, 11, 30);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toBe(LOCKED);
+    expect(t.quests.chestDone("p1", "lair_minas")).toBe(false);
+    expect(t.inv.countItem("p1", "ring_furia")).toBe(0);
+    expect(t.inv.get("p1")!.gold).toBe(0);
+    // Abate de outro chefe (ou de monstro comum) não destranca este covil.
+    t.quests.onKill("lair_kraken", ["p1"]);
+    t.quests.onKill("mine_mole", ["p1"]);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toBe(LOCKED);
+    t.quests.onKill("lair_mole_king", ["p1"]);
+    expect(t.quests.bossSlain("p1", "lair_mole_king")).toBe(true);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toMatch(/^Você encontrou: Anel da Fúria, 3x Esmeralda, 3x Barra de Ferro, 4000 de ouro\.$/);
+    expect(t.quests.chestDone("p1", "lair_minas")).toBe(true);
+    expect([t.inv.countItem("p1", "ring_furia"), t.inv.countItem("p1", "gem_green"), t.inv.countItem("p1", "iron_bar")]).toEqual([1, 3, 3]);
+    expect(t.inv.get("p1")!.gold).toBe(4000);
+    // a outra escolha do mesmo covil: vazia
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_lich" });
+    expect(t.notices("p1").at(-1)).toBe("O baú está vazio.");
+    expect(t.inv.countItem("p1", "amulet_lich")).toBe(0);
+  });
+
+  it("alt sem o abate não abre, mesmo com a prova (troféu) na mochila", () => {
+    const t = setup({ objects: LAIR });
+    const main = t.mk("main", 9, 11, 30), alt = t.mk("alt", 11, 11, 30);
+    t.quests.onKill("lair_mole_king", ["main"]);
+    t.inv.addItem(alt, makeItem("mole_king_claw")); // o principal passou a prova (troca ou chão)
+    t.qw.onUse(alt, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("alt").at(-1)).toBe(LOCKED);
+    expect(t.quests.chestDone("alt", "lair_minas")).toBe(false);
+    t.qw.onUse(main, { kind: "chest", id: "lair_minas_lich" });
+    expect(t.inv.countItem("main", "amulet_lich")).toBe(1);
+  });
+
+  it("o abate fica gravado no personagem (save) e o level do covil vem antes da trava", () => {
+    const t = setup({ objects: LAIR });
+    const p = t.mk("p1", 11, 11, 24);
+    t.quests.onKill("lair_mole_king", ["p1"]);
+    const saved = t.quests.serialize("p1")!;
+    expect(saved.slain).toEqual(["lair_mole_king"]);
+    t.quests.removePlayer("p1");
+    t.quests.load(p, { ...saved, slain: [...saved.slain!, "rat", "nao_existe"] }); // só chefes de covil voltam do save
+    expect(t.quests.serialize("p1")!.slain).toEqual(["lair_mole_king"]);
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.notices("p1").at(-1)).toBe("Você precisa ser level 25 para abrir este baú.");
+    p.level = 25;
+    t.qw.onUse(p, { kind: "chest", id: "lair_minas_furia" });
+    expect(t.quests.chestDone("p1", "lair_minas")).toBe(true);
+  });
+
+  it("regra pura: grupo sem trava abre sempre; com trava, só com o abate do chefe do covil", () => {
+    const g = QUEST_CHEST_GROUPS.lair_profundo!;
+    expect(CHEST_LOCK_BOSSES.has("lair_shogun")).toBe(true);
+    expect(chestLockReason(QUEST_CHEST_GROUPS.pirate_treasure!, () => false)).toBeNull();
+    expect(chestLockReason(g, (b) => b === "lair_shogun")).toBeNull();
+    expect(chestLockReason(g, () => false)).toBe("Trancado: derrote o chefe do covil (Shogun Abissal) para abrir.");
+  });
+});
+
 const LEVER: QuestLeverSpot = {
   id: "annihilator", x: 5, y: 5,
   plates: [{ x: 4, y: 6 }, { x: 6, y: 6 }, { x: 8, y: 6 }, { x: 10, y: 6 }],
@@ -165,6 +234,67 @@ describe("alavanca da Aniquilação", () => {
   });
 });
 
+describe("alavanca: uma entrada por dia (dia troca às 6h)", () => {
+  const DAY = 24 * 3_600_000;
+  const lever = { objects: [{ kind: "lever" as const, id: "annihilator", x: 5, y: 5 }], levers: [LEVER] };
+  const pull = (t: ReturnType<typeof setup>, ps: PlayerState[]) => {
+    ps.forEach((p, i) => { p.x = LEVER.plates[i]!.x; p.y = LEVER.plates[i]!.y; }); // de volta às placas, sala vazia
+    t.qw.onUse(ps[0]!, { kind: "lever", id: "annihilator" });
+    return ps.every((p, i) => p.x === LEVER.dests[i]!.x && p.y === LEVER.dests[i]!.y);
+  };
+
+  it("entra; no mesmo dia a alavanca recusa; no dia seguinte (depois das 6h) entra de novo", () => {
+    const t = setup(lever);
+    // 05:00 de Brasília (08:00 UTC) ainda é o dia anterior; 06:00 (09:00 UTC) já é o dia novo.
+    t.w.setClock(Date.UTC(2026, 9, 20, 12, 0));
+    const ps = [t.mk("p0", 0, 0, 100), t.mk("p1", 0, 0, 100)];
+    expect(pull(t, ps)).toBe(true);
+    expect(pull(t, ps)).toBe(false);
+    expect(t.notices("p0").at(-1)).toBe('A alavanca não se mexe: p0 e p1 já entraram em "A Aniquilação" hoje. Cada aventureiro entra uma vez por dia; a alavanca volta às 6h.');
+    t.w.setClock(Date.UTC(2026, 9, 21, 8, 59)); // 05:59 do dia seguinte: ainda o mesmo dia de jogo
+    expect(pull(t, ps)).toBe(false);
+    t.w.setClock(Date.UTC(2026, 9, 21, 9, 0)); // 06:00
+    expect(pull(t, ps)).toBe(true);
+  });
+
+  it("grupo com um membro que já entrou hoje: ninguém entra e a mensagem diz quem", () => {
+    const t = setup(lever);
+    t.w.setClock(Date.UTC(2026, 9, 20, 12, 0));
+    const [a, b, c] = [t.mk("p0", 0, 0, 100), t.mk("p1", 0, 0, 100), t.mk("p2", 0, 0, 100)];
+    expect(pull(t, [a!, b!])).toBe(true);
+    // a e b saem (demônios mortos); c chama a para outra tentativa no mesmo dia
+    b!.x = 1; b!.y = 1;
+    for (const m of [...t.w.mm.all()]) t.w.mm.despawn(m);
+    t.qw.tick(t.w.now());
+    expect(pull(t, [c!, a!])).toBe(false);
+    expect([c!.x, c!.y]).toEqual([LEVER.plates[0]!.x, LEVER.plates[0]!.y]);
+    expect(t.notices("p2").at(-1)).toMatch(/^A alavanca não se mexe: p0 já entrou em "A Aniquilação" hoje\..*volta às 6h\.$/);
+    expect(t.qw.alive("annihilator")).toBe(0);
+    // c com outro que nunca entrou (a sai da placa): passa
+    a!.x = 1; a!.y = 1;
+    const d = t.mk("p3", 0, 0, 100);
+    expect(pull(t, [c!, d])).toBe(true);
+  });
+
+  it("guarda o dia no armazenamento dado (CharacterData.leverDay) e o respeita ao recarregar", () => {
+    const saved = new Map<string, string>([["p0", "2026-10-20"]]);
+    const t = setup(lever);
+    const qw = new QuestWorldSystem({
+      objects: lever.objects, levers: lever.levers, quests: t.quests, monsters: t.w.mm, players: () => t.w.players.values(),
+      teleport: (p, x, y) => { p.x = x; p.y = y; }, send: (to, type, msg) => t.w.sent.push({ to, type, msg }), now: t.w.now,
+      getLeverDay: (id) => saved.get(id), setLeverDay: (id, day) => { saved.set(id, day); },
+    });
+    t.w.setClock(Date.UTC(2026, 9, 20, 23, 0)); // 20:00 do dia 20
+    const ps = [t.mk("p0", LEVER.plates[0]!.x, LEVER.plates[0]!.y, 100), t.mk("p1", LEVER.plates[1]!.x, LEVER.plates[1]!.y, 100)];
+    qw.onUse(ps[0]!, { kind: "lever", id: "annihilator" });
+    expect(t.notices("p0").at(-1)).toMatch(/p0 já entrou/);
+    t.w.setClock(Date.UTC(2026, 9, 21, 10, 0));
+    qw.onUse(ps[0]!, { kind: "lever", id: "annihilator" });
+    expect([ps[0]!.x, ps[0]!.y]).toEqual([LEVER.dests[0]!.x, LEVER.dests[0]!.y]);
+    expect(Object.fromEntries(saved)).toEqual({ p0: "2026-10-21", p1: "2026-10-21" });
+  });
+});
+
 describe("Aniquilação com grupo menor", () => {
   it("demônios na mesma proporção por jogador do grupo cheio (6 ÷ 4 = 1,5, para cima): 4 → 6, 3 → 5, 2 → 3", () => {
     const def = QUEST_LEVERS.annihilator!;
@@ -216,6 +346,16 @@ describe("quests de mundo: dados e mapa", () => {
       // Quem puxa precisa estar numa placa: ao menos uma ao alcance da alavanca.
       expect(l.plates.some((p) => Math.max(Math.abs(p.x - l.x), Math.abs(p.y - l.y)) <= QUEST_OBJECT_RANGE), l.id).toBe(true);
       for (const p of l.plates) expect(inside(p)).toBe(false);
+    }
+  });
+
+  it("missões: todo passo 'explore' sem área aponta para uma zona nomeada do mapa", () => {
+    // O servidor casa `target` com `name` do objeto "zone" (parseZones); um nome errado deixaria a missão impossível.
+    const zones = new Set(findObjects(map, "zone").map((o) => o.name));
+    for (const d of QUEST_LIST) {
+      for (const s of d.steps) {
+        if (s.kind === "explore" && !s.area) expect(zones.has(s.target), `${d.id}/${s.target}`).toBe(true);
+      }
     }
   });
 

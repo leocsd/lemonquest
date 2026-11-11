@@ -97,3 +97,52 @@ test("família de magias: só o que está liberado aparece, magia nova avisa e a
   expect(await beamCd()).toBeGreaterThan(0);
   await snap(page, "spell-family");
 });
+
+test("grupos de magia: montar o próprio grupo, ordenar arrastando, pôr na barra, lançar e manter depois de recarregar", async ({ page }) => {
+  const p = await enterGame(page, "sorcerer");
+  await setLevel(page, 60);
+  const spot = (await walkableNear(page, FOREST.x, FOREST.y, 4))[0]!;
+  await teleport(page, spot.x, spot.y);
+  const canvas = page.locator("#game canvas");
+  await canvas.hover({ position: { x: 300, y: 300 } });
+
+  await page.keyboard.press("h");
+  await page.getByRole("dialog", { name: "Atalhos de magia" }).getByRole("button", { name: "◆ Grupos" }).click();
+  const win = page.getByRole("dialog", { name: "Grupos de magia" });
+  await expect(win).toBeVisible();
+  await win.getByRole("button", { name: "+ Novo grupo" }).click();
+  await win.getByRole("textbox", { name: "Nome do grupo" }).fill("Meu combo");
+
+  // Clique adiciona no fim; arrastar a Onda de Fogo para cima da Bola de Fogo põe na frente.
+  await win.locator(".sg-chip", { hasText: "Bola de Fogo" }).click();
+  await win.locator(".sg-chip", { hasText: "Onda de Fogo" }).click();
+  // Nomes na ordem (sem o selo "sai agora" que fica dentro do nome).
+  const names = async () => (await win.locator(".sg-row .sg-sname").allInnerTexts()).map((n) => n.replace("sai agora", "").trim());
+  await expect.poll(names).toEqual(["Bola de Fogo", "Onda de Fogo"]);
+  await win.locator(".sg-row", { hasText: "Onda de Fogo" }).dragTo(win.locator(".sg-row", { hasText: "Bola de Fogo" }), { targetPosition: { x: 40, y: 3 } });
+  await expect.poll(names).toEqual(["Onda de Fogo", "Bola de Fogo"]);
+  await expect(win.locator(".sg-preview")).toContainText("Onda de Fogo");
+  await snap(page, "spell-groups-window");
+
+  await win.getByRole("button", { name: "Pôr na barra" }).click();
+  const onBar = win.locator(".sg-onbar kbd");
+  await expect(onBar).toBeVisible();
+  const key = (await onBar.innerText()).trim();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await expect(win).toBeHidden();
+
+  const slot = page.locator(".action-slot", { has: page.locator(".action-key", { hasText: new RegExp(`^${key}$`) }) });
+  await expect(slot).toHaveAttribute("data-tip", /Onda de Fogo/);
+  const mana0 = (await meState(page))!.mana as number;
+  await canvas.hover({ position: { x: 300, y: 300 } });
+  await page.keyboard.press(key.toLowerCase());
+  await expect.poll(async () => (await meState(page))!.mana as number, { timeout: 5000 }).toBeLessThan(mana0);
+
+  await page.reload();
+  await playFromList(page, p);
+  await page.keyboard.press("h");
+  await page.getByRole("dialog", { name: "Atalhos de magia" }).getByRole("button", { name: "◆ Grupos" }).click();
+  await expect(win.locator(".sg-group")).toContainText("Meu combo");
+  await expect.poll(names).toEqual(["Onda de Fogo", "Bola de Fogo"]);
+});

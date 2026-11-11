@@ -112,6 +112,43 @@ describe("spawns", () => {
     expect(w.mm.callBoss("outro", w.now())).toBe("unknown"); // sem spawn desse monstro
   });
 
+  it("respawn de chefe sobrevive a reinício (ciclo 14): o boot respeita o prazo gravado", () => {
+    const kv = new Map<string, number | null>();
+    const bossRespawn = { load: (id: string) => kv.get(id) ?? undefined, save: (id: string, at: number | null) => { kv.set(id, at); } };
+    const opts = { grid: openGrid(30, 10), spawns: [sp(5, 5, 1, 1, "rei")], defs: () => def({ id: "rei", boss: true, name: "Rei", respawnMs: 7_200_000, aggroRange: 0 }), bossRespawn };
+    const w = world(opts);
+    w.mm.spawnAll();
+    expect(kv.get("rei")).toBeNull(); // vivo: sem prazo
+    w.mm.kill([...w.mm.all()][0]!, w.now());
+    expect(kv.get("rei")).toBe(w.now() + 7_200_000);
+    // "Reinício" 1 h depois (cada mundo de teste começa no mesmo relógio): o chefe não nasce no boot, só no prazo original.
+    const w2 = world(opts);
+    w2.run(3_600_000);
+    w2.mm.spawnAll();
+    expect(w2.mm.size).toBe(0);
+    expect(w2.mm.pendingRespawns).toBe(1);
+    w2.run(3_600_000 + 1_000);
+    expect(w2.mm.size).toBe(1);
+    expect(kv.get("rei")).toBeNull();
+    // Prazo vencido durante o reinício: nasce no boot.
+    w2.mm.kill([...w2.mm.all()][0]!, w2.now());
+    const w3 = world(opts);
+    w3.run(kv.get("rei")! - w3.now() + 1_000);
+    w3.mm.spawnAll();
+    expect(w3.mm.size).toBe(1);
+  });
+
+  it("callBoss ignora cópias do Coliseu, da alavanca e de invocador (ciclo 14)", () => {
+    const rei = def({ id: "rei", boss: true, name: "Rei", respawnMs: 7_200_000, aggroRange: 0 });
+    const w = world({ grid: openGrid(40, 20), spawns: [sp(5, 5, 1, 1, "rei")], defs: () => rei });
+    w.mm.spawnAll();
+    w.mm.kill([...w.mm.all()][0]!, w.now());
+    w.mm.spawnQuest(rei, 30, 15, { leverId: "x", bounds: { x0: 25, y0: 10, x1: 35, y1: 19 } });
+    expect(w.mm.size).toBe(1); // só a cópia da sala de quest
+    expect(w.mm.callBoss("rei", w.now())).toBe("spawned");
+    expect(w.mm.size).toBe(2);
+  });
+
   it("announces bosses globally", () => {
     const notices: string[] = [];
     const w2 = world({ grid: openGrid(10, 10), spawns: [sp(5, 5)], defs: () => def({ boss: true, name: "Rei" }), notice: (t) => notices.push(t) });

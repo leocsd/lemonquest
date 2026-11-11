@@ -1,7 +1,7 @@
 import type { DamageKind } from "../types.ts";
 import type { LootEntry } from "./items.ts";
 import { CALL_HELP_ID, MONSTER_ABILITY_PREFIX, ability, type MonsterAbility } from "./monsterAbilities.ts";
-import type { SpellDef, SpellTarget } from "./spells.ts";
+import type { ConditionId, SpellDef, SpellTarget } from "./spells.ts";
 
 /**
  * VERIFICACAO DE LAYOUT (sheets abertos e ampliados 4x): Mouse, Slime, Snake, SpiderRed, BlueBat, Skull,
@@ -41,6 +41,13 @@ export interface MonsterDef {
   damageKind: DamageKind;
   /** Redução fixa de dano recebido. */
   armor: number;
+  /**
+   * Multiplicador do dano recebido por elemento (0,5 = metade; 1,25 = 25% a mais), aplicado depois da armadura.
+   * Substitui o padrão por elemento; sem a chave vale `damageTakenMult` (o próprio elemento resiste).
+   */
+  resist?: Partial<Record<DamageKind, number>>;
+  /** Morto-vivo (esqueletos, fantasmas, liches, crânios, lanternas assombradas): fraco contra sagrado (ELEMENT_WEAKNESS). */
+  undead?: boolean;
   /** Intervalo entre ataques (ms). */
   attackMs: number;
   /** 1 = corpo a corpo; >1 = ataque à distância até esse alcance (Chebyshev). */
@@ -80,7 +87,10 @@ export interface MonsterDef {
 const grid4 = (url: string, extra: Partial<CreatureSprite> = {}): CreatureSprite =>
   ({ url, frameWidth: 16, frameHeight: 16, layout: "grid4", ...extra });
 
-/** Tira horizontal de um chefe (uma direcao so): usa os mesmos frames nas 4 direcoes. */
+/**
+ * Tira horizontal de um chefe (uma direcao so): usa os mesmos frames nas 4 direcoes. Frames quadrados de `size`
+ * (altura da tira); tira de frames largos (Giant*Samurai: 96x48) passa `frameWidth` em `extra`.
+ */
 const strip = (url: string, size: number, frames: number, extra: Partial<CreatureSprite> = {}): CreatureSprite => {
   const f = Array.from({ length: frames }, (_, i) => i);
   return { url, frameWidth: size, frameHeight: size, layout: "custom", walk: { down: f, up: f, left: f, right: f }, ...extra };
@@ -213,7 +223,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "BlueBat/SpriteSheet.png"),
   },
   skeleton: {
-    id: "skeleton", name: "Esqueleto", level: 24, hp: 280, xp: 200, damage: [20, 42], damageKind: "physical", armor: 6,
+    id: "skeleton", name: "Esqueleto", level: 24, hp: 280, xp: 200, damage: [20, 42], damageKind: "physical", armor: 6, undead: true,
     attackMs: 2000, attackRange: 1, stepMs: 400, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 60_000,
     gold: [35, 75],
     loot: [
@@ -250,7 +260,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Reptile2/Reptile2.png"),
   },
   ghost: {
-    id: "ghost", name: "Fantasma", level: 31, hp: 380, xp: 360, damage: [25, 50], damageKind: "death", armor: 5,
+    id: "ghost", name: "Fantasma", level: 31, hp: 380, xp: 360, damage: [25, 50], damageKind: "death", armor: 5, undead: true,
     attackMs: 2000, attackRange: 1, stepMs: 360, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 70_000,
     gold: [55, 110],
     loot: [
@@ -328,7 +338,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "BambooYellow/SpriteSheet.png"),
   },
   swamp_lich: {
-    id: "swamp_lich", name: "Lich do Pântano", level: 25, hp: 3500, xp: 2500, damage: [30, 70], damageKind: "death", armor: 8,
+    id: "swamp_lich", name: "Lich do Pântano", level: 25, hp: 3500, xp: 2500, damage: [30, 70], damageKind: "death", armor: 8, undead: true,
     abilities: [
       ability.blast({ name: "Nuvem Tóxica", radius: 1, range: 5, min: 35, max: 65, kind: "earth", fx: "earth", condition: { id: "poison", durationMs: 8000, value: 8 } }),
       ability.summon({ name: "Levantem-se!", monsterId: "skeleton", count: 1, max: 2, cooldownMs: 25_000 }),
@@ -363,6 +373,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "battle_axe", chance: 0.012 },
       { itemId: "mithril_helmet", chance: 0.01 },
       { itemId: "crown_helmet", chance: 0.004 },
+      { itemId: "crown_boots", chance: 0.004 },
     ],
     sprite: grid4(M + "Beast2/Beast2.png", { tint: 0x9fd08a }),
   },
@@ -418,6 +429,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "inferno_wand", chance: 0.008 },
       { itemId: "glacier_rod", chance: 0.008 },
       { itemId: "mystic_legs", chance: 0.005 },
+      { itemId: "mystic_boots", chance: 0.005 },
     ],
     sprite: grid4(M + "Bear/SpriteSheet.png", { tint: 0xa088e0 }),
   },
@@ -441,7 +453,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: grid4(M + "Cyclope/SpriteSheet.png", { tint: 0xe0b890 }),
   },
   bonelord: {
-    id: "bonelord", name: "Olho Maligno", level: 60, hp: 1100, xp: 1760, damage: [55, 110], damageKind: "death", armor: 10,
+    id: "bonelord", name: "Olho Maligno", level: 60, hp: 1100, xp: 1760, damage: [55, 110], damageKind: "death", armor: 10, undead: true,
     abilities: [
       ability.bolt({ name: "Olhar Mortal", range: 4, min: 70, max: 125, kind: "death", fx: "death", condition: { id: "slow", durationMs: 3000, value: 40 } }),
     ],
@@ -513,6 +525,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "dragon_scale_helmet", chance: 0.005 },
       { itemId: "magic_longsword", chance: 0.003 },
       { itemId: "ferumbras_helmet", chance: 0.003 },
+      { itemId: "dragon_scale_boots", chance: 0.004 },
       { itemId: "amulet_dragon", chance: 0.01 },
     ],
     sprite: grid4(M + "DragonYellow/SpriteSheet.png", { tint: 0xff7a64 }),
@@ -559,6 +572,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "ancient_root_rod", chance: 0.003 },
       { itemId: "celestial_bow", chance: 0.003 },
       { itemId: "ferumbras_armor", chance: 0.002 },
+      { itemId: "demon_boots", chance: 0.003 },
       { itemId: "boots_haste", chance: 0.005 },
     ],
     sprite: grid4(M + "Beast/Beast.png", { scale: 1.25 }),
@@ -625,9 +639,56 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "ancient_root_rod", chance: 0.15 },
       { itemId: "ferumbras_armor", chance: 0.15 },
       { itemId: "dragon_scale_legs", chance: 0.15 },
+      { itemId: "demon_boots", chance: 0.15 },
       { itemId: "boots_haste", chance: 0.3 },
+      // Ciclo 16: tier 8 de cavaleiro e paladino (Ferumbras dá o dos magos).
+      { itemId: "abyss_shard", chance: 1, min: 2, max: 4 },
+      { itemId: "abyss_blade", chance: 0.12 },
+      { itemId: "abyss_armor", chance: 0.1 },
+      { itemId: "abyss_bow", chance: 0.12 },
+      { itemId: "abyss_archer_armor", chance: 0.1 },
     ],
     sprite: strip(B + "DemonCyclop/Walk.png", 50, 6, { tint: 0xff6060, scale: 2 }),
+  },
+
+  // ===== Oficina dos Engenhos (ciclo 10): reskins que nascem em áreas existentes (lateSpawns). Nomes comuns de fantasia
+  // por pedido do dono (2026-10-24): o trabalho fica nos NPCs e missões; ids iguais (saves, bestiário, mapa).
+  datacenter_rat: {
+    id: "datacenter_rat", name: "Rato Cinzento", level: 3, hp: 40, xp: 12, damage: [2, 6], damageKind: "physical", armor: 0,
+    attackMs: 2000, attackRange: 1, stepMs: 300, aggroRange: 4, fleeAtHpPct: 0.15, respawnMs: 25_000,
+    gold: [2, 6],
+    loot: [
+      { itemId: "cabo_roido", chance: 0.45, min: 1, max: 2 },
+      { itemId: "iluminador_queimado", chance: 0.35 },
+      { itemId: "cheese", chance: 0.15 },
+      { itemId: "health_potion", chance: 0.05 },
+    ],
+    sprite: grid4(M + "Mouse/SpriteSheet.png", { tint: 0x7080b0 }),
+  },
+  // Passiva (aggroRange 0) e foge cedo (60%): o jogador corre atrás dela pelo pátio.
+  runaway_drum: {
+    id: "runaway_drum", name: "Gosma Azul", level: 10, hp: 120, xp: 52, damage: [4, 10], damageKind: "earth", armor: 1,
+    attackMs: 2000, attackRange: 1, stepMs: 240, aggroRange: 0, fleeAtHpPct: 0.6, respawnMs: 45_000,
+    gold: [20, 45],
+    loot: [
+      { itemId: "rotulo_isca", chance: 0.4 },
+      { itemId: "post_it_senha", chance: 0.25 },
+      { itemId: "health_potion", chance: 0.08 },
+    ],
+    sprite: grid4(M + "Slime/Slime.png", { tint: 0x3a78e0, scale: 1.15 }),
+  },
+  slag_slime: {
+    id: "slag_slime", name: "Gosma Cinzenta", level: 20, hp: 220, xp: 140, damage: [14, 30], damageKind: "fire", armor: 5,
+    attackMs: 2000, attackRange: 1, stepMs: 380, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 55_000,
+    pack: { family: "slag", shout: "Blup-blup!" },
+    gold: [10, 24],
+    loot: [
+      { itemId: "escoria_quente", chance: 0.5, min: 1, max: 2 },
+      { itemId: "lente_trincada", chance: 0.12 },
+      { itemId: "iron_bar", chance: 0.04 },
+      { itemId: "health_potion_medium", chance: 0.03 },
+    ],
+    sprite: grid4(M + "Slime2/Slime2.png", { tint: 0x60606a }),
   },
 
   // ===== Costa Esmeralda (expansão a leste das Terras Selvagens: tools/mapgen/expansion2.mjs)
@@ -792,6 +853,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "crown_legs", chance: 0.005 },
       { itemId: "giant_sword", chance: 0.004 },
       { itemId: "royal_legs", chance: 0.005 },
+      { itemId: "royal_boots", chance: 0.005 },
     ],
     sprite: grid4(C + "Caveman2/SpriteSheet.png", { tint: 0xe8d0b8 }),
   },
@@ -830,7 +892,8 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "ring_dragon", chance: 0.01 },
       { itemId: "frost_ring", chance: 0.004 },
     ],
-    sprite: grid4(M + "Dragon/SpriteSheet.png", { tint: 0xa8dcff, scale: 1.1 }),
+    // Paleta trocada (tools/monsters/recolor.mjs): a tinta sobre o dragão verde ficava esverdeada.
+    sprite: grid4("monsters/FrostDragon.png", { scale: 1.1 }),
   },
   // Caverna dos Heróis (lv 65-75).
   necromancer: {
@@ -922,6 +985,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "demon_armor", chance: 0.003 },
       { itemId: "ferumbras_helmet", chance: 0.004 },
       { itemId: "dragon_scale_armor", chance: 0.003 },
+      { itemId: "ferumbras_boots", chance: 0.003 },
       { itemId: "boots_haste", chance: 0.006 },
     ],
     sprite: grid4(M + "TRex/SpriteSheet.png", { tint: 0xb08070, scale: 1.5 }),
@@ -981,6 +1045,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "crown_armor", chance: 0.15 },
       { itemId: "mystic_armor", chance: 0.15 },
       { itemId: "northwind_rod", chance: 0.15 },
+      { itemId: "spellbook_mystic", chance: 0.15 },
     ],
     sprite: grid4(M + "Panda/SpriteSheet.png", { tint: 0xf4faff, scale: 1.9 }),
   },
@@ -1003,9 +1068,422 @@ export const MONSTERS: Record<string, MonsterDef> = {
       { itemId: "destruction_wand", chance: 0.2 },
       { itemId: "ancient_root_rod", chance: 0.2 },
       { itemId: "amulet_orshabaal", chance: 0.15 },
+      { itemId: "spellbook_ferumbras", chance: 0.2 },
+      { itemId: "ferumbras_boots", chance: 0.2 },
       { itemId: "boots_haste", chance: 0.4 },
+      // Ciclo 16: tier 8 dos magos (Orshabaal dá o de cavaleiro e paladino).
+      { itemId: "abyss_shard", chance: 1, min: 2, max: 4 },
+      { itemId: "abyss_wand", chance: 0.12 },
+      { itemId: "abyss_rod", chance: 0.12 },
+      { itemId: "abyss_mage_helmet", chance: 0.1 },
+      { itemId: "abyss_mage_armor", chance: 0.1 },
+      { itemId: "spellbook_abyss", chance: 0.1 },
     ],
     sprite: grid4(C + "Vampire/SpriteSheet.png", { tint: 0xd890ff, scale: 1.9 }),
+  },
+
+  // ===== Malha da Ferrovia (ciclo 11, lv 25–60): região isolada, só de trem (tools/mapgen/expansion4.mjs). Reskins com
+  // tint de sprites que já existem. Nomes comuns de fantasia casando com o sprite (pedido do dono, 2026-10-24); os ids
+  // seguem os do contrato com o mapa e os saves.
+  // Números nas janelas dos vizinhos de level (xp/vida ±10%, ouro por faixa: monsters.test.ts e items.test.ts).
+  engate_solto: {
+    id: "engate_solto", name: "Cobra Listrada", level: 28, hp: 330, xp: 285, damage: [22, 46], damageKind: "physical", armor: 7,
+    attackMs: 1900, attackRange: 1, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [60, 140],
+    loot: [
+      { itemId: "pino_de_engate", chance: 0.45 },
+      { itemId: "iron_bar", chance: 0.05 },
+      { itemId: "health_potion_medium", chance: 0.07 },
+      { itemId: "colete_refletivo", chance: 0.006 },
+      { itemId: "steel_legs", chance: 0.005 },
+    ],
+    sprite: grid4(M + "Snake4/Snake4.png", { tint: 0x40d0e0 }),
+  },
+  // Lenta e blindada: cava devagar, mas a carapaça dourada aguenta pancada.
+  sapata_gasta: {
+    id: "sapata_gasta", name: "Toupeira Dourada", level: 32, hp: 420, xp: 420, damage: [26, 52], damageKind: "physical", armor: 12,
+    attackMs: 2000, attackRange: 1, stepMs: 480, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [70, 150],
+    loot: [
+      { itemId: "pastilha_de_sapata", chance: 0.45, min: 1, max: 2 },
+      { itemId: "iron_bar", chance: 0.06 },
+      { itemId: "health_potion_medium", chance: 0.08 },
+      { itemId: "steel_boots", chance: 0.006 },
+    ],
+    sprite: grid4(M + "Mole2/Mole2.png", { tint: 0xffc040, scale: 1.1 }),
+  },
+  // À distância, de fogo, com um clarão de energia.
+  iluminador_rebelde: {
+    id: "iluminador_rebelde", name: "Lanterna Assombrada", level: 36, hp: 460, xp: 530, damage: [28, 56], damageKind: "fire", armor: 6, undead: true,
+    abilities: [
+      ability.bolt({ name: "Clarão Fantasma", range: 4, min: 30, max: 60, kind: "energy", fx: "energy", cooldownMs: 9000, condition: { id: "energy", durationMs: 4000, value: 6 } }),
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 360, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 60_000,
+    gold: [80, 170],
+    loot: [
+      { itemId: "iluminador_queimado", chance: 0.5, min: 1, max: 2 },
+      { itemId: "lente_industrial", chance: 0.3 },
+      { itemId: "mana_potion_medium", chance: 0.08 },
+      { itemId: "capacete_lanterna", chance: 0.006 },
+      { itemId: "ember_wand", chance: 0.004 },
+    ],
+    sprite: grid4(M + "LanternGreen/SpriteSheet.png", { tint: 0xfff0a0 }),
+  },
+  // Foge cedo (45%) e rápido: some antes de alguém conferir se era mesmo um espectro.
+  frame_descartado: {
+    id: "frame_descartado", name: "Espectro Errante", level: 40, hp: 500, xp: 650, damage: [30, 60], damageKind: "energy", armor: 6, undead: true,
+    attackMs: 1800, attackRange: 1, stepMs: 260, aggroRange: 4, fleeAtHpPct: 0.45, respawnMs: 60_000,
+    gold: [90, 190],
+    loot: [
+      { itemId: "frame_corrompido", chance: 0.4 },
+      { itemId: "lente_trincada", chance: 0.15 },
+      { itemId: "mana_potion_medium", chance: 0.1 },
+      { itemId: "calca_brim_refletiva", chance: 0.006 },
+      { itemId: "gem_green", chance: 0.02 },
+    ],
+    sprite: grid4(M + "Spirit2/SpriteSheet.png", { tint: 0xd0e8ff }),
+  },
+  rodeiro_trincado: {
+    id: "rodeiro_trincado", name: "Olho Sangrento", level: 45, hp: 820, xp: 1115, damage: [42, 84], damageKind: "physical", armor: 14,
+    attackMs: 1900, attackRange: 1, stepMs: 300, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 75_000,
+    gold: [120, 240],
+    loot: [
+      { itemId: "rolamento_de_rodeiro", chance: 0.4 },
+      { itemId: "iron_bar", chance: 0.1 },
+      { itemId: "health_potion_large", chance: 0.06 },
+      { itemId: "botina_seguranca", chance: 0.006 },
+      { itemId: "mithril_boots", chance: 0.004 },
+    ],
+    sprite: grid4(M + "Eye/Eye.png", { tint: 0xe04040, scale: 1.15 }),
+  },
+  truque_desalinhado: {
+    id: "truque_desalinhado", name: "Fera das Brasas", level: 48, hp: 1000, xp: 1420, damage: [48, 92], damageKind: "physical", armor: 16,
+    abilities: [
+      ability.stomp({ name: "Patada Ardente", radius: 1, min: 50, max: 100, cooldownMs: 12_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 400, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 80_000,
+    gold: [130, 250],
+    loot: [
+      { itemId: "chaveta", chance: 0.4, min: 1, max: 2 },
+      { itemId: "iron_bar", chance: 0.12 },
+      { itemId: "health_potion_large", chance: 0.07 },
+      { itemId: "mithril_legs", chance: 0.005 },
+      { itemId: "gem_yellow", chance: 0.02 },
+    ],
+    sprite: grid4(M + "Beast/Beast.png", { tint: 0xff8a30, scale: 1.2 }),
+  },
+  // Bando do Túnel: onde tem uma ratazana, tem dez debaixo do dormente.
+  rato_de_lastro: {
+    id: "rato_de_lastro", name: "Ratazana Negra", level: 50, hp: 700, xp: 1015, damage: [40, 80], damageKind: "physical", armor: 10,
+    attackMs: 1700, attackRange: 1, stepMs: 260, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 70_000,
+    pack: { family: "lastro", shout: "Chiii! Pega ele!" },
+    gold: [100, 200],
+    loot: [
+      { itemId: "brita_de_lastro", chance: 0.5, min: 1, max: 3 },
+      { itemId: "cheese", chance: 0.2, min: 1, max: 3 },
+      { itemId: "health_potion_large", chance: 0.06 },
+      { itemId: "ring_furia", chance: 0.004 },
+    ],
+    sprite: grid4(M + "MouseBlack/SpriteSheet.png", { tint: 0xb0a080, scale: 1.1 }),
+  },
+  // Mini-chefe da Oficina de Vagões: chama toupeiras que travam o grupo.
+  vagao_nao_inspecionavel: {
+    id: "vagao_nao_inspecionavel", name: "Ciclope de Pedra", level: 52, hp: 10000, xp: 10000, damage: [85, 160], damageKind: "physical", armor: 18,
+    abilities: [
+      ability.stomp({ name: "Pisão do Ciclope", radius: 1, min: 90, max: 160, cooldownMs: 11_000 }),
+      ability.summon({ name: "Toupeiras, a mim!", monsterId: "sapata_gasta", count: 1, max: 2, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 460, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [2400, 4000],
+    loot: [
+      { itemId: "selo_nao_inspecionavel", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 2, max: 4 },
+      { itemId: "rolamento_de_rodeiro", chance: 1, min: 2, max: 4 },
+      { itemId: "anel_do_rodeiro", chance: 0.2 },
+      { itemId: "botina_seguranca", chance: 0.25 },
+      { itemId: "mithril_armor", chance: 0.15 },
+      { itemId: "master_archer_armor", chance: 0.15 },
+      { itemId: "archmage_armor", chance: 0.15 },
+    ],
+    sprite: grid4(M + "Cyclope2/SpriteSheet.png", { tint: 0xa86a48, scale: 1.7 }),
+  },
+  // Chefe da Malha (evento "Apito da Locomotiva", quarta 17h): bafo de fogo em onda e ratazanas de reforço.
+  locomotiva_fantasma: {
+    id: "locomotiva_fantasma", name: "Tirano da Serra", level: 58, hp: 14000, xp: 15000, damage: [100, 190], damageKind: "physical", armor: 20,
+    abilities: [
+      ability.breath({ name: "Bafo do Tirano", length: 4, width: 3, min: 110, max: 200, kind: "fire", fx: "fire", windupMs: 900, cooldownMs: 10_000 }),
+      ability.summon({ name: "Rugido da Serra", monsterId: "rato_de_lastro", count: 2, max: 3, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 320, aggroRange: 9, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [3000, 5000],
+    loot: [
+      { itemId: "apito_de_locomotiva", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
+      { itemId: "brita_de_lastro", chance: 1, min: 4, max: 8 },
+      { itemId: "anel_do_rodeiro", chance: 0.3 },
+      { itemId: "crown_armor", chance: 0.1 },
+      { itemId: "royal_armor", chance: 0.1 },
+      { itemId: "mystic_armor", chance: 0.1 },
+      { itemId: "boots_haste", chance: 0.08 },
+    ],
+    sprite: grid4(M + "TRex/SpriteSheet.png", { tint: 0x8898b8, scale: 2 }),
+  },
+
+  // ===== Caves profundas (ciclo 13, pedido do dono: "mais caves"): duas criaturas novas por cave, com sprites do pack
+  // ainda sem uso. Atributos interpolados dos vizinhos de level (aranha/esqueleto, crocodilo/minotauro mago, necromante/
+  // herói, colosso), loot só com itens que já existem.
+  // Minas Abandonadas (lv 12–28)
+  mine_larva: {
+    id: "mine_larva", name: "Larva das Minas", level: 14, hp: 150, xp: 80, damage: [10, 22], damageKind: "earth", armor: 3,
+    abilities: [
+      ability.bolt({ name: "Cuspe Ácido", range: 3, min: 14, max: 26, kind: "earth", fx: "earth", cooldownMs: 9000, condition: { id: "poison", durationMs: 6000, value: 3 } }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 420, aggroRange: 5, fleeAtHpPct: 0, respawnMs: 45_000,
+    gold: [15, 35],
+    loot: [
+      { itemId: "slime_goo", chance: 0.5, min: 1, max: 2 },
+      { itemId: "herb", chance: 0.2 },
+      { itemId: "spider_silk", chance: 0.08 },
+      { itemId: "health_potion", chance: 0.08 },
+    ],
+    sprite: grid4(M + "Larva/Larva.png"),
+  },
+  mine_mole: {
+    id: "mine_mole", name: "Toupeira das Minas", level: 22, hp: 260, xp: 175, damage: [18, 38], damageKind: "physical", armor: 7,
+    attackMs: 1900, attackRange: 1, stepMs: 380, aggroRange: 6, fleeAtHpPct: 0.15, respawnMs: 55_000,
+    pack: { family: "mine_mole", shout: "Grrr! Cavem, irmãs!" },
+    gold: [30, 65],
+    loot: [
+      { itemId: "bone", chance: 0.3 },
+      { itemId: "iron_bar", chance: 0.06 },
+      { itemId: "gem_green", chance: 0.012 },
+      { itemId: "health_potion", chance: 0.12 },
+    ],
+    sprite: grid4(M + "Mole/Mole.png"),
+  },
+  // Grutas Alagadas (lv 35–55)
+  kappa: {
+    id: "kappa", name: "Kappa do Lodo", level: 40, hp: 640, xp: 760, damage: [34, 70], damageKind: "ice", armor: 12,
+    abilities: [
+      ability.bolt({ name: "Jato de Água", range: 4, min: 40, max: 75, kind: "ice", fx: "ice", cooldownMs: 9000, condition: { id: "slow", durationMs: 3000, value: 30 } }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 360, aggroRange: 6, fleeAtHpPct: 0.15, respawnMs: 70_000,
+    gold: [130, 260],
+    loot: [
+      { itemId: "lizard_scale", chance: 0.25 },
+      { itemId: "croc_leather", chance: 0.1 },
+      { itemId: "gem_green", chance: 0.03 },
+      { itemId: "health_potion_medium", chance: 0.15 },
+      { itemId: "mana_potion_medium", chance: 0.1 },
+    ],
+    sprite: grid4(M + "KappaGreen/SpriteSheet.png"),
+  },
+  cave_octopus: {
+    id: "cave_octopus", name: "Polvo das Grutas", level: 50, hp: 820, xp: 1150, damage: [40, 85], damageKind: "energy", armor: 9,
+    abilities: [
+      ability.blast({ name: "Nuvem de Tinta", radius: 1, range: 4, min: 55, max: 95, kind: "energy", fx: "energy", cooldownMs: 9000, condition: { id: "slow", durationMs: 3000, value: 40 } }),
+    ],
+    attackMs: 2200, attackRange: 4, stepMs: 400, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 80_000,
+    gold: [150, 280],
+    loot: [
+      { itemId: "pirate_coin", chance: 0.25, min: 1, max: 3 },
+      { itemId: "ectoplasm", chance: 0.15 },
+      { itemId: "gem_yellow", chance: 0.04 },
+      { itemId: "mana_potion_medium", chance: 0.2 },
+    ],
+    sprite: grid4(M + "Octopus/SpriteSheet.png"),
+  },
+  // Catacumbas Esquecidas (lv 60–85)
+  flame_skull: {
+    id: "flame_skull", name: "Crânio Flamejante", level: 70, hp: 1700, xp: 3200, damage: [75, 145], damageKind: "fire", armor: 16, undead: true,
+    abilities: [
+      ability.bolt({ name: "Chama Profana", range: 5, min: 90, max: 160, kind: "fire", fx: "fire", cooldownMs: 8000, condition: { id: "burn", durationMs: 5000, value: 10 } }),
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 300, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 100_000,
+    gold: [210, 400],
+    loot: [
+      { itemId: "ember", chance: 0.3 },
+      { itemId: "bone", chance: 0.4 },
+      { itemId: "necro_skull", chance: 0.12 },
+      { itemId: "gem_purple", chance: 0.03 },
+      { itemId: "health_potion_large", chance: 0.1 },
+    ],
+    sprite: grid4(M + "Skull/SpriteSheet.png", { scale: 1.1 }),
+  },
+  red_lantern: {
+    id: "red_lantern", name: "Lanterna Rubra", level: 78, hp: 2100, xp: 4250, damage: [85, 165], damageKind: "death", armor: 18, undead: true,
+    abilities: [
+      ability.healAllies({ name: "Luz Sangrenta", pct: 0.12, radius: 4, belowHpPct: 0.7, cooldownMs: 10_000 }),
+      ability.bolt({ name: "Chama Rubra", range: 4, min: 100, max: 175, kind: "death", fx: "death", cooldownMs: 10_000 }),
+    ],
+    attackMs: 2200, attackRange: 4, stepMs: 380, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 110_000,
+    gold: [240, 460],
+    loot: [
+      { itemId: "ectoplasm", chance: 0.3 },
+      { itemId: "necro_skull", chance: 0.15 },
+      { itemId: "gem_purple", chance: 0.05 },
+      { itemId: "mana_potion_large", chance: 0.12 },
+      { itemId: "amulet_lich", chance: 0.005 },
+    ],
+    sprite: grid4(M + "LanternRed/SpriteSheet.png", { scale: 1.1 }),
+  },
+  // Abismo Profundo (lv 100–130)
+  abyss_tengu: {
+    id: "abyss_tengu", name: "Tengu Rubro", level: 112, hp: 6000, xp: 13500, damage: [140, 270], damageKind: "energy", armor: 30,
+    abilities: [
+      ability.blast({ name: "Vendaval", radius: 2, range: 4, min: 170, max: 290, kind: "energy", fx: "energy", windupMs: 800, cooldownMs: 11_000 }),
+      ability.bolt({ name: "Raio do Tengu", range: 5, min: 150, max: 260, kind: "energy", fx: "energy", cooldownMs: 8000 }),
+    ],
+    attackMs: 2000, attackRange: 4, stepMs: 320, aggroRange: 7, fleeAtHpPct: 0, respawnMs: 150_000,
+    gold: [480, 950],
+    loot: [
+      { itemId: "demonic_essence", chance: 0.12 },
+      { itemId: "gem_purple", chance: 0.12 },
+      { itemId: "mana_potion_large", chance: 0.25, min: 1, max: 3 },
+      { itemId: "health_potion_large", chance: 0.2, min: 1, max: 2 },
+      { itemId: "starstorm_wand", chance: 0.004 },
+      { itemId: "mystic_armor", chance: 0.004 },
+      // Ciclo 16: tier 8 dos magos e do paladino (o Samurai Rubro dá o do cavaleiro e o resto do paladino).
+      { itemId: "abyss_shard", chance: 0.25 },
+      { itemId: "abyss_wand", chance: 0.002 },
+      { itemId: "abyss_rod", chance: 0.002 },
+      { itemId: "abyss_mage_helmet", chance: 0.003 },
+      { itemId: "abyss_mage_armor", chance: 0.0015 },
+      { itemId: "spellbook_abyss", chance: 0.002 },
+      { itemId: "abyss_bow", chance: 0.002 },
+      { itemId: "abyss_archer_helmet", chance: 0.003 },
+    ],
+    sprite: strip(B + "TenguRed/Walk.png", 82, 10, { scale: 0.38 }),
+  },
+  abyss_samurai: {
+    id: "abyss_samurai", name: "Samurai Rubro", level: 120, hp: 8000, xp: 17500, damage: [170, 320], damageKind: "physical", armor: 44,
+    abilities: [
+      ability.stomp({ name: "Corte Giratório", radius: 1, min: 200, max: 340, windupMs: 700, cooldownMs: 10_000 }),
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 340, aggroRange: 6, fleeAtHpPct: 0, respawnMs: 170_000,
+    gold: [600, 1200],
+    loot: [
+      { itemId: "juggernaut_plate", chance: 0.15 },
+      { itemId: "mithril_bar", chance: 0.15 },
+      { itemId: "gem_yellow", chance: 0.15 },
+      { itemId: "health_potion_large", chance: 0.3, min: 2, max: 3 },
+      { itemId: "magic_longsword", chance: 0.004 },
+      { itemId: "demon_armor", chance: 0.003 },
+      { itemId: "ferumbras_legs", chance: 0.003 },
+      // Ciclo 16: tier 8 do cavaleiro e do paladino.
+      { itemId: "abyss_shard", chance: 0.3 },
+      { itemId: "abyss_blade", chance: 0.002 },
+      { itemId: "abyss_helmet", chance: 0.003 },
+      { itemId: "abyss_armor", chance: 0.0015 },
+      { itemId: "abyss_shield", chance: 0.003 },
+      { itemId: "abyss_archer_armor", chance: 0.0015 },
+      { itemId: "abyss_archer_legs", chance: 0.002 },
+    ],
+    // Walk.png 576x48 = 6 frames de 96x48 (largura dupla; ver assets/CATALOG.md). Em 12 de 48 animava meio samurai.
+    sprite: strip(B + "GiantRedSamurai/Walk.png", 48, 6, { frameWidth: 96, scale: 0.65 }),
+  },
+
+  // ===== Chefes de covil (ciclo 16): um na sala do fundo de cada cave do ciclo 13, nascendo como objeto no fim do mapa
+  // (tools/mapgen/generate.mjs, lateObjects14). Vida da tabela do plano; XP, ouro e dano entre os chefes vizinhos de
+  // level. A prova (100%) é troféu; o baú do covil abre para quem tem o abate registrado (shared/data/questWorld.ts).
+  lair_mole_king: {
+    id: "lair_mole_king", name: "Rei Toupeira", level: 28, hp: 4500, xp: 3600, damage: [40, 80], damageKind: "physical", armor: 10,
+    abilities: [
+      ability.stomp({ name: "Desmoronamento", radius: 1, min: 45, max: 85, cooldownMs: 11_000 }),
+      ability.summon({ name: "Cavem, filhas!", monsterId: "mine_mole", count: 1, max: 2, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2000, attackRange: 1, stepMs: 440, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [1200, 2200],
+    loot: [
+      { itemId: "mole_king_claw", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 2, max: 3 },
+      { itemId: "iron_bar", chance: 1, min: 2, max: 4 },
+      { itemId: "gem_green", chance: 0.8, min: 1, max: 2 },
+      { itemId: "mithril_bar", chance: 0.3 },
+      { itemId: "ring_furia", chance: 0.2 },
+      { itemId: "colete_refletivo", chance: 0.2 },
+      { itemId: "amulet_lich", chance: 0.15 },
+      { itemId: "battle_axe", chance: 0.12 },
+      { itemId: "composite_bow", chance: 0.12 },
+    ],
+    // Idle.png 360x60 = 6 frames de 60x60 (o guaxinim gigante, tingido de terra).
+    sprite: strip(B + "GiantRacoon/Idle.png", 60, 6, { tint: 0xd8b088, scale: 1.25 }),
+  },
+  lair_kraken: {
+    id: "lair_kraken", name: "Kraken das Grutas", level: 54, hp: 11000, xp: 11000, damage: [80, 150], damageKind: "ice", armor: 18,
+    abilities: [
+      ability.blast({ name: "Tinta Abissal", radius: 2, range: 4, min: 90, max: 160, kind: "ice", fx: "ice", cooldownMs: 10_000, condition: { id: "slow", durationMs: 3000, value: 40 } }),
+      ability.summon({ name: "Filhotes, ao ataque!", monsterId: "cave_octopus", count: 1, max: 2, cooldownMs: 25_000 }),
+    ],
+    attackMs: 2200, attackRange: 3, stepMs: 400, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 7_200_000, boss: true,
+    gold: [2400, 4200],
+    loot: [
+      { itemId: "kraken_eye", chance: 1 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
+      { itemId: "mana_potion_large", chance: 1, min: 2, max: 4 },
+      { itemId: "croc_leather", chance: 1, min: 2, max: 4 },
+      { itemId: "gem_yellow", chance: 0.7, min: 1, max: 2 },
+      { itemId: "ring_might", chance: 0.15 },
+      { itemId: "amulet_minotaur", chance: 0.15 },
+      { itemId: "crown_armor", chance: 0.1 },
+      { itemId: "royal_armor", chance: 0.1 },
+      { itemId: "mystic_armor", chance: 0.1 },
+    ],
+    // Walk.png 304x79 = 4 frames de 76x79.
+    sprite: strip(B + "SquidGreen/Walk.png", 79, 4, { frameWidth: 76, scale: 0.95 }),
+  },
+  lair_flame: {
+    id: "lair_flame", name: "Chama Ancestral", level: 82, hp: 22000, xp: 26000, damage: [140, 260], damageKind: "fire", armor: 28,
+    abilities: [
+      ability.blast({ name: "Fogo Ancestral", radius: 2, range: 5, min: 160, max: 280, kind: "fire", fx: "fire", cooldownMs: 9000, condition: { id: "burn", durationMs: 6000, value: 20 } }),
+      ability.summon({ name: "Acordem, crânios!", monsterId: "flame_skull", count: 1, max: 2, cooldownMs: 30_000 }),
+    ],
+    attackMs: 2200, attackRange: 4, stepMs: 380, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 10_800_000, boss: true,
+    gold: [4500, 8000],
+    loot: [
+      { itemId: "ancestral_heart", chance: 1 },
+      { itemId: "ember", chance: 1, min: 4, max: 8 },
+      { itemId: "necro_skull", chance: 1, min: 2, max: 4 },
+      { itemId: "health_potion_large", chance: 1, min: 3, max: 5 },
+      { itemId: "gem_purple", chance: 0.7, min: 1, max: 2 },
+      { itemId: "demon_helmet", chance: 0.12 },
+      { itemId: "dragon_scale_helmet", chance: 0.12 },
+      { itemId: "ferumbras_helmet", chance: 0.12 },
+      { itemId: "ring_demodras", chance: 0.1 },
+      { itemId: "magic_longsword", chance: 0.08 },
+    ],
+    sprite: strip(B + "GiantFlam/Idle.png", 50, 5, { tint: 0xd090ff, scale: 1.6 }),
+  },
+  // Tier 8 (16-2): as peças que Orshabaal não dá (elmos, escudo e grevas), 10–12%, e o Fragmento Abissal sempre.
+  lair_shogun: {
+    id: "lair_shogun", name: "Shogun Abissal", level: 125, hp: 45000, xp: 60000, damage: [210, 390], damageKind: "physical", armor: 48,
+    abilities: [
+      ability.stomp({ name: "Corte do Shogun", radius: 1, min: 240, max: 420, windupMs: 700, cooldownMs: 10_000 }),
+      ability.breath({ name: "Vendaval de Lâminas", length: 4, width: 3, min: 200, max: 360, kind: "physical", fx: "physical", windupMs: 900, cooldownMs: 12_000 }),
+      ability.summon({ name: "Samurais, a mim!", monsterId: "abyss_samurai", count: 1, max: 2, cooldownMs: 30_000 }),
+    ],
+    attackMs: 1900, attackRange: 1, stepMs: 330, aggroRange: 8, fleeAtHpPct: 0, respawnMs: 14_400_000, boss: true,
+    gold: [12000, 20000],
+    loot: [
+      { itemId: "shogun_seal", chance: 1 },
+      { itemId: "demonic_essence", chance: 1, min: 2, max: 4 },
+      { itemId: "juggernaut_plate", chance: 1, min: 2, max: 3 },
+      { itemId: "health_potion_large", chance: 1, min: 4, max: 6 },
+      { itemId: "gem_purple", chance: 0.8, min: 2, max: 3 },
+      { itemId: "magic_longsword", chance: 0.12 },
+      { itemId: "demon_armor", chance: 0.12 },
+      { itemId: "dragon_scale_armor", chance: 0.1 },
+      { itemId: "ferumbras_armor", chance: 0.1 },
+      { itemId: "boots_haste", chance: 0.15 },
+      { itemId: "abyss_shard", chance: 1, min: 2, max: 3 },
+      { itemId: "abyss_helmet", chance: 0.12 },
+      { itemId: "abyss_shield", chance: 0.12 },
+      { itemId: "abyss_archer_helmet", chance: 0.1 },
+      { itemId: "abyss_archer_legs", chance: 0.1 },
+      { itemId: "abyss_mage_helmet", chance: 0.1 },
+    ],
+    // Walk.png 576x48 = 6 frames de 96x48, como o Samurai Rubro, só que em tamanho de chefe.
+    sprite: strip(B + "GiantBlueSamurai/Walk.png", 48, 6, { frameWidth: 96, scale: 1.5 }),
   },
 };
 
@@ -1027,6 +1505,63 @@ export const MONSTER_DAMAGE_TIERS: readonly { fromLevel: number; mult: number }[
 ];
 /** Respawn dos monstros comuns (não chefes): ×0,7 (~30% mais rápido). */
 export const MONSTER_RESPAWN_MULT = 0.7;
+
+/**
+ * Resistência elemental (pedido do dono): bicho do elemento X toma menos dano de X (dragão de fogo resiste a fogo, de
+ * gelo a gelo, morto-vivo a morte). Vale para qualquer fonte (magia, varinha/bastão, invocação). Físico não muda: o
+ * cavaleiro e o paladino batem igual em todo mundo.
+ */
+export const OWN_ELEMENT_TAKEN = 0.5;
+
+/** Natureza que dá fraqueza elemental: morto-vivo, bicho de fogo, bicho de gelo. */
+export type MonsterNature = "undead" | "fire" | "ice";
+
+/**
+ * Fraquezas elementais (ciclo 15): morto-vivo toma +25% de sagrado; bicho de fogo, +15% de gelo; bicho de gelo, +15% de
+ * fogo. Dão papel ao paladino nos mortos-vivos do lv 60–80 e ao druida contra dragões e demônios. Como a resistência,
+ * valem para qualquer fonte; o `resist` do monstro sobrepõe as duas.
+ */
+export const ELEMENT_WEAKNESS: Readonly<Record<MonsterNature, { kind: DamageKind; mult: number }>> = {
+  undead: { kind: "holy", mult: 1.25 },
+  fire: { kind: "ice", mult: 1.15 },
+  ice: { kind: "fire", mult: 1.15 },
+};
+
+/**
+ * Naturezas do monstro: morto-vivo pelo campo `undead`; bicho de fogo/gelo pelo mesmo critério da resistência (o
+ * `damageKind`), para quem resiste a fogo ser sempre fraco a gelo e vice-versa.
+ */
+export function monsterNatures(d: Pick<MonsterDef, "damageKind" | "undead">): MonsterNature[] {
+  const out: MonsterNature[] = [];
+  if (d.undead) out.push("undead");
+  if (d.damageKind === "fire") out.push("fire");
+  if (d.damageKind === "ice") out.push("ice");
+  return out;
+}
+
+/**
+ * Fração do dano de `kind` que o monstro recebe (depois da armadura). `exposedPct` = Ruptura Elemental ativa no monstro
+ * (condição "exposed"): o dano elemental perde a resistência (a fraqueza fica) e ganha +exposedPct%; o físico não muda.
+ * O próprio elemento resiste antes de qualquer fraqueza: ninguém é fraco ao próprio elemento.
+ */
+export function damageTakenMult(d: Pick<MonsterDef, "damageKind" | "resist" | "undead">, kind: DamageKind, exposedPct = 0): number {
+  const own = d.resist?.[kind];
+  let base = 1;
+  if (own !== undefined) base = own;
+  else if (kind !== "physical" && kind === d.damageKind) base = OWN_ELEMENT_TAKEN;
+  else for (const n of monsterNatures(d)) if (ELEMENT_WEAKNESS[n].kind === kind) base *= ELEMENT_WEAKNESS[n].mult;
+  if (!(exposedPct > 0) || kind === "physical") return base;
+  return Math.max(base, 1) * (1 + exposedPct / 100);
+}
+
+/**
+ * Elementos em que o dano recebido não é o normal (bestiário), em ordem de multiplicador: resistências (< 1) primeiro,
+ * depois as fraquezas (> 1).
+ */
+export function monsterResistances(d: Pick<MonsterDef, "damageKind" | "resist" | "undead">): { kind: DamageKind; mult: number }[] {
+  const kinds: DamageKind[] = ["fire", "ice", "energy", "earth", "holy", "death", "physical"];
+  return kinds.map((kind) => ({ kind, mult: damageTakenMult(d, kind) })).filter((r) => r.mult !== 1).sort((a, b) => a.mult - b.mult);
+}
 
 /** Fica de fora do multiplicador e das elites: invocação de jogador e boneco de treino (XP 0, parados). */
 const scalesWithLevel = (d: Pick<MonsterDef, "xp" | "stationary" | "invulnerable">) => d.xp > 0 && !d.stationary && !d.invulnerable;
@@ -1063,11 +1598,12 @@ export const ELITE_COLOR = "#f0c040";
 /**
  * Invocações escalam com o level de quem invoca (ciclo 9, GD-05): o catálogo descreve a criatura no seu `level` base
  * (o Lobo Espiritual, no 20), e o lobo fixo ficava inútil no 50+. Cada level acima do base soma SUMMON_HP_PER_LEVEL de
- * vida e o dano cresce linearmente até ×(1 + SUMMON_DMG_BONUS) SUMMON_DMG_LEVELS levels acima (lobo lv 46: vida 570,
- * dano ×1,75). Abaixo do level base nada muda; o catálogo não é alterado.
+ * vida e o dano cresce linearmente: ×(1 + SUMMON_DMG_BONUS) SUMMON_DMG_LEVELS levels acima, e segue a mesma reta (lobo
+ * lv 46: vida 830, dano ×2,5; lv 100: vida 2.180, dano ×5,6). Abaixo do level base nada muda; o catálogo não é alterado.
+ * Ciclo 15: era 15 de vida por level e bônus 0,75 (lv 100: vida 1.380, dano ×3,3): o lobo sumia no fim de jogo.
  */
-export const SUMMON_HP_PER_LEVEL = 15;
-export const SUMMON_DMG_BONUS = 0.75;
+export const SUMMON_HP_PER_LEVEL = 25;
+export const SUMMON_DMG_BONUS = 1.5;
 export const SUMMON_DMG_LEVELS = 26;
 export function summonScaled(def: MonsterDef, casterLevel: number): MonsterDef {
   const over = Math.max(0, Math.floor(casterLevel) - def.level);
@@ -1084,6 +1620,21 @@ export function canBeElite(d: Pick<MonsterDef, "boss" | "level" | "xp" | "statio
 
 /** Raio (Chebyshev) do pedido de reforço dos bandos. */
 export const HELP_RADIUS = 6;
+
+/**
+ * Controle em chefe (ciclo 15): a raiz vira lentidão de BOSS_ROOT_SLOW_PCT% e a lentidão vale BOSS_SLOW_MULT do valor.
+ * Raiz inteira deixava o chefe parado 3 s com o grupo batendo de longe. As Raízes da Terra (lv 100) seguem úteis contra
+ * chefes: 30% é mais que qualquer lentidão de magia pela metade (a maior, 50%, vira 25%).
+ */
+export const BOSS_ROOT_SLOW_PCT = 30;
+export const BOSS_SLOW_MULT = 0.5;
+
+/** Condição que um chefe recebe no lugar de `id`/`value` (as demais passam iguais). */
+export function bossCondition(id: ConditionId, value: number | undefined): { id: ConditionId; value: number | undefined } {
+  if (id === "rooted") return { id: "slow", value: BOSS_ROOT_SLOW_PCT };
+  if (id === "slow") return { id, value: Math.round((value ?? 0) * BOSS_SLOW_MULT) };
+  return { id, value };
+}
 
 export function monsterDef(id: string): MonsterDef | undefined {
   return Object.hasOwn(MONSTERS, id) ? MONSTERS[id] : undefined;
@@ -1174,5 +1725,24 @@ export function monsterAbilitySpell(spellId: string): SpellDef | undefined {
  * kongra_king*   45  9000  9000   115          grupo de 3+, respawn 2 h
  * yeti*          70 18000 20000   185          grupo de 4+, respawn 3 h (raid quinta 12h15)
  * ferumbras*    140 90000 120000  350 (dist 5) grupo de 6+, respawn 6 h (raid domingo 15h)
+ * --- Oficina dos Engenhos (ciclo 10: reskins em áreas existentes)
+ * datacenter_rat  3    40    12     4
+ * runaway_drum   10   120    52     7  (passiva, foge a 60%)
+ * slag_slime     20   220   140    22  (fogo, bando)
+ * --- Malha da Ferrovia (ciclo 11: região só de trem, lv 25–60)
+ * engate_solto       28   330   285    34  ("Cobra Listrada")
+ * sapata_gasta       32   420   420    39  ("Toupeira Dourada"; lenta, armadura 12)
+ * iluminador_reb.    36   460   530    42  (dist 4, fogo; clarão de energia)
+ * frame_descartado   40   500   650    45  (energia, foge a 45%)
+ * rodeiro_trincado   45   820  1115    63  ("Olho Sangrento")
+ * truque_desalinh.   48  1000  1420    70  ("Fera das Brasas"; pisão)
+ * rato_de_lastro     50   700  1015    60  ("Ratazana Negra"; bando "lastro")
+ * vagao_nao_insp.*   52 10000 10000   122          grupo de 3+, respawn 2 h (invoca toupeiras)
+ * locomotiva_fant.*  58 14000 15000   145          "Tirano da Serra"; grupo de 3-4, respawn 2 h (quarta 17h)
+ * --- Covis das caves profundas (ciclo 16: um chefe na sala do fundo de cada cave; a prova abre o baú do covil)
+ * lair_mole_king*    28  4500  3600    60          "Rei Toupeira" (Minas); grupo de 2-3, respawn 2 h (invoca toupeiras)
+ * lair_kraken*       54 11000 11000   115 (dist 3, gelo) "Kraken das Grutas"; grupo de 3+, respawn 2 h
+ * lair_flame*        82 22000 26000   200 (dist 4, fogo) "Chama Ancestral" (Catacumbas); grupo de 4+, respawn 3 h
+ * lair_shogun*      125 45000 60000   300          "Shogun Abissal" (Abismo Profundo); grupo de 5+, respawn 4 h
  * (*boss). Magos causam ~30% menos por acerto: 4+1.1*lvl.
  */

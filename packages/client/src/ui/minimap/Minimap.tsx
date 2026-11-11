@@ -1,11 +1,14 @@
-// Minimapa com fog of war, mapa-múndi em tela cheia (tecla M) e banner de zona.
-import { isPartyMember } from "../party/party.ts";
+// Minimapa com fog of war, mapa-múndi em tela cheia (tecla M) e banner de zona. Marcadores (ciclo 17): serviços, missões,
+// portais, destino do guia, marcador pessoal (clique direito no mapa-múndi) e o grupo no mapa-múndi.
+import { isPartyMember, partyStore } from "../party/party.ts";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { C2S, type WalkToMsg } from "@lemonquest/shared";
 import { session } from "../../session.ts";
 import { isTyping } from "../focus.ts";
 import { pushOverlay } from "../overlays.ts";
 import { minimapStore as store } from "./store.ts";
+import { MARKER_STYLE, markerNear, visibleMarkers, type MapMarker, type MarkerKind } from "./markers.ts";
+import { mapMarkersStore, togglePersonalMark } from "./markerState.ts";
 import { clockLabel, phaseAt, ambientForZone, darknessOf, PHASE_LABEL } from "@lemonquest/shared";
 import { worldClock } from "../../game/daynight.ts";
 import { LIGHT_LEVELS, lightLevelStore, useLightLevel } from "../../game/lighting.ts";
@@ -50,6 +53,52 @@ function loadZoom(): number {
   return z >= ZOOM_MIN && z <= ZOOM_MAX ? Math.round(z) : 3;
 }
 
+const MARK_FONT = '"Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif';
+const explored = (x: number, y: number) => !!store.mask?.has(x, y);
+
+/** Glifo com contorno de cada marcador que cai dentro de W×H; o destino do guia ganha um anel pulsando. */
+function drawMarkers(
+  ctx: CanvasRenderingContext2D, list: readonly MapMarker[], px: (x: number) => number, py: (y: number) => number,
+  size: number, W: number, H: number, t: number,
+) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.font = `bold ${Math.round(size)}px ${MARK_FONT}`;
+  const pulse = (Math.sin(t / 300) + 1) / 2;
+  for (const m of list) {
+    const x = px(m.x), y = py(m.y);
+    if (x < -size || y < -size || x > W + size || y > H + size) continue;
+    const st = MARKER_STYLE[m.kind];
+    if (m.kind === "guide") {
+      ctx.strokeStyle = `rgba(255,212,71,${0.25 + 0.5 * (1 - pulse)})`;
+      ctx.lineWidth = Math.max(1, size / 8);
+      ctx.beginPath(); ctx.arc(x, y, size * (0.7 + pulse * 0.4), 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.lineWidth = Math.max(2, size / 4);
+    ctx.strokeStyle = "rgba(7,8,12,.95)";
+    ctx.strokeText(st.glyph, x, y);
+    ctx.fillStyle = st.color;
+    ctx.fillText(st.glyph, x, y);
+  }
+}
+
+/** Caixinha com o nome do marcador sob o mouse (mapa-múndi). */
+function drawTip(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, dpr: number, W: number) {
+  ctx.font = `600 ${Math.round(12 * dpr)}px "Pixelify Sans", monospace`;
+  const w = ctx.measureText(text).width + 12 * dpr, h = 20 * dpr;
+  const bx = Math.max(2, Math.min(W - w - 2, x - w / 2)), by = Math.max(2, y - h - 10 * dpr);
+  ctx.fillStyle = "rgba(16,19,28,.95)";
+  ctx.strokeStyle = "#3d4560";
+  ctx.lineWidth = dpr;
+  ctx.fillRect(bx, by, w, h);
+  ctx.strokeRect(bx, by, w, h);
+  ctx.fillStyle = "#f3e6b8";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, bx + 6 * dpr, by + h / 2);
+}
+
 /** Hook: nome da zona atual (null fora de qualquer zona). */
 function useZoneName(): string | null {
   const [name, setName] = useState(store.zoneName);
@@ -63,6 +112,7 @@ export function Minimap() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zoomRef = useRef(loadZoom());
   const viewRef = useRef<View>({ sx: 0, sy: 0, tiles: 1 });
+  const marksRef = useRef<MapMarker[]>([]);
   const [zoom, setZoom] = useState(zoomRef.current);
   const zone = useZoneName();
   const [nightK, setNightK] = useState(0);
@@ -102,6 +152,10 @@ export function Minimap() {
         ctx.imageSmoothingQuality = "high";
         ctx.drawImage(store.fog, sx, sy, tiles, tiles, 0, 0, S, S);
       }
+      // Marcadores: serviços e portais só no explorado; missão, guia e marcador pessoal sempre.
+      const marks = visibleMarkers(mapMarkersStore.get(), explored);
+      marksRef.current = marks;
+      drawMarkers(ctx, marks, (mx) => (mx + 0.5 - sx) * ppt, (my) => (my + 0.5 - sy) * ppt, (6 + zoomRef.current * 2) * dpr, S, S, t);
       // Outros jogadores (só em tiles explorados).
       ctx.fillStyle = "#ffd447";
       ctx.strokeStyle = "rgba(0,0,0,.7)";
@@ -147,21 +201,36 @@ export function Minimap() {
     return () => canvas.removeEventListener("wheel", onWheel);
   }, []);
 
+  const tileAt = (e: MouseEvent) => {
+    const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+    const v = viewRef.current;
+    return {
+      x: Math.floor(v.sx + ((e.clientX - rect.left) / rect.width) * v.tiles),
+      y: Math.floor(v.sy + ((e.clientY - rect.top) / rect.height) * v.tiles),
+    };
+  };
+
   const onClick = (e: MouseEvent) => {
     const room = session.room;
     if (!room || !store.ready) return;
-    const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
-    const v = viewRef.current;
-    const x = Math.floor(v.sx + ((e.clientX - rect.left) / rect.width) * v.tiles);
-    const y = Math.floor(v.sy + ((e.clientY - rect.top) / rect.height) * v.tiles);
+    const { x, y } = tileAt(e);
     if (x < 0 || y < 0 || x >= store.width || y >= store.height) return;
     room.send(C2S.WalkTo, { x, y } satisfies WalkToMsg);
+  };
+
+  // Marcador sob o mouse: o nome vira a dica do minimapa.
+  const onMove = (e: MouseEvent) => {
+    const { x, y } = tileAt(e);
+    const m = markerNear(marksRef.current, x, y, Math.max(1, Math.ceil(6 / zoomRef.current)));
+    const tip = m ? m.label : "Clique para andar até lá";
+    const el = e.currentTarget as HTMLCanvasElement;
+    if (el.title !== tip) el.title = tip;
   };
 
   return (
     <div class="minimap">
       <div class="minimap-box panel">
-        <canvas ref={canvasRef} class="minimap-canvas" onClick={onClick} title="Clique para andar até lá" />
+        <canvas ref={canvasRef} class="minimap-canvas" onClick={onClick} onMouseMove={onMove} title="Clique para andar até lá" data-testid="minimap" />
         <span class="minimap-zoom">{zoom}x</span>
         <div class="minimap-night" style={{ opacity: nightK }} />
       </div>
@@ -175,9 +244,14 @@ export function Minimap() {
 // Mapa-múndi (tecla M)
 // ---------------------------------------------------------------------------
 
+/** Legenda dos marcadores no mapa-múndi. */
+const LEGEND_KINDS: MarkerKind[] = ["temple", "depot", "shop", "travel", "board", "quest", "questReady", "portal", "guide", "personal"];
+
 export function WorldMapOverlay() {
   const [open, setOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** Mouse sobre o mapa, em tiles (fracionário); null fora. */
+  const hoverRef = useRef<{ x: number; y: number } | null>(null);
 
   // Mapa aberto: entra na pilha de sobreposições (o Esc fecha só o mapa, não tira o alvo). Layout effect: registrado
   // no mesmo commit em que o mapa aparece, sem frame descoberto.
@@ -207,7 +281,7 @@ export function WorldMapOverlay() {
       const t = performance.now();
       if (!store.ready || !store.base) return;
       const dpr = window.devicePixelRatio || 1;
-      const availW = window.innerWidth - 48, availH = window.innerHeight - 110;
+      const availW = window.innerWidth - 48, availH = window.innerHeight - 150; // título + 2 linhas de legenda
       // Escala inteira (pixels nítidos) para caber na janela.
       const scale = Math.max(1, Math.floor(Math.min(availW / store.width, availH / store.height) * dpr)) ;
       const W = store.width * scale, H = store.height * scale;
@@ -238,6 +312,25 @@ export function WorldMapOverlay() {
         ctx.fillStyle = "#f3e6b8";
         ctx.fillText(l.name, x, y);
       }
+      // Marcadores e grupo (membros sempre visíveis, mesmo fora do explorado).
+      const marks = visibleMarkers(mapMarkersStore.get(), explored);
+      drawMarkers(ctx, marks, (mx) => (mx + 0.5) * scale, (my) => (my + 0.5) * scale, Math.max(11 * dpr, scale * 2.5), W, H, t);
+      const names = new Map(partyStore.get()?.members.map((m) => [m.id, m.name]) ?? []);
+      const mates: MapMarker[] = [];
+      for (const [id, o] of store.others) {
+        const name = names.get(id);
+        if (!name) continue;
+        mates.push({ kind: "personal", x: o.x, y: o.y, label: `Grupo: ${name}` });
+        const x = (o.x + 0.5) * scale, y = (o.y + 0.5) * scale;
+        ctx.fillStyle = "#7ee06d";
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath(); ctx.arc(x, y, 4 * dpr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+      // Nome do marcador (ou do colega de grupo) sob o mouse.
+      const h = hoverRef.current;
+      const hit = h ? markerNear([...marks, ...mates], h.x, h.y, Math.max(1, Math.ceil((10 * dpr) / scale))) : undefined;
+      if (hit) drawTip(ctx, hit.label, (hit.x + 0.5) * scale, (hit.y + 0.5) * scale - 6 * dpr, dpr, W);
       // Jogador.
       const me = store.me;
       if (me) {
@@ -258,13 +351,36 @@ export function WorldMapOverlay() {
   }, [open]);
 
   if (!open) return null;
+  const tileOf = (e: MouseEvent) => {
+    const r = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+    return { x: ((e.clientX - r.left) / r.width) * store.width, y: ((e.clientY - r.top) / r.height) * store.height };
+  };
   return (
     <div class="worldmap" onClick={() => setOpen(false)}>
       <div class="worldmap-title">Mapa do Mundo</div>
-      <canvas ref={canvasRef} class="worldmap-canvas" onClick={(e) => e.stopPropagation()} />
+      <canvas
+        ref={canvasRef} class="worldmap-canvas" data-testid="worldmap"
+        onClick={(e) => e.stopPropagation()}
+        onMouseMove={(e) => { hoverRef.current = tileOf(e); }}
+        onMouseLeave={() => { hoverRef.current = null; }}
+        onContextMenu={(e) => {
+          // Clique direito: põe/tira um marcador pessoal (guardado neste navegador).
+          e.preventDefault();
+          e.stopPropagation();
+          const t = tileOf(e);
+          if (store.ready && t.x >= 0 && t.y >= 0 && t.x < store.width && t.y < store.height) togglePersonalMark(Math.floor(t.x), Math.floor(t.y));
+        }}
+      />
       <div class="worldmap-legend">
         <span class="dot dot-me" /> Você
-        <span class="sep">·</span> Áreas escuras ainda não foram exploradas
+        <span class="dot dot-party" /> Grupo
+        {LEGEND_KINDS.map((k) => (
+          <span key={k} class="wm-key"><span class="wm-glyph" style={{ color: MARKER_STYLE[k].color }}>{MARKER_STYLE[k].glyph}</span>{MARKER_STYLE[k].legend}</span>
+        ))}
+      </div>
+      <div class="worldmap-legend">
+        Áreas escuras ainda não foram exploradas
+        <span class="sep">·</span> Clique direito: pôr/tirar marcador
         <span class="sep">·</span> M ou Esc para fechar
       </div>
     </div>

@@ -14,6 +14,11 @@ export const RED_SKULL_WINDOW_MS = 24 * 60 * 60_000;
 /** Caveira vermelha: multiplicador da XP perdida na morte e fração do ouro que cai no chão. */
 export const RED_SKULL_DEATH_XP_MULT = 2;
 export const RED_SKULL_GOLD_DROP = 0.5;
+/**
+ * Dano de jogador em jogador (ataque básico, distância e magia), depois da armadura. Ciclo 15: as magias de fim de
+ * jogo foram calibradas contra monstros com milhares de vida; em PvP um mago lv 100 morria em 1 s para duas magias.
+ */
+export const PVP_DAMAGE_MULT = 0.5;
 
 /** Mortes injustas que ainda contam (dentro da janela). */
 export function recentKills(kills: readonly number[], now: number): number[] {

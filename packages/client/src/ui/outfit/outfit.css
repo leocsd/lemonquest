@@ -55,6 +55,13 @@
 .outfit-tone.sel { border-color: var(--hud-gold); box-shadow: 0 0 0 1px var(--hud-gold); }
 .outfit-tone.locked { opacity: 0.55; }
 .outfit-tone .outfit-lock { position: static; filter: drop-shadow(0 0 1px #000); }
+/* Compra do tom em prévia: 1º clique arma (vermelho, como .sg-del.confirm), 2º compra. */
+.outfit-buy { width: 100%; display: flex; flex-direction: column; gap: 5px; }
+.outfit-buy-note { font-size: 11px; color: var(--hud-faint); line-height: 1.25; }
+.outfit-buy-note b { color: var(--hud-text); font-weight: 600; }
+.outfit-btn.outfit-buy-btn { width: 100%; min-width: 0; }
+.outfit-btn.outfit-buy-btn.confirm { color: #fff !important; background: var(--hud-red); border-color: var(--hud-red); }
+.outfit-btn.outfit-buy-btn:disabled { opacity: 0.55; cursor: default; }
 
 .outfit-grid {
   flex: 1; list-style: none; margin: 0; padding: 0; align-content: start;
@@ -91,3 +98,7 @@
 .hud-card.ctx-menu { background: rgba(17, 20, 28, 0.97); } /* vence o fundo do .hud-card (a ordem dos CSS não é garantida) */
 .ctx-item { text-align: left; padding: 6px 10px; cursor: pointer; font-size: 13px; background: none; border: 0; border-radius: 4px; color: var(--hud-text) !important; }
 .ctx-item:hover, .ctx-item:focus-visible { background: rgba(217, 164, 65, 0.16); color: #ffe2a3 !important; outline: none; }
+/* Atacar jogador (ciclo 17): por último, separado e em vermelho. */
+.ctx-item.danger { margin-top: 4px; position: relative; color: #ff7b6e !important; }
+.ctx-item.danger::before { content: ""; position: absolute; left: 6px; right: 6px; top: -3px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.ctx-item.danger:hover, .ctx-item.danger:focus-visible { background: rgba(217, 83, 79, 0.2); color: #ffb3aa !important; }

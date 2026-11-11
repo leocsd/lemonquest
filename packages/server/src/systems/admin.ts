@@ -3,12 +3,15 @@
 // Resposta só para quem digitou (Notice com log=true: aparece também no chat). Nada é difundido, exceto /anuncio.
 //   /kick <nome> [motivo] · /mute <nome> <minutos> · /unmute <nome> · /anuncio <texto>
 //   /online · /resetsenha <conta> · /tp <nome> · /desbloquear <nome> <roupa|addon|título>
+//   /vincular <personagem> <apelido|id do ClickUp|nenhum> (conquistas de tarefas do ClickUp; sem argumentos lista)
 // Toda ação é logada no console com o prefixo [admin].
-import { S2C, resolveUnlockArg, unlockText, type AnnounceMsg, type FeedMsg, type NoticeMsg } from "@lemonquest/shared";
+// Exceção de leitura (ciclo 17): /agenda e /evento sem poder de admin respondem a qualquer jogador (só leem a agenda).
+import { S2C, WORK_NICKS, resolveUnlockArg, unlockText, workUserByNick, type AnnounceMsg, type FeedMsg, type NoticeMsg } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CharacterRecord } from "../persistence/types.ts";
 import { nameKey } from "../persistence/db.ts";
 import { devAdmins } from "./devcommands.ts";
+import { agendaLines } from "./events.ts";
 
 type Env = Record<string, string | undefined>;
 
@@ -20,7 +23,7 @@ export const MAX_KICK_REASON_BYTES = 100;
 /** Este personagem é admin? (vale em produção; não depende de LEMONQUEST_DEV_COMMANDS). */
 export const isAdmin = (name: string, env: Env = process.env): boolean => devAdmins(env).has(nameKey(name));
 
-export const ADMIN_COMMANDS = ["/kick", "/mute", "/unmute", "/anuncio", "/online", "/resetsenha", "/tp", "/desbloquear", "/status", "/evento"] as const;
+export const ADMIN_COMMANDS = ["/kick", "/mute", "/unmute", "/anuncio", "/online", "/resetsenha", "/tp", "/desbloquear", "/status", "/evento", "/vincular"] as const;
 
 export interface AdminContext {
   send: (sessionId: string, type: string, msg: unknown) => void;
@@ -44,6 +47,8 @@ export interface AdminContext {
   grantUnlock?: (rec: CharacterRecord, unlockId: string, online?: PlayerState) => boolean;
   /** /evento: dispara/encerra eventos com bônus (systems/events.ts). */
   events?: { ids: () => string[]; start: (id: string, minutes: number) => string | null; stop: () => boolean; status: () => string[] };
+  /** /vincular: personagem ↔ usuário do ClickUp (systems/clickup.ts). userId null = desvincula. */
+  work?: { link: (charName: string, userId: string | null) => void; list: () => [string, { name: string; since: number }][] };
   /** Linhas do /status (números do servidor). */
   status?: () => string[];
   env?: Env;
@@ -94,21 +99,31 @@ export function helpLines(name: string, env: Env = process.env): string[] {
     "Grupo: /convidar <nome> · /aceitar [nome] · /recusar [nome] · /sair · /expulsar <nome> · /lider <nome> · /desfazer",
     "Social: /w <nome> <mensagem> sussurra · /r <mensagem> responde · /amigo <nome> adiciona ou remove · /amigos lista · /quem mostra quem está online, onde e quem pode caçar em grupo com você · /e <emote> (botão ☺ no chat).",
     "Magias: digite as palavras (ex.: exura) ou use as teclas 1–0 (H configura a barra). Todos os atalhos de teclado: F1.",
+    "Eventos: /agenda mostra os eventos da semana · /evento diz o que está valendo agora e o próximo.",
   ];
   if (isAdmin(name, env)) lines.push(`Admin: ${ADMIN_COMMANDS.join(" ")}`);
   return lines;
 }
 
+/** Leitura da agenda para todos: /agenda (a semana) e /evento sem poder de admin (agora e o próximo). */
+export const EVENT_READ_COMMANDS = ["/agenda", "/eventos", "/evento"] as const;
+
 /** Trata um comando de admin. true = era um comando de admin (tratado); false = não é admin/não é comando de admin. */
 export function handleAdminCommand(p: PlayerState, text: string, ctx: AdminContext): boolean {
   const env = ctx.env ?? process.env;
-  if (!isAdmin(p.name, env)) return false;
   const words = text.trim().split(/\s+/);
   const cmd = (words.shift() ?? "").toLowerCase();
-  if (!(ADMIN_COMMANDS as readonly string[]).includes(cmd)) return false;
   const now = (ctx.now ?? Date.now)();
-  const log = ctx.log ?? ((l: string) => console.log(l));
   const reply = (t: string, kind: NoticeMsg["kind"] = "info") => ctx.send(p.id, S2C.Notice, { text: t, kind, log: true } satisfies NoticeMsg);
+  // Leitura vem antes do teste de admin; o /evento de admin (com argumentos ou a lista de uso) segue abaixo.
+  if ((EVENT_READ_COMMANDS as readonly string[]).includes(cmd) && (cmd !== "/evento" || !isAdmin(p.name, env))) {
+    if (cmd === "/agenda") for (const l of agendaLines(now)) reply(l);
+    else for (const l of [...(ctx.events?.status() ?? ["Eventos indisponíveis."]), "A semana inteira: /agenda (ou o botão Agenda, no trilho à direita)."]) reply(l);
+    return true;
+  }
+  if (!isAdmin(p.name, env)) return false;
+  if (!(ADMIN_COMMANDS as readonly string[]).includes(cmd)) return false;
+  const log = ctx.log ?? ((l: string) => console.log(l));
   const audit = (what: string) => log(`[admin] ${p.name}: ${what}`);
   const online = [...ctx.players()];
   const byName = (name: string) => online.find((o) => nameKey(o.name) === nameKey(name));
@@ -176,6 +191,36 @@ export function handleAdminCommand(p: PlayerState, text: string, ctx: AdminConte
       if (!text) { reply(`Evento desconhecido: ${sub}. Disponíveis: ${ev.ids().join(", ")}`, "warn"); break; }
       audit(`/evento ${sub} ${min} min`);
       reply(text, "good");
+      break;
+    }
+    case "/vincular": {
+      const work = ctx.work;
+      if (!work) { reply("ClickUp indisponível.", "warn"); break; }
+      if (!words.length) {
+        const list = work.list().map(([uid, l]) => `${l.name} ↔ ${WORK_NICKS[uid] ?? uid}`);
+        reply(list.length ? `Vínculos (${list.length}): ${list.join(", ")}` : "Nenhum vínculo.");
+        reply("Uso: /vincular <personagem> <apelido|id do ClickUp> · /vincular <personagem> nenhum");
+        break;
+      }
+      // Nome e apelido podem ter espaço ("Anna Clara", "Lucas P."): tenta cada divisão, do nome mais longo ao mais curto.
+      let done = false;
+      for (let n = words.length - 1; n >= 1 && !done; n--) {
+        const name = words.slice(0, n).join(" "), arg = words.slice(n).join(" ");
+        const remove = /^(nenhum|-)$/i.test(arg);
+        const uid = remove ? null : workUserByNick(arg);
+        if (uid === undefined) continue;
+        const target = byName(name);
+        const rec = target ? ctx.record(target.id) : ctx.findOffline?.(name);
+        if (!rec) continue;
+        // O mesmo usuário do ClickUp só conta para um personagem: avisa quando tira de outro.
+        const before = uid ? work.list().find(([u, l]) => u === uid && nameKey(l.name) !== nameKey(rec.name))?.[1].name : undefined;
+        work.link(rec.name, uid);
+        audit(`/vincular ${rec.name} ${uid ?? "nenhum"}${before ? ` (era de ${before})` : ""}`);
+        if (before) reply(`${WORK_NICKS[uid!] ?? `O usuário ${uid}`} estava vinculado a ${before}; agora conta só para ${rec.name}.`, "warn");
+        reply(uid ? `${rec.name} vinculado a ${WORK_NICKS[uid] ?? `usuário ${uid}`}: tarefas fechadas a partir de agora contam nas conquistas.` : `${rec.name} desvinculado.`, "good");
+        done = true;
+      }
+      if (!done) reply("Personagem ou apelido não encontrado. Uso: /vincular <personagem> <apelido|id do ClickUp|nenhum>", "warn");
       break;
     }
     case "/status": {

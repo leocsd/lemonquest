@@ -14,10 +14,14 @@ interface Mover {
   intent: Dir | null;
   /** Buffer de 1 passo: garante que um toque rápido (aperta+solta) ainda ande um tile. */
   pending: Dir | null;
+  /** Passo da intenção antiga que o cliente já deu na predição (MoveMsg.at): sai antes de `pending`/`intent`. */
+  owed: Dir | null;
   /** Caminho do clique (sem a posição atual). */
   path: Point[] | null;
   /** Já recalculou o caminho por bloqueio de jogador desde o último passo bem-sucedido. */
   recomputed: boolean;
+  /** Já avisou (PlayerState.bump) a recusa atual: um aviso por bloqueio, não um por tick com a tecla segurada. */
+  bumped: boolean;
 }
 
 export interface MovementOptions {
@@ -47,7 +51,7 @@ export class MovementSystem {
 
   addPlayer(p: PlayerState): void {
     this.players.set(p.id, p);
-    this.movers.set(p.id, { stepEndsAt: 0, intent: null, pending: null, path: null, recomputed: false });
+    this.movers.set(p.id, { stepEndsAt: 0, intent: null, pending: null, owed: null, path: null, recomputed: false, bumped: false });
   }
 
   removePlayer(id: string): void {
@@ -72,7 +76,7 @@ export class MovementSystem {
     p.x = x;
     p.y = y;
     p.stepMs = 0;
-    if (m) { m.intent = null; m.pending = null; m.path = null; m.recomputed = false; m.stepEndsAt = 0; }
+    if (m) { m.intent = null; m.pending = null; m.owed = null; m.path = null; m.recomputed = false; m.stepEndsAt = 0; }
   }
 
   onMove(p: PlayerState, msg: MoveMsg): void {
@@ -85,12 +89,19 @@ export class MovementSystem {
     // Recupera o atraso do tick com a intenção ANTIGA: se o passo já deveria ter começado antes desta
     // mensagem chegar (ex.: soltar a tecla logo após o cliente iniciar um passo), ele acontece.
     this.advance(p, m, now);
+    // O cliente já deu (na predição) o próximo passo da intenção antiga: fica devido e sai quando o atual terminar.
+    const at = msg.at;
+    if (m.intent !== null && at && typeof at === "object" && Number.isInteger(at.x) && Number.isInteger(at.y)) {
+      const { dx, dy } = DIR_DELTA[m.intent];
+      if (at.x === p.x + dx && at.y === p.y + dy) m.owed = m.intent;
+    }
     if (dir === null) {
       m.intent = null;
     } else {
       m.intent = dir;
       m.pending = dir;
       m.path = null;
+      m.bumped = false; // tecla nova: o cliente prevê de novo, então uma nova recusa precisa de novo aviso
     }
     p.seq = Math.max(0, Math.min(0xffffffff, Math.floor(msg.seq)));
     // Livre? Começa já, sem esperar o próximo tick (o cliente já começou na predição).
@@ -109,6 +120,7 @@ export class MovementSystem {
     // Clique sobrepõe teclas: zera intenção/buffer para não brigar com o caminho.
     m.intent = null;
     m.pending = null;
+    m.owed = null;
     m.recomputed = false;
     const path = findPath(this.grid, p, { x, y }, (bx, by) => this.isOccupied(bx, by, p.id));
     m.path = path && path.length ? path : null;
@@ -159,15 +171,27 @@ export class MovementSystem {
   /** Se o jogador está livre, inicia o próximo passo (buffer > tecla segurada > caminho do clique). */
   private advance(p: PlayerState, m: Mover, now: number) {
     if (now < m.stepEndsAt) return;
-    if (m.pending !== null) {
+    if (m.owed !== null) {
+      const d = m.owed;
+      m.owed = null;
+      this.keyStep(p, m, d, now);
+    } else if (m.pending !== null) {
       const d = m.pending;
       m.pending = null;
-      this.tryStep(p, m, d, now);
+      this.keyStep(p, m, d, now);
     } else if (m.intent !== null) {
-      this.tryStep(p, m, m.intent, now);
+      this.keyStep(p, m, m.intent, now);
     } else if (m.path) {
       this.followPath(p, m, now);
     }
+  }
+
+  /** Passo pedido por tecla (o cliente já o previu): recusa avisa o cliente uma vez (bump) para corrigir na hora. */
+  private keyStep(p: PlayerState, m: Mover, dir: Dir, now: number) {
+    if (this.tryStep(p, m, dir, now) === "ok") { m.bumped = false; return; }
+    if (m.bumped) return;
+    m.bumped = true;
+    p.bump = ((p.bump ?? 0) + 1) & 0xff;
   }
 
   private followPath(p: PlayerState, m: Mover, now: number) {

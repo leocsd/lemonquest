@@ -3,19 +3,21 @@
 // - Ganchos: abate (lista de jogadores com crédito), posição (explorar), falar com NPC, onda do coliseu vencida.
 // - Coletar/entregar contam a mochila na hora (o cliente também conta, para mostrar o progresso).
 // - Aceitar/entregar exigem a janela do NPC aberta (NpcSystem fecha ao sair do alcance).
-// - Recompensas diárias: 3 por dia (troca às 06:00 de Brasília), geradas por dia + faixa de level (bounties.ts).
+// - Recompensas diárias: 3 por dia (troca às 06:00 de Brasília), geradas por dia + faixa de level (bounties.ts) e
+//   gravadas com o id do monstro (a lista do dia não muda se as faixas mudarem).
 // - Baú de Recompensa: usar sorteia poções/comida/ouro e às vezes um equipamento incomum+ da faixa do personagem.
 // - Baús de quest do mapa (estilo Tibia, shared/data/questWorld.ts): um por grupo, uma vez por personagem; o pedido
-//   chega por systems/questWorld.ts (que confere alcance e level).
+//   chega por systems/questWorld.ts (que confere alcance e level). Os dos covis pedem o abate do chefe registrado
+//   aqui mesmo (`slain`, gravado em rec.data.quests), com o crédito do passo "boss".
 import {
-  BOUNTIES_PER_DAY, BOUNTY_CHEST_ID, BOUNTY_NPC, ITEMS, MAX_TRACKED_QUESTS, QUEST_LIST, RARITIES, S2C, applyXpStage,
-  bountyBand, bountyTitle, isEquipable, questAvailable, questChestGroup, questDef, questReady, rollInt,
+  BOUNTIES_PER_DAY, BOUNTY_CHEST_ID, BOUNTY_NPC, ITEMS, MAX_TRACKED_QUESTS, MONSTERS, NPCS, QUEST_LIST, RARITIES, S2C, applyXpStage,
+  CHEST_LOCK_BOSSES, bountyBand, bountyTitle, chestLockReason, isEquipable, isExclusiveItem, questAvailable, questChestGroup, questDef, questReady, rollInt,
   type BountyStatus, type BountyView, type FeedMsg, type ItemDef, type ItemInstance, type LootMsg, type NoticeMsg,
   type QuestActionMsg, type QuestChestDef, type QuestCompleteMsg, type QuestDef, type QuestReward, type QuestsMsg, type Rarity, type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { QuestSaveData } from "../persistence/types.ts";
-import { bountyDay, generateBounties, nextBountyReset, type BountyDef } from "./bounties.ts";
+import { bountyDay, clampBand, generateBounties, nextBountyReset, restoreBounties, type BountyDef } from "./bounties.ts";
 import { makeItem, newUid, type ItemDefs } from "./inventory.ts";
 import { createItem, rollRarity } from "./loot.ts";
 
@@ -60,6 +62,8 @@ interface Entry {
   bounty: Bounty | null;
   /** Grupos de baús de quest já abertos. */
   chests: Set<string>;
+  /** Chefes que destrancam baús (`needBoss`, covis) já derrotados, com o crédito do passo "boss" (onKill). */
+  slain: Set<string>;
   tx: number; ty: number;
 }
 
@@ -87,9 +91,10 @@ export class QuestSystem {
   // --- ciclo de vida ----------------------------------------------------------------------------
 
   load(p: PlayerState, data: QuestSaveData | undefined): void {
-    const e: Entry = { active: new Map(), done: new Set(), tracked: [], bounty: null, chests: new Set(), tx: p.x, ty: p.y };
+    const e: Entry = { active: new Map(), done: new Set(), tracked: [], bounty: null, chests: new Set(), slain: new Set(), tx: p.x, ty: p.y };
     for (const id of data?.done ?? []) if (this.def(id)) e.done.add(id);
     for (const g of data?.chests ?? []) if (questChestGroup(g)) e.chests.add(g);
+    for (const b of data?.slain ?? []) if (CHEST_LOCK_BOSSES.has(b)) e.slain.add(b);
     for (const [id, prog] of Object.entries(data?.active ?? {})) {
       const d = this.def(id);
       if (!d || e.done.has(id) || !Array.isArray(prog)) continue;
@@ -98,9 +103,12 @@ export class QuestSystem {
     e.tracked = (data?.tracked ?? []).filter((id) => e.active.has(id)).slice(0, MAX_TRACKED_QUESTS);
     const b = data?.bounty;
     if (b && typeof b.day === "string" && Array.isArray(b.s)) {
-      const defs = generateBounties(b.day, b.band);
+      // Progresso por posição, mas a lista vem do que foi gravado (id do monstro), não de um novo sorteio: mudar
+      // BOUNTY_BANDS não troca o alvo de uma recompensa já aceita (ciclo 14).
+      const band = clampBand(b.band);
+      const defs = restoreBounties(b.day, band, b.s);
       e.bounty = {
-        day: b.day, band: b.band, defs,
+        day: b.day, band, defs,
         s: defs.map((d, i) => {
           const x = b.s[i];
           const st: BountyStatus = x?.st === "active" || x?.st === "done" ? x.st : "open";
@@ -120,8 +128,12 @@ export class QuestSystem {
     if (e.active.size) out.active = Object.fromEntries([...e.active].map(([k, v]) => [k, [...v]]));
     if (e.done.size) out.done = [...e.done];
     if (e.tracked.length) out.tracked = [...e.tracked];
-    if (e.bounty) out.bounty = { day: e.bounty.day, band: e.bounty.band, s: e.bounty.s.map((x) => ({ ...x })) };
+    if (e.bounty) {
+      const b = e.bounty;
+      out.bounty = { day: b.day, band: b.band, s: b.s.map((x, i) => ({ st: x.st, n: x.n, m: b.defs[i]!.monster, c: b.defs[i]!.count })) };
+    }
     if (e.chests.size) out.chests = [...e.chests];
+    if (e.slain.size) out.slain = [...e.slain];
     return out;
   }
 
@@ -132,8 +144,10 @@ export class QuestSystem {
     const e = this.st.get(id);
     if (!e) return undefined;
     const now = this.now();
+    // XP já com o estágio do level (a entrega aplica applyXpStage): o cartão mostrava a XP cheia, até 8× a real no lv 100.
+    const level = this.o.getPlayer(id)?.level ?? 1;
     const list: BountyView[] = e.bounty
-      ? e.bounty.defs.map((d, i) => ({ monster: d.monster, count: d.count, progress: e.bounty!.s[i]!.n, status: e.bounty!.s[i]!.st, xp: d.xp, gold: d.gold }))
+      ? e.bounty.defs.map((d, i) => ({ monster: d.monster, count: d.count, progress: e.bounty!.s[i]!.n, status: e.bounty!.s[i]!.st, xp: applyXpStage(d.xp, level), gold: d.gold }))
       : [];
     return {
       active: [...e.active].map(([qid, progress]) => ({ id: qid, progress: [...progress] })),
@@ -170,11 +184,17 @@ export class QuestSystem {
 
   // --- ganchos -----------------------------------------------------------------------------------
 
-  /** Monstro morto: crédito para cada jogador da lista (quem causou dano; o sistema de grupo pode ampliar). */
+  /**
+   * Monstro morto: crédito para cada jogador da lista (quem causou dano; o sistema de grupo pode ampliar). A sala manda
+   * a mesma lista do passo "boss" (WorldRoom.questCredit: vazia no Coliseu, em invocação e em ajudante de monstro); é ela
+   * que registra o abate dos chefes que destrancam baús de covil.
+   */
   onKill(monsterId: string, playerIds: Iterable<string>): void {
+    const lockBoss = CHEST_LOCK_BOSSES.has(monsterId);
     for (const pid of new Set(playerIds)) {
       const e = this.st.get(pid);
       if (!e) continue;
+      if (lockBoss) e.slain.add(monsterId);
       for (const [qid, prog] of e.active) {
         const d = this.def(qid);
         d?.steps.forEach((s, i) => {
@@ -312,7 +332,7 @@ export class QuestSystem {
     const items = this.grant(p, d.rewards);
     if (d.rewards.unlock) this.o.onUnlock?.(p.id, d.rewards.unlock);
     this.o.onComplete?.(p.id, d.id, false);
-    this.o.send(p.id, S2C.QuestComplete, { name: d.name, xp: d.rewards.xp, gold: d.rewards.gold, items } satisfies QuestCompleteMsg);
+    this.o.send(p.id, S2C.QuestComplete, { name: d.name, xp: d.rewards.xp, gold: d.rewards.gold, items, questId: d.id } satisfies QuestCompleteMsg);
     if (d.rewards.unlock || d.steps.some((s) => s.kind === "boss")) {
       this.o.broadcast?.(S2C.Feed, { text: `📜 ${p.name} concluiu a missão "${d.name}"!`, kind: "info" } satisfies FeedMsg);
     }
@@ -408,15 +428,21 @@ export class QuestSystem {
   /** Grupo de baús já aberto por este personagem? */
   chestDone(id: string, group: string): boolean { return !!this.st.get(id)?.chests.has(group); }
 
+  /** Abate registrado de um chefe que destranca baú (covis)? */
+  bossSlain(id: string, bossId: string): boolean { return !!this.st.get(id)?.slain.has(bossId); }
+
   /**
-   * Abre um baú de quest (alcance e level já conferidos por quem chama). Grupo já aberto → "vazio". Equipamentos saem
-   * raros. true = recompensa entregue.
+   * Abre um baú de quest (alcance e level já conferidos por quem chama). Grupo já aberto → "vazio". Grupo com trava
+   * (`needBoss`, covis): só abre com o abate do chefe registrado neste personagem (`slain`); a prova na mochila não conta.
+   * Equipamentos saem raros. true = recompensa entregue.
    */
   claimChest(p: PlayerState, chest: QuestChestDef): boolean {
     const e = this.st.get(p.id);
     const group = questChestGroup(chest.group);
     if (!e || !group) return false;
     if (e.chests.has(group.id)) { this.notice(p.id, "O baú está vazio.", "info"); return false; }
+    const locked = chestLockReason(group, (boss) => e.slain.has(boss));
+    if (locked) { this.notice(p.id, locked, "warn"); return false; }
     e.chests.add(group.id);
     this.dirty.add(p.id);
     const items = this.grant(p, { xp: 0, gold: chest.gold ?? 0, items: chest.items }, [], "rare");
@@ -471,7 +497,10 @@ export class QuestSystem {
 export const CHEST_POTION_CHANCE = 0.65;
 export const CHEST_FOOD_CHANCE = 0.5;
 export const CHEST_GEAR_CHANCE = 0.15;
-/** Equipamento do baú: level entre (L − GEAR_SPAN) e L. */
+/**
+ * Equipamento do baú: level entre (L − GEAR_SPAN) e L. Acima do último tier (lv 70 + span) a janela desce até o tier mais
+ * alto que o personagem pode usar, senão o baú ficava sem equipamento.
+ */
 export const CHEST_GEAR_SPAN = 12;
 
 const MAGES: Vocation[] = ["sorcerer", "druid"];
@@ -481,10 +510,39 @@ export function chestPotion(level: number, mana: boolean): string {
   return (mana ? "mana_potion" : "health_potion") + tier;
 }
 
-/** Equipáveis que o personagem poderia usar, de level (L − span) a L. Sem itens de chefe (valor muito alto). */
+let chestEligibleIds: Set<string> | null = null;
+
+/**
+ * Equipáveis que o baú pode dar: os que se conseguem sem chefe nem missão (vendidos por algum NPC ou derrubados por
+ * monstro comum). Ficam fora os prêmios só de missão, os itens só dos baús de quest do mapa e os únicos de chefe.
+ * Antes o filtro era valor ≤ 15 mil, o que zerava o baú a partir do lv ~58 (tiers 6 e 7 valem mais que isso).
+ * Ciclo 16: também os itens únicos e o tier 8 (`isExclusiveItem`), que caem do Tengu e do Samurai Rubros.
+ */
+export function chestEligible(id: string): boolean {
+  if (!chestEligibleIds) {
+    const sold = new Set(Object.values(NPCS).flatMap((n) => (n.shop?.sells ?? []).map((s) => s.itemId)));
+    const mob = new Set(Object.values(MONSTERS).filter((m) => !m.boss).flatMap((m) => (m.loot ?? []).map((l) => l.itemId)));
+    chestEligibleIds = new Set([...sold, ...mob].filter((i) => { const d = ITEMS[i]; return !d || !isExclusiveItem(d); }));
+  }
+  return chestEligibleIds.has(id);
+}
+
+/** Equipáveis que o personagem poderia usar, de level (L − span) a L (ou do tier mais alto que alcança a L). */
 export function chestGearPool(level: number, vocation: Vocation, items: ItemDef[] = Object.values(ITEMS)): ItemDef[] {
-  return items.filter((d) => isEquipable(d) && (d.level ?? 1) <= level && (d.level ?? 1) >= Math.max(1, level - CHEST_GEAR_SPAN)
-    && (!d.vocations || d.vocations.includes(vocation)) && d.value <= 15_000);
+  const usable = items.filter((d) => isEquipable(d) && chestEligible(d.id) && (d.level ?? 1) <= level
+    && (!d.vocations || d.vocations.includes(vocation)));
+  if (!usable.length) return [];
+  // O piso desce até o tier mais alto de ARMA/ARMADURA alcançado: medido por todos os itens, um anel ou amuleto de
+  // level alto (Anel do Gelo Eterno, lv 68) subia o piso e o baú do lv 63–69 só dava acessório.
+  const core = usable.filter((d) => d.slot === "weapon" || d.slot === "armor");
+  const top = Math.max(...(core.length ? core : usable).map((d) => d.level ?? 1));
+  const floor = Math.min(Math.max(1, level - CHEST_GEAR_SPAN), top);
+  return usable.filter((d) => (d.level ?? 1) >= floor);
+}
+
+/** Baú sem equipamento possível para o personagem: uma gema da faixa no lugar. */
+export function chestFallbackGem(level: number): string {
+  return level >= 60 ? "gem_purple" : level >= 35 ? "gem_yellow" : "gem_green";
 }
 
 /** Raridade do equipamento do baú: no mínimo incomum. */
@@ -510,7 +568,7 @@ export function rollChest(level: number, vocation: Vocation, rng: () => number):
     if (pool.length) {
       const d = pool[Math.floor(rng() * pool.length)]!;
       items.push(createItem(d, 1, rng, { rarity: chestRarity(rng) }));
-    }
+    } else items.push(makeItem(chestFallbackGem(L), 1));
   }
   return { gold, items };
 }

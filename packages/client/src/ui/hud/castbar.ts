@@ -3,7 +3,7 @@
 // Um slot pode ser uma magia ou uma FAMÍLIA (tecla inteligente, shared/data/spellFamilies.ts): conjura a mais forte que
 // estiver pronta, com mana e no alcance; o slot mostra o ícone e a recarga dessa magia.
 import {
-  C2S, DEFAULT_SPELL_RANGE, GLOBAL_SPELL_COOLDOWN_MS, S2C, familyDef, familyLevel, familySpells, needsTarget, pickFromFamily,
+  C2S, DEFAULT_SPELL_RANGE, GLOBAL_SPELL_COOLDOWN_MS, S2C, familyLevel, familySpells, needsTarget, pickFromFamily, resolveFamily,
   spellDef, spellMana,
   type CastFailReason, type CastMsg, type CastResultMsg, type SpellDef, type SpellFamily, type Vocation,
 } from "@lemonquest/shared";
@@ -15,7 +15,7 @@ import {
   ACTION_SLOTS, cooldownStore, onSlotActivate, setSlotAction, shakeSlot, slotCountStore, slotRangeStore,
   type Cooldown, type SlotRange,
 } from "./actionbar.ts";
-import { effectiveHotkeys, hotkeyLabel, hotkeysStore, layoutStore, setHotkeys, swapHotkeySpells } from "../hotkeys/hotkeys.ts";
+import { effectiveHotkeys, groupsStore, hotkeyLabel, hotkeysStore, layoutStore, setHotkeys, swapHotkeySpells } from "../hotkeys/hotkeys.ts";
 import { placeUnlocked } from "../hotkeys/edit.ts";
 import { battleSourcesStore, chebyshev } from "./battle.ts";
 import { spellIcon } from "./spellIcons.ts";
@@ -203,8 +203,9 @@ function fillSlots(vocation: Vocation | undefined) {
   entries = Array.from({ length: ACTION_SLOTS }, (_, i) => {
     const id = list[i]?.spellId;
     if (!id) return null;
-    const family = familyDef(id);
-    if (family) return { family };
+    const family = vocation ? resolveFamily(id, groupsStore.get(), vocation) : undefined;
+    // Grupo do jogador ainda sem magias: slot vazio (não há o que mostrar nem conjurar).
+    if (family) return family.spells.length ? { family } : null;
     const spell = spellDef(id);
     return spell ? { spell } : null;
   });
@@ -288,7 +289,7 @@ export function handleCastResult(r: CastResultMsg): void {
 /** Subiu de level: magias novas entram na barra (tecla livre) com aviso. */
 function onLevelUp(from: number, to: number, vocation: Vocation) {
   const saved = hotkeysStore.get();
-  const r = placeUnlocked(saved ?? effectiveHotkeys(vocation), vocation, from, to, hotkeyLabel);
+  const r = placeUnlocked(saved ?? effectiveHotkeys(vocation), vocation, from, to, hotkeyLabel, groupsStore.get());
   if (saved && r.list.length !== saved.length) setHotkeys(r.list);
   // Vários levels de uma vez (/level, recompensa grande): um aviso só.
   const text = r.notes.length > 2 ? `Novas magias: ${r.notes.length}. Veja a barra e os atalhos (H).` : r.notes.join(" ");
@@ -309,6 +310,7 @@ export function startCastBar(): () => void {
   });
   const refill = () => fillSlots((meStore.get()?.vocation as Vocation | undefined) ?? undefined);
   const offKeys = hotkeysStore.subscribe(refill);
+  const offGroups = groupsStore.subscribe(refill);
   const offLayout = layoutStore.subscribe(refill);
   const offTarget = targetStore.subscribe(() => refresh());
   const offBattle = battleSourcesStore.subscribe(() => { if (getTarget()?.kind === "monster") refresh(); });
@@ -320,5 +322,5 @@ export function startCastBar(): () => void {
   const offRoom = session.onRoom((room) => {
     room.onMessage(S2C.CastResult, (m: CastResultMsg) => handleCastResult(m));
   });
-  return () => { offStore(); offKeys(); offLayout(); offTarget(); offBattle(); offPlayers(); offAct(); offRoom(); window.clearTimeout(refreshTimer); };
+  return () => { offStore(); offKeys(); offGroups(); offLayout(); offTarget(); offBattle(); offPlayers(); offAct(); offRoom(); window.clearTimeout(refreshTimer); };
 }

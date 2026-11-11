@@ -12,9 +12,10 @@
 .npc-tab.active { background: rgba(217, 164, 65, 0.12); border-color: rgba(217, 164, 65, 0.5); color: var(--hud-gold) !important; }
 
 .shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
-.shop-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 4px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
+.shop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 6px 4px 4px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
 .shop-row:hover { border-color: var(--hud-line-hi); }
 .blessing-row { margin: 8px 0; }
+.blessing-protects { font-size: 11px; color: var(--hud-muted); font-variant-numeric: tabular-nums; }
 .shop-icon { flex: none; }
 .shop-main { flex: 1; min-width: 0; }
 .shop-name { font-size: 13px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; } /* nome longo quebra em 2 linhas ("Poção de Vida Média" ≠ "…de Mana Média") */
@@ -23,15 +24,27 @@
 .shop-filter small { color: var(--hud-faint); }
 .shop-price { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--hud-gold); font-variant-numeric: tabular-nums; }
 .shop-price small { color: var(--hud-muted); font-size: 11px; }
-.qty { display: flex; align-items: center; gap: 2px; }
+/* Quantidade numa segunda linha, alinhada ao texto (40 px = ícone + espaço): a primeira fica com nome, preço e botão. */
+.qty { order: 3; flex-basis: 100%; display: flex; align-items: center; gap: 2px; margin: -2px 0 2px 40px; }
 .qty button { width: 20px; height: 22px; padding: 0; }
-.qty span { min-width: 22px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+.qty input { width: 40px; height: 22px; padding: 0 2px; text-align: center; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; color: #fff; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 4px; -moz-appearance: textfield; } /* como o ouro da troca */
+.qty input::-webkit-inner-spin-button, .qty input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.qty .qty-preset { width: auto; padding: 0 5px; font-size: 11px; }
 .shop-btn { padding: 4px 10px; height: 26px; }
 .shop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .shop-btn.danger { border-color: rgba(230, 90, 80, 0.7); color: #ff9a8f !important; }
 .sell-all { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; font-size: 12px; }
 .sell-all b { color: var(--hud-gold); }
 .sell-all-kept { display: block; color: var(--hud-muted, #9aa0b0); font-size: 11px; }
+.sell-confirm { font-size: 11px; line-height: 1.3; } /* venda armada de item refinado (primeiro clique) */
 
 .depot-hint { font-size: 11px; color: var(--hud-faint); margin-bottom: 6px; }
+/* Busca e "Organizar" (ciclo 17). */
+.depot-tools { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.depot-search { flex: 1; min-width: 0; padding: 4px 8px; font-size: 12px; border-radius: 4px; }
+.depot-empty { font-size: 12px; color: var(--hud-faint); text-align: center; padding: 6px 0; }
 .depot-grid { display: grid; grid-template-columns: repeat(8, 40px); gap: 4px; justify-content: center; max-height: 276px; overflow-y: auto; padding: 2px; }
+
+/* Viagem (ciclo 17): faixa de level em volta do destino; vermelho quando é forte demais para o personagem. */
+.travel-levels { font-size: 11px; color: var(--hud-muted); }
+.travel-levels.danger { color: #ff7b6b; }

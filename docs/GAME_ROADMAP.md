@@ -6,6 +6,181 @@ Reflete o estado real. Números `#` = itens de [GAME_AUDIT.md](GAME_AUDIT.md). S
 Ordem de leitura: **Ciclo 9** (o que está em andamento e as decisões tomadas) → pendências dos ciclos 7/7b/8 → ⛔.
 Os ciclos 1–6 (100 % concluídos) estão no fim, em "Histórico".
 
+## Plano dos ciclos 14–20 (aprovado em 2026-10-25)
+
+Análise completa do jogo com dados de produção e decisões do dono: [PLANO_CICLOS_14-20.md](PLANO_CICLOS_14-20.md).
+Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 16 fim de jogo (tier 8, encantamento com tiers,
+covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
+Excursões ⏳ → 19 Siderúrgica ⏳ → 20 Montadora ⏳. Para depois (dono): Murphy, guilda, mercado, casas.
+
+## Ciclo 17 (2026-10-26) — descoberta, missões e interface
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 17-0 | Índice do mundo (`worldIndex.ts`) | ✅ | `worldIndex.test.ts` (mapa real e sintético) |
+| 17-1 | Agenda de eventos, aviso 10 min antes, `/agenda` e `/evento` para todos | ✅ | `events.test.ts` (shared e servidor), `admin.test.ts`, `agendaLogic.test.ts` |
+| 17-2 | Rótulos de portal e "olhar" no portal | ✅ | `portalInfo.test.ts` |
+| 17-3 | Marcadores no minimapa e no mapa-múndi | ✅ | `markers.test.ts` |
+| 17-4 | Diário com Disponíveis/Em breve; NPC explica a trava | ✅ | `questUnlocks.test.ts` |
+| 17-5 | Guia para a missão rastreada (e Quadro, diário, Agenda) | ✅ | `guide.test.ts` (todo passo de missão alcançável) |
+| 17-6 | Próximo passo no cartão de missão e no banner de level | ✅ | `questInfo.test.ts`, `quests.test.ts` |
+| 17-7 | Onde caçar (recompensas, Encomenda, Bestiário) | ✅ | `questInfo.test.ts`, `bestiaryLogic.test.ts` |
+| 17-8 | Viagem com level do destino, olhar de NPC, Novidades só o não visto, boas-vindas | ✅ | `travelInfo`, `lookInfo`, `newsLogic`, `welcome` |
+| 17-9 | Resistência visível | ✅ | `combat.test.ts`, `damageText.test.ts`, `lookInfo.test.ts` |
+| 17-10 | Menu do jogador, bênção nas condições, saudação, Trocar personagem | ✅ | `playerMenuLogic.test.ts` |
+| 17-11 | Depot: Organizar e busca | ✅ | `inventory.test.ts` (`organizeItems`), `depotSearch.test.ts` |
+| 17-12 | Bocas de caverna desenhadas (exceção autorizada) | ✅ | `diff-world.mjs --allow` (58 tiles dentro, 0 fora); validação de alcance no gerador |
+| C13-4 | (do ciclo 13) bocas de caverna | ✅ | ver 17-12 |
+
+## Ciclo 16 (2026-10-26) — fim de jogo
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 16-1 | Botas tier 6–7 e `ItemDef.unique` | ✅ | `items.test.ts`, `quests.test.ts` (fora do Baú) |
+| 16-2 | Tier 8 Abissal, Fragmento Abissal, Aniquilação por vocação | ✅ | `items.test.ts`, `lookInfo.test.ts`, `WorldRoom.test.ts`; `arena.test.ts` com o tier 8 |
+| 16-3 | Encantamento com tiers e 10 h de combate PvE, migração | ✅ | `imbuement.test.ts` (shared e servidor), `m4.test.ts`, `conditions.test.ts`, `imbueLogic.test.ts` |
+| 16-4 | Chefes de covil, baús desenhados com trava pelo abate, Ferreiro, Os Quatro Covis | ✅ | `diff-world` 0 tiles 826/826; `questWorld.test.ts`, `lairs.room.test.ts`, `monsters`, `quests`, `drawnChests` |
+| 16-5 | Refino +1..+5 | ✅ | `refine.test.ts` (shared e servidor), `ground`, `trade`, `inventory`, `dropConfirm` |
+| 16-6 | Coliseu 61–70, modificador semanal, ranking de tempo, Campeão do Coliseu | ✅ | `arena.test.ts`, `arenaChampion.test.ts`, `achievements` |
+| 16-7 | Medir ganho×gasto de ouro do topo depois do refino (meta: gasto ≥ 50% do ganho no 100+) | ⏳ | `admin.mjs telemetria` |
+| 16-8 | Metas do Coliseu 61–70 usam o melhor item por slot (tier 8 + únicos) e não simulam invocações: conferir com partidas reais | ⏳ | ranking de tempo |
+| 16-9 | Remover a gravação do campo antigo `imbuement` (mantida no ciclo 16 para rollback) | ⏳ | ciclo seguinte |
+
+## Ciclo 15 (2026-10-25) — balanço das vocações e morte mais pesada no 60+
+
+Pior/melhor do poder (P = dano/s × aguenta, tabela com as skills da produção): 0,52/0,39/0,49 → **0,74/0,66/0,86**
+nos lv 30/60/100. Detalhes no CHANGELOG.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 15-1 | Modelo honesto (`balanceKit.ts`), `skillEstimate` pela produção | ✅ | `vocationBalance.test.ts`, `arena.test.ts`, `skills.test.ts` |
+| 15-2 | Telemetria: causa da morte (`deathsBy`) e skills reais no `admin telemetria` | ✅ | `telemetry.test.ts`, `admincli.test.ts` |
+| 15-3 | Escudo de Mana pela metade | ✅ | `combatFormulas`, `spells` (servidor), descrição travada |
+| 15-4 | Druida com Escudo de Mana | ✅ | `shared/data/spells.test.ts`, `hotkeys.test.ts` |
+| 15-5 | `spellPower` de cavaleiro/paladino (skill da arma + level) | ✅ | `combatFormulas.test.ts`, `spells.test.ts` |
+| 15-6 | Fraquezas elementais + Bestiário | ✅ | `shared/data/monsters.test.ts`, `bestiaryLogic.test.ts` |
+| 15-7 | Curandeiros 1×/10 s | ✅ | `monsterAbilities.test.ts` |
+| 15-8 | Raiz/lentidão em chefe | ✅ | `conditions.test.ts` |
+| 15-9 | Paladino 13 de vida/level | ✅ | `combatFormulas.test.ts` |
+| 15-10 | Morte 10/20/25/30%, tela de morte e sacerdotisa | ✅ | `combatFormulas`, `combat`, `blessingText.test.ts` |
+| 15-11 | PvP ×0,5 | ✅ | `pvp.test.ts` |
+| 15-12 | Lobo Espiritual e Luz Restauradora | ✅ | `shared/data/monsters`, `spells` |
+| 15-13 | Calibração ≥ 0,65 (cavaleiro +40%, Chuva de Gelo 4 s, termo de level) | ✅ | `vocationBalance.test.ts` (produção e plano) |
+| 15-14 | Coliseu recalibrado (curva de dano das ondas) | ✅ | `arena.test.ts` sem `it.fails` |
+| 15-15 | Revisar com 1 semana de telemetria: mortes/h do 60–80 < 6, skills reais por vocação, causas de morte | ⏳ | `admin.mjs telemetria` |
+| 15-16 | Skill de arma real parada em ~30–35 (corpo a corpo 60 ≈ 19 h de golpes): avaliar treino mais rápido | 🧭 | modelo: +12–21% de P no cavaleiro 60/100 |
+
+## Ciclo 14 (2026-10-25) — correções de bugs e exploits
+
+Os 22 itens da tabela "Ciclo 14" do plano, cada um com teste unitário; revisão cruzada achou 6 defeitos nas correções
+(todos corrigidos). Detalhes no CHANGELOG.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 14-1 | Dança da coleira: volta imune, sem trocar de alvo, bando ou provocação | ✅ | `ai.test.ts` (coleira, provocação) |
+| 14-2 | Respawn de chefe persistido no kv | ✅ | `monsters.test.ts` (reinício) |
+| 14-3 | Porta com level: requisito antes da espera; na espera volta ao tile anterior | ✅ | `portals.test.ts`; E2E `caves.spec.ts` (porta e saída do Vulcão) |
+| 14-4 | Level de poção/comida no uso e na compra; Q/E pela melhor permitida | ✅ | `itemRules`, `inventory`, `m4` |
+| 14-5 | Bênção só gasta se houver perda | ✅ | `combat.test.ts` |
+| 14-6 | Rei Goblin e Lich sem passo "entregar" | ✅ | `quests.test.ts` (grupo de 4, progresso antigo) |
+| 14-7 | Aniquilação 1×/dia (`leverDay`) | ✅ | `questWorld.test.ts` |
+| 14-8 | Investida não entra na PZ | ✅ | `spells.test.ts` |
+| 14-9 | Lista do dia grava id do monstro | ✅ | `bounties`, `quests` |
+| 14-10 | Alvos e materiais impossíveis trocados; faixa 106+ da Encomenda | ✅ | `shared/data/quests.test.ts` (mapa real) |
+| 14-11 | Baú por tier/level, arma ou armadura em todo level | ✅ | `quests.test.ts` (lv 1–120 × 4 vocações) |
+| 14-12 | Encomenda: faixa gravada, entrega no Quadro | ✅ | `materialRequest.test.ts` |
+| 14-13 | Cassino confere espaço de todo material | ✅ | `m4.test.ts` |
+| 14-14 | `callBoss` ignora cópias | ✅ | `monsters.test.ts` |
+| 14-15 | Comida pela média ponderada | ✅ | `food.test.ts`, `itemRules` |
+| 14-16 | Fuga com prazo de 10 s | ✅ | `ai.test.ts` |
+| 14-17 | Tingimento com prévia e confirmação | ✅ | `toneShop.test.ts`; E2E `sinks.spec.ts` |
+| 14-18 | Depot: clique direito guarda, junta pilha | ✅ | `inventory.test.ts`; E2E `depot.spec.ts` |
+| 14-19 | Textos (plural, diálogos, promessas, grupo, Coliseu, Novidades); XP do Quadro com estágio | ✅ | `quests.test.ts` (shared), `shareText.test.ts` |
+| 14-20 | Desafio semanal pelo level do começo da semana | ✅ | `challenges.test.ts` |
+| 14-21 | Faixa grampeada, teste religado | ✅ | `bounties.test.ts` |
+| 14-22 | Sprite do Samurai Rubro (6 × 96×48) | ✅ | `shared/data/monsters.test.ts` |
+| 14-23 | Acompanhar a renda do Baú de Recompensa no 70+ (tier 7 a partir do 82) antes do ciclo 16 | ⏳ | `admin.mjs telemetria` |
+| 14-24 | E2E só no CI: `spells.spec` "feiticeiro lv 90" (alvo sem linha de visão) e `/tp` de dev caindo no tile de monstro (`death.spec`) | ⏳ | TEST_PLAN "Instabilidade conhecida" |
+
+## Ciclo 13 (2026-10-25) — caves profundas
+
+Pedido do dono: "mais caves", nas quatro faixas, com monstros existentes + alguns novos.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C13-1 | Quatro caves (`expansion5.mjs`, mapa 400×560), entradas só-objeto com level mínimo | ✅ 2026-10-25 | `diff-world.mjs` 0 tiles, 699/699; 9160/9160 alcançáveis; E2E `caves.spec.ts` 6/6 (`--repeat-each=3`) |
+| C13-2 | Oito monstros novos (sprites do pack sem uso) e faixa 106+ no Quadro de Recompensas | ✅ 2026-10-25 | `monsters`, `bounties`, `lookInfo` |
+| C13-3 | Revisar com a telemetria (C12-5) se as caves novas tiram a parede do 60–80 e se o 100+ ganha variedade | ⏳ | `admin.mjs telemetria` |
+| C13-4 | Arte: bocas de caverna de verdade na superfície | ✅ 2026-10-26 | ciclo 17-12 (`entrances14.mjs`) |
+| C13-5 | Missões/conquistas próprias das caves novas | ⏳ | opcional |
+
+## Ciclo 12 (2026-10-25) — fim de jogo 90–120 e medição
+
+Análise com dados de produção (11 contas, 15 personagens, telemetria desde 22/10): fim de jogo alcançado (lv 99/102,
+Coliseu onda 59), 0 abates de Orshabaal/Ferumbras (só agendados no fim de semana), 100–109 sem missão, ouro acumulado no
+topo (gasto de 23% acima do 100), 7 de 15 personagens são feiticeiros, possível parede no 60–80 (9,3 mortes/h em 1,5 h).
+Decisão do dono: **fim de jogo** e **medir antes de mexer**; gasto de ouro no topo e mentor/níveis misturados ficam
+como propostas.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C12-1 | 1 magia de utilidade por vocação no lv 100 (Muralha de Escudos, Luz Restauradora, Ruptura Elemental, Raízes da Terra); condição `exposed`; condição mais forte não é rebaixada (F2-8, parte) | ✅ 2026-10-25 | `spells.test.ts` (shared e server), `spellFamilies`, `hotkeys.test.ts`; E2E `spells.spec.ts` (lv 100) |
+| C12-2 | Missões 100–109: O Selo do Abismo (lv 100) e A Marcha dos Colossos (lv 105) (F2-8, parte) | ✅ 2026-10-25 | `quests.test.ts`, `questWorld.test.ts` |
+| C12-3 | Ferumbras terça 17h e Orshabaal quinta 17h (além do fim de semana) | ✅ 2026-10-25 | `events.test.ts` (sem sobreposição) |
+| C12-4 | Telemetria: abates, XP, dano e dano resistido por level; `admin telemetria` com relatório por vocação | ✅ 2026-10-25 | `telemetry.test.ts`, `combat.test.ts`, `recovery.test.ts` |
+| C12-5 | **Revisar a telemetria em ~1 semana** (até 2026-11-01): força das vocações com a resistência, mortes no 60–80, F2-3 fim de jogo solo | ⏳ | `admin.mjs telemetria` em produção |
+| C12-6 | Gasto de ouro no topo (refino de equipamento, cosmético caro…) | 🧭 | formato a decidir pelo dono |
+| C12-7 | Jogar junto com níveis diferentes (bônus de mentor, Coliseu pelo level médio) | 🧭 | proposta |
+| C12-8 | F2-8 restante: elite "nomeado" de colosso/demônio | ⏳ | |
+
+## Ajuste pós-ciclo 11 (2026-10-24) — nomes comuns e saídas da Malha
+
+| Item | Status | Validação |
+|---|---|---|
+| 🧭 Decisão do dono: bichos e itens com nome comum **por enquanto**; NPCs, missões e locais com nome real | ✅ 2026-10-24 | 12 bichos e 28 itens renomeados, ids iguais; grep sem nomes antigos fora de títulos de missão e falas de NPC |
+| Saídas da Malha: Maquinista e Agente da Parada também levam à Vila/Estação | ✅ 2026-10-24 | `malha.spec.ts` (caso novo), `diff-world.mjs` 0 tiles, 698/698 |
+
+## Ciclo 11 (2026-10-24) — Malha da Ferrovia e ClickUp dinâmico
+
+Decisões do dono: ClickUp com as 4 integrações (Chegou!, sprints, conquistas pessoais, títulos de tarefa filtrados);
+região isolada no mesmo mundo, só de trem; disfarce mantido na ferrovia; token pessoal em `.env` da produção. Lore dos
+repositórios do Gitea. 3 frentes de agentes (ClickUp, mapa, conteúdo) com revisão cruzada (2 bloqueios de privacidade
+achados e corrigidos).
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C11-1 | ClickUp: sistema de leitura, Chegou!, sprints + Sprint Fechada (bônus que soma ao evento), vínculo pelo próprio jogador (token conferido e descartado) e `/vincular` de admin, `work_tasks`, aba "Na obra" | ✅ 2026-10-24 | `clickup.test.ts`, `events.test.ts`, `admin.test.ts`, `achievements.test.ts` (sem rede: respostas gravadas) |
+| C11-2 | Filtro de disfarce (`workFilter.ts`) endurecido: grafias do cliente confidencial, fabricantes, infra, RH, pessoas | ✅ 2026-10-24 | `workFilter.test.ts` com os casos dos scripts de ataque da revisão |
+| C11-3 | Malha da Ferrovia (`expansion4.mjs`), trem + portal oculto | ✅ 2026-10-24 | `diff-world.mjs`: 0 tiles alterados, 623/623; `malha.spec.ts` 15/15 (`--repeat-each=3`) |
+| C11-4 | 9 monstros, 10 missões, 14 itens, 9 NPCs, 10 conquistas, evento Apito da Locomotiva | ✅ 2026-10-24 | `monsters`, `items`, `quests`, `questWorld`, `npcs`, `events`, `arena` |
+| C11-5 | NPC "EM-1000" (ciclo 10) neutralizado: código e métrica eram do cliente confidencial | ✅ 2026-10-24 | — |
+| C11-6 | Deploy: token pessoal do ClickUp no `.env` da produção e saída de rede para `api.clickup.com` (não testado daqui) | 🧭 | dono |
+| C11-7 | O portal oculto Vila ↔ Estação leva à Malha de graça e sem filtro de level (o trem cobra 200); aceito: é o caminho de conectividade | 🧭 | revisitar se virar atalho |
+| C11-8 | Arte (ideias da frente de mapa): estrada da passagem de nível até o Pátio, emboque do túnel mais escuro, mirante na Serra, valetas e ponte rolante na Oficina, sinais de 3 luzes, locomotiva no Pátio; ocupar os gramados vazios | ⏳ | opcional |
+| C11-9 | Gitea dinâmico (commits/PRs viram eventos) e E2E do Chegou! com API falsa | ⏳ | próximo ciclo |
+
+## Ciclo 10 (2026-10-23) — contexto do trabalho no jogo
+
+Pedido do dono: trazer o escritório para dentro do jogo. Fontes: sumários dos projetos da Embeddo e ClickUp (equipes,
+papéis, cultura do canal do time). Implementação em 4 frentes de agentes (textos, itens/monstros, missões, mapa) com
+revisão cruzada independente.
+
+| Decisão do dono | Escolha |
+|---|---|
+| Intensidade | easter eggs + uma zona nova pequena, 0 tiles alterados |
+| Pessoas | apelido + papel, nunca nome completo; nada do chat privado |
+| Clientes | disfarçados; o cliente confidencial não aparece nem disfarçado; códigos internos (EM-xxx, Isca, Portal…) liberados |
+| ClickUp vivo | não nesta fase (só dados estáticos) |
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| C10-1 | Zona Oficina dos Engenhos (`expansion3.mjs`, mapa 400×336), portal na Vila e carroça | ✅ 2026-10-23 | `diff-world.mjs`: 0 tiles alterados, 592/592 objetos antigos; validação interna 282/282 tiles alcançáveis; `oficina.spec.ts` 12/12 (`--repeat-each=3`) |
+| C10-2 | 14 NPCs, 6 missões, 3 monstros, 14 itens | ✅ 2026-10-23 | `npcs`, `quests`, `questWorld` (explore ↔ zona), `monsters`, `items`, `arena` (simulador inalterado) |
+| C10-3 | 12 conquistas, 6 títulos, eventos Sextou!/Reunião Geral, dicas, Novidades | ✅ 2026-10-23 | `events.test.ts` (shared e server), `achievements.test.ts`, `news.test.ts` |
+| C10-4 | Onda 3: chefe "Murphy, o Corretor" + missão + conquista `boss:murphy`; anexo não-PZ "Sala dos Servidores"; NPCs do dono e dos manuais (item `mensagem_retida` já existe, sem fonte) | 🧭 | decidir se entra |
+| C10-5 | ClickUp vivo (ex.: "Chegou!" automático quando uma compra é entregue, placar de sprint) | 🧭 | exige token no servidor e decisão do dono |
+| C10-6 | Arte para a porta da Vila (hoje só uma luz marca o portal) e tipo de objeto `sign` (placa legível sem NPC) | ⏳ | opcional |
+
 ## Ciclo 9 (2026-10-22) — auditoria completa do repositório e plano de evolução
 
 Auditoria de 7 agentes (arquitetura, gameplay, bugs, performance, UX, testes, docs/Claude) com baseline executada:

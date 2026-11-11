@@ -12,7 +12,7 @@ import {
 } from "@lemonquest/shared";
 import { GroundItemState, type PlayerState } from "../state.ts";
 import { PerSecond } from "../persistence/ratelimit.ts";
-import { GOLD_ID, maxStackOf, newUid, type InventorySystem } from "./inventory.ts";
+import { GOLD_ID, maxStackOf, newUid, sanitizeItem, type InventorySystem } from "./inventory.ts";
 
 /** Distância máxima (Chebyshev) para largar num tile que não seja o próprio. */
 export { DROP_RANGE };
@@ -379,18 +379,21 @@ export class GroundSystem {
     }
     let n = 0;
     for (const r of rows) {
-      if (r.expiresAt <= now || !this.o.inventory.defs(r.item.defId) || !this.o.canHold(r.x, r.y)) continue;
+      // Mesma limpeza do personagem ao carregar (raridade, bônus, refino); definição desconhecida sai. A pilha não é
+      // cortada no maxStack: o ouro da caveira vermelha cai inteiro numa pilha só (pode passar de 1 milhão).
+      const item = sanitizeItem(r.item, this.o.inventory.defs, { clampStack: false });
+      if (r.expiresAt <= now || !item || !this.o.canHold(r.x, r.y)) continue;
       if (this.at(r.x, r.y).length >= MAX_PER_TILE || this.entries.size >= MAX_GROUND_ITEMS) continue;
       const s = new GroundItemState();
       s.id = `g${(++this.seq).toString(36)}`;
-      s.defId = r.item.defId;
-      s.count = r.item.count;
-      s.rarity = r.item.rarity;
+      s.defId = item.defId;
+      s.count = item.count;
+      s.rarity = item.rarity;
       s.x = r.x;
       s.y = r.y;
       // Registro de antes do createdAt: estima pelo prazo (caiu DECAY_MS antes de vencer).
-      const createdAt = typeof r.createdAt === "number" ? r.createdAt : r.expiresAt - (DECAY_MS[r.item.rarity] ?? DECAY_MS.common);
-      const e: GroundEntry = { state: s, item: r.item, expiresAt: r.expiresAt, createdAt };
+      const createdAt = typeof r.createdAt === "number" ? r.createdAt : r.expiresAt - (DECAY_MS[item.rarity] ?? DECAY_MS.common);
+      const e: GroundEntry = { state: s, item, expiresAt: r.expiresAt, createdAt };
       // Reserva do grupo só volta se ainda vale: grupos vivem em memória e os ids recomeçam a cada boot, então uma
       // procedência antiga poderia bater com um grupo novo e gerar linha de chat errada.
       if (typeof r.owner === "string" && r.owner && typeof r.ownerUntil === "number" && r.ownerUntil > now) {

@@ -3,7 +3,7 @@ import {
   ACHIEVEMENTS, BESTIARY_IDS, C2S, OUTFIT_LIST, RANKING_CACHE_S, S2C, TITLES, defaultOutfit, isFreeOutfit, isValidUnlockId,
   resolveUnlockArg, type AchievementsMsg,
 } from "@lemonquest/shared";
-import { AchievementSystem, achievementEvent, bestiaryOf, grantUnlock, onUnlock, setActiveAchievements } from "./achievements.ts";
+import { AchievementSystem, achievementEvent, addWorkTasks, bestiaryOf, grantUnlock, onUnlock, setActiveAchievements } from "./achievements.ts";
 import { handleAdminCommand, type AdminContext } from "./admin.ts";
 import { isOutfitUnlocked } from "./outfit.ts";
 import { WorldRoom } from "../rooms/WorldRoom.ts";
@@ -91,6 +91,17 @@ function setup(opts: { explore?: number; equipped?: number } = {}) {
 }
 
 describe("conquistas: eventos", () => {
+  it("tarefas do ClickUp (work_tasks): online pelo evento, offline pelo registro", () => {
+    const t = setup();
+    t.sys.event("s1", "work", { n: 10 });
+    expect(t.rec.data.ach!.stats.work_tasks).toBe(10);
+    for (const a of ACHIEVEMENTS.filter((x) => x.metric === "work_tasks" && x.target <= 10)) expect(t.done()).toContain(a.id);
+    const off = mkRec();
+    addWorkTasks(off, 3);
+    addWorkTasks(off, 2);
+    expect(off.data.ach!.stats.work_tasks).toBe(5);
+  });
+
   it("bestiário: conta abates por tipo (chefes incluídos) e quem já tinha a lista antiga aparece com pelo menos 1", () => {
     const t = setup();
     for (let i = 0; i < 3; i++) t.sys.event("s1", "kill", { defId: "rat" });

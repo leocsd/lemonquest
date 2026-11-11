@@ -1,8 +1,11 @@
 import { findObjects, objectTile, type TiledMap, type TiledObject } from "../map.ts";
+import { monsterDef } from "./monsters.ts";
 
 // Quests de mundo no estilo Tibia (dados + regras puras; servidor = autoridade):
 // - Baús de quest (objeto "quest_chest" do mapa, prop `chestId`): cada personagem abre UMA vez por grupo. Baús do mesmo
-//   grupo são uma escolha ("pegue um dos quatro"): abrir um esvazia os outros para aquele personagem.
+//   grupo são uma escolha ("pegue um dos quatro"): abrir um esvazia os outros para aquele personagem. Grupo com
+//   `needBoss` (covis, ciclo 16) só abre para o personagem que tem o abate do chefe registrado; o baú com prop `drawn`
+//   não tem tile no mapa (o cliente desenha e a grade de colisão bloqueia pelo objeto: shared/map.ts).
 // - Portas de level/missão: objetos "portal" com `minLevel`, `quest` (missão concluída) e/ou `chestGroup` (baú aberto).
 //   Quem não cumpre bate na porta e volta para o tile de onde veio.
 // - Alavancas de grupo (objeto "quest_lever"): com jogadores em pelo menos `minPlayers` placas, puxar a alavanca leva
@@ -16,6 +19,13 @@ export interface QuestChestGroupDef {
   /** Onde fica (dica no diário). */
   where: string;
   minLevel: number;
+  /**
+   * Chefe (id de MONSTERS) que o personagem precisa ter derrotado para abrir o grupo. O registro é do servidor
+   * (systems/quests.ts) e usa o crédito do passo "boss" de missão: quem bateu perto do chefe e os membros do grupo perto
+   * dele. Abate no Coliseu, invocação e ajudante de monstro não contam. Um item não serve: passaria de mão em mão para
+   * qualquer personagem (a prova que o chefe deixa cair é só troféu).
+   */
+  needBoss?: string;
 }
 
 export interface QuestChestDef {
@@ -59,6 +69,11 @@ export const QUEST_CHEST_GROUPS: Record<string, QuestChestGroupDef> = {
   hero_quest: { id: "hero_quest", name: "A Quest dos Heróis", where: "Caverna dos Heróis", minLevel: 65 },
   volcano_summit: { id: "volcano_summit", name: "O Cume do Vulcão", where: "Cratera do Vulcão de Goroma", minLevel: 80 },
   annihilator: { id: "annihilator", name: "A Aniquilação", where: "Cidadela de Ferumbras", minLevel: 100 },
+  // Covis das caves profundas (ciclo 16): baú desenhado na sala do fundo, trancado até o personagem derrotar o chefe.
+  lair_minas: { id: "lair_minas", name: "O Covil do Rei Toupeira", where: "Covil das Minas Abandonadas", minLevel: 25, needBoss: "lair_mole_king" },
+  lair_grutas: { id: "lair_grutas", name: "O Covil do Kraken", where: "Covil das Grutas Alagadas", minLevel: 50, needBoss: "lair_kraken" },
+  lair_catacumbas: { id: "lair_catacumbas", name: "O Covil da Chama Ancestral", where: "Covil das Catacumbas Esquecidas", minLevel: 75, needBoss: "lair_flame" },
+  lair_profundo: { id: "lair_profundo", name: "O Covil do Shogun", where: "Covil do Abismo Profundo", minLevel: 110, needBoss: "lair_shogun" },
 };
 
 const chest = (id: string, group: string, extra: Omit<QuestChestDef, "id" | "group">): QuestChestDef => ({ id, group, ...extra });
@@ -79,11 +94,32 @@ export const QUEST_CHESTS: Record<string, QuestChestDef> = Object.fromEntries([
   chest("hero_wand", "hero_quest", { items: one("starstorm_wand") }),
   chest("hero_rod", "hero_quest", { items: one("northwind_rod") }),
   chest("volcano_summit", "volcano_summit", { gold: 10000, items: one("boots_haste") }),
-  chest("anni_armor", "annihilator", { items: one("demon_armor"), unlock: "title:aniquilador" }),
-  chest("anni_sword", "annihilator", { items: one("magic_longsword"), unlock: "title:aniquilador" }),
-  chest("anni_axe", "annihilator", { items: one("stonecutter_axe"), unlock: "title:aniquilador" }),
-  chest("anni_bear", "annihilator", { items: one("annihilation_bear"), gold: 50000, unlock: "title:aniquilador" }),
+  // Aniquilação (ciclo 16): um prêmio único por vocação, de cima para baixo cavaleiro, paladino, feiticeiro e druida
+  // (a ordem dos baús do Barba-Ruiva e dos Heróis). Os ids são os objetos do mapa em produção e ficam, mesmo sem bater
+  // com o conteúdo (antes: Armadura de Placas Mágica, Espada Longa Mágica, Cortapedras ou o urso com 50 mil). O urso
+  // vai em todos: é o troféu de quem sobreviveu.
+  chest("anni_armor", "annihilator", { items: [...one("stonecutter_axe"), ...one("annihilation_bear")], unlock: "title:aniquilador" }),
+  chest("anni_sword", "annihilator", { items: [...one("annihilator_bow"), ...one("annihilation_bear")], unlock: "title:aniquilador" }),
+  chest("anni_axe", "annihilator", { items: [...one("annihilator_wand"), ...one("annihilation_bear")], unlock: "title:aniquilador" }),
+  chest("anni_bear", "annihilator", { items: [...one("annihilator_rod"), ...one("annihilation_bear")], unlock: "title:aniquilador" }),
+  // Covis (ciclo 16): ouro e materiais iguais nos baús do mesmo covil; o equipamento é a escolha (um baú por opção).
+  ...lairChests("lair_minas", 4000, [["gem_green", 3], ["iron_bar", 3]], {
+    lair_minas_furia: "ring_furia", lair_minas_lich: "amulet_lich", lair_minas_protecao: "amulet_protecao",
+  }),
+  ...lairChests("lair_grutas", 10000, [["gem_yellow", 3], ["mithril_bar", 1]], {
+    lair_grutas_might: "ring_might", lair_grutas_labirinto: "amulet_minotaur", lair_grutas_engrenagens: "anel_do_rodeiro",
+  }),
+  ...lairChests("lair_catacumbas", 25000, [["gem_purple", 3], ["mithril_bar", 2]], {
+    lair_catacumbas_knight: "demon_armor", lair_catacumbas_paladin: "dragon_scale_armor", lair_catacumbas_mage: "ferumbras_armor",
+  }),
+  ...lairChests("lair_profundo", 50000, [["demonic_essence", 5], ["gem_purple", 5]], {
+    lair_profundo_amulet: "amulet_orshabaal", lair_profundo_ring: "ring_demodras", lair_profundo_boots: "boots_haste",
+  }),
 ].map((c) => [c.id, c]));
+
+function lairChests(group: string, gold: number, mats: [string, number][], choices: Record<string, string>): QuestChestDef[] {
+  return Object.entries(choices).map(([id, itemId]) => chest(id, group, { gold, items: [...one(itemId), ...mats.map(([m, n]) => ({ itemId: m, count: n }))] }));
+}
 
 export const QUEST_LEVERS: Record<string, QuestLeverDef> = {
   annihilator: { id: "annihilator", name: "A Aniquilação", minLevel: 100, players: 4, minPlayers: 2, monsters: ["demon", "demon", "demon", "demon", "demon", "demon"] },
@@ -109,6 +145,20 @@ export function doorBlockReason(
   return null;
 }
 
+/** Chefes que destrancam baús (`needBoss`): o servidor guarda, por personagem, só o abate destes. */
+export const CHEST_LOCK_BOSSES: ReadonlySet<string> = new Set(Object.values(QUEST_CHEST_GROUPS).flatMap((g) => (g.needBoss ? [g.needBoss] : [])));
+
+/** Texto da trava ("olhar" do baú e aviso ao tentar abrir) ou null se o grupo não tem trava. */
+export function chestLockText(group: QuestChestGroupDef): string | null {
+  return group.needBoss ? `Trancado: derrote o chefe do covil (${monsterDef(group.needBoss)?.name ?? group.needBoss}) para abrir` : null;
+}
+
+/** Motivo (PT-BR) de um baú com trava não abrir, ou null se abre. `slain` = o personagem tem o abate do chefe registrado. */
+export function chestLockReason(group: QuestChestGroupDef, slain: (bossId: string) => boolean): string | null {
+  if (!group.needBoss || slain(group.needBoss)) return null;
+  return `${chestLockText(group)}.`;
+}
+
 // ---------------------------------------------------------------------------
 // Leitura das props do mapa (servidor e cliente)
 // ---------------------------------------------------------------------------
@@ -129,8 +179,11 @@ export function parseRect(s: unknown): { x0: number; y0: number; x1: number; y1:
 
 const prop = (o: TiledObject, name: string): unknown => o.properties?.find((p) => p.name === name)?.value;
 
-/** Baú ou alavanca de quest no mapa (o desenho vem do próprio mapa; o tile é bloqueado). */
-export interface QuestObjectSpot { kind: "chest" | "lever"; id: string; x: number; y: number }
+/**
+ * Baú ou alavanca de quest no mapa (o desenho vem do próprio mapa; o tile é bloqueado). `drawn` = baú sem tile no mapa,
+ * desenhado pelo cliente (covis do ciclo 16: um tile novo alteraria o mapa já em produção).
+ */
+export interface QuestObjectSpot { kind: "chest" | "lever"; id: string; x: number; y: number; drawn?: boolean }
 
 export function findQuestObjects(map: TiledMap): QuestObjectSpot[] {
   const out: QuestObjectSpot[] = [];
@@ -138,7 +191,7 @@ export function findQuestObjects(map: TiledMap): QuestObjectSpot[] {
     for (const o of findObjects(map, type)) {
       const id = String(prop(o, key) ?? "");
       if (!id || out.some((s) => s.kind === kind && s.id === id)) continue;
-      out.push({ kind, id, ...objectTile(o, map.tilewidth) });
+      out.push({ kind, id, ...objectTile(o, map.tilewidth), ...(prop(o, "drawn") === true ? { drawn: true } : {}) });
     }
   }
   return out;

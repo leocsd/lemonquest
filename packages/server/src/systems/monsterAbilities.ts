@@ -4,7 +4,7 @@
 //   monstro antes cancela).
 // - Invocações: ajudantes sem respawn, XP nem loot; somem quando o invocador some (morte, despawn, fim da partida).
 import {
-  CALL_HELP_ID, S2C, dirFromDelta, mitigate, monsterAbilityFxId, monsterDef, rollInt,
+  CALL_HELP_ID, HEAL_ALLIES_LOCKOUT_MS, S2C, dirFromDelta, mitigate, monsterAbilityFxId, monsterDef, rollInt,
   type CollisionGrid, type MonsterAbility, type MonsterTelegraphMsg, type SpellCastMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -62,7 +62,7 @@ export class MonsterAbilitySystem {
       // Primeira vez: pronta entre 30% e 100% do cooldown (não abre a luta com o golpe mais forte, e um bando que
       // entra em combate junto não solta todos os sopros no mesmo instante).
       if (at === undefined) { ready.set(a.id, now + Math.floor(a.cooldownMs * (0.3 + 0.7 * this.rng()))); continue; }
-      if (now < at || !this.usable(m, a, target)) continue;
+      if (now < at || !this.usable(m, a, target, now)) continue;
       if (a.chance !== undefined && this.rng() >= a.chance) {
         ready.set(a.id, now + m.def.attackMs); // sorteia de novo só no próximo turno, não a cada tick
         continue;
@@ -108,10 +108,11 @@ export class MonsterAbilitySystem {
 
   // --- regras ------------------------------------------------------------------------------
 
-  private usable(m: Monster, a: MonsterAbility, target: CreatureState): boolean {
+  private usable(m: Monster, a: MonsterAbility, target: CreatureState, now: number): boolean {
     const s = m.s;
     if (a.heal) return s.hp < s.maxHp * a.heal.belowHpPct;
-    if (a.healAllies) { const h = a.healAllies; return this.alliesOf(m, h.radius).some((o) => o.s.hp < o.s.maxHp * h.belowHpPct); }
+    // Só quem ainda pode receber a cura conta (HEAL_ALLIES_LOCKOUT_MS): sem ninguém, o curandeiro ataca no turno.
+    if (a.healAllies) { const h = a.healAllies; return this.healable(m, h.radius, now).some((o) => o.s.hp < o.s.maxHp * h.belowHpPct); }
     if (a.summon) return this.minionCount(s.id) < a.summon.max && !!monsterDef(a.summon.monsterId);
     if (a.shape === "self") return false;
     const d = cheb(s.x, s.y, target.x, target.y);
@@ -138,8 +139,11 @@ export class MonsterAbilitySystem {
       return;
     }
     if (a.healAllies) {
-      const healed = this.alliesOf(m, a.healAllies.radius).filter((o) => o.s.hp < o.s.maxHp);
-      for (const o of healed) o.s.hp = Math.min(o.s.maxHp, o.s.hp + Math.max(1, Math.round(o.s.maxHp * a.healAllies.pct)));
+      const healed = this.healable(m, a.healAllies.radius, now).filter((o) => o.s.hp < o.s.maxHp);
+      for (const o of healed) {
+        o.s.hp = Math.min(o.s.maxHp, o.s.hp + Math.max(1, Math.round(o.s.maxHp * a.healAllies.pct)));
+        o.healedAt = now;
+      }
       msg.tiles = flat(healed.map((o) => ({ x: o.s.x, y: o.s.y }))); // brilho de cura em cada aliado curado
       this.o.broadcast(S2C.SpellCast, msg);
       return;
@@ -204,7 +208,7 @@ export class MonsterAbilitySystem {
           // Armadura inteira, como no ataque básico do monstro (os números das habilidades foram calibrados assim).
           this.o.combat.shieldTry(c, now, { monsterLevel: m.def.level, raw });
           const before = c.hp;
-          const dealt = this.o.combat.damagePlayer(c, m.s.id, mitigate(raw, this.o.combat.armorOf(c)), a.damage.kind, now, { ranged: true, killerName: m.def.name });
+          const dealt = this.o.combat.damagePlayer(c, m.s.id, mitigate(raw, this.o.combat.armorOf(c)), a.damage.kind, now, { ranged: true, killerName: m.def.name, killerKey: `${m.def.id}/${a.id}` });
           survived = dealt < before;
         }
       }
@@ -225,6 +229,11 @@ export class MonsterAbilitySystem {
       out.push(o);
     }
     return out;
+  }
+
+  /** Aliados que podem receber a cura em grupo agora: no máximo uma vez a cada HEAL_ALLIES_LOCKOUT_MS por monstro. */
+  private healable(m: Monster, radius: number, now: number): Monster[] {
+    return this.alliesOf(m, radius).filter((o) => o.healedAt === undefined || now - o.healedAt >= HEAL_ALLIES_LOCKOUT_MS);
   }
 
   private summon(m: Monster, o: NonNullable<MonsterAbility["summon"]>, now: number): Point[] {

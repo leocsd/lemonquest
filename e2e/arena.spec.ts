@@ -1,5 +1,5 @@
-// Coliseu: janela do Mestre (lobbies), partida solo (ondas emendadas, pausa com vendedor depois da onda-chefe, Pronto,
-// sair → resultado) e grupo com dois navegadores.
+// Coliseu: janela do Mestre (lobbies, modificador da semana, melhores tempos), partida solo (ondas emendadas, pausa com
+// vendedor depois da onda-chefe, Pronto, sair → resultado) e grupo com dois navegadores.
 import { expect, test, type Page } from "@playwright/test";
 import { clickTile, enterGame, me, meState, monsters, setChase, setLevel, snap, targetNearest, teleport, tileToClient, walkableNear } from "./helpers.ts";
 
@@ -76,6 +76,9 @@ test("coliseu solo: ondas 1–5 emendadas → pausa (vendedor) → Pronto → on
   await openArena(page);
   const win = page.getByRole("dialog", { name: "Coliseu" });
   await expect(win).toContainText("Arenas livres");
+  // Ciclo 16: modificador da semana das ondas 61–70 e o ranking de tempo das 70 ondas.
+  await expect(win.locator(".arena-week-mod")).toContainText(/Ondas 61–70 desta semana: (Fúria|Carapaça|Enxame|Sem Trégua|Calmaria)/);
+  await expect(win).toContainText("Tempo para vencer as 70 ondas");
   await snap(page, "arena-window");
   await win.getByRole("button", { name: "Criar grupo" }).click();
   await expect(win.locator(".arena-members li")).toHaveCount(1);
@@ -139,7 +142,7 @@ test("coliseu solo: ondas 1–5 emendadas → pausa (vendedor) → Pronto → on
   await expect(page.locator(".arena-bar.pause")).toContainText("Pronto ✓");
   // Pronto (todos) → começa em 3 s.
   await seenUi(page, "banner", "Onda 6");
-  await seenUi(page, "bar", "Onda 6/60");
+  await seenUi(page, "bar", "Onda 6/70");
 
   // Sair (botão + confirmação no HUD) → cartão de resultado com as ondas vencidas.
   await leaveArena(page);

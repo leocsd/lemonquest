@@ -1,10 +1,10 @@
 // Estado da janela de NPC (diálogo/loja/depot). O mundo (Phaser) chama openNpc(npcId) ao clicar num NPC.
-import { BOUNTY_NPC, C2S, QUEST_LIST, REQUEST_NPC, type NpcInteractMsg, type NpcOpenMsg, type NpcTradeMsg, type TravelMsg } from "@lemonquest/shared";
+import { BOUNTY_NPC, C2S, QUEST_LIST, REFINE_NPC, REQUEST_NPC, npcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcTradeMsg, type TravelMsg } from "@lemonquest/shared";
 import { createStore } from "../hud/store.ts";
 import { send } from "../items/net.ts";
 import { closeArenaWindow, openArenaWindow } from "../arena/arena.ts";
 
-export type NpcTab = "quests" | "bounties" | "request" | "travel" | "buy" | "sell" | "depot";
+export type NpcTab = "work" | "quests" | "bounties" | "request" | "refine" | "imbue" | "travel" | "buy" | "sell" | "depot";
 export interface NpcState { msg: NpcOpenMsg; tab: NpcTab; /** muda a cada nova abertura (reinicia a digitação). */ nonce: number }
 
 export const npcStore = createStore<NpcState | null>(null);
@@ -20,9 +20,12 @@ export function closeNpc(): void { npcStore.set(null); }
 
 export const npcTabs = (m: NpcOpenMsg): NpcTab[] => {
   const t: NpcTab[] = [];
+  if (npcDef(m.npcId)?.workBoard) t.push("work"); // quadro da obra (ClickUp): ui/work
   if (m.npcId === BOUNTY_NPC) t.push("bounties");
   if (m.npcId === REQUEST_NPC) t.push("request");
+  if (m.npcId === REFINE_NPC) t.push("refine"); // Ferreiro: abre na aba Refinar (ui/refine)
   if (QUEST_LIST.some((q) => q.giver === m.npcId)) t.push("quests");
+  if (m.imbuement) t.push("imbue"); // Dona Marta: grade de encantamentos (ImbuementTab)
   if (m.travel?.length) t.push("travel");
   if (m.shop?.sells.length) t.push("buy");
   if (m.shop?.buys?.length) t.push("sell");
@@ -78,7 +81,7 @@ export function buyCasinoTicket(npcId: string): void {
   send(C2S.NpcTrade, m);
 }
 
-export function buyImbuement(npcId: string, effect: string): void {
-  const m: NpcTradeMsg = { npcId, action: "imbuement", effect };
+export function buyImbuement(npcId: string, effect: string, tier: number): void {
+  const m: NpcTradeMsg = { npcId, action: "imbuement", effect, tier };
   send(C2S.NpcTrade, m);
 }

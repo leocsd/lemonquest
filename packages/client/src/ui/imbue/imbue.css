@@ -1,0 +1,24 @@
+/* Aba "Encantar" da Dona Marta (ciclo 16): grade efeito × tier. Botões reaproveitam .shop-btn (npc.css). */
+.imbue { display: flex; flex-direction: column; gap: 8px; }
+.imbue-status {
+  display: flex; flex-direction: column; gap: 3px; padding: 7px 10px; font-size: 12px; line-height: 1.4;
+  background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hud-line-soft); border-radius: 5px;
+}
+.imbue-status b { color: #d9b8ff; }
+.imbue-status small { font-size: 11px; color: var(--hud-muted); }
+.imbue-confirm { font-size: 12px; line-height: 1.4; color: #ffb3a8; }
+.imbue-grid { display: grid; grid-template-columns: 74px repeat(3, minmax(0, 1fr)); gap: 4px; align-items: stretch; }
+.imbue-col { text-align: center; font-size: 11px; font-weight: 600; color: var(--hud-muted); letter-spacing: 0.04em; }
+.imbue-name { align-self: center; font-size: 12px; line-height: 1.2; cursor: help; }
+.imbue-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 3px;
+  background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.imbue-cell:hover { border-color: var(--hud-line-hi); }
+.imbue-cell.active { border-color: rgba(192, 128, 255, 0.7); background: rgba(192, 128, 255, 0.1); }
+.imbue-val { font-size: 14px; font-weight: 600; color: var(--hud-text); cursor: help; }
+.imbue-cost { display: flex; align-items: center; gap: 3px; color: var(--hud-gold); }
+.imbue-mat { display: flex; align-items: center; gap: 3px; color: var(--hud-text); }
+.imbue-lv { color: var(--hud-muted); }
+.imbue-btn { margin-top: auto; width: 100%; padding: 2px 4px; height: 24px; font-size: 12px; }

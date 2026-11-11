@@ -2,9 +2,11 @@ import type { ChatChannel, ChatMessage, CombatEvent, Dir, FightStance, Vocation 
 import type { ConditionId, SpellFx } from "./data/spells.ts";
 import type { SkillId } from "./skills.ts";
 import type { Hotkey } from "./hotkeys.ts";
+import type { SpellGroup } from "./data/spellFamilies.ts";
 import type { PartyShareReason } from "./party.ts";
 export type { SkillId };
 import type { EquipSlot, ItemInstance, Rarity, Stats } from "./data/items.ts";
+import type { ArenaModId, ArenaTimeRecord } from "./data/arena.ts";
 
 /** Cliente → servidor */
 export const C2S = {
@@ -75,7 +77,23 @@ export const C2S = {
   Fish: "fish",
   /** Abrir um baú de quest ou puxar uma alavanca adjacente (UseQuestObjectMsg). */
   UseQuestObject: "useQuestObject",
+  /** Vincular o próprio ClickUp com o token pessoal (WorkLinkMsg): o servidor confere e descarta o token. */
+  WorkLink: "workLink",
+  /** Desvincular o próprio ClickUp. */
+  WorkUnlink: "workUnlink",
+  /** Refinar no Ferreiro aberto um item da mochila ou do equipamento (RefineMsg). */
+  Refine: "refine",
+  /** Pedir a agenda de eventos da semana (janela Agenda): o servidor responde S2C.Agenda. */
+  AgendaRequest: "agendaRequest",
+  /** Organizar o depot aberto (SortContainerMsg): junta pilhas iguais e ordena por categoria e nome. */
+  SortContainer: "sortContainer",
 } as const;
+
+/** C2S.SortContainer: só o depot (aberto e perto do guarda-volumes). */
+export interface SortContainerMsg { where: "depot" }
+
+/** C2S.WorkLink: token pessoal do ClickUp (pk_…). Nunca é guardado nem devolvido. */
+export interface WorkLinkMsg { token: string }
 
 export interface UseQuestObjectMsg { kind: "chest" | "lever"; id: string }
 
@@ -130,6 +148,11 @@ export type DropFrom = { where: "backpack"; index: number } | { where: "equip"; 
 export interface DropItemMsg { from: DropFrom; x: number; y: number; count?: number }
 export type PickupTo = { where: "backpack"; index: number } | { where: "equip"; slot: EquipSlot };
 export interface PickupItemMsg { groundId: string; to?: PickupTo }
+/**
+ * C2S.Refine (shared/data/refine.ts). `uid` e `level` (nível buscado = atual + 1) protegem do item trocado de lugar e do
+ * clique duplo: se não batem com o item no servidor, nada é cobrado.
+ */
+export interface RefineMsg { from: DropFrom; uid: string; level: number }
 export interface NpcInteractMsg { npcId: string }
 export type NpcTradeMsg =
   | { npcId: string; action: "buy"; itemId: string; count: number }
@@ -140,13 +163,21 @@ export type NpcTradeMsg =
   | { npcId: string; action: "blessing" }
   /** Compra uma ficha de cassino (NpcDef.casino): prêmio aleatório, nunca poder de combate. */
   | { npcId: string; action: "casino" }
-  /** Compra/troca o encantamento ativo (NpcDef.imbuement): substitui o anterior, sem reembolso. */
-  | { npcId: string; action: "imbuement"; effect: string };
+  /**
+   * Compra/troca o encantamento ativo (NpcDef.imbuement): substitui o anterior, sem reembolso, com 10 h cheias de
+   * combate. `tier` 1–3 (shared/data/imbuement.ts); ausente = 1.
+   */
+  | { npcId: string; action: "imbuement"; effect: string; tier?: number };
 
 export interface CastMsg { spellId: string; targetId?: string | null }
 
 export interface AttackMsg { targetId: string | null }
-export interface MoveMsg { dir: Dir | null; seq: number }
+/**
+ * `at`: onde a predição do cliente está ao enviar (soltar ou trocar de direção). Se for o próximo tile na direção que
+ * estava segurada, o servidor completa esse passo antes de mudar a intenção: sem isso, quando a mensagem chegava antes
+ * do instante em que o servidor daria o passo, ele era perdido e o cliente puxava o boneco de volta (lag ao soltar).
+ */
+export interface MoveMsg { dir: Dir | null; seq: number; at?: { x: number; y: number } }
 /**
  * Andar até (x,y) pelo caminho. `stop: true` = só cancela o caminho em andamento (o passo já começado termina);
  * x/y são ignorados (o cliente manda o próprio tile, que num servidor antigo também para).
@@ -238,7 +269,49 @@ export const S2C = {
   Event: "event",
   /** Convite para um grupo (toast com Aceitar/Recusar). */
   PartyInvite: "partyInvite",
+  /** Quadro da obra (ClickUp, ciclo 11): barras de sprint e tarefas "Na obra"; enviado ao abrir um NPC com workBoard. */
+  Work: "work",
+  /** Agenda de eventos da semana (AgendaMsg): ao entrar, sob pedido (C2S.AgendaRequest) e quando um evento começa/acaba. */
+  Agenda: "agenda",
+  /** Um evento agendado começa daqui a EVENT_SOON_MS (EventSoonMsg): o cliente chama a atenção na aba. */
+  EventSoon: "eventSoon",
 } as const;
+
+/** Ocorrência da agenda. Horários em ms epoch, calculados no fuso do servidor (o mesmo do agendador). */
+export interface AgendaEntry {
+  id: string; name: string; desc: string; xpMult: number; lootMult: number;
+  /** Chefe convocado no começo (id em MONSTERS). */
+  boss?: string;
+  start: number; end: number;
+}
+/** A semana a partir de agora (uma ocorrência de cada evento, a em andamento primeiro). */
+export interface AgendaMsg { events: AgendaEntry[]; serverNow: number }
+export interface EventSoonMsg { id: string; name: string; desc: string; start: number }
+
+/** Barra coletiva de um projeto na semana ISO: tarefas fechadas e meta (média das 4 semanas anteriores). */
+export interface WorkSprintBar { id: string; name: string; done: number; goal: number }
+/** Tarefa aberta da aba "Na obra" (título já disfarçado por shared/workFilter.ts). */
+export interface WorkTaskRow { title: string; who: string; project: string }
+export interface WorkMsg {
+  /** NPC aberto (o cliente só mostra a aba nesse NPC). */
+  npcId: string;
+  /** false = ClickUp desligado (sem token) ou ainda sem leitura. */
+  online: boolean;
+  /** Semana ISO das barras ("2026-W43"). */
+  week: string;
+  sprints: WorkSprintBar[];
+  /** Soma da semana e meta somada: passou da meta = "Sprint Fechada" (XP ×1,25 por 1 h). */
+  total: { done: number; goal: number; fired: boolean };
+  tasks: WorkTaskRow[];
+  /** Última leitura bem-sucedida (ms epoch; 0 = nunca). */
+  updatedAt: number;
+  /** O servidor lê o ClickUp (tem token próprio): sem isso, o vínculo vale mas as tarefas ainda não contam. */
+  polling?: boolean;
+  /** O vínculo self-service está disponível. */
+  canLink?: boolean;
+  /** Vínculo de quem vê (apelido da equipe ou "usuário <id>"); null = não vinculado. */
+  link?: { nick: string } | null;
+}
 
 export interface QuestCompleteMsg {
   /** Nome da missão (ou "Recompensa: Mate 20 Lobos"). */
@@ -247,6 +320,8 @@ export interface QuestCompleteMsg {
   gold: number;
   items: { itemId: string; count: number }[];
   bounty?: boolean;
+  /** Missão do catálogo (não vem em recompensa nem baú): o cartão mostra o que ela abriu (ciclo 17). */
+  questId?: string;
 }
 
 export interface PartyMemberInfo {
@@ -296,8 +371,9 @@ export interface SpellCastMsg {
   /** Tiles afetados (pares x,y achatados) para áreas/ondas. */
   tiles?: number[];
 }
-export interface SetHotkeysMsg { list: Hotkey[] }
-export interface HotkeysMsg { list: Hotkey[] | null }
+/** `groups` ausente = não mexe nos grupos salvos (cliente antigo); presente = substitui. */
+export interface SetHotkeysMsg { list: Hotkey[]; groups?: SpellGroup[] }
+export interface HotkeysMsg { list: Hotkey[] | null; groups?: SpellGroup[] }
 export interface MonsterTelegraphMsg {
   casterId: string;
   /** Tiles que vão ser atingidos (pares x,y achatados). */
@@ -306,7 +382,18 @@ export interface MonsterTelegraphMsg {
   ms: number;
   fx: SpellFx;
 }
-export interface ConditionsMsg { list: { id: ConditionId; remainingMs?: number; value?: number; /** 'fed': value = vida/tique, value2 = mana/tique. */ value2?: number }[] }
+export interface ConditionsMsg {
+  list: {
+    id: ConditionId; remainingMs?: number; value?: number;
+    /** 'fed': value = vida/tique, value2 = mana/tique. 'imbued': value = minutos de combate restantes, value2 = tier. */
+    value2?: number;
+    /**
+     * 'imbued': efeito (IMBUEMENTS). O encantamento não tem remainingMs: o tempo só corre em combate PvE, então o
+     * cliente não pode contar sozinho; o servidor reenvia quando muda o minuto.
+     */
+    effect?: string;
+  }[];
+}
 export interface SkillUpMsg { skill: SkillId; level: number }
 export interface InventoryMsg {
   equipment: Partial<Record<EquipSlot, ItemInstance>>;
@@ -329,8 +416,11 @@ export interface NpcOpenMsg {
   blessing?: { price: number; active: boolean };
   /** Vende ficha de cassino (NpcDef.casino): preço fixo em CASINO_TICKET_PRICE. */
   casino?: boolean;
-  /** Vende encantamento (NpcDef.imbuement): efeito ativo do personagem, se houver. */
-  imbuement?: { active: string };
+  /**
+   * Vende encantamento (NpcDef.imbuement): o ativo do personagem (`active` = efeito, "" = nenhum; `tier` 1–3;
+   * `leftMs` = combate restante).
+   */
+  imbuement?: { active: string; tier: number; leftMs: number };
 }
 export interface TravelMsg { npcId: string; dest: string }
 export interface LookGroundMsg { groundId: string }
@@ -356,7 +446,13 @@ export interface EventMsg { active: import("./data/events.ts").ActiveEvent | nul
 export interface TrainingOpenMsg { statueId: string }
 export interface TrainingResultMsg { skill: SkillId; minutes: number; levelsGained: number; newLevel: number; pct: number }
 export interface ArenaLobbySummary { id: string; leader: string; members: string[]; avgLevel: number }
-export interface ArenaLobbiesMsg { lobbies: ArenaLobbySummary[]; freeArenas: number; queue: number }
+export interface ArenaLobbiesMsg {
+  lobbies: ArenaLobbySummary[];
+  freeArenas: number;
+  queue: number;
+  /** Ciclo 16: modificador da semana (ondas 61–70), quando a semana acaba e os melhores tempos das 70 ondas. */
+  week?: { mod: ArenaModId; endsAt: number; best?: ArenaTimeRecord; record?: ArenaTimeRecord };
+}
 /** "break" = respiro curto entre ondas comuns (sem loja); "pause" = pausa com vendedor e "Pronto" (depois de chefe). */
 export type ArenaPhase = "lobby" | "queued" | "countdown" | "fight" | "break" | "pause" | "ended";
 export interface ArenaStateMsg {
@@ -375,13 +471,33 @@ export interface ArenaStateMsg {
     leader: string;
     /** Recompensa acumulada até agora (cada participante). */
     earned: { xp: number; gold: number };
+    /** Modificador das ondas 61–70 desta partida (o da semana em que começou; no lobby, o da semana). */
+    mod?: ArenaModId;
+    /** Início da onda 1 (ms epoch do servidor): relógio da partida para o ranking de tempo. */
+    startedAt?: number;
   };
 }
-export interface ArenaResultMsg { wavesCleared: number; xp: number; gold: number; best: number; reason: "wiped" | "gave_up" | "completed" }
+export interface ArenaResultMsg {
+  wavesCleared: number;
+  xp: number;
+  gold: number;
+  best: number;
+  reason: "wiped" | "gave_up" | "completed";
+  /** Venceu as 70: tempo da partida e se bateu o melhor da semana ou o recorde do servidor. */
+  timeMs?: number;
+  timeRecord?: "week" | "server";
+}
 export interface CombatMsg { events: CombatEvent[] }
 export interface XpGainMsg { amount: number; x: number; y: number }
 export interface LevelUpMsg { level: number; maxHp: number; maxMana: number }
-export interface DiedMsg { lostXp: number; killerName: string }
+export interface DiedMsg {
+  lostXp: number;
+  killerName: string;
+  /** A bênção foi gasta nesta morte (só acontece quando havia XP a perder). */
+  blessingUsed?: boolean;
+  /** XP que a bênção salvou (a perda que haveria sem ela). */
+  savedXp?: number;
+}
 export interface CreatureDiedMsg { id: string; x: number; y: number; defId: string }
 export interface ExploredMsg { width: number; height: number; bits: string /* base64 */ }
 export interface NoticeMsg {

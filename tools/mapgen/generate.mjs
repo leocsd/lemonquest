@@ -8,6 +8,10 @@ import { createLemon } from './lemon.mjs';
 import { polish } from './polish.mjs';
 import { expand } from './expansion.mjs';
 import { expand2 } from './expansion2.mjs';
+import { expand3 } from './expansion3.mjs';
+import { expand4 } from './expansion4.mjs';
+import { expand5 } from './expansion5.mjs';
+import { drawEntrances14 } from './entrances14.mjs';
 import { PNG } from 'pngjs';
 
 const SEED = 20260611;
@@ -843,14 +847,161 @@ for (const [m, count, radius, level, x, y] of caveSpawns) {
   world.tileObj('monster_spawn', x, y, { monster: m, count, radius, level }, m);
 }
 
+// ===================================================================== OFICINA DOS ENGENHOS (ciclo 10: tools/mapgen/expansion3.mjs)
+// Primeira expansão para BAIXO: o mapa de cima (400×288) fica intacto e o bloco novo entra nas linhas 312..333, ligado à
+// Vila por um portal em (99,79) ↔ porta de saída em (63,321). Os objetos novos entram depois de todos os antigos.
+const { map: world3, reach: reach3 } = expand3({ old: world, ts, S, L: LEMON, spawnTile: SPAWN, village: { x0: 58, y0: 76, x1: 103, y1: 115 } });
+// Monstros do ciclo 10 (lore da Oficina): spawns só-objeto como os caveSpawns — nenhum tile muda. Pontos andáveis,
+// alcançáveis e fora de toda zona protegida, conferidos aqui; distâncias a spawns/NPCs/portais escolhidas à mão.
+// [monstro, count, radius, level, x, y]
+const lateSpawns10 = [
+  ['datacenter_rat', 6, 5, 3, 47, 42], // Floresta Sussurrante (noroeste): 30 tiles dos ratos da 1ª missão (70,62) — o bando de lv 3 não pode cair na caçada do lv 1 —, 18+ de outros spawns
+  ['runaway_drum', 5, 6, 10, 78, 25], // Floresta, estrada dos lobos (lobos lv 10 em 76,18 a 7 tiles), 51 da Vila
+  ['slag_slime', 6, 5, 20, 137, 76], // Pântano Turvo: 16 tiles da boca da caverna, fora da ilha do lich, 44+ de NPC
+  ['slag_slime', 3, 4, 20, 19, 170], // Cavernas, corredor A→B: 8+ das escadas e 9+ de outros spawns
+];
+{
+  const pzZones = world3.objects.filter((o) => o.type === 'zone' && o.properties?.some((p) => p.name === 'pz' && p.value === true));
+  for (const [m, count, radius, level, x, y] of lateSpawns10) {
+    if (world3.blocked(x, y)) fail(`late spawn ${m} at ${x},${y} is on a blocked tile`);
+    if (!reach3[y * world3.w + x]) fail(`late spawn ${m} at ${x},${y} unreachable`);
+    if (pzZones.some((z) => x * 16 >= z.x && x * 16 < z.x + z.width && y * 16 >= z.y && y * 16 < z.y + z.height)) fail(`late spawn ${m} at ${x},${y} inside a protection zone`);
+    world3.tileObj('monster_spawn', x, y, { monster: m, count, radius, level }, m);
+  }
+}
+
+// ===================================================================== MALHA DA FERROVIA (ciclo 11: tools/mapgen/expansion4.mjs)
+// Segunda expansão para baixo: o mapa acima (400×336) fica intacto e a região ferroviária entra nas linhas 360..469,
+// ligada à Vila de trem (TravelDest dos chefes de estação) e por um par de portais ocultos entre as duas estações.
+// Roda por último: é a única etapa que aloca a arte da ferrovia no TilesetLemon (os tiles Lemon antigos mantêm o id).
+const { map: world4, reach: reach4, portalMap: portals4 } = expand4({ old: world3, ts, S, L: LEMON, spawnTile: SPAWN, village: { x0: 58, y0: 76, x1: 103, y1: 115 }, workshopPatio: { x0: 75, y0: 327, x1: 87, y1: 332 } });
+// Saídas da Malha (2026-10-24, pedido do dono): o trem de volta só existia na Estação Central, a oeste, e a Malha tem
+// 160 tiles de largura. O Agente da Parada fica no lado leste, colado na linha principal entre o Portal de Inspeção e o
+// desvio da Oficina de Vagões. Só objeto, o último do mapa (nenhum tile muda, ids antigos estáveis).
+const lateNpcs11 = [['agente_parada', 154, 404]];
+{
+  const W4 = world4.w, at = (x, y) => y * W4 + x;
+  const prop = (o, n) => o.properties?.find((p) => p.name === n)?.value;
+  const cheb = (ax, ay, bx, by) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+  const npcTiles = world4.objects.filter((o) => o.type === 'npc').map((o) => [o.x / 16, o.y / 16]);
+  const spawnObjs = world4.objects.filter((o) => o.type === 'monster_spawn').map((o) => [o.x / 16, o.y / 16, prop(o, 'radius') ?? 0]);
+  const malha = { x0: 40, y0: 360, x1: 199, y1: 469 }, arrival = [60, 374];
+  const reachedIn = () => { const r = bfs(world4, arrival[0], arrival[1], portals4); let n = 0; for (let y = malha.y0; y <= malha.y1; y++) for (let x = malha.x0; x <= malha.x1; x++) if (!world4.blocked(x, y) && r[at(x, y)]) n++; return n; };
+  for (const [id, x, y] of lateNpcs11) {
+    if (world4.blocked(x, y)) fail(`late npc ${id} em ${x},${y} bloqueado`);
+    if (reach4[at(x, y)] !== 1) fail(`late npc ${id} em ${x},${y} inalcançável`);
+    if (npcTiles.some(([a, b]) => cheb(a, b, x, y) < 2)) fail(`late npc ${id} a menos de 2 tiles de outro NPC`);
+    if (spawnObjs.some(([a, b, r]) => cheb(a, b, x, y) - r < 8)) fail(`late npc ${id} perto demais de um spawn`);
+    if (portals4.has(`${x},${y}`) || [...portals4.values()].some(([tx, ty]) => tx === x && ty === y)) fail(`late npc ${id} em portal ou destino de portal`);
+    // virar obstáculo não pode fechar bolsão: o resto da Malha continua alcançável a partir da chegada do trem
+    const before = reachedIn();
+    world4.block(x, y);
+    const after = reachedIn();
+    world4.block(x, y, false);
+    if (after !== before - 1) fail(`late npc ${id} em ${x},${y} fecha ${before - 1 - after} tile(s) da Malha`);
+    world4.tileObj('npc', x, y, { npcId: id }, id);
+  }
+}
+
+// ===================================================================== CAVES PROFUNDAS (ciclo 13: tools/mapgen/expansion5.mjs)
+// Terceira expansão para baixo: o mapa acima (400×472) fica intacto e quatro caves (12–28, 35–55, 60–85, 100–130) entram
+// nas linhas 498..559. Entradas só-objeto: um portal com level mínimo num recanto andável de cada região de origem
+// (o desenho delas vem no fim, em BOCAS DE CAVERNA).
+const { map: world5, reach: reach5, portalMap: portals5, caves: caves5 } = expand5({ old: world4, L: LEMON, spawnTile: SPAWN });
+
+// ===================================================================== COVIS E FERREIRO (ciclo 16: só objetos)
+// Um chefe e três baús de escolha na sala do fundo (covil) de cada cave do ciclo 13, e o Mestre Brás, o Ferreiro, ao lado
+// do Bento. Nenhum tile muda: o baú é um objeto "quest_chest" com `drawn` (o cliente desenha o baú grande do pack e a
+// CollisionGrid bloqueia o tile pelo objeto) e o NPC vira obstáculo em jogo, como os lateNpcs. Tudo depois dos objetos
+// já publicados (ids antigos estáveis). Baús na parede do fundo, com um tile livre entre eles; chefe no meio do covil.
+// [cave, chefe, level, [baús de cima para baixo (de quem olha o mapa)]]
+const lateObjects14 = {
+  lairs: [
+    ['minas', 'lair_mole_king', 28, ['lair_minas_furia', 'lair_minas_lich', 'lair_minas_protecao']],
+    ['grutas', 'lair_kraken', 54, ['lair_grutas_might', 'lair_grutas_labirinto', 'lair_grutas_engrenagens']],
+    ['catacumbas', 'lair_flame', 82, ['lair_catacumbas_knight', 'lair_catacumbas_paladin', 'lair_catacumbas_mage']],
+    ['profundo', 'lair_shogun', 125, ['lair_profundo_amulet', 'lair_profundo_ring', 'lair_profundo_boots']],
+  ],
+  boss: { dx: 84, y: 541, radius: 2 },
+  chests: { dx: 91, ys: [539, 541, 543] },
+  npcs: [['blacksmith', 68, 95]], // Vila: grama a leste da loja do Bento (65,95), fora do caminho
+};
+{
+  const W5 = world5.w, at = (x, y) => y * W5 + x;
+  const prop = (o, n) => o.properties?.find((p) => p.name === n)?.value;
+  const cheb = (ax, ay, bx, by) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+  // Sala 4 (covil) da planta de tools/mapgen/expansion5.mjs (ROOMS: [73, 530, 91, 552]), com o mesmo espelhamento.
+  const LAIR = { dx0: 73, y0: 530, dx1: 91, y1: 552 };
+  const lairX = (c, dx) => (c.mirror ? c.x + 91 - dx : c.x + dx);
+  const lairRect = (c) => { const a = lairX(c, LAIR.dx0), b = lairX(c, LAIR.dx1); return { x0: Math.min(a, b), y0: LAIR.y0, x1: Math.max(a, b), y1: LAIR.y1 }; };
+  const pzZones = world5.objects.filter((o) => o.type === 'zone' && prop(o, 'pz') === true);
+  const inPz = (x, y) => pzZones.some((z) => x * 16 >= z.x && x * 16 < z.x + z.width && y * 16 >= z.y && y * 16 < z.y + z.height);
+  const pointAt = new Set(world5.objects.filter((o) => o.point).map((o) => `${Math.floor(o.x / 16)},${Math.floor(o.y / 16)}`));
+  const isPortalOrTarget = (x, y) => portals5.has(`${x},${y}`) || [...portals5.values()].some(([tx, ty]) => tx === x && ty === y);
+  const reachCount = () => { const r = bfs(world5, SPAWN[0], SPAWN[1], portals5); let n = 0; for (let i = 0; i < r.length; i++) n += r[i]; return n; };
+  const before = reachCount();
+  const lairObjs = [];
+  for (const [caveId, boss, level, chestIds] of lateObjects14.lairs) {
+    const c = caves5.find((k) => k.id === caveId);
+    if (!c) fail(`covil: cave ${caveId} não existe`);
+    const room = lairRect(c);
+    const inRoom = (x, y, r = 0) => x - r >= room.x0 && x + r <= room.x1 && y - r >= room.y0 && y + r <= room.y1;
+    const { dx, y, radius } = lateObjects14.boss;
+    const bx = lairX(c, dx);
+    if (!inRoom(bx, y, radius)) fail(`covil ${caveId}: chefe ${boss} em ${bx},${y} (raio ${radius}) fora da sala`);
+    if (world5.blocked(bx, y) || !reach5[at(bx, y)]) fail(`covil ${caveId}: chefe ${boss} em ${bx},${y} bloqueado ou inalcançável`);
+    if (inPz(bx, y) || pointAt.has(`${bx},${y}`)) fail(`covil ${caveId}: chefe ${boss} em ${bx},${y} em PZ ou em cima de outro objeto`);
+    lairObjs.push(['monster_spawn', bx, y, { monster: boss, count: 1, radius, level }, boss]);
+    const cx = lairX(c, lateObjects14.chests.dx);
+    for (const [i, cy] of lateObjects14.chests.ys.entries()) {
+      const id = chestIds[i];
+      if (!inRoom(cx, cy)) fail(`covil ${caveId}: baú ${id} em ${cx},${cy} fora da sala`);
+      if (world5.blocked(cx, cy) || !reach5[at(cx, cy)]) fail(`covil ${caveId}: baú ${id} em ${cx},${cy} bloqueado ou inalcançável`);
+      if (pointAt.has(`${cx},${cy}`) || isPortalOrTarget(cx, cy)) fail(`covil ${caveId}: baú ${id} em ${cx},${cy} em cima de outro objeto`);
+      if (cheb(cx, cy, bx, y) <= radius) fail(`covil ${caveId}: baú ${id} dentro da área do chefe`);
+      lairObjs.push(['quest_chest', cx, cy, { chestId: id, drawn: true }, id]);
+    }
+  }
+  for (const [id, x, y] of lateObjects14.npcs) {
+    const npcTiles = world5.objects.filter((o) => o.type === 'npc').map((o) => [o.x / 16, o.y / 16]);
+    const spawnObjs = world5.objects.filter((o) => o.type === 'monster_spawn').map((o) => [o.x / 16, o.y / 16, prop(o, 'radius') ?? 0]);
+    if (world5.blocked(x, y) || !reach5[at(x, y)]) fail(`late npc ${id} em ${x},${y} bloqueado ou inalcançável`);
+    if (!inPz(x, y)) fail(`late npc ${id} em ${x},${y} fora da zona protegida`);
+    if (npcTiles.some(([a, b]) => cheb(a, b, x, y) < 2)) fail(`late npc ${id} a menos de 2 tiles de outro NPC`);
+    if (spawnObjs.some(([a, b, r]) => cheb(a, b, x, y) - r < 8)) fail(`late npc ${id} perto demais de um spawn`);
+    if (pointAt.has(`${x},${y}`) || isPortalOrTarget(x, y)) fail(`late npc ${id} em ${x},${y} em cima de outro objeto`);
+    lairObjs.push(['npc', x, y, { npcId: id }, id]);
+  }
+  // Baús e NPC viram obstáculo em jogo: nenhum pode fechar bolsão. Bloqueados todos juntos, o mapa alcançável a partir
+  // do templo perde exatamente os próprios tiles; e todo baú tem um vizinho andável alcançável (abrir pede Chebyshev 1).
+  const solid = lairObjs.filter(([type]) => type !== 'monster_spawn');
+  for (const [, x, y] of solid) world5.block(x, y);
+  const r = bfs(world5, SPAWN[0], SPAWN[1], portals5);
+  let after = 0; for (let i = 0; i < r.length; i++) after += r[i];
+  for (const [type, x, y, props] of solid) {
+    if (type !== 'quest_chest') continue;
+    const ok = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => !world5.blocked(x + a, y + b) && r[at(x + a, y + b)]);
+    if (!ok) fail(`baú ${props.chestId} em ${x},${y} sem vizinho alcançável`);
+  }
+  for (const [, x, y] of solid) world5.block(x, y, false);
+  if (after !== before - solid.length) fail(`covis/ferreiro fecham ${before - solid.length - after} tile(s) do mapa`);
+  for (const [type, x, y, props, name] of lairObjs) world5.tileObj(type, x, y, props, name);
+  console.log(`lateObjects14: ${lateObjects14.lairs.length} chefes de covil, ${solid.length - lateObjects14.npcs.length} baús desenhados, ${lateObjects14.npcs.length} NPC; ${after}/${before} tiles alcançáveis com os obstáculos`);
+}
+
+// ===================================================================== BOCAS DE CAVERNA (ciclo 17: tools/mapgen/entrances14.mjs)
+// Exceção controlada ao "0 tiles alterados" (autorizada pelo dono): desenha as entradas das caves do ciclo 13 mudando
+// tiles só nos retângulos de ENTRANCE_RECTS. Vem depois de todas as etapas já publicadas; etapas futuras entram depois.
+drawEntrances14({ map: world5, S, L: LEMON, spawnTile: SPAWN, portalMap: portals5, caves: caves5 });
+
 // ===================================================================== OUTPUT
 fs.mkdirSync(MAPS_DIR, { recursive: true });
-fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world.toTiled()));
+fs.writeFileSync(path.join(MAPS_DIR, 'world.json'), JSON.stringify(world5.toTiled()));
 { const cp = LEMON.set.croppedPng(); const out = new PNG({ width: cp.width, height: cp.height }); out.data = Buffer.from(cp.data); const dir = path.join(MAPS_DIR, '../tiles'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'lemon-terrain.png'), PNG.sync.write(out)); }
 // Os previews ficam só no disco (assets/maps/preview*.png está no .gitignore): são regenerados aqui a cada rodada.
-const a = renderPreview(world, path.join(MAPS_DIR, 'preview.png'));
-const b = renderPreview(world, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
+const a = renderPreview(world5, path.join(MAPS_DIR, 'preview.png'));
+const b = renderPreview(world5, path.join(MAPS_DIR, 'preview-small.png'), { scale: 4 });
 if (process.argv.includes('--debug')) {
-  renderPreview(world, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
+  renderPreview(world5, path.join(here, '_v/debug.png'), { collisionOverlay: true, objectsOverlay: true });
 }
-console.log(`world.json ${world.w}x${world.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world.objects.length}`);
+console.log(`world.json ${world5.w}x${world5.h}; preview ${a.W}x${a.H}; small ${b.W}x${b.H}; objects ${world5.objects.length}`);

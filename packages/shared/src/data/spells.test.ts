@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { SPELLS, spellsFor, spellByWords, spellMana, type ConditionId, type SpellDef, type SpellFormula } from "./spells.ts";
 import { MONSTERS } from "./monsters.ts";
-import { baseStats, playerDamageRange, weaponDamageRange } from "../formulas.ts";
+import { MANA_SHIELD_ABSORB, baseStats, playerDamageRange, weaponDamageRange } from "../formulas.ts";
 import { HOTKEY_MAX } from "../hotkeys.ts";
+import { skillEstimate } from "../skills.ts";
 import { ITEMS } from "./items.ts";
 import type { Vocation } from "../types.ts";
 
@@ -10,17 +11,11 @@ const VOCS: Vocation[] = ["knight", "paladin", "sorcerer", "druid"];
 const LEVELS = [1, 5, 10, 15, 20, 30];
 const CONDITIONS: ConditionId[] = [
   "combat", "poison", "burn", "energy", "bleed", "freeze", "protect", "haste", "slow", "drunk", "regen", "pz",
-  "manashield", "rooted", "taunted", "berserk",
+  "manashield", "rooted", "taunted", "berserk", "exposed",
 ];
 
-/** Estimativa de magic level por vocação/level (magos ~22 no lvl 30, cavaleiros ~4). */
-function mlEstimate(voc: Vocation, level: number): number {
-  switch (voc) {
-    case "sorcerer": case "druid": return Math.floor(level * 0.75);
-    case "paladin": return Math.floor(level / 4);
-    default: return Math.floor(level / 7);
-  }
-}
+/** Magic level estimado (shared/skills.ts; ciclo 15, pela produção: mago 20/29/37 nos lv 30/60/100 — era 0,75 × level). */
+const mlEstimate = (voc: Vocation, level: number): number => skillEstimate(voc, level).magic;
 
 const avg = (f: SpellFormula, voc: Vocation, level: number) => f.base + level * f.perLevel + mlEstimate(voc, level) * f.perMagic;
 /** Valor esperado da magia para uma vocação (padrão: a primeira que a conjura). */
@@ -43,9 +38,10 @@ const healPct = (id: string, voc: Vocation, level: number) => value(SPELLS[id]!,
 const HEALS = ["light_heal", "intense_heal", "vital_cure", "arcane_restoration", "holy_cure"];
 
 describe("SPELLS", () => {
-  it("cada vocação tem 10-15 magias (cabem nos atalhos, família absorve o excesso), com cura própria por vocação", () => {
+  it("cada vocação tem 13-16 magias, com cura própria por vocação (cabem nos atalhos pelas famílias: hotkeys.test.ts)", () => {
     // Ciclo 9: Cura Intensa (comum) + cura própria por vocação (druida/feiticeiro/paladino) reabriram o catálogo de
-    // curas, antes travado numa só por vocação (ver histórico abaixo).
+    // curas, antes travado numa só por vocação (ver histórico no spells.ts). Ciclo 12 deu 1 magia de utilidade em
+    // grupo por vocação no lv 100; ciclo 15 deu Escudo de Mana ao druida também.
     const SELF_HEALS: Record<Vocation, string[]> = {
       knight: ["light_heal", "intense_heal"],
       paladin: ["light_heal", "holy_cure", "intense_heal"],
@@ -54,15 +50,31 @@ describe("SPELLS", () => {
     };
     for (const v of VOCS) {
       const list = spellsFor(v);
-      expect(list.length, v).toBeGreaterThanOrEqual(10);
-      expect(list.length, v).toBeLessThanOrEqual(15);
+      expect(list.length, v).toBeGreaterThanOrEqual(13);
+      // Desde as famílias (ciclo 11) uma tecla junta várias magias: o que precisa caber em HOTKEY_MAX é a barra
+      // recomendada, não a lista.
+      expect(list.length, v).toBeLessThanOrEqual(16);
       expect(list.map((s) => s.level), v).toEqual([...list.map((s) => s.level)].sort((a, b) => a - b));
       expect(list.some((s) => s.id === "light_heal"), v).toBe(true);
-      // Curas em si mesmo (alvo "self" com heal); a cura em grupo do druida e as de grupo do ciclo 9 são outra coisa.
+      // Curas em si mesmo (alvo "self" com heal); a cura em grupo do druida e as de grupo do ciclo 12 são outra coisa.
       expect(list.filter((s) => s.target === "self" && s.heal).map((s) => s.id), v).toEqual(SELF_HEALS[v]);
       expect(list.every((s) => s.vocations.includes(v))).toBe(true);
     }
+    expect(Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).length]))).toEqual({ knight: 13, paladin: 13, sorcerer: 15, druid: 16 });
     expect(Object.keys(SPELLS).length).toBe(47);
+  });
+
+  it("descrição do Escudo de Mana acompanha MANA_SHIELD_ABSORB (mudar a constante exige reescrever o texto)", () => {
+    expect(MANA_SHIELD_ABSORB, "o texto diz \"metade\": reescreva a descrição de mana_shield").toBe(0.5);
+    expect(SPELLS.mana_shield!.description).toMatch(/metade/);
+  });
+
+  it("Escudo de Mana (utamo vita, lv 15): feiticeiro e druida, a mesma magia (ciclo 15)", () => {
+    expect(spellByWords("utamo vita")).toBe(SPELLS.mana_shield);
+    expect(SPELLS.mana_shield).toMatchObject({ vocations: ["sorcerer", "druid"], level: 15, condition: { id: "manashield" } });
+    expect(spellsFor("druid").map((s) => s.id)).toContain("mana_shield");
+    expect(spellsFor("knight").map((s) => s.id)).not.toContain("mana_shield");
+    expect(spellsFor("paladin").map((s) => s.id)).not.toContain("mana_shield");
   });
 
   it("cura única: exura (lv1) para todas as vocações; Cura Intensa comum; cura própria por vocação; druida mantém exura mas sio", () => {
@@ -153,12 +165,13 @@ describe("SPELLS", () => {
       expect(SPELLS.piercing_arrow.cooldownMs).toBe(2000);
     });
 
-    it("Cura (exura): ~15% da vida no level 1; mago 25-30% (lv20) e 30-35% (lv30); cav/pal 15-22%", () => {
+    it("Cura (exura): ~15% da vida no level 1; mago 25-30% (lv20) e 29-35% (lv30); cav/pal 15-22%", () => {
       for (const v of VOCS) {
         expect(healPct("light_heal", v, 1), v).toBeGreaterThanOrEqual(0.15);
         expect(healPct("light_heal", v, 1), v).toBeLessThanOrEqual(0.20);
       }
-      const MAGE: Record<number, [number, number]> = { 20: [0.25, 0.30], 30: [0.30, 0.35] };
+      // Ciclo 15: com o ML real da produção (mago 20 no lv 30, era 22 no estimador antigo) a Cura do lv 30 dá 29,9%.
+      const MAGE: Record<number, [number, number]> = { 20: [0.25, 0.30], 30: [0.29, 0.35] };
       for (const lvl of [20, 30]) {
         for (const v of ["sorcerer", "druid"] as const) {
           expect(healPct("light_heal", v, lvl), `${v}@${lvl}`).toBeGreaterThanOrEqual(MAGE[lvl][0]);
@@ -227,14 +240,14 @@ describe("SPELLS", () => {
       expect(burnPerSec).toBeLessThan(regenPerSec * 2.5);
     });
 
-    it("fim de jogo: 4 magias de dano/controle por vocação (lv 35, 50, 70, 90) + curas e grupo do ciclo 9", () => {
-      // Ciclo 9: Cura Intensa (60, comum) e a magia de grupo (110) entraram para todas; cura própria (45) só para
-      // paladino/feiticeiro/druida (o cavaleiro não ganhou uma — ver spells.ts).
+    it("fim de jogo: 4 magias de dano/controle por vocação (lv 35, 50, 70, 90) + curas do ciclo 9 e utilidade do ciclo 12", () => {
+      // Ciclo 9: Cura Intensa (60, comum) entrou para todas; cura própria (45) só para paladino/feiticeiro/druida (o
+      // cavaleiro não ganhou uma — ver spells.ts). Ciclo 12 acrescentou a magia de utilidade em grupo no lv 100.
       const LATE_LEVELS: Record<Vocation, number[]> = {
-        knight: [35, 50, 60, 70, 90, 110],
-        paladin: [35, 45, 50, 60, 70, 90, 110],
-        sorcerer: [35, 45, 50, 60, 70, 90, 110],
-        druid: [35, 45, 50, 60, 70, 90, 110],
+        knight: [35, 50, 60, 70, 90, 100],
+        paladin: [35, 45, 50, 60, 70, 90, 100],
+        sorcerer: [35, 45, 50, 60, 70, 90, 100],
+        druid: [35, 45, 50, 60, 70, 90, 100],
       };
       const HEAL_IDS: Record<Vocation, string[]> = {
         knight: ["intense_heal"],
@@ -246,9 +259,31 @@ describe("SPELLS", () => {
         const late = spellsFor(v).filter((s) => s.level > 30);
         expect(late.map((s) => s.level), v).toEqual(LATE_LEVELS[v]);
         expect(late.filter((s) => s.heal).map((s) => s.id), v).toEqual(HEAL_IDS[v]);
-        // As de dano/controle de antes continuam exatamente nos levels 35/50/70/90, sem cura.
+        // As de dano/controle de antes continuam exatamente nos levels 35/50/70/90, sem cura. A do lv 100 (ciclo 12)
+        // também não é cura (teste dedicado a seguir).
         expect(late.filter((s) => [35, 50, 70, 90].includes(s.level)).some((s) => s.heal), v).toBe(false);
       }
+    });
+
+    it("lv 100 (ciclo 12): uma magia de utilidade por vocação, sem dano, para o grupo ou contra o alvo", () => {
+      const u = Object.fromEntries(VOCS.map((v) => [v, spellsFor(v).find((s) => s.level === 100)!]));
+      for (const v of VOCS) {
+        expect(u[v]!.damage, v).toBeUndefined();
+        expect(u[v]!.heal, v).toBeUndefined();
+        expect(u[v]!.condition, v).toBeDefined();
+        expect(u[v]!.cooldownMs, v).toBeGreaterThanOrEqual(20_000);
+      }
+      // Cavaleiro: protege o grupo, mas menos que a Pele de Ferro só nele (30%).
+      expect(u.knight).toMatchObject({ target: "party", condition: { id: "protect", value: 20 } });
+      expect(u.knight!.condition!.value!).toBeLessThan(SPELLS.iron_skin!.condition!.value!);
+      // Paladino: regen do grupo = 450 de vida em 10 s, abaixo de uma Poção de Vida Grande por aliado.
+      expect(u.paladin).toMatchObject({ target: "party", condition: { id: "regen" } });
+      expect(u.paladin!.condition!.value! * (u.paladin!.condition!.durationMs / 1000)).toBeLessThanOrEqual(450);
+      // Ciclo 15: recarga 30 s → 20 s (regen ativa metade do tempo: ~22 de vida/s por aliado em média).
+      expect(u.paladin!.cooldownMs).toBe(20_000);
+      // Feiticeiro: Ruptura no alvo; Druida: raiz em área.
+      expect(u.sorcerer).toMatchObject({ target: "target", condition: { id: "exposed" } });
+      expect(u.druid).toMatchObject({ target: "area_self", condition: { id: "rooted" } });
     });
 
     it("magia nova de dano rende 1-1,7x a melhor magia antiga da mesma categoria no level em que libera", () => {

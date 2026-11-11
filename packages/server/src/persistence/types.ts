@@ -1,4 +1,5 @@
-import type { Vocation } from "@lemonquest/shared";
+import type { SpellGroup, Vocation } from "@lemonquest/shared";
+import type { PlayData } from "../systems/telemetry.ts";
 
 /** Dados flexíveis do personagem, guardados como JSON na coluna `data`. Cada marco acrescenta campos opcionais. */
 export interface CharacterData {
@@ -30,6 +31,8 @@ export interface CharacterData {
    * magia) uma vez e avisa. Editar os atalhos marca a versão atual.
    */
   hotkeysVersion?: number;
+  /** Grupos de magia montados pelo jogador (painel "Grupos de magia"); o atalho aponta para eles por id. */
+  spellGroups?: SpellGroup[];
   /** Inventário (M4). */
   equipment?: Partial<Record<string, unknown>>;
   backpack?: unknown[];
@@ -47,7 +50,14 @@ export interface CharacterData {
   addons?: number;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; precisa estar liberado na conta). Ausente = cor natural. */
   tone?: string;
-  /** Encantamento ativo (id em IMBUEMENTS). Ausente = nenhum. */
+  /**
+   * Encantamento ativo (systems/imbuement.ts): efeito (IMBUEMENTS), tier 1–3 e combate PvE restante. Ausente = nenhum.
+   */
+  imbue?: { effect: string; tier: number; leftMs: number };
+  /**
+   * Formato antigo (até o ciclo 15, permanente): sem `imbue`, migra para tier I com 10 h na carga. No ciclo 16 ainda é
+   * gravado junto (só o efeito) para um rollback ao ciclo 15 não zerar os encantamentos pagos; a carga prefere `imbue`.
+   */
   imbuement?: string;
   /** Conquistas (systems/achievements.ts): concluídas, contadores e título ativo. */
   ach?: {
@@ -62,16 +72,21 @@ export interface CharacterData {
   };
   /** Roupas/addons/títulos liberados: "outfit:x", "addon:x:1|2", "title:x". */
   unlocks?: string[];
-  /** Telemetria de progressão (systems/telemetry.ts): tempo jogado, mortes e ouro por level. */
-  play?: { ms: number; byLevel: Record<string, { ms: number; deaths: number; goldIn: number; goldOut: number }> };
+  /** Telemetria de progressão (systems/telemetry.ts): tempo jogado, mortes (e causas), ouro, abates, XP e dano por level. */
+  play?: PlayData;
   /** Linha de base da semana (ranking e missões semanais): contadores no começo da semana ISO `id`. */
   week?: { id: string; xp: number; kills: number; fish: number; bosses: number };
   /** Desafios da semana: semana ISO, level no começo dela (meta de XP), desafios resgatados e bônus. */
   challenges?: { week: string; level: number; claimed: string[]; bonus: boolean };
-  /** Encomenda semanal de material (Quadro de Recompensas): semana ISO e se já foi entregue. */
-  request?: { week: string; claimed: boolean };
+  /**
+   * Encomenda semanal de material (Quadro de Recompensas): semana ISO, se já foi entregue e a faixa de level gravada na
+   * primeira consulta da semana (ciclo 14; ausente em gravação antiga, gravada na próxima consulta).
+   */
+  request?: { week: string; claimed: boolean; band?: number };
   /** Bônus de login: último dia de jogo (troca às 6h de Brasília) e quantos dias seguidos. */
   login?: { day: string; streak: number };
+  /** Alavanca da Aniquilação: dia de jogo (bountyDay, troca às 6h) da última entrada; uma por dia. */
+  leverDay?: string;
   /** Lista de amigos (nomes de personagem; /amigo): avisos de entrada e saída. */
   friends?: string[];
   /** Silenciado por um admin (/mute): não fala no chat até `until` (ms epoch). Sobrevive a relog. */
@@ -85,10 +100,16 @@ export interface QuestSaveData {
   active?: Record<string, number[]>;
   done?: string[];
   tracked?: string[];
-  /** Recompensas diárias: dia (chave "AAAA-MM-DD", troca às 6h de Brasília), faixa de level travada no dia e estado de cada uma. */
-  bounty?: { day: string; band: number; s: { st: "open" | "active" | "done"; n: number }[] };
+  /**
+   * Recompensas diárias: dia (chave "AAAA-MM-DD", troca às 6h de Brasília), faixa de level travada no dia e estado de
+   * cada uma. `m`/`c` (monstro e quantidade, ciclo 14) deixam a lista estável se as faixas mudarem; sem eles (gravação
+   * antiga) a lista é sorteada de novo pelo dia + faixa.
+   */
+  bounty?: { day: string; band: number; s: { st: "open" | "active" | "done"; n: number; m?: string; c?: number }[] };
   /** Grupos de baús de quest do mapa já abertos (shared/data/questWorld.ts). */
   chests?: string[];
+  /** Chefes de covil derrotados (`needBoss` dos baús, ciclo 16): destrancam o baú do covil para este personagem. */
+  slain?: string[];
 }
 
 /** Registro persistido de um personagem (uma conta tem até MAX_CHARACTERS_PER_ACCOUNT personagens). */

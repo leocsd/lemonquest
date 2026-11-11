@@ -1,9 +1,9 @@
 // Combate estilo Tibia: alvo + ataque automático a cada PLAYER_ATTACK_MS; dano de monstros; XP, level e morte.
 import {
-  ELITE, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, S2C, VOCATION_ATTACK, baseStats, critChance, deathPenalty, levelForXp, mitigate, shieldArmorBonus,
-  applyXpStage, autoAttackRange, rollAttack, rollInt, splitXp, xpForLevel, xpStage,
+  ELITE, PLAYER_ATTACK_MS, OUT_OF_COMBAT_MS, PVP_DAMAGE_MULT, S2C, VOCATION_ATTACK, baseStats, critChance, deathXpLoss, levelForXp, manaShieldSplit, mitigate, shieldArmorBonus,
+  applyXpStage, autoAttackRange, damageTakenMult, imbuementSpellValue, mitigateSpell, rollAttack, rollInt, splitXp, xpStage,
   type AttackMsg, type ItemDef, type SkillId, type CombatEvent, type CombatMsg, type CreatureDiedMsg, type DiedMsg, type LevelUpMsg,
-  type DamageKind, type ImbuementDef, type NoticeMsg, type XpGainMsg,
+  type DamageKind, type ImbuementBonus, type NoticeMsg, type XpGainMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { cheb, isMonsterState, killCredit, type CreatureState, type Monster, type MonsterManager } from "./monsters.ts";
@@ -64,7 +64,7 @@ export function attackSkillValue(p: PlayerState): number | undefined {
 export interface CombatHooks {
   /** Redução de dano recebido em % (protect). */
   damageTakenPct?: (id: string) => number;
-  /** Escudo de mana ativo: o dano consome mana antes da vida. */
+  /** Escudo de mana ativo: parte do dano sai da mana (manaShieldSplit, MANA_SHIELD_ABSORB) e o resto da vida. */
   manaShield?: (id: string) => boolean;
   /** Cada tentativa de ataque básico do jogador (skill de arma). */
   onAutoAttack?: (p: PlayerState) => void;
@@ -75,16 +75,24 @@ export interface CombatHooks {
    * magia de monstro/jogador; venenos e queimaduras não contam).
    */
   onShieldTry?: (p: PlayerState) => void;
-  /** Jogador morreu (já foi levado ao templo). */
-  onPlayerDied?: (p: PlayerState, killerName: string) => void;
+  /**
+   * Jogador morreu (já foi levado ao templo). `killerKey` = causa estável para a telemetria (`deathsBy`): id do monstro,
+   * "monstro/habilidade", "condição@monstro", "pvp" ou "?" (formato em telemetry.ts).
+   */
+  onPlayerDied?: (p: PlayerState, killerName: string, killerKey?: string) => void;
   /** Armadura total (equipamento). Ausente = playerArmor(p). */
   armor?: (p: PlayerState) => number;
   /** Perfil do ataque automático (arma). Ausente = attackProfile(p). */
   attack?: (p: PlayerState) => AttackProfile;
   /** Multiplicador do dano causado (postura). */
   dealtMult?: (p: PlayerState) => number;
-  /** Encantamento ativo do jogador (Dona Marta). Só aplicado no ataque automático contra monstro selvagem (PvE). */
-  imbuement?: (p: PlayerState) => ImbuementDef | undefined;
+  /** % de dano elemental extra no monstro (condição "exposed", Ruptura Elemental); 0 = nenhuma. */
+  exposedPct?: (monsterId: string) => number;
+  /**
+   * Encantamento ativo do jogador (efeito + valor do tier; systems/imbuement.ts). Só contra monstro selvagem, nunca no
+   * boneco de treino nem no PvP: ataque automático e Espinhos inteiros, magia pela metade (spellHitMonster).
+   */
+  imbuement?: (p: PlayerState) => ImbuementBonus | undefined;
   /** Multiplicador do dano recebido (postura). */
   takenMult?: (p: PlayerState) => number;
   /** Subiu de level (maxHp/maxMana/hp/mana já na base; o hook pode somar o equipamento). */
@@ -93,6 +101,10 @@ export interface CombatHooks {
   onMonsterKilled?: (m: Monster) => void;
   /** Um jogador teve parte no abate de um monstro (todos que causaram dano, inclusive no coliseu); `shared` = mais de um jogador. */
   onKillCredit?: (playerId: string, m: Monster, shared: boolean) => void;
+  /** XP recebida (telemetria). */
+  onXp?: (p: PlayerState, amount: number) => void;
+  /** Dano que um jogador tirou de monstro selvagem e o que a resistência elemental cortou (telemetria). */
+  onDealt?: (playerId: string, dealt: number, resisted: number) => void;
   /**
    * Antes da morte normal (penalidade + templo): retorna true se outro sistema assumiu a morte (coliseu: sem
    * penalidade; ele mesmo teletransporta e restaura). Alvos/combate já foram limpos.
@@ -134,6 +146,8 @@ export class CombatSystem {
   private after: (() => void)[] = [];
   private readonly nextAttackAt = new Map<string, number>();
   private readonly lastCombatAt = new Map<string, number>();
+  /** Último dano dado em/recebido de monstro (sem boneco de treino nem PvP): relógio do encantamento. */
+  private readonly lastPveAt = new Map<string, number>();
   private readonly nextShieldTryAt = new Map<string, number>();
   private readonly rng: () => number;
   hooks: CombatHooks = {};
@@ -213,9 +227,16 @@ export class CombatSystem {
     if (id && this.o.getPlayer(id)) this.lastCombatAt.set(id, now);
   }
 
+  /** Em combate contra monstro: deu ou levou dano de monstro há menos de OUT_OF_COMBAT_MS (boneco e PvP não contam). */
+  inPveCombat(playerId: string, now: number): boolean {
+    const t = this.lastPveAt.get(playerId);
+    return t !== undefined && now - t < OUT_OF_COMBAT_MS;
+  }
+
   removePlayer(id: string): void {
     this.nextAttackAt.delete(id);
     this.lastCombatAt.delete(id);
+    this.lastPveAt.delete(id);
     this.nextShieldTryAt.delete(id);
     this.o.monsters.clearTargetsOf(id);
   }
@@ -234,7 +255,7 @@ export class CombatSystem {
       if (d < 1 || d > va.range || now < (this.nextAttackAt.get(p.id) ?? 0)) continue;
       // Ataque à distância (arco, varinha...) exige linha de visão; sem ela não ataca (a perseguição reposiciona).
       if (va.ranged && !this.o.monsters.los(p.x, p.y, m.s.x, m.s.y)) continue;
-      const imb = this.hooks.imbuement?.(p);
+      const imb = this.imbuementVs(p, m);
       this.nextAttackAt.set(p.id, now + Math.round(PLAYER_ATTACK_MS * (imb?.effect === "haste" ? 1 - imb.value : 1)));
       this.lastCombatAt.set(p.id, now);
       this.hooks.onAutoAttack?.(p);
@@ -243,9 +264,36 @@ export class CombatSystem {
       const armor = Math.round(m.def.armor * (imb?.effect === "pierce" ? 1 - imb.value : 1));
       const amount = roll.miss ? 0 : mitigate(raw, armor);
       const dealt = this.damageMonster(m, p.id, amount, va.kind, now, { crit: roll.crit, ranged: va.ranged });
-      if (dealt > 0 && imb?.effect === "lifesteal") p.hp = Math.min(p.maxHp, p.hp + Math.round(dealt * imb.value));
-      if (dealt > 0 && imb?.effect === "manasteal") p.mana = Math.min(p.maxMana, p.mana + Math.round(dealt * imb.value));
+      this.leech(p, imb, imb?.value ?? 0, dealt);
     }
+  }
+
+  /**
+   * Encantamento que vale contra este monstro: nenhum no boneco de treino (lá o tempo não gasta, então o efeito também
+   * não rende: Veloz treinaria skill de graça).
+   */
+  private imbuementVs(p: PlayerState, m: Monster): ImbuementBonus | undefined {
+    return m.def.invulnerable ? undefined : this.hooks.imbuement?.(p);
+  }
+
+  /** Drenos do encantamento: `value` do dano causado volta como vida ou mana. */
+  private leech(p: PlayerState, imb: ImbuementBonus | undefined, value: number, dealt: number): void {
+    if (!imb || dealt <= 0 || value <= 0) return;
+    if (imb.effect === "lifesteal") p.hp = Math.min(p.maxHp, p.hp + Math.round(dealt * value));
+    else if (imb.effect === "manasteal") p.mana = Math.min(p.maxMana, p.mana + Math.round(dealt * value));
+  }
+
+  /**
+   * Magia de dano do jogador num monstro (SpellSystem): armadura por mitigateSpell e encantamento pela metade (shared
+   * imbuementSpellValue: drenos e Perfurante a IMBUE_SPELL_MULT; Veloz e Espinhos não entram). Retorna o dano causado.
+   */
+  spellHitMonster(p: PlayerState, m: Monster, raw: number, kind: DamageKind, now: number): number {
+    const imb = this.imbuementVs(p, m);
+    const v = imbuementSpellValue(imb);
+    const armor = imb?.effect === "pierce" ? m.def.armor * (1 - v) : m.def.armor;
+    const dealt = this.damageMonster(m, p.id, mitigateSpell(raw, armor, kind), kind, now, { ranged: false }); // projétil vem do SpellCast
+    this.leech(p, imb, v, dealt);
+    return dealt;
   }
 
   /** Ataque automático contra outro jogador (PvP). */
@@ -264,12 +312,17 @@ export class CombatSystem {
     this.hitPlayer(p, victim, amount, va.kind, now, { ranged: va.ranged });
   }
 
-  /** Dano de jogador em jogador (ataque básico ou magia): caveiras/bloqueio de PZ e depois o dano. */
+  /**
+   * Dano de jogador em jogador (ataque básico, distância ou magia; `amount` já mitigado): caveiras/bloqueio de PZ e
+   * depois o dano, multiplicado por PVP_DAMAGE_MULT. Único caminho de dano entre jogadores (invocações só atacam
+   * monstros); um golpe que acerta não vira 0 pelo corte.
+   */
   hitPlayer(p: PlayerState, victim: PlayerState, amount: number, kind: DamageKind, now: number, o: { ranged?: boolean } = {}): number {
     this.hooks.onPlayerHit?.(p, victim, now);
     this.lastCombatAt.set(p.id, now);
     this.shieldTry(victim, now);
-    return this.damagePlayer(victim, p.id, amount, kind, now, { ranged: o.ranged, killerName: p.name, killerId: p.id });
+    const pvp = amount > 0 ? Math.max(1, Math.round(amount * PVP_DAMAGE_MULT)) : 0;
+    return this.damagePlayer(victim, p.id, pvp, kind, now, { ranged: o.ranged, killerName: p.name, killerId: p.id, killerKey: "pvp" });
   }
 
   /**
@@ -279,6 +332,19 @@ export class CombatSystem {
   damageMonster(m: Monster, sourceId: string, amount: number, kind: DamageKind, now: number,
     o: { creditId?: string; crit?: boolean; ranged?: boolean } = {}): number {
     if (m.s.hp <= 0 || this.o.monsters.get(m.s.id) !== m) return 0;
+    if (m.evading) {
+      // Voltando ao spawn pela coleira: imune (anti "dança da coleira"); o golpe aparece como "errou".
+      this.push({ sourceId, targetId: m.s.id, amount: 0, kind, miss: true, ranged: o.ranged ? true : undefined });
+      return 0;
+    }
+    // Resistência elemental: o próprio elemento entra pela metade (shared damageTakenMult). Ponto único: magia,
+    // ataque automático, habilidade e invocação passam por aqui.
+    const before = amount;
+    const mult = damageTakenMult(m.def, kind, this.hooks.exposedPct?.(m.s.id) ?? 0);
+    amount *= mult;
+    const resisted = Math.max(0, before - amount);
+    // Ciclo 17: o cliente mostra ↓/↑ no número (e "resistiu" no lugar de "errou" quando a resistência zerou o golpe).
+    const resistedMark = mult !== 1 && before > 0 ? mult : undefined;
     if (m.def.invulnerable) {
       // Boneco de treino: mostra o dano (e marca combate), mas a vida não muda, ninguém ganha XP/loot nem ele revida.
       const shown = Math.max(0, Math.round(amount));
@@ -287,6 +353,7 @@ export class CombatSystem {
         crit: o.crit && shown > 0 ? true : undefined,
         miss: shown === 0 ? true : undefined,
         ranged: o.ranged ? true : undefined,
+        resisted: resistedMark,
       });
       this.markCombat(o.creditId ?? sourceId, now);
       // Dano "mostrado", não causado: quem chama (dreno de vida/mana do encantamento) não pode se curar com ele.
@@ -294,14 +361,19 @@ export class CombatSystem {
     }
     const dealt = Math.min(m.s.hp, Math.max(0, Math.round(amount)));
     const credit = o.creditId ?? sourceId;
+    if (credit && (dealt > 0 || resisted > 0) && this.o.getPlayer(credit)) this.hooks.onDealt?.(credit, dealt, resisted);
     this.push({
       sourceId, targetId: m.s.id, amount: dealt, kind,
       crit: o.crit && dealt > 0 ? true : undefined,
       miss: dealt === 0 ? true : undefined,
       ranged: o.ranged ? true : undefined,
+      resisted: resistedMark,
     });
     this.markCombat(credit, now);
-    if (credit && this.o.getPlayer(credit)) this.hooks.onActivity?.(credit, now);
+    if (credit && this.o.getPlayer(credit)) {
+      this.lastPveAt.set(credit, now);
+      this.hooks.onActivity?.(credit, now);
+    }
     this.o.monsters.onDamaged(m, sourceId, dealt, now, credit);
     if (dealt > 0) {
       m.s.hp -= dealt;
@@ -311,21 +383,23 @@ export class CombatSystem {
   }
 
   /**
-   * Aplica dano (já mitigado pela armadura) a um jogador: protect (−%), escudo de mana (mana primeiro), morte.
-   * Retorna o dano tirado da vida.
+   * Aplica dano (já mitigado pela armadura) a um jogador: protect (−%), escudo de mana (metade na mana, o resto na
+   * vida: manaShieldSplit), morte. Retorna o dano tirado da vida.
    */
   damagePlayer(p: PlayerState, sourceId: string, amount: number, kind: DamageKind, now: number,
-    o: { ranged?: boolean; killerName?: string; killerId?: string } = {}): number {
+    o: { ranged?: boolean; killerName?: string; killerId?: string; killerKey?: string } = {}): number {
     if (p.hp <= 0) return 0;
     this.lastCombatAt.set(p.id, now);
+    // Golpe, habilidade ou dano contínuo de monstro (vivo) também é combate PvE (relógio do encantamento).
+    if (this.o.monsters.get(sourceId)) this.lastPveAt.set(p.id, now);
     let left = Math.max(0, Math.round(amount * (this.hooks.takenMult?.(p) ?? 1)));
     const red = this.hooks.damageTakenPct?.(p.id) ?? 0;
     if (red > 0 && left > 0) left = Math.max(0, Math.round(left * (1 - Math.min(100, red) / 100)));
     let shielded = false;
     if (left > 0 && p.mana > 0 && this.hooks.manaShield?.(p.id)) {
-      const fromMana = Math.min(p.mana, left);
+      const { fromMana, fromHp } = manaShieldSplit(left, p.mana);
       p.mana -= fromMana;
-      left -= fromMana;
+      left = fromHp;
       shielded = true;
       this.push({ sourceId, targetId: p.id, amount: fromMana, kind: "mana", ranged: o.ranged ? true : undefined });
     }
@@ -339,7 +413,7 @@ export class CombatSystem {
     }
     if (dealt <= 0) return 0;
     p.hp -= dealt;
-    if (p.hp <= 0) this.playerDied(p, o.killerName ?? "?", o.killerId ? this.o.getPlayer(o.killerId) : undefined, now);
+    if (p.hp <= 0) this.playerDied(p, o.killerName ?? "?", o.killerId ? this.o.getPlayer(o.killerId) : undefined, now, o.killerKey ?? "?");
     return dealt;
   }
 
@@ -377,8 +451,8 @@ export class CombatSystem {
     if (p.hp <= 0 || this.o.monsters.inPz(p.x, p.y)) return;
     const raw = Math.round(rollInt(m.def.damage[0], m.def.damage[1], this.rng) * (m.dmgMult ?? 1));
     this.shieldTry(p, now, { monsterLevel: m.def.level, raw });
-    const taken = this.damagePlayer(p, m.s.id, mitigate(raw, this.armorOf(p)), m.def.damageKind, now, { ranged, killerName: m.def.name });
-    const imb = this.hooks.imbuement?.(p);
+    const taken = this.damagePlayer(p, m.s.id, mitigate(raw, this.armorOf(p)), m.def.damageKind, now, { ranged, killerName: m.def.name, killerKey: m.def.id });
+    const imb = this.imbuementVs(p, m);
     if (imb?.effect === "thorns" && taken > 0 && m.s.hp > 0) this.damageMonster(m, p.id, Math.round(taken * imb.value), "physical", now, { creditId: p.id });
   }
 
@@ -428,6 +502,7 @@ export class CombatSystem {
   /** Dá XP e processa level ups (vários de uma vez, se for o caso). */
   gainXp(p: PlayerState, amount: number, x: number, y: number): void {
     p.xp += amount;
+    this.hooks.onXp?.(p, amount);
     const id = p.id;
     this.after.push(() => this.o.send(id, S2C.XpGain, { amount, x, y } satisfies XpGainMsg));
     const level = levelForXp(p.xp);
@@ -451,28 +526,32 @@ export class CombatSystem {
     });
   }
 
-  private playerDied(p: PlayerState, killerName: string, killer: PlayerState | undefined, now: number) {
+  private playerDied(p: PlayerState, killerName: string, killer: PlayerState | undefined, now: number, killerKey: string) {
     p.targetId = "";
     // Quem estava mirando o morto perde o alvo (PvP).
     for (const o of this.o.players()) if (o.targetId === p.id) o.targetId = "";
     this.o.monsters.clearTargetsOf(p.id);
     this.lastCombatAt.delete(p.id);
+    this.lastPveAt.delete(p.id);
     this.nextAttackAt.delete(p.id);
     if (this.hooks.interceptDeath?.(p, killerName)) return;
     this.hooks.onDying?.(p, killer, now);
-    const blessed = p.blessed;
+    // Perda por faixa de level (DEATH_PENALTY_STAGES) × caveira vermelha, sem derrubar o level.
+    const wouldLose = deathXpLoss(p.level, p.xp, this.hooks.deathXpMult?.(p) ?? 1);
+    // A bênção só é gasta quando havia XP a perder (morrer logo depois de subir de level não perde nada e a guardava à toa).
+    const blessed = p.blessed && wouldLose > 0;
     if (blessed) p.blessed = false;
-    const mult = Math.max(1, this.hooks.deathXpMult?.(p) ?? 1);
-    const lostXp = blessed ? 0 : Math.max(0, Math.min(p.xp - xpForLevel(p.level), Math.round(deathPenalty(p.level, p.xp) * mult)));
+    const lostXp = blessed ? 0 : wouldLose;
     p.xp -= lostXp;
     this.o.teleport(p, this.o.spawn.x, this.o.spawn.y);
     p.hp = p.maxHp;
     p.mana = p.maxMana;
-    this.hooks.onPlayerDied?.(p, killerName);
+    this.hooks.onPlayerDied?.(p, killerName, killerKey);
     const id = p.id, name = p.name;
+    const died: DiedMsg = blessed ? { lostXp, killerName, blessingUsed: true, savedXp: wouldLose } : { lostXp, killerName };
     this.after.push(() => {
-      this.o.send(id, S2C.Died, { lostXp, killerName } satisfies DiedMsg);
-      if (blessed) this.o.send(id, S2C.Notice, { text: "Sua bênção te protegeu: nenhuma XP perdida.", kind: "good" } satisfies NoticeMsg);
+      this.o.send(id, S2C.Died, died);
+      if (blessed) this.o.send(id, S2C.Notice, { text: `Sua bênção te protegeu: ${wouldLose.toLocaleString("pt-BR")} XP salvos.`, kind: "good" } satisfies NoticeMsg);
       this.o.broadcast(S2C.Notice, { text: `${name} foi derrotado por ${killerName}`, kind: "warn" } satisfies NoticeMsg);
     });
   }

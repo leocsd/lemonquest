@@ -5,6 +5,7 @@ import { ActionBar } from "./ActionBar.tsx";
 import { activateSlot } from "./actionbar.ts";
 import { effectiveHotkeys, hotkeyIndex, keyFromEvent, toggleHotkeys } from "../hotkeys/hotkeys.ts";
 import { HotkeysWindow } from "../hotkeys/HotkeysWindow.tsx";
+import { SpellGroupsWindow } from "../hotkeys/SpellGroupsWindow.tsx";
 import type { Vocation } from "@lemonquest/shared";
 import { startCastBar } from "./castbar.ts";
 import { ConditionsStrip } from "./ConditionsStrip.tsx";
@@ -66,6 +67,7 @@ export function Hud() {
       <LootToasts />
       <SkillsWindow />
       <HotkeysWindow />
+      <SpellGroupsWindow />
       <OutfitWindow />
       <QuestLog />
       <AchievementsWindow />

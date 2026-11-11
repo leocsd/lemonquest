@@ -27,6 +27,10 @@ services:
       # LEMONQUEST_DEV_COMMANDS: "1"
       # Cópia extra dos backups em outro disco/compartilhamento (1 por dia, 14 dias). Monte o volume abaixo.
       # LEMONQUEST_BACKUP_COPY_DIR: "/backup-copy"
+      # ClickUp no jogo ("Chegou!", sprints, aba "Na obra", /vincular): token pessoal (pk_…) no arquivo .env ao lado
+      # deste compose, nunca aqui. Vazio = sistema desligado. Leitura a cada LEMONQUEST_CLICKUP_POLL_MIN minutos (padrão 5).
+      LEMONQUEST_CLICKUP_TOKEN: ${LEMONQUEST_CLICKUP_TOKEN:-}
+      LEMONQUEST_CLICKUP_POLL_MIN: ${LEMONQUEST_CLICKUP_POLL_MIN:-5}
     volumes:
       # Banco (lemonquest.db) e backups ficam aqui, na pasta do projeto, fora do container.
       - ./docker-data:/app/data

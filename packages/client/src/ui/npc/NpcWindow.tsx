@@ -1,5 +1,5 @@
-// Janela de NPC: fala com digitação, abas Missões / Viagem / Comprar / Vender / Depot.
-import { CASINO_TICKET_PRICE, DEPOT_SIZE, IMBUEMENT_EFFECTS, IMBUEMENTS, itemDef, keptBySellAll, type NpcOpenMsg } from "@lemonquest/shared";
+// Janela de NPC: fala com digitação, abas Na obra / Missões / Refinar / Encantar / Viagem / Comprar / Vender / Depot.
+import { C2S, CASINO_TICKET_PRICE, DEPOT_SIZE, RARITY_LABEL, backpackRoom, itemDef, keptBySellAll, refinedName, shopBuyMax, type NpcOpenMsg, type SortContainerMsg } from "@lemonquest/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { sectionsStore } from "../hud/Section.tsx";
 import { persistedBool, useStore } from "../hud/store.ts";
@@ -10,15 +10,25 @@ import { sidebarOpen } from "../hud/uiState.ts";
 import { npcBuys } from "../items/actions.ts";
 import { GoldLabel, Coin } from "../items/Gold.tsx";
 import { defOf, depotStore, inventoryStore } from "../items/inventory.ts";
+import { needsSellConfirm, sellConfirmText } from "../items/dropConfirm.ts";
 import { fmtNum, rarityColor, sellPrice } from "../items/itemInfo.ts";
 import { ItemIcon } from "../items/ItemIcon.tsx";
 import { ItemSlot } from "../items/ItemSlot.tsx";
 import { itemTipStore, shopInstance } from "../items/tipStore.ts";
-import { buyBlessing, buyCasinoTicket, buyImbuement, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
+import { buyBlessing, buyCasinoTicket, buyItem, closeNpc, npcStore, npcTabs, sellAll, sellItem, setNpcTab, travelTo, type NpcTab } from "./npc.ts";
 import { BountyBoard, MaterialRequestBoard, NpcQuestList } from "../quests/NpcQuests.tsx";
+import { myLevelStore } from "../quests/quests.ts";
+import { blessingProtects } from "../combat/blessingText.ts";
+import { WorkTab } from "../work/WorkTab.tsx";
+import { RefineTab } from "../refine/RefineTab.tsx";
+import { ImbuementTab } from "../imbue/ImbuementTab.tsx";
+import { send } from "../items/net.ts";
+import { depotMatches } from "./depotSearch.ts";
+import { travelInfo } from "./travelInfo.ts";
+import { worldIndexStore } from "../../game/worldIndex.ts";
 import "./npc.css";
 
-const TAB_LABEL: Record<NpcTab, string> = { quests: "Missões", bounties: "Recompensas", request: "Encomenda", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
+const TAB_LABEL: Record<NpcTab, string> = { work: "Na obra", quests: "Missões", bounties: "Recompensas", request: "Encomenda", refine: "Refinar", imbue: "Encantar", travel: "Viagem", buy: "Comprar", sell: "Vender", depot: "Depot" };
 const TYPE_MS = 25;
 
 export function NpcWindow() {
@@ -38,10 +48,9 @@ export function NpcWindow() {
         <button class="win-close" onClick={closeNpc} data-tip="Fechar" data-tip-sub="Esc" aria-label="Fechar">×</button>
       </div>
       <div class="npc-body">
-        <Typewriter text={m.greeting} nonce={st.nonce} />
+        <Typewriter npcId={m.npcId} text={m.greeting} nonce={st.nonce} />
         {m.blessing && <BlessingBox npcId={m.npcId} blessing={m.blessing} gold={inv?.gold ?? 0} />}
         {m.casino && <CasinoBox npcId={m.npcId} gold={inv?.gold ?? 0} />}
-        {m.imbuement && <ImbuementBox npcId={m.npcId} active={m.imbuement.active} gold={inv?.gold ?? 0} />}
         {tabs.length > 0 && (
           <div class="npc-tabs" role="tablist">
             {tabs.map((t) => (
@@ -51,11 +60,14 @@ export function NpcWindow() {
             ))}
           </div>
         )}
+        {st.tab === "work" && <WorkTab npcId={m.npcId} />}
         {st.tab === "quests" && <NpcQuestList npcId={m.npcId} />}
         {st.tab === "bounties" && <BountyBoard />}
         {st.tab === "request" && <MaterialRequestBoard />}
+        {st.tab === "refine" && <RefineTab />}
+        {st.tab === "imbue" && m.imbuement && <ImbuementTab npcId={m.npcId} imbue={m.imbuement} gold={inv?.gold ?? 0} />}
         {st.tab === "travel" && m.travel && <TravelList m={m} gold={inv?.gold ?? 0} />}
-        {st.tab === "buy" && m.shop && <BuyList m={m} gold={inv?.gold ?? 0} />}
+        {st.tab === "buy" && m.shop && <BuyList m={m} gold={inv?.gold ?? 0} backpack={inv?.backpack ?? []} />}
         {st.tab === "sell" && m.shop && <SellList m={m} />}
         {st.tab === "depot" && m.depot && <DepotGrid />}
       </div>
@@ -63,9 +75,15 @@ export function NpcWindow() {
   );
 }
 
-function Typewriter({ text, nonce }: { text: string; nonce: number }) {
-  const [n, setN] = useState(0);
+/** Saudações já digitadas nesta sessão (NPC + texto): reabrir o mesmo NPC mostra a fala inteira na hora (ciclo 17). */
+const greeted = new Set<string>();
+
+function Typewriter({ npcId, text, nonce }: { npcId: string; text: string; nonce: number }) {
+  const key = `${npcId}\n${text}`;
+  const [n, setN] = useState(() => (greeted.has(key) ? text.length : 0));
   useEffect(() => {
+    if (greeted.has(key)) { setN(text.length); return; }
+    greeted.add(key);
     setN(0);
     const t = window.setInterval(() => {
       setN((v) => {
@@ -86,7 +104,7 @@ function Typewriter({ text, nonce }: { text: string; nonce: number }) {
 /** Loja: esconder o que a sua vocação não usa (o Bento vende de tudo para todas). */
 const mineOnlyStore = persistedBool("shopMineOnly", true);
 
-function BuyList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
+function BuyList({ m, gold, backpack }: { m: NpcOpenMsg; gold: number; backpack: Parameters<typeof backpackRoom>[0] }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const me = useStore(meStore);
   const mineOnly = useStore(mineOnlyStore);
@@ -104,13 +122,16 @@ function BuyList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
     <ul class="shop-list">
       {rows.map((r) => {
         const def = itemDef(r.itemId);
-        const stack = !!def?.stackable;
-        const max = stack ? Math.min(def?.maxStack ?? 100, 99) : 1;
-        const q = Math.min(max, Math.max(1, qty[r.itemId] ?? 1));
+        // Lote: o maior que cabe no ouro e na mochila (mesma conta do servidor, shared/shop.ts). Encomenda especial: 1.
+        const max = shopBuyMax({ price: r.price, gold, room: backpackRoom(backpack, def), limited: r.limited });
+        const q = Math.min(Math.max(1, max), Math.max(1, qty[r.itemId] ?? 1));
         const total = r.price * q;
-        const afford = gold >= total;
-        const set = (v: number) => setQty((s) => ({ ...s, [r.itemId]: Math.max(1, Math.min(max, v)) }));
         const needLv = def?.level && me && def.level > me.level ? def.level : 0;
+        // Poção e comida acima do level: o servidor recusa a compra. Equipamento continua à venda (só mostra o "Lv").
+        const lvBlock = needLv > 0 && !!def?.use;
+        const afford = !lvBlock && max >= q && gold >= total;
+        const why = lvBlock ? `Precisa do level ${needLv}` : gold < r.price ? "Ouro insuficiente" : max < 1 ? "Mochila cheia" : undefined;
+        const set = (v: number) => setQty((s) => ({ ...s, [r.itemId]: Math.max(1, Math.min(Math.max(1, max), Math.floor(v) || 1)) }));
         return (
           <li key={r.itemId} class="shop-row">
             <div
@@ -127,15 +148,22 @@ function BuyList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
               <div class="shop-name">{def?.name ?? r.itemId}{needLv > 0 && <span class="shop-lv" data-tip={`Precisa do level ${needLv}`}> Lv {needLv}</span>}{r.limited && <span class="shop-lv" data-tip="Encomenda especial: só 1 por semana"> 1/semana</span>}</div>
               <div class="shop-price"><Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(r.price)}</span>{q > 1 && <small> · total {fmtNum(total)}</small>}</div>
             </div>
-            {stack && (
+            {!r.limited && max > 1 && (
               <div class="qty">
-                <button onClick={(e) => set(q - (e.shiftKey ? 10 : 1))} aria-label="Menos">−</button>
-                <span>{q}</span>
-                <button onClick={(e) => set(q + (e.shiftKey ? 10 : 1))} aria-label="Mais">+</button>
+                <button onClick={(e) => set(q - (e.shiftKey ? 10 : 1))} aria-label="Menos" data-tip="Shift: −10">−</button>
+                <input
+                  type="number" min={1} max={max} value={q} aria-label={`Quantidade de ${def?.name ?? r.itemId}`}
+                  onInput={(e) => set(Number((e.currentTarget as HTMLInputElement).value))}
+                  onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
+                  onKeyDown={(e) => { if (e.key === "Enter" && afford) buyItem(m.npcId, r.itemId, q); }}
+                />
+                <button onClick={(e) => set(q + (e.shiftKey ? 10 : 1))} aria-label="Mais" data-tip="Shift: +10">+</button>
+                {max >= 10 && <button class="qty-preset" onClick={() => set(10)} aria-label="Quantidade 10">10</button>}
+                <button class="qty-preset" onClick={() => set(max)} aria-label={`Quantidade máxima: ${max}`} data-tip={`O máximo que cabe no ouro e na mochila: ${max}`}>Máx</button>
               </div>
             )}
-            <button class="shop-btn" disabled={!afford} onClick={() => buyItem(m.npcId, r.itemId, q)} data-tip={afford ? undefined : "Ouro insuficiente"}>
-              Comprar
+            <button class="shop-btn" disabled={!afford} onClick={() => buyItem(m.npcId, r.itemId, q)} data-tip={why}>
+              {q > 1 ? `Comprar ${q}` : "Comprar"}
             </button>
           </li>
         );
@@ -146,7 +174,9 @@ function BuyList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
 }
 
 function BlessingBox({ npcId, blessing, gold }: { npcId: string; blessing: { price: number; active: boolean }; gold: number }) {
+  const me = useStore(meStore);
   const afford = gold >= blessing.price;
+  const protects = me ? blessingProtects(me.level, me.xp, me.skull) : "";
   return (
     <div class="shop-row blessing-row">
       <div class="shop-main">
@@ -156,6 +186,7 @@ function BlessingBox({ npcId, blessing, gold }: { npcId: string; blessing: { pri
             ? <span class="good">Ativa: sua próxima morte não custa XP.</span>
             : <><Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(blessing.price)}</span></>}
         </div>
+        {protects && <div class="blessing-protects">{protects}</div>}
       </div>
       {!blessing.active && (
         <button class="shop-btn" disabled={!afford} onClick={() => buyBlessing(npcId)} data-tip={afford ? undefined : "Ouro insuficiente"}>
@@ -181,47 +212,24 @@ function CasinoBox({ npcId, gold }: { npcId: string; gold: number }) {
   );
 }
 
-function ImbuementBox({ npcId, active, gold }: { npcId: string; active: string; gold: number }) {
-  const inv = useStore(inventoryStore);
-  const have = (id: string) => (inv?.backpack ?? []).reduce((n, it) => (it && it.defId === id ? n + it.count : n), 0);
-  return (
-    <ul class="shop-list">
-      {IMBUEMENT_EFFECTS.map((effect) => {
-        const def = IMBUEMENTS[effect];
-        const got = have(def.materialId);
-        const afford = gold >= def.goldPrice && got >= def.materialCount;
-        const isActive = active === effect;
-        return (
-          <li key={effect} class="shop-row">
-            <div class="shop-main">
-              <div class="shop-name">{def.name}{isActive && <span class="shop-lv"> Ativo</span>}</div>
-              <div class="shop-price">
-                <Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(def.goldPrice)}</span>
-                <small> · {got}/{def.materialCount}x {itemDef(def.materialId)?.name ?? def.materialId}</small>
-              </div>
-            </div>
-            <button
-              class="shop-btn" disabled={isActive || !afford} onClick={() => buyImbuement(npcId, effect)}
-              data-tip={def.desc} data-tip-sub={isActive ? undefined : "Substitui o encantamento ativo, sem reembolso"}
-            >
-              {isActive ? "Ativo" : "Trocar"}
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 function TravelList({ m, gold }: { m: NpcOpenMsg; gold: number }) {
+  const idx = useStore(worldIndexStore);
+  const level = useStore(myLevelStore); // só o level: o meStore muda a cada passo
   return (
     <ul class="shop-list">
       {m.travel!.map((t) => {
         const afford = gold >= t.price;
+        // Ciclo 17: o que vive em volta do destino, e o aviso quando é forte demais para o seu level.
+        const info = travelInfo(idx, m.npcId, t.id, level);
         return (
           <li key={t.id} class="shop-row">
             <div class="shop-main">
               <div class="shop-name">{t.label}</div>
+              {info && (
+                <div class={`travel-levels${info.danger ? " danger" : ""}`} data-testid="travel-levels">
+                  {info.text}{info.danger && " · perigoso para o seu level"}
+                </div>
+              )}
               <div class="shop-price">
                 {t.price > 0 ? <><Coin size={14} /><span class={afford ? "" : "bad"}>{fmtNum(t.price)}</span></> : <span>Grátis (até o level 8)</span>}
               </div>
@@ -246,9 +254,17 @@ function SellList({ m }: { m: NpcOpenMsg }) {
     });
     return out;
   }, [inv, m]);
+  // Item refinado: o primeiro clique em "Vender" só arma (o NPC paga o valor base e o refino se perde); o segundo vende.
+  // Desarma sozinho em 5 s, como o "Vender tudo".
+  const [armed, setArmed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(null), 5000);
+    return () => clearTimeout(t);
+  }, [armed]);
   if (rows.length === 0) return <div class="hud-empty">Nada na mochila que {m.name.split(",")[0]} compre.</div>;
-  // "Vender tudo" pula itens raros ou melhores (o servidor faz o mesmo); esses só saem pelo botão da própria linha.
-  const bulk = rows.filter((r) => !keptBySellAll(inv!.backpack[r.index]!.rarity));
+  // "Vender tudo" pula itens raros ou melhores e os refinados (o servidor faz o mesmo); esses só saem pelo botão da própria linha.
+  const bulk = rows.filter((r) => !keptBySellAll(inv!.backpack[r.index]!.rarity, inv!.backpack[r.index]!.refine));
   const totalItems = bulk.reduce((n, r) => n + inv!.backpack[r.index]!.count, 0);
   const totalGold = bulk.reduce((n, r) => n + r.price * inv!.backpack[r.index]!.count, 0);
   const kept = rows.length - bulk.length;
@@ -259,6 +275,7 @@ function SellList({ m }: { m: NpcOpenMsg }) {
       {rows.map(({ index, price }) => {
         const it = inv!.backpack[index]!;
         const def = defOf(it);
+        const asking = armed === it.uid;
         return (
           <li key={it.uid} class="shop-row">
             <div
@@ -272,16 +289,21 @@ function SellList({ m }: { m: NpcOpenMsg }) {
               <ItemIcon inst={it} box={32} framed />
             </div>
             <div class="shop-main">
-              <div class="shop-name" style={{ color: rarityColor(it.rarity) }}>{def?.name ?? it.defId}</div>
+              <div class="shop-name" style={{ color: rarityColor(it.rarity) }}>{refinedName(def, it)}</div>
               <div class="shop-price"><Coin size={14} /><span>{fmtNum(price)}</span>{it.count > 1 && <small> cada · {fmtNum(price * it.count)} no total</small>}</div>
+              {asking && <div class="sell-confirm bad">{sellConfirmText(it.refine ?? 0)}</div>}
             </div>
             <button
-              class="shop-btn"
-              onClick={(e) => sellItem(m.npcId, index, e.shiftKey ? it.count : 1)}
-              data-tip={it.count > 1 ? "Vender 1" : "Vender"}
-              data-tip-sub={it.count > 1 ? `Shift: vender os ${it.count}` : undefined}
+              class={`shop-btn${asking ? " danger" : ""}`}
+              onClick={(e) => {
+                if (needsSellConfirm(it) && !asking) { setArmed(it.uid); return; }
+                setArmed(null);
+                sellItem(m.npcId, index, e.shiftKey ? it.count : 1);
+              }}
+              data-tip={asking ? "Clique de novo para vender" : it.count > 1 ? "Vender 1" : "Vender"}
+              data-tip-sub={asking ? undefined : it.count > 1 ? `Shift: vender os ${it.count}` : needsSellConfirm(it) ? "Item refinado: pede um segundo clique" : undefined}
             >
-              Vender
+              {asking ? "Confirmar" : "Vender"}
             </button>
             {it.count > 1 && (
               <button class="shop-btn" onClick={() => sellItem(m.npcId, index, it.count)} data-tip={`Vender os ${it.count}`} data-tip-sub={`${fmtNum(price * it.count)} de ouro`}>
@@ -310,13 +332,13 @@ function SellAllBar({ npcId, items, gold, kept }: { npcId: string; items: number
         <>
           <span>
             Vender {fmtNum(items)} {items === 1 ? "item" : "itens"} por <b>{fmtNum(gold)}</b> de ouro?
-            {kept > 0 && <small class="sell-all-kept"> Itens raros ou melhores ficam na mochila.</small>}
+            {kept > 0 && <small class="sell-all-kept"> Itens raros ou melhores e refinados ficam na mochila.</small>}
           </span>
           <button class="shop-btn danger" onClick={() => { setAsking(false); sellAll(npcId); }}>Sim, vender</button>
           <button class="shop-btn" onClick={() => setAsking(false)}>Não</button>
         </>
       ) : (
-        <button class="shop-btn" onClick={() => setAsking(true)} data-tip="Vende tudo da mochila que este NPC compra" data-tip-sub="Itens raros ou melhores ficam na mochila">
+        <button class="shop-btn" onClick={() => setAsking(true)} data-tip="Vende tudo da mochila que este NPC compra" data-tip-sub="Itens raros ou melhores e refinados ficam na mochila">
           Vender tudo ({fmtNum(items)})
         </button>
       )}
@@ -340,14 +362,28 @@ function DepotGrid() {
       if (!hadSide) sidebarOpen.set(false);
     };
   }, []);
+  // Busca (ciclo 17): mostra só os espaços com o que foi digitado, cada um no seu lugar real (arrastar continua certo).
+  const [query, setQuery] = useState("");
+  const shown = depotMatches(depot ?? [], query, (it) => `${refinedName(itemDef(it.defId), it)} ${RARITY_LABEL[it.rarity] ?? ""}`);
+  const slots = shown ?? Array.from({ length: DEPOT_SIZE }, (_, i) => i);
   return (
     <div class="depot">
-      <div class="depot-hint">Arraste itens entre a mochila e o depot · Shift para dividir pilhas</div>
+      <div class="depot-tools">
+        <input
+          class="depot-search" type="search" placeholder="Buscar no depot…" aria-label="Buscar no depot" data-testid="depot-search"
+          value={query} onInput={(e) => setQuery((e.currentTarget as HTMLInputElement).value)}
+        />
+        <button class="shop-btn" onClick={() => send(C2S.SortContainer, { where: "depot" } satisfies SortContainerMsg)} data-testid="depot-sort" data-tip="Organizar" data-tip-sub="Junta as pilhas iguais e ordena por tipo e nome">
+          Organizar
+        </button>
+      </div>
+      <div class="depot-hint">Arraste ou dê clique direito para guardar e retirar · Shift para dividir pilhas</div>
       <div class="depot-grid">
-        {Array.from({ length: DEPOT_SIZE }, (_, i) => (
+        {slots.map((i) => (
           <ItemSlot key={i} loc={{ where: "depot", index: i }} inst={depot?.[i]} size={40} class="depot-slot" />
         ))}
       </div>
+      {shown && shown.length === 0 && <div class="depot-empty">Nada com "{query.trim()}" no depot.</div>}
     </div>
   );
 }

@@ -66,6 +66,11 @@ export interface ItemDef {
   use?: { heal?: number; mana?: number; food?: { hpPerTick: number; manaPerTick: number; durationMs: number }; cooldownMs: number;
     /** Baú: abrir (usar) sorteia uma recompensa (servidor, systems/quests.ts). */
     chest?: boolean };
+  /**
+   * Item único (ciclo 16): prêmio de um lugar só (baús da Aniquilação). Fica fora de loja, do Baú de Recompensa e de
+   * qualquer sorteio genérico de equipamento (ver `isExclusiveItem`).
+   */
+  unique?: boolean;
   description?: string;    // PT-BR, curta
 }
 
@@ -77,6 +82,8 @@ export interface ItemInstance {
   rarity: Rarity;
   /** Bônus aleatórios da raridade (0–3), somados aos `stats` da definição. */
   bonuses: { stat: StatId; value: number }[];
+  /** Refino do Ferreiro, 1..5 (shared/data/refine.ts); ausente = +0. Saves antigos não têm o campo. */
+  refine?: number;
 }
 
 export interface LootEntry {
@@ -134,9 +141,11 @@ const img = (path: string, tint?: number): ItemIcon => (tint === undefined ? { u
 const ITEM_LIST: ItemDef[] = [];
 const add = (d: ItemDef): void => { ITEM_LIST.push(d); };
 
-// Níveis e preços por tier (1..7). Preço base; a loja compra a ~30%. Tiers 6 e 7 só caem das hunts de fim de jogo
-// (orcs, minotauros, ciclopes, dragões, demônios).
-const TIER_LEVEL = [1, 8, 15, 25, 35, 50, 70];
+// Níveis e preços por tier (1..8). Preço base; a loja compra a ~30%. Tiers 6 e 7 só caem das hunts de fim de jogo
+// (orcs, minotauros, ciclopes, dragões, demônios); o tier 8 "Abissal" (ciclo 16), só do Profundo e de chefes.
+export const TIER_LEVEL = [1, 8, 15, 25, 35, 50, 70, 100];
+/** Tint dos ícones do tier 8 sobre quadros que já existem (uma 9ª paleta no gear.png mudaria o `gearFrame` de anel/amuleto). */
+export const ABYSS_TINT = 0xa080ff;
 
 // ---------------------------------------------------------------------------
 // Moeda, poções e comida
@@ -246,10 +255,42 @@ mat("frost_dragon_scale", "Escama de Dragão de Gelo", matIcon("lizard_scale", 0
 mat("magma_core", "Núcleo de Magma", matIcon("ember", 0xff6a20), 2000, "Rocha derretida que pulsa no centro.");
 mat("hellhound_fang", "Presa Infernal", matIcon("wolf_fang", 0xff5030), 3000, "Queima a mão de quem segura sem luva.");
 mat("juggernaut_plate", "Placa de Colosso", img("Resource/BarSilver.png", 0xc0a090), 4500, "Um pedaço de couraça mais duro que mithril.");
+// Ciclo 16: material do tier 8 (Tengu Rubro 25%, Samurai Rubro 30%; Orshabaal, Ferumbras e Shogun Abissal sempre).
+mat("abyss_shard", "Fragmento Abissal", img("Resource/GemPurple.png", ABYSS_TINT), 3000, "Um caco de escuridão sólida. Frio de um lado, quente do outro.");
 food("banana", "Banana", img("Food/Nut2.png", 0xffe060), 18, undefined, 3, 1, 4, "Doce e nutritiva. Os macacos brigam por ela.");
 
+// ---------------------------------------------------------------------------
+// Oficina dos Engenhos (ciclo 10): materiais, comida e bebida. Valores na escala dos vizinhos
+// (cheese 10 · wolf_pelt 40 · bat_wing 85 · goblin_tooth 110). Nomes comuns de fantasia (pedido do dono, 2026-10-24);
+// os ids continuam os do ciclo 10 (saves, depots, chão).
+// ---------------------------------------------------------------------------
+mat("cabo_roido", "Cordão Roído", img("Resource/Branch.png", 0x6878c0), 8, "Mordiscado pelas duas pontas. O rato jura que não foi ele.");
+mat("iluminador_queimado", "Brasa Apagada", matIcon("ember", 0x707078), 12, "Já foi fogo um dia. Hoje só esquenta a lembrança.");
+mat("rotulo_isca", "Etiqueta Rasgada", img("Other/Letter.png", 0xffb060), 35, "Dizia o que havia dentro. Agora só diz '...ado'.");
+mat("post_it_senha", "Bilhete Amassado", img("Scroll/ScrollEmpty.png", 0xffe860), 30, "Um recado que alguém desistiu de mandar. A letra é péssima.");
+mat("escoria_quente", "Pedra Incandescente", img("Resource/Rock.png", 0xff8040), 95, "Ainda brilha por dentro. Segure pela ponta fria, se achar uma.");
+mat("lente_trincada", "Cristal Trincado", img("Resource/GemGreen.png", 0xb8dcf0), 140, "Rachou bem no meio. Os joalheiros ainda pagam, resmungando.");
+mat("selo_chegou", "Selo de Cera", img("Other/Stamp.png", 0x70e080), 50, "Cera verde com um brasão que ninguém reconhece. Dá sorte, dizem.", 20);
+mat("vasilha_empilhada", "Tigela Vazia", img("Potion/EmptyPot.png", 0xc8d8e0), 5, "Sem tampa e sem dono. Alguém comeu e não lavou.");
+food("marmita_tampa_vermelha", "Ensopado do Viajante", img("Object/CrateEmpty.png", 0xff8a7a), 55, undefined, 5, 2, 6, "Carne, batata e um tempero que ninguém sabe dizer qual. Melhor no segundo dia.");
+potion("cafe_oficina", "Chá de Ervas", img("Potion/MilkPot.png", 0x8a5a30), 25, 1, { mana: 60 }, "Recupera 60 de mana. Amargo o bastante para acordar até um esqueleto.");
+
+// ---------------------------------------------------------------------------
+// Malha da Ferrovia (ciclo 11, lv 25–60): materiais dos monstros da via. Valores na escala dos vizinhos de level
+// (ape_fur 320 · orc_leather 380 · tarantula_fang 420 · minotaur_horn 480 · winter_fur 520). Nomes comuns de fantasia
+// (pedido do dono, 2026-10-24); os ids continuam os do ciclo 11.
+// ---------------------------------------------------------------------------
+mat("pino_de_engate", "Pino de Ferro", img("Weapons/Stick/Sprite.png", 0x9098a8), 180, "Estava entre as escamas da cobra. Melhor não perguntar como foi parar ali.");
+mat("pastilha_de_sapata", "Placa de Pedra", img("Resource/Rock.png", 0x6a5a50), 220, "Lisa de um lado, áspera do outro. A toupeira usava de travesseiro.");
+mat("brita_de_lastro", "Cascalho", img("Resource/Rock.png", 0xa0a0a8), 260, "Um punhado de pedrinhas. As ratazanas guardam como se fosse ouro.");
+mat("lente_industrial", "Cristal Azul", img("Resource/GemPurple.png", 0xd8f0ff), 340, "Frio ao toque e azul como lago de montanha. A lanterna brilhava por causa dele.");
+mat("frame_corrompido", "Pergaminho Borrado", img("Scroll/ScrollEmpty.png", 0x90a0c0), 380, "Um feitiço escrito às pressas e molhado de chuva. Ninguém se arrisca a ler em voz alta.");
+mat("rolamento_de_rodeiro", "Engrenagem de Prata", img("Treasure/SilverCoin.png", 0x8890a0), 460, "Gira sozinha quando ninguém olha. Os ferreiros adoram.");
+mat("chaveta", "Cunha de Ferro", img("Resource/Branch.png", 0xb8b8c0), 520, "Pequena, torta e indispensável. Ainda quente da fera.");
+
 // Chaves e itens de missão
-add({ id: "crypt_key", name: "Chave da Cripta", kind: "key", value: 0, icon: img("Treasure/SilverKey.png"), description: "Abre o portão selado da Cripta. Cai do Lich do Pântano." });
+// Ciclo 14: não abre nada (a Cripta nunca teve portão trancado); o texto prometia uma porta que não existe.
+add({ id: "crypt_key", name: "Chave da Cripta", kind: "key", value: 0, icon: img("Treasure/SilverKey.png"), description: "Enferrujada e fria. O lich guardava como relíquia, mas a porta que ela abria virou pó há séculos. Prova de que o Lich do Pântano caiu." });
 add({
   id: "bounty_chest", name: "Baú de Recompensa", kind: "quest", stackable: true, maxStack: 20, value: 0, icon: { url: N + "Treasure/LittleTreasureChest.png", frame: 0, frameWidth: 16, frameHeight: 16 },
   use: { chest: true, cooldownMs: 500 },
@@ -264,6 +305,17 @@ add({ id: "kongra_crown", name: "Coroa do Rei Kongra", kind: "quest", value: 0, 
 add({ id: "yeti_fur", name: "Pelo do Yeti", kind: "quest", value: 0, icon: matIcon("wolf_pelt", 0xffffff), description: "Branco como a neve. Prova de que o Yeti caiu." });
 add({ id: "ferumbras_staff", name: "Cajado Partido de Ferumbras", kind: "quest", value: 0, icon: img("Weapons/Stick/Sprite.png", 0xd890ff), description: "Prova de que Ferumbras caiu... por enquanto." });
 add({ id: "annihilation_bear", name: "Urso da Aniquilação", kind: "quest", value: 0, icon: img("Object/Bag.png", 0xc08060), description: "Um ursinho de pelúcia chamuscado. Só quem sobreviveu à Aniquilação tem um." });
+// Onda 3 (Lei de Murphy): reservado; ainda sem fonte no jogo.
+add({ id: "mensagem_retida", name: "Carta Lacrada", kind: "quest", value: 0, icon: img("Other/Letter2.png", 0xd0d8e0), description: "Uma carta que nunca chegou ao destino. Alguém vai ter que levar a pé." });
+// Malha da Ferrovia (ciclo 11): provas dos dois chefes da via.
+add({ id: "selo_nao_inspecionavel", name: "Olho do Ciclope", kind: "quest", value: 0, icon: img("Other/Stamp.png", 0xe05040), description: "Ainda pisca de vez em quando. Prova de que o Ciclope de Pedra caiu." });
+add({ id: "apito_de_locomotiva", name: "Dente do Tirano", kind: "quest", value: 0, icon: img("Object/PanFlute.png", 0xd0c080), description: "Do tamanho de um braço e ainda afiado. Prova de que o Tirano da Serra caiu." });
+// Covis das caves profundas (ciclo 16): troféus dos chefes. Não abrem nada: o baú do covil pede o abate registrado no
+// personagem (`QuestChestGroupDef.needBoss`), porque um item passaria de mão em mão para qualquer personagem.
+add({ id: "mole_king_claw", name: "Garra do Rei Toupeira", kind: "quest", value: 0, icon: matIcon("wolf_fang", 0xd8b088), description: "Cavou meia montanha e ainda está afiada. Lembrança de quem derrubou o Rei Toupeira no covil das Minas." });
+add({ id: "kraken_eye", name: "Olho do Kraken", kind: "quest", value: 0, icon: matIcon("spider_eye", 0x90f0c0), description: "Continua encarando você do fundo da mochila. Lembrança de quem derrubou o Kraken no covil das Grutas." });
+add({ id: "ancestral_heart", name: "Coração da Chama Ancestral", kind: "quest", value: 0, icon: matIcon("ember", 0xd090ff), description: "Uma brasa violeta que não apaga nem na água. Lembrança de quem apagou a Chama Ancestral no covil das Catacumbas." });
+add({ id: "shogun_seal", name: "Selo do Shogun Abissal", kind: "quest", value: 0, icon: img("Other/Stamp.png", 0xa080ff), description: "O brasão do Shogun, frio como o fundo do Abismo. Lembrança de quem derrubou o Shogun no covil do Abismo Profundo." });
 
 // ---------------------------------------------------------------------------
 // Armas
@@ -296,7 +348,7 @@ weapon("demon_axe", "Machado Demoníaco", "axe", "knight", img(W + "Axe/Sprite.p
 // Baús de quest (só uma vez por personagem): Tesouro do Barba-Ruiva (lv 35) e Aniquilação (lv 100).
 weapon("pirate_saber", "Sabre do Pirata", "sword", "knight", img(W + "Katana/Sprite.png", 0xffd070), 5, 74, 42000, "O sabre do Capitão Barba-Ruiva. Só sai de um baú.", { stats: { melee: 2, crit: 3 } });
 add({ id: "stonecutter_axe", name: "Machado Cortapedras", kind: "weapon", slot: "weapon", icon: img(W + "Axe/Sprite.png", 0x9ad0ff), vocations: ["knight"], level: 100,
-  weaponType: "axe", range: 1, damageKind: "physical", twoHanded: true, stats: { attack: 175, melee: 4, crit: 5 }, value: 320000,
+  weaponType: "axe", range: 1, damageKind: "physical", twoHanded: true, stats: { attack: 175, melee: 4, crit: 5 }, value: 320000, unique: true,
   description: "Prêmio da Aniquilação. Corta pedra como se fosse manteiga. Duas mãos." });
 
 // Paladino (arcos, alcance 6, físico, duas mãos).
@@ -339,6 +391,18 @@ weapon("northwind_rod", "Bastão do Vento Norte", "rod", "druid", img(W + "Stick
 weapon("ancient_root_rod", "Bastão de Raiz Ancestral", "rod", "druid", img(W + "Stick/Sprite.png", 0x60c040), 7, 86, 190000, "Brotou no coração do Abismo e não morreu.", { ...WAND, kind: "earth", stats: { magic: 5, manaMax: 160 } });
 weapon("coral_rod", "Bastão de Coral", "rod", "druid", img(W + "Stick/Sprite.png", 0xff8090), 5, 55, 42000, "Coral vivo arrancado do fundo do mar. Só sai de um baú.", { ...WAND, kind: "ice", stats: { magic: 3, manaMax: 90 } });
 
+// Aniquilação (ciclo 16): um prêmio por vocação, como o Machado Cortapedras (lv 100, 320 mil, únicos). ~9% acima da
+// arma do tier 8 da vocação (Cortapedras 175 contra a Lâmina Abissal 160) e o elemento que o tier 8 não tem.
+add({ id: "annihilator_bow", name: "Arco Aniquilador", kind: "weapon", slot: "weapon", icon: img(W + "Bow/Sprite.png", 0x9ad0ff), vocations: ["paladin"], level: 100,
+  weaponType: "bow", ...BOW, damageKind: "physical", stats: { attack: Math.ceil(136 * BOW_ATTACK_MULT), distance: 5, crit: 5 }, value: 320000, unique: true,
+  description: "Prêmio da Aniquilação. A flecha atravessa o alvo e ainda procura o próximo." });
+add({ id: "annihilator_wand", name: "Varinha Aniquiladora", kind: "weapon", slot: "weapon", icon: img(W + "MagicWand/Sprite.png", 0x9ad0ff), vocations: ["sorcerer"], level: 100,
+  weaponType: "wand", ...WAND, damageKind: "energy", stats: { attack: 115, magic: 6, manaMax: 240 }, value: 320000, unique: true,
+  description: "Prêmio da Aniquilação. Estala como o céu antes da tempestade." });
+add({ id: "annihilator_rod", name: "Bastão Aniquilador", kind: "weapon", slot: "weapon", icon: img(W + "Stick/Sprite.png", 0x9ad0ff), vocations: ["druid"], level: 100,
+  weaponType: "rod", ...WAND, damageKind: "ice", stats: { attack: 115, magic: 6, manaMax: 240 }, value: 320000, unique: true,
+  description: "Prêmio da Aniquilação. Geada eterna, presa num cajado de pedra azul." });
+
 // ---------------------------------------------------------------------------
 // Armaduras
 // ---------------------------------------------------------------------------
@@ -357,6 +421,8 @@ interface SetSpec {
   extra?: Partial<Record<Piece["slot"], Stats>>;
   vocations?: Vocation[];
   level?: number;
+  /** Tint sobre o quadro da paleta (tier 8: `ABYSS_TINT`). */
+  tint?: number;
   blurb: string;
 }
 function buildSet(s: SetSpec): void {
@@ -364,7 +430,7 @@ function buildSet(s: SetSpec): void {
     const shape = s.shapes[slot] ?? PIECES[slot];
     const stats: Stats = { ...(s.armor[i] ? { armor: s.armor[i] } : {}), ...(s.extra?.[slot] ?? {}) };
     add({
-      id: `${s.prefix}_${slot}`, name: s.names[i]!, kind: slot, slot, icon: gear(shape, s.palette),
+      id: `${s.prefix}_${slot}`, name: s.names[i]!, kind: slot, slot, icon: s.tint === undefined ? gear(shape, s.palette) : { ...gear(shape, s.palette), tint: s.tint },
       ...(s.vocations ? { vocations: s.vocations } : {}), level: s.level ?? TIER_LEVEL[s.tier - 1], stats, value: s.values[i]!,
       description: s.blurb,
     });
@@ -389,8 +455,8 @@ buildSet({ prefix: "steel", tier: 4, palette: "steel", slots: MELEE, shapes: { h
 buildSet({ prefix: "mithril", tier: 5, palette: "mithril", slots: MELEE, shapes: { helmet: "helmet_horned", armor: "armor_plate", legs: "legs_greaves", shield: "shield_tower" }, armor: [2, 5, 3, 1, 3], values: [7500, 17500, 10000, 5000, 10000],
   names: ["Elmo de Mithril", "Armadura de Mithril", "Grevas de Mithril", "Botas de Mithril", "Escudo de Mithril"],
   vocations: ["knight"], extra: { boots: { speed: 6 }, shield: { shield: 5 }, helmet: { melee: 1 }, armor: { hpMax: 60 } }, blurb: "Mithril: leve como couro, duro como diamante." });
-// Fim de jogo (só cai de monstros): tier 6 = Coroa (lv 50), tier 7 = Demônio (lv 70). Sem botas: as Botas da Pressa
-// (todas as vocações) ocupam esse lugar.
+// Fim de jogo (só cai de monstros): tier 6 = Coroa (lv 50), tier 7 = Demônio (lv 70). As botas desses tiers vieram no
+// ciclo 16 (abaixo, perto das Botas da Pressa).
 buildSet({ prefix: "crown", tier: 6, palette: "gold", slots: ["helmet", "armor", "legs", "shield"], shapes: { helmet: "helmet_full", armor: "armor_plate", legs: "legs_greaves", shield: "shield_kite" }, armor: [3, 6, 4, 4], values: [24000, 56000, 32000, 32000],
   names: ["Elmo da Coroa", "Armadura da Coroa", "Grevas da Coroa", "Escudo da Coroa"],
   vocations: ["knight"], extra: { helmet: { melee: 1 }, armor: { hpMax: 120 }, shield: { shield: 6 } }, blurb: "Usada pela guarda real de outras eras." });
@@ -431,16 +497,88 @@ mageSet("apprentice", 2, "leather", ["Chapéu de Aprendiz", "Túnica de Aprendiz
 mageSet("adept", 3, "steel", ["Chapéu de Adepto", "Manto de Adepto", "Calças de Adepto", "Botas de Adepto"], [1, 2, 1, 0], [500, 1400, 1000, 600], [16, 32, 20, 12], [1, 1, 0, 0], 4);
 mageSet("arcane", 4, "arcane", ["Chapéu Arcano", "Manto Arcano", "Calças Arcanas", "Botas Arcanas"], [1, 3, 1, 1], [1800, 5200, 3400, 2600], [28, 56, 35, 21], [1, 1, 1, 0], 5);
 mageSet("archmage", 5, "gold", ["Chapéu do Arquimago", "Manto do Arquimago", "Calças do Arquimago", "Botas do Arquimago"], [2, 3, 2, 1], [5500, 15000, 9500, 5000], [44, 88, 55, 33], [2, 2, 1, 0], 6);
-// Fim de jogo: 3 peças (as Botas da Pressa ocupam o lugar das botas).
+// Fim de jogo: 3 peças (as botas dos tiers 6 e 7 vieram no ciclo 16, perto das Botas da Pressa).
 const mageSet3 = (prefix: string, tier: number, palette: GearTier, names: string[], armor: number[], values: number[], mana: number[], magic: number[], blurb: string): void =>
   buildSet({ prefix, tier, palette, slots: ["helmet", "armor", "legs"], shapes: { helmet: "helmet_wizard", armor: "armor_robe" }, armor, values, vocations: MAGE, names,
     extra: { helmet: { manaMax: mana[0]!, magic: magic[0]! }, armor: { manaMax: mana[1]!, magic: magic[1]! }, legs: { manaMax: mana[2]!, magic: magic[2]! } }, blurb });
 mageSet3("mystic", 6, "mithril", ["Turbante Místico", "Manto Azul", "Calças Relampejantes"], [2, 4, 2], [20000, 50000, 28000], [70, 140, 85], [2, 3, 1], "Seda azul tecida com fios de relâmpago.");
 mageSet3("ferumbras", 7, "arcane", ["Chapéu de Ferumbras", "Manto Celestial", "Calças Celestiais"], [3, 5, 3], [50000, 120000, 70000], [100, 200, 120], [3, 4, 2], "Dizem que pertenceu ao maior feiticeiro que já existiu.");
+// Livros de magia (pedido do dono): o escudo dos magos. A varinha/bastão usa uma mão só e o slot ficava com o Escudo de
+// Madeira. Menos armadura que o escudo do cavaleiro do mesmo tier, em troca de mana e, do tier 5 em diante, magia.
+// Valor igual ao do escudo do cavaleiro do tier (o modelo de balanço, balanceKit.ts, escolhe por valor).
+const spellbook = (id: string, name: string, tier: number, tint: number, armor: number, manaMax: number, magic: number, value: number, description: string): void =>
+  add({ id, name, kind: "shield", slot: "shield", icon: img(W + "Book/Sprite.png", tint), vocations: MAGE, level: TIER_LEVEL[tier - 1],
+    stats: { armor, manaMax, ...(magic ? { magic } : {}) }, value, description });
+spellbook("spellbook_apprentice", "Livro do Aprendiz", 2, 0xd0a060, 1, 15, 0, 200, "Anotações de aula com orelhas nas páginas.");
+spellbook("spellbook_adept", "Livro do Adepto", 3, 0x80b8ff, 1, 30, 0, 900, "Capa de couro e feitiços sublinhados a tinta azul.");
+spellbook("spellbook_arcane", "Tomo Arcano", 4, 0xb070ff, 2, 50, 0, 3200, "As letras mudam de lugar quando ninguém está olhando.");
+spellbook("spellbook_archmage", "Grimório do Arquimago", 5, 0xffd060, 2, 80, 1, 10000, "Cantos de ouro e um fecho que só abre para quem sabe a palavra.");
+spellbook("spellbook_mystic", "Tomo das Tempestades", 6, 0x40c8ff, 3, 120, 1, 32000, "As páginas estalam como raio quando o vento muda.");
+spellbook("spellbook_ferumbras", "Grimório de Ferumbras", 7, 0xd890ff, 3, 180, 2, 80000, "Escrito à mão pelo próprio Ferumbras. Algumas páginas ainda estão quentes.");
 
 // Botas da Pressa: o item mais cobiçado do fim de jogo (todas as vocações).
 add({ id: "boots_haste", name: "Botas da Pressa", kind: "boots", slot: "boots", icon: gear("boots", "gold"), level: 50, stats: { armor: 1, speed: 12 }, value: 60000,
   description: "Quem calça não anda: voa. Caem de behemoths e demônios." });
+
+// Botas dos tiers 6 e 7 (ciclo 16), uma por forma: armadura e o atributo da vocação em troca de velocidade (7–8 contra
+// 12 das Botas da Pressa). Valor abaixo dos 60 mil delas de propósito: o modelo de balanço (balanceKit.ts) escolhe por
+// valor e o Coliseu segue calibrado com as Botas da Pressa. Ícone: bota de aço com o tint do conjunto (a dourada é a da Pressa).
+const BOOTS: Piece["slot"][] = ["boots"];
+buildSet({ prefix: "crown", tier: 6, palette: "steel", tint: 0xffd070, slots: BOOTS, shapes: {}, armor: [2], values: [16000], names: ["Botas da Coroa"],
+  vocations: ["knight"], extra: { boots: { speed: 7, hpMax: 40 } }, blurb: "Esporas de ouro da guarda real. Fazem barulho, mas aguentam." });
+buildSet({ prefix: "demon", tier: 7, palette: "steel", tint: 0xff5a5a, slots: BOOTS, shapes: {}, armor: [2], values: [40000], names: ["Botas Demoníacas"],
+  vocations: ["knight"], extra: { boots: { speed: 8, hpMax: 80 } }, blurb: "Deixam pegadas chamuscadas por onde passam." });
+buildSet({ prefix: "royal", tier: 6, palette: "steel", tint: 0xffe8a0, slots: BOOTS, shapes: {}, armor: [1], values: [15000], names: ["Botas Reais"],
+  vocations: ["paladin"], extra: { boots: { speed: 7, distance: 1 } }, blurb: "Leves e firmes, para atirar sem perder o passo." });
+buildSet({ prefix: "dragon_scale", tier: 7, palette: "steel", tint: 0xff9060, slots: BOOTS, shapes: {}, armor: [2], values: [37000], names: ["Botas de Escamas de Dragão"],
+  vocations: ["paladin"], extra: { boots: { speed: 8, distance: 1 } }, blurb: "Escamas de dragão vermelho até o tornozelo." });
+buildSet({ prefix: "mystic", tier: 6, palette: "steel", tint: 0x60c0ff, slots: BOOTS, shapes: {}, armor: [1], values: [14000], names: ["Botas Místicas"],
+  vocations: MAGE, extra: { boots: { manaMax: 50, speed: 7 } }, blurb: "Seda azul tecida com fios de relâmpago." });
+buildSet({ prefix: "ferumbras", tier: 7, palette: "steel", tint: 0xd890ff, slots: BOOTS, shapes: {}, armor: [1], values: [34000], names: ["Botas de Ferumbras"],
+  vocations: MAGE, extra: { boots: { manaMax: 75, speed: 8 } }, blurb: "Dizem que pertenceram ao maior feiticeiro que já existiu." });
+
+// ---------------------------------------------------------------------------
+// Tier 8 "Abissal" (ciclo 16, lv 100): 13 peças, só do Profundo (Tengu e Samurai Rubros, 0,15–0,3%) e de chefes
+// (Orshabaal, Ferumbras e Shogun Abissal, 10–12%); nunca em loja nem no Baú de Recompensa (`isExclusiveItem`). Ícones:
+// quadros que já existem com `ABYSS_TINT`. Sem botas (Botas da Pressa) e sem grevas de cavaleiro e de mago (as do tier 7
+// seguem valendo). Valores 120–300 mil; o escudo e o grimório valem o mesmo (regra dos livros de magia).
+// ---------------------------------------------------------------------------
+const abyssFrom = ITEM_LIST.length;
+weapon("abyss_blade", "Lâmina Abissal", "sword", "knight", img(W + "BigSword/Sprite.png", ABYSS_TINT), 8, 160, 280000, "Forjada no fundo do Profundo. A lâmina bebe a luz em volta.", { stats: { melee: 4, crit: 4 } });
+bow("abyss_bow", "Arco Abissal", img(W + "Bow2/Sprite.png", ABYSS_TINT), 8, 125, 280000, "A corda vibra num tom que só os mortos escutam.", { distance: 5, crit: 4 });
+weapon("abyss_wand", "Varinha Abissal", "wand", "sorcerer", img(W + "MagicWand/Sprite.png", ABYSS_TINT), 8, 105, 280000, "Apaga a vida do alvo como quem sopra uma vela.", { ...WAND, kind: "death", stats: { magic: 6, manaMax: 200 } });
+weapon("abyss_rod", "Bastão Abissal", "rod", "druid", img(W + "Stick/Sprite.png", ABYSS_TINT), 8, 105, 280000, "Raízes negras que crescem para baixo, rumo ao fundo.", { ...WAND, kind: "earth", stats: { magic: 6, manaMax: 200 } });
+buildSet({ prefix: "abyss", tier: 8, palette: "steel", tint: ABYSS_TINT, slots: ["helmet", "armor", "shield"], shapes: { helmet: "helmet_horned", armor: "armor_plate", shield: "shield_tower" },
+  armor: [5, 10, 6], values: [130000, 300000, 170000], names: ["Elmo Abissal", "Armadura Abissal", "Escudo Abissal"],
+  vocations: ["knight"], extra: { helmet: { melee: 3 }, armor: { hpMax: 300 }, shield: { shield: 10 } }, blurb: "Placas negras do fundo do Profundo. Frias mesmo no fogo." });
+buildSet({ prefix: "abyss_archer", tier: 8, palette: "steel", tint: ABYSS_TINT, slots: ["helmet", "armor", "legs"], shapes: { helmet: "helmet_full", armor: "armor_plate", legs: "legs_greaves" },
+  armor: [5, 9, 5], values: [120000, 280000, 160000], names: ["Elmo do Arqueiro Abissal", "Couraça do Arqueiro Abissal", "Grevas do Arqueiro Abissal"],
+  vocations: ["paladin"], extra: { helmet: { distance: 3 }, armor: { distance: 2, hpMax: 220 }, legs: { distance: 2, crit: 2 } }, blurb: "Escamas escuras que abafam o som dos passos." });
+buildSet({ prefix: "abyss_mage", tier: 8, palette: "steel", tint: ABYSS_TINT, slots: ["helmet", "armor"], shapes: { helmet: "helmet_wizard", armor: "armor_robe" },
+  armor: [4, 6], values: [120000, 280000], names: ["Capuz Abissal", "Manto Abissal"],
+  vocations: MAGE, extra: { helmet: { manaMax: 150, magic: 4 }, armor: { manaMax: 300, magic: 5 } }, blurb: "Tecido de sombra: a mana escorre por ele como água." });
+spellbook("spellbook_abyss", "Grimório Abissal", 8, ABYSS_TINT, 4, 260, 3, 170000, "As páginas são negras e a tinta brilha. Ninguém sabe quem escreveu.");
+/** Ids do tier 8 "Abissal" (lv 100). */
+export const ABYSS_ITEM_IDS: readonly string[] = ITEM_LIST.slice(abyssFrom).map((d) => d.id);
+
+// Oficina dos Engenhos (ciclo 10): recompensas das missões Q3/Q5, todas as vocações, nunca em loja. Valor abaixo do
+// vizinho mais barato do slot de propósito: o modelo de balanço (server/systems/balanceKit.ts) escolhe o melhor
+// equipamento por valor.
+add({ id: "botas_biqueira", name: "Botas Reforçadas", kind: "boots", slot: "boots", icon: gear("boots", "iron"), level: 12, stats: { armor: 1, speed: 3 }, value: 90,
+  description: "Ponteira de ferro e sola dupla. Chutar baú trancado continua não sendo boa ideia." });
+add({ id: "capacete_obra", name: "Elmo de Ferro Pintado", kind: "helmet", slot: "helmet", icon: gear("helmet_cap", "gold"), level: 20, stats: { armor: 2, hpMax: 20 }, value: 480,
+  description: "Pintado de amarelo para ninguém confundir a sua cabeça com uma pedra." });
+// Malha da Ferrovia (ciclo 11): equipamento da via, todas as vocações, recompensas de missão e loot raro dos monstros da Malha.
+// Mesma regra das peças da Oficina: valor abaixo do vizinho mais barato do slot no mesmo level (sniper_armor 4800,
+// archmage_helmet 5500, archmage/master_archer_legs 9500, botas de tier 5 5000), para o modelo de balanço não as escolher.
+add({ id: "colete_refletivo", name: "Gibão Reforçado", kind: "armor", slot: "armor", icon: gear("armor_vest", "gold"), level: 30, stats: { armor: 2, hpMax: 60, speed: 2 }, value: 3600,
+  description: "Couro grosso com rebites nas costas. Leve o bastante para correr de uma ratazana." });
+add({ id: "capacete_lanterna", name: "Elmo com Lampião", kind: "helmet", slot: "helmet", icon: gear("helmet_full", "gold"), level: 35, stats: { armor: 2, hpMax: 50 }, value: 4200,
+  description: "Um lampião preso no topo do elmo. O óleo acaba sempre no meio do túnel." });
+add({ id: "calca_brim_refletiva", name: "Calças de Couro Batido", kind: "legs", slot: "legs", icon: gear("legs_pants", "steel"), level: 40, stats: { armor: 2, hpMax: 50, speed: 2 }, value: 7000,
+  description: "Couro batido até ficar duro. Aguenta cascalho, espinho e mordida de ratazana." });
+add({ id: "botina_seguranca", name: "Botas do Andarilho", kind: "boots", slot: "boots", icon: gear("boots", "bronze"), level: 45, stats: { armor: 1, hpMax: 40, speed: 6 }, value: 3800,
+  description: "Já cruzaram a serra três vezes. Pisam em pedra molhada sem medo." });
 
 // ---------------------------------------------------------------------------
 // Anéis e amuletos (level 10+)
@@ -464,9 +602,18 @@ trinket("ring_demodras", "Anel de Demodras", "ring", "dragon", 70, { crit: 6, hp
 trinket("amulet_orshabaal", "Amuleto de Orshabaal", "amulet", "arcane", 90, { armor: 6, hpMax: 400, manaMax: 200, magic: 2, melee: 2, distance: 2 }, 300000, "O olhar do demônio ainda vive na pedra.");
 trinket("amulet_banuta", "Ídolo de Banuta", "amulet", "gold", 40, { hpMax: 150, manaMax: 80, speed: 3 }, 32000, "O ídolo dourado do templo da selva. Só sai de um baú.");
 trinket("frost_ring", "Anel do Gelo Eterno", "ring", "steel", 60, { crit: 4, hpRegen: 3, manaRegen: 3, armor: 1 }, 60000, "Frio como o coração do Yeti.");
+// Oficina dos Engenhos (ciclo 10): recompensa da Q4, todas as vocações; valor abaixo do Anel da Mente (ver botas_biqueira).
+trinket("anel_trilho_din", "Anel de Ferro Batido", "ring", "iron", 16, { hpRegen: 1, manaRegen: 1 }, 600, "Um pedaço de ferro entortado em anel. Serve em qualquer dedo, menos no certo.");
+// Malha da Ferrovia (ciclo 11): recompensa da missão "O Trem Que Nunca Encerra" e loot dos dois chefes da via, todas as vocações; valor
+// abaixo do Anel da Força (lv 50, 40000), pelo mesmo motivo das peças da Oficina.
+trinket("anel_do_rodeiro", "Anel das Engrenagens", "ring", "steel", 50, { hpRegen: 3, manaRegen: 3, speed: 2 }, 26000, "Engrenagens minúsculas que giram no dedo sem nunca parar. Ninguém sabe dar corda.");
 
 /** Catálogo (derivado das listas acima). */
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(ITEM_LIST.map((d) => [d.id, d]));
 
 export const itemDef = (id: string): ItemDef | undefined => (Object.hasOwn(ITEMS, id) ? ITEMS[id] : undefined);
 export const isEquipable = (d: ItemDef): boolean => d.slot != null;
+
+const ABYSS_SET = new Set(ABYSS_ITEM_IDS);
+/** Fora de loja e de sorteio genérico de equipamento (Baú de Recompensa): os itens únicos e o tier 8. */
+export const isExclusiveItem = (d: ItemDef): boolean => !!d.unique || ABYSS_SET.has(d.id);

@@ -10,7 +10,9 @@ export type AchMetric =
   | "kills" | "bosses" | "bestiary" | "boss:goblin_king" | "boss:swamp_lich"
   | "level" | "melee" | "distance" | "magic" | "shield"
   | "arena" | "gold" | "deaths" | "steps" | "foods" | "drops" | "pickups" | "offline" | "explore" | "equipped"
-  | "quests" | "party" | "fish";
+  | "quests" | "party" | "fish"
+  // Ciclo 11: chefes da Malha da Ferrovia e tarefas fechadas no ClickUp pelo usuário vinculado (server/systems/clickup.ts).
+  | "boss:vagao_nao_inspecionavel" | "boss:locomotiva_fantasma" | "work_tasks";
 
 export interface AchievementDef {
   id: string;
@@ -34,6 +36,8 @@ export interface AchievementDef {
 export const TITLES: Record<string, string> = {
   /** Rotativo: líder de uma categoria semanal do ranking, só até a próxima segunda (server/systems/weeklyChampion.ts). */
   campeao_semana: "Campeão da Semana",
+  /** Rotativo (ciclo 16): o grupo do melhor tempo das 70 ondas do Coliseu na semana (server/systems/arenaChampion.ts). */
+  campeao_coliseu: "Campeão do Coliseu",
   persistente: "o Persistente",
   matador_lich: "Matador de Lich",
   regicida: "Regicida",
@@ -44,6 +48,7 @@ export const TITLES: Record<string, string> = {
   gladiador: "o Gladiador",
   rei_coliseu: "Rei do Coliseu",
   imperador_coliseu: "Imperador do Coliseu",
+  senhor_abismo: "Senhor do Abismo",
   cartografo: "o Cartógrafo",
   magnata: "o Magnata",
   heroi_povo: "Herói do Povo",
@@ -59,6 +64,23 @@ export const TITLES: Record<string, string> = {
   exorcista: "o Exorcista",
   algoz_ferumbras: "Algoz de Ferumbras",
   aniquilador: "o Aniquilador",
+  cacador_covis: "Caçador de Covis",
+  // Escritório (ciclo 10): piadas internas, ver bloco correspondente em ACHIEVEMENTS.
+  compras_onfire: "Compras Onfire",
+  superposto: "o Superposto",
+  alinhado: "o Alinhado",
+  movido_a_cafe: "Movido a Café",
+  documentador: "o Documentador",
+  mestre_da_frota: "Mestre da Frota",
+  // Malha da Ferrovia e trabalho real (ciclo 11): ver o bloco correspondente em ACHIEVEMENTS; "maquinista" vem da missão.
+  maquinista: "o Maquinista",
+  inspetor_de_via: "Inspetor de Via",
+  ferroviario: "o Ferroviário",
+  dormente: "o Dormente",
+  entregador: "o Entregador",
+  fechador_sprint: "Fechador de Sprint",
+  mestre_kanban: "Mestre do Kanban",
+  lenda_backlog: "Lenda do Backlog",
 };
 export const MAX_TITLE_LEN = 24;
 
@@ -115,8 +137,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("arena_20", "Lenda da Arena", "Chegue à onda 20 do Coliseu", "🏴‍☠️", 40, "arena", 20, { rewards: ["outfit:pirata"], rare: true }),
   a("arena_30", "Rei do Coliseu", "Vença a onda 30 do Coliseu", "🏆", 80, "arena", 30,
     { rewards: ["addon:pirata:1", "title:rei_coliseu"], rare: true }),
-  a("arena_60", "Imperador do Coliseu", `Vença a onda ${ARENA_MAX_WAVE} do Coliseu`, "👑", 120, "arena", ARENA_MAX_WAVE,
+  // A 60 era o fim do Coliseu até o ciclo 15: o alvo fica em 60 (quem já tem não perde); a 70 ganhou a sua.
+  a("arena_60", "Imperador do Coliseu", "Vença a onda 60 do Coliseu", "👑", 120, "arena", 60,
     { rewards: ["title:imperador_coliseu"], rare: true }),
+  a("arena_70", "Senhor do Abismo", `Vença a onda ${ARENA_MAX_WAVE} do Coliseu`, "🔱", 150, "arena", ARENA_MAX_WAVE,
+    { rewards: ["title:senhor_abismo"], rare: true }),
   // Morrer, comer, treinar
   a("deaths_10", "Persistente", "Morra 10 vezes", "🪦", 10, "deaths", 10, { rewards: ["outfit:bruxo", "title:persistente"] }),
   a("deaths_50", "Mártir", "Morra 50 vezes", "😵", 20, "deaths", 50, { rewards: ["addon:bruxo:1"] }),
@@ -149,6 +174,32 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("quest_1", "Faz-tudo", "Complete uma missão", "📜", 5, "quests", 1),
   a("quest_10", "Herói do Povo", "Complete 10 missões", "📯", 30, "quests", 10, { rewards: ["addon:monge:2", "title:heroi_povo"] }),
   a("party_10", "Trabalho em Equipe", "Derrote 10 monstros em grupo", "🤝", 15, "party", 10, { rewards: ["addon:domador:2"] }),
+  // Escritório (ciclo 10): piadas internas com métricas já existentes. Os pares (métrica, alvo) não repetem nenhum dos
+  // acima; só títulos de recompensa (nenhuma roupa/addon novo).
+  a("chegou", "Chegou!", "Pegue 30 itens do chão", "📦", 5, "pickups", 30, { rewards: ["title:compras_onfire"] }),
+  a("caiu_a_energia", "Caiu a Energia", "Morra pela primeira vez", "🔌", 5, "deaths", 1, { hidden: true }),
+  a("git_caiu", "git caiu?", "Treine offline por 1 hora no total", "🌿", 5, "offline", 60),
+  a("banheiro_quantico", "Banheiro Quântico", "Ande 25.000 tiles", "🚪", 20, "steps", 25_000, { rewards: ["title:superposto"] }),
+  a("alinhamento_de_sexta", "Alinhamento de Sexta", "Complete 5 missões", "📅", 15, "quests", 5, { rewards: ["title:alinhado"] }),
+  a("gestao_a_vista", "Gestão à Vista", "Explore 45% do mundo", "📋", 20, "explore", 45),
+  a("movido_a_cafe", "Movido a Café", "Coma 100 comidas", "☕", 15, "foods", 100, { rewards: ["title:movido_a_cafe"] }),
+  a("sprint_fechada", "Sprint Fechada", "Derrote 250 monstros", "🏁", 15, "kills", 250),
+  a("matriz_de_requisitos", "Matriz de Requisitos", "Derrote 25 tipos de monstro diferentes", "🗂️", 25, "bestiary", 25, { rewards: ["title:documentador"] }),
+  a("cubo_magico", "Cubo Mágico", "Chegue ao Magic Level 20", "🧊", 25, "magic", 20),
+  a("mestre_da_frota", "Mestre da Frota", "Pegue 250 itens do chão", "🚚", 20, "pickups", 250, { rewards: ["title:mestre_da_frota"] }),
+  a("reuniao_geral", "Reunião Geral", "Derrote 50 monstros em grupo", "📺", 25, "party", 50),
+  // Malha da Ferrovia (ciclo 11): chefes da via e métricas existentes com pares (métrica, alvo) que não se repetem.
+  a("vagao_inspecionado", "Vagão Inspecionado", "Derrote o Ciclope de Pedra", "🚃", 30, "boss:vagao_nao_inspecionavel", 1, { rewards: ["title:inspetor_de_via"], rare: true }),
+  a("ultimo_apito", "Último Apito", "Derrote o Tirano da Serra", "🚂", 40, "boss:locomotiva_fantasma", 1, { rewards: ["title:ferroviario"], rare: true }),
+  a("horario_cumprido", "Horário Cumprido", "Derrote o Tirano da Serra 5 vezes", "⏱️", 40, "boss:locomotiva_fantasma", 5, { rare: true }),
+  a("dormente", "Dormente", "Treine offline por 6 horas no total", "🛤️", 15, "offline", 360, { rewards: ["title:dormente"] }),
+  a("bitola_larga", "Bitola Larga", "Ande 100.000 tiles", "📏", 35, "steps", 100_000),
+  a("passagem_liberada", "Passagem Liberada", "Complete 15 missões", "🚦", 35, "quests", 15),
+  // Trabalho real (ciclo 11): tarefas fechadas no ClickUp pela conta vinculada por admin (/vincular). Só contagem.
+  a("work_1", "Primeira Entrega", "Feche 1 tarefa no ClickUp vinculado", "✅", 5, "work_tasks", 1, { rewards: ["title:entregador"] }),
+  a("work_10", "Sprint Entregue", "Feche 10 tarefas no ClickUp vinculado", "🏁", 15, "work_tasks", 10, { rewards: ["title:fechador_sprint"] }),
+  a("work_50", "Quadro Limpo", "Feche 50 tarefas no ClickUp vinculado", "📌", 30, "work_tasks", 50, { rewards: ["title:mestre_kanban"] }),
+  a("work_200", "Backlog Zerado", "Feche 200 tarefas no ClickUp vinculado", "🏆", 50, "work_tasks", 200, { rewards: ["title:lenda_backlog"], rare: true }),
 ];
 
 export const ACHIEVEMENTS_BY_ID: Record<string, AchievementDef> = Object.fromEntries(ACHIEVEMENTS.map((x) => [x.id, x]));

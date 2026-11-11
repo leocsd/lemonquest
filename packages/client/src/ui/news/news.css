@@ -8,3 +8,10 @@
 .news-date { font-weight: 400; font-size: 11px; color: #7d86a3; margin-left: 6px; }
 .news-entry ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; line-height: 1.4; color: #cfd6ea; }
 .news-foot { display: flex; justify-content: flex-end; }
+.news-none { margin: 0; font-size: 12px; color: #9aa6c8; }
+/* Histórico recolhido (ciclo 17): o que o jogador já viu não empurra o novo para baixo. */
+.news-history { display: flex; flex-direction: column; gap: 12px; }
+.news-history > summary { cursor: pointer; font-size: 12.5px; color: #9aa6c8; padding: 4px 0; }
+.news-history > summary:hover { color: #e4e8f5; }
+.news-history[open] > summary { margin-bottom: 8px; }
+.news-history .news-entry + .news-entry { margin-top: 12px; }

@@ -124,11 +124,44 @@ describe("desafios da semana", () => {
     const next = new Date(2026, 9, 21, 12).getTime();
     s.setTime(next);
     s.p.level = 20;
+    s.rec.xp = xpForLevel(20); // a sala grava a XP do jogador no registro (save) antes da virada
     rollWeek(s.rec, new Date(next)); // a sala faz isso na virada
     s.sys.onMessage(s.p, { action: "list" });
     const v = s.last();
     expect(v.goals.every((g: any) => g.progress === 0 && !g.claimed)).toBe(true);
     expect(v.goals.find((g: any) => g.id === "evolucao").target).toBe(xpForLevel(21) - xpForLevel(20));
+  });
+
+  it("meta de XP usa o level do 1º login da semana, não o de quando a janela abre (14-20)", () => {
+    const s = setup(10); // linha de base gravada no login (lv 10)
+    // Subiu dois levels antes de abrir a janela pela primeira vez na semana.
+    s.p.level = 12;
+    s.rec.xp = xpForLevel(12);
+    s.sys.onMessage(s.p, { action: "list" });
+    const evo = () => s.last().goals.find((g: any) => g.id === "evolucao");
+    expect(evo().target).toBe(xpForLevel(11) - xpForLevel(10));
+    expect(s.rec.data.challenges.level).toBe(10);
+    // O ganho desde o login já conta (os dois levels passam da meta de um level).
+    expect(evo().progress).toBe(evo().target);
+    s.sys.onMessage(s.p, { action: "claim", id: "evolucao" });
+    expect(s.rec.data.challenges.claimed).toEqual(["evolucao"]);
+  });
+
+  it("estado criado nesta semana com o level errado (antes do ciclo 14) é corrigido pela linha de base", () => {
+    const s = setup(10);
+    s.rec.data.challenges = { week: s.rec.data.week.id, level: 14, claimed: [], bonus: false };
+    s.sys.onMessage(s.p, { action: "list" });
+    expect(s.last().goals.find((g: any) => g.id === "evolucao").target).toBe(xpForLevel(11) - xpForLevel(10));
+    expect(s.rec.data.challenges.level).toBe(10);
+  });
+
+  it("sem linha de base desta semana (virada da sala ainda não rodou), vale o level atual", () => {
+    const s = setup(10);
+    const next = new Date(2026, 9, 21, 12).getTime(); // semana seguinte, base ainda da anterior
+    s.setTime(next);
+    s.p.level = 15;
+    s.sys.onMessage(s.p, { action: "list" });
+    expect(s.rec.data.challenges.level).toBe(15);
   });
 
   it("mensagens malformadas e ids desconhecidos são ignorados", () => {

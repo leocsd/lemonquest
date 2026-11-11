@@ -6,7 +6,7 @@ export function attentionTitle(base: string, count: number): string {
 }
 
 /** O que merece chamar a atenção de quem está em outra aba. */
-export type AttentionReason = "whisper" | "trade" | "party" | "friend" | "event";
+export type AttentionReason = "whisper" | "trade" | "party" | "friend" | "event" | "eventSoon";
 
 /** Notificações do servidor que contam como "amigo entrou/saiu" (ver systems/social.ts). */
 export const isFriendNotice = (text: string): boolean => /\(amigo\)/.test(text);

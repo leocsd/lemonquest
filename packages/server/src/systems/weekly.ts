@@ -1,5 +1,6 @@
 // Linha de base semanal por personagem: o ranking semanal (e as missões semanais) mede o ganho desde o começo da
-// semana ISO. A base é gravada no primeiro contato da semana (entrada no mundo ou virada com o jogador online).
+// semana ISO. A base é gravada no primeiro contato da semana (entrada no mundo ou virada com o jogador online). Os
+// desafios da semana (challenges.ts) tiram dela o level do começo da semana (levelForXp da XP da base).
 import { weekId, type WeekBaseline, type WeeklyKey } from "@lemonquest/shared";
 import type { CharacterRecord } from "../persistence/types.ts";
 

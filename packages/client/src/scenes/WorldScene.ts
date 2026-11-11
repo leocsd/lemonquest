@@ -9,6 +9,7 @@ import {
 import { session } from "../session.ts";
 import { Actor, createCharacterAnims, SPEECH_COLOR_PARTY, type ActorDeps } from "../game/actor.ts";
 import { CombatFx, KIND_COLOR } from "../game/combatFx.ts";
+import { damageText } from "../game/damageText.ts";
 import { allCreatureSheets, creatureColor, creatureVisual, ELITE_GLYPH, levelDifficulty, sheetTrim } from "../game/creatures.ts";
 import { Butterflies } from "../game/ambient.ts";
 import { FXTEST, startFxTest } from "../game/fxtest.ts";
@@ -22,6 +23,9 @@ import { NpcManager, allNpcSheets } from "../game/npcs.ts";
 import { STATUE_RANGE, StatueIndex } from "../game/statues.ts";
 import { QUEST_OBJECT_RANGE, QuestObjectIndex, useQuestObject } from "../game/questObjects.ts";
 import { ChestLabels } from "../game/chestLabels.ts";
+import { PortalLabels } from "../game/portalLabels.ts";
+import { ensureWorldIndex } from "../game/worldIndex.ts";
+import { drawDrawnChests, preloadDrawnChests } from "../game/drawnChests.ts";
 import { onTabReturn, settleActors } from "../game/tabReturn.ts";
 import { KeyboardInput } from "../game/input.ts";
 import { applyTextRes, onTextResChange, sceneTexts } from "../game/textRes.ts";
@@ -30,28 +34,27 @@ import { Predictor } from "../game/predictor.ts";
 import { sfx, type SfxName } from "../game/sfx.ts";
 import { SpellEffects } from "../game/spellFx.ts";
 import { ADDON_SHEET_LIST, ALL_SHEETS, outfitLook } from "../game/sprites.ts";
-import { closeCtxMenu, openCtxMenu, openOutfit, type CtxMenuItem } from "../ui/outfit/outfit.ts";
+import { closeCtxMenu, openCtxMenu } from "../ui/outfit/outfit.ts";
+import { openPlayerMenu, openSelfMenu } from "../ui/social/playerMenu.ts";
 import { lookCreature, lookNpc, lookPlayer, lookQuestObject, type LookContent } from "../game/lookInfo.ts";
 import { expectLookItem, showLook } from "../ui/look/look.ts";
-import { amLeader, isPartyMember, partyAction, partyStore } from "../ui/party/party.ts";
+import { isPartyMember, partyStore } from "../ui/party/party.ts";
 import { TEX, createFxTextures } from "../game/textures.ts";
 import { MAP_KEY, buildWorldMap, preloadWorldMap, type WorldMap } from "../game/worldMap.ts";
 import { loading } from "../ui/loading.ts";
 import { openNpc } from "../ui/npc/npc.ts";
 import { openStatue } from "../ui/training/training.ts";
 import { showDeath, showLevelBanner } from "../ui/combat/combatUi.ts";
+import { fmtImbueBadge, imbuedDetail } from "../ui/imbue/imbueText.ts";
 import { setConditions } from "../ui/hud/conditions.ts";
 import { SKILL_LABELS } from "../ui/hud/SkillsWindow.tsx";
 import { pushToast } from "../ui/toasts.ts";
 import { playersStore, selectMe } from "../ui/hud/world.ts";
-import { followPlayer } from "../ui/hud/FightMode.tsx";
 import { inventoryStore } from "../ui/items/inventory.ts";
-import { inventoryCounter, questStore } from "../ui/quests/quests.ts";
-import { guideTarget } from "../ui/hud/guide.ts";
+import { currentGuide } from "../ui/hud/guideState.ts";
 import { getHudInsets } from "../ui/hud/layout.ts";
 import { GuideArrow } from "../game/guide.ts";
 import { FishBobbers } from "../game/fishing.ts";
-import { requestTrade } from "../ui/trade/trade.ts";
 import { reducedMotion } from "../ui/a11y/a11y.ts";
 import { spellCooldownLeft } from "../ui/hud/castbar.ts";
 import { BATTLE_RANGE, chebyshev, hpPct, setBattleEntries, clearBattleEntries, type BattleEntry } from "../ui/hud/battle.ts";
@@ -109,6 +112,8 @@ export class WorldScene extends Phaser.Scene {
   private predictor!: Predictor;
   private input_!: KeyboardInput;
   private moveSeq = 0;
+  /** Último PlayerView.bump visto do próprio jogador (passo recusado pelo servidor). */
+  private lastBump = 0;
   private myLevel = 1;
   private myMaxHp = 1;
 
@@ -116,6 +121,7 @@ export class WorldScene extends Phaser.Scene {
   private spells!: SpellEffects;
   private npcs!: NpcManager;
   private chestLabels!: ChestLabels;
+  private portalLabels!: PortalLabels;
   private loot!: LootFx;
   private ground!: GroundItems;
   /** Item do chão clicado de longe: pega ao chegar ao lado (cancelado por movimento manual). */
@@ -166,6 +172,7 @@ export class WorldScene extends Phaser.Scene {
     }
     CombatFx.preload(this);
     LootFx.preload(this);
+    preloadDrawnChests(this);
   }
 
   /** Alimenta a tela de carregamento com o progresso REAL do loader (mapa, tilesets, sprites, efeitos). */
@@ -243,6 +250,8 @@ export class WorldScene extends Phaser.Scene {
     this.statues = new StatueIndex(this.world.tiled);
     this.questObjs = new QuestObjectIndex(this.world.tiled);
     this.chestLabels = new ChestLabels(this, this.uiLayer, this.questObjs.list);
+    this.portalLabels = new PortalLabels(this, this.uiLayer, ensureWorldIndex(this.world.tiled));
+    drawDrawnChests(this, this.worldLayer, this.questObjs.list);
     this.loot = new LootFx(this, this.worldLayer, this.uiLayer, this.fx, () => {
       const me = this.actors.get(this.myId);
       return me ? { x: me.bodyX, y: me.bodyY, headY: me.headY } : null;
@@ -347,7 +356,7 @@ export class WorldScene extends Phaser.Scene {
     msg<NpcSayMsg>(S2C.NpcSay, (m) => this.npcs.say(m.npcId, m.text));
     msg<NpcOpenMsg>(S2C.NpcOpen, (m) => this.npcs.say(m.npcId, m.greeting));
     msg<LootMsg>(S2C.Loot, (m) => this.onLoot(m));
-    msg<DiedMsg>(S2C.Died, (m) => this.onDied(m.killerName, m.lostXp));
+    msg<DiedMsg>(S2C.Died, (m) => this.onDied(m.killerName, m.lostXp, m));
     msg<CreatureDiedMsg>(S2C.CreatureDied, (m) => this.onCreatureDied(m));
     room.onLeave(() => { if (this.room === room) this.unbindRoom(); });
   }
@@ -448,11 +457,20 @@ export class WorldScene extends Phaser.Scene {
       this.predictor.speedPct = p.speedPct ?? 100;
       this.setMyStats(p.level, p.maxHp);
       this.onServerTarget(p.targetId ?? "");
-      if (!moved) return; // direção local é a da predição
-      const r = this.predictor.onServerPos(p.x, p.y, p.stepMs, performance.now());
-      if (r.kind === "external") this.moveVisual(id, actor, p.x, p.y, r.ms, p.dir);
-      else if (r.kind === "diverged") actor.correctTo(p.x, p.y);
-      return;
+      const bumped = (p.bump ?? 0) !== this.lastBump;
+      this.lastBump = p.bump ?? 0;
+      if (moved) {
+        const now = performance.now();
+        const r = this.predictor.onServerPos(p.x, p.y, p.stepMs, now);
+        // Passo do servidor (clique, perseguição) também pelo relógio, a partir da chegada: emenda no fim do anterior em
+        // vez do catch-up. A cadência do servidor é exata, então a variação da chegada (tick + patch, ±50 ms) só atrasa
+        // o primeiro passo; com o catch-up o boneco alternava parada e tranco a cada tile.
+        if (r.kind === "external") this.moveVisual(id, actor, p.x, p.y, r.ms, p.dir, now);
+        else if (r.kind === "diverged") actor.correctTo(p.x, p.y);
+      }
+      // Passo recusado (monstro entrou no tile, bloqueio de PvP): corrige já, sem esperar o tempo-limite.
+      if (bumped && this.predictor.onRefused(p.x, p.y, performance.now())) actor.correctTo(p.x, p.y);
+      return; // sem mudar de tile, a direção local é a da predição
     }
 
     if (moved) this.moveVisual(id, actor, p.x, p.y, p.stepMs, p.dir);
@@ -463,10 +481,13 @@ export class WorldScene extends Phaser.Scene {
   private chargeAt = new Map<string, number>();
   private recentCharge(id: string) { return performance.now() - (this.chargeAt.get(id) ?? -1e9) < 500; }
 
-  /** Movimento visual: saltos de 2+ tiles junto de uma investida viram um deslize de ~120 ms. */
-  private moveVisual(id: string, actor: Actor, x: number, y: number, ms: number, dir: Dir) {
+  /**
+   * Movimento visual: saltos de 2+ tiles junto de uma investida viram um deslize de ~120 ms. `at` = passo no relógio
+   * (Segment.at), só para o próprio jogador.
+   */
+  private moveVisual(id: string, actor: Actor, x: number, y: number, ms: number, dir: Dir, at?: number) {
     const far = Math.max(Math.abs(x - actor.tileX), Math.abs(y - actor.tileY)) >= 2;
-    if (!far) { actor.stepTo(x, y, ms, dir); return; }
+    if (!far) { actor.stepTo(x, y, ms, dir, at); return; }
     const apply = () => {
       // O ator pode ter saído (logout logo após o teleporte) ou sido recriado nesses 40 ms.
       if (this.actors.get(id) !== actor) return;
@@ -588,9 +609,11 @@ export class WorldScene extends Phaser.Scene {
     if (d !== null) { this.pendingNpc = null; this.pendingGround = null; window.clearTimeout(this.groundWalkTimer); window.clearTimeout(this.chordTimer); }
     // Mesma ordem do servidor: primeiro recupera um passo que já era devido com a intenção antiga.
     this.stepLocal();
+    // Onde a predição está: se já deu o próximo passo da direção antiga, o servidor o completa antes de mudar.
+    const at = { x: this.predictor.x, y: this.predictor.y };
     if (d === null) this.predictor.release();
     else this.predictor.press(d);
-    this.room.send(C2S.Move, { dir: d, seq: ++this.moveSeq } satisfies MoveMsg);
+    this.room.send(C2S.Move, { dir: d, seq: ++this.moveSeq, at } satisfies MoveMsg);
     this.stepLocal(); // sem esperar o próximo frame: zero atraso percebido
   }
 
@@ -634,30 +657,19 @@ export class WorldScene extends Phaser.Scene {
       if (!this.room && !FXTEST) return;
       const t = this.pointerTile(ptr);
       if (!t) return;
-      // Botão direito no próprio personagem: menu (Trocar roupa / pegar item do chão / sair do grupo).
+      // Botão direito no próprio personagem: menu (roupa / item do chão / sair do grupo / trocar personagem).
       const me = this.actors.get(this.myId);
       if (right && me && t.x === me.tileX && t.y === me.tileY) {
         const ev = ptr.event as MouseEvent;
         const gidHere = this.ground?.topAt(t.x, t.y);
-        openCtxMenu(ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y, [
-          { label: "Trocar roupa", run: openOutfit },
-          ...(gidHere ? [{ label: "Pegar item do chão", run: () => this.pickupGround(gidHere) }] : []),
-          ...(partyStore.get() ? [{ label: "Sair do grupo", run: () => partyAction({ action: "leave" }) }] : []),
-        ]);
+        openSelfMenu(ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y, gidHere ? () => this.pickupGround(gidHere) : null);
         return;
       }
-      // Botão direito em outro jogador: grupo (convidar / expulsar / passar liderança) e troca de itens.
+      // Botão direito em outro jogador: o mesmo menu da Batalha (ui/social/playerMenu.ts; Atacar por último).
       const other = right ? this.playerAtTile(t.x, t.y) : null;
       if (other) {
         const ev = ptr.event as MouseEvent;
-        const following = selectMe(playersStore.get())?.followId === other;
-        const attacking = getTarget()?.id === other;
-        const items = [
-          { label: attacking ? "Parar de atacar" : "Atacar", run: () => toggleTarget({ id: other, kind: "player" }) },
-          { label: following ? "Parar de seguir" : "Seguir", run: () => followPlayer(following ? null : other) },
-          ...this.partyMenu(other), { label: "Trocar itens", run: () => requestTrade(other) },
-        ];
-        if (items.length) openCtxMenu(ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y, items);
+        openPlayerMenu(other, ev?.clientX ?? ptr.x, ev?.clientY ?? ptr.y);
         return;
       }
       // Botão direito na água: pescar (precisa da Vara de Pesca; o servidor avisa se faltar algo).
@@ -740,6 +752,8 @@ export class WorldScene extends Phaser.Scene {
     const pid = me && t.x === me.tileX && t.y === me.tileY ? this.myId : this.playerAtTile(t.x, t.y);
     const snap = pid ? playersStore.get().get(pid) : undefined;
     if (pid && snap) return show(lookPlayer(snap, { me: pid === this.myId, party: pid !== this.myId && isPartyMember(pid) }));
+    const portal = this.portalLabels.lookAt(t.x, t.y, this.myLevel);
+    if (portal) return show(portal);
     const gid = this.ground?.topAt(t.x, t.y);
     if (gid && this.room) {
       expectLookItem(gid, x, y);
@@ -751,20 +765,6 @@ export class WorldScene extends Phaser.Scene {
   private playerAtTile(x: number, y: number): string | null {
     for (const [id, a] of this.actors) if (id !== this.myId && a.tileX === x && a.tileY === y) return id;
     return null;
-  }
-
-  /** Itens do menu de contexto de outro jogador (grupo). */
-  private partyMenu(id: string): CtxMenuItem[] {
-    const inParty = !!partyStore.get();
-    const leader = amLeader();
-    if (isPartyMember(id, true)) {
-      return leader ? [
-        { label: "Passar liderança", run: () => partyAction({ action: "lead", targetId: id }) },
-        { label: "Expulsar do grupo", run: () => partyAction({ action: "kick", targetId: id }) },
-      ] : [];
-    }
-    if (inParty && !leader) return [];
-    return [{ label: "Convidar para o grupo", run: () => partyAction({ action: "invite", targetId: id }) }];
   }
 
   /** Escudinho/nome verde nos membros do meu grupo. */
@@ -991,11 +991,15 @@ export class WorldScene extends Phaser.Scene {
         return !!a && stableFrames >= 3 && !a.isMoving && this.pcam.isCenteredOn(a.rx + TILE_SIZE / 2, a.ry + TILE_SIZE / 2);
       },
       players: () => [...this.known].map(([id, k]) => ({ id, x: k.x, y: k.y })),
+      /** Reconciliações da predição do próprio jogador (diagnóstico de lag) e a espera atual pela confirmação. */
+      predStats: () => ({ ...this.predictor.stats, timeoutMs: this.predictor.confirmTimeoutMs }),
       monsters: () => [...this.creatureKnown].filter(([id]) => !this.dying.has(id))
         .map(([id, k]) => ({ id, x: k.x, y: k.y, ...this.creatureInfo.get(id) })),
       ground: () => this.ground?.all() ?? [],
       /** Seta-guia do novato (null = escondida). */
       guide: () => this.guide?.shown ?? null,
+      /** Rótulos de portal na tela ("Minas Abandonadas · lv 10+"), com a cor (vermelho = não passa). */
+      portalLabels: () => this.portalLabels?.shown() ?? [],
       /** Água (pesca) e quantas boias estão na tela. */
       isWater: (x: number, y: number) => this.world.water.isWater(x, y),
       bobbers: () => this.bobbers?.count ?? 0,
@@ -1028,10 +1032,14 @@ export class WorldScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     const dt = Math.min(delta, 100);
-    this.stepLocal();
-    this.checkStalePrediction();
+    // Um relógio só no quadro: a predição inicia o passo e o ator o desenha no mesmo instante (Segment.at). `time` é o
+    // timestamp do requestAnimationFrame (mesma origem do performance.now, alinhado ao vsync): lido no meio do callback,
+    // o performance.now variava ~1 ms por quadro e o passo andava ±6% de um quadro para o outro.
+    const now = time;
+    this.stepLocal(now);
+    this.checkStalePrediction(now);
 
-    for (const a of this.actors.values()) a.update(dt);
+    for (const a of this.actors.values()) a.update(dt, now);
 
     const me = this.actors.get(this.myId);
     if (me) this.pcam.follow(me.rx + TILE_SIZE / 2, me.ry + TILE_SIZE / 2, dt);
@@ -1039,7 +1047,7 @@ export class WorldScene extends Phaser.Scene {
     // Criaturas: culling por distância ao jogador; só as visíveis fazem trabalho de render.
     const mtx = me ? me.rx / TILE_SIZE : 0, mty = me ? me.ry / TILE_SIZE : 0;
     for (const a of this.creatures.values()) {
-      a.update(dt);
+      a.update(dt, now);
       a.setCulled(!!me && Math.max(Math.abs(a.rx / TILE_SIZE - mtx), Math.abs(a.ry / TILE_SIZE - mty)) > CULL_TILES);
     }
 
@@ -1051,6 +1059,7 @@ export class WorldScene extends Phaser.Scene {
     this.npcs.update(dt, me);
     this.npcs.placeUi(zoom, dt, (wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.chestLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height);
+    this.portalLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height, this.myLevel);
     this.updateGuide(me, dt);
     this.bobbers.update((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.checkPendingNpc();
@@ -1075,35 +1084,34 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Seta-guia da primeira missão (só personagem novo): aponta o Capitão ou a floresta, conforme o andamento. */
+  /** Seta-guia: a missão/recompensa em "Guiar" (ou a primeira missão do novato), com o portal/viagem do caminho. */
   private updateGuide(me: Actor | undefined, dt: number) {
     const inset = getHudInsets();
     const area = { w: this.scale.width, h: this.scale.height, right: inset.right, bottom: inset.bottom };
     const st = selectMe(playersStore.get());
-    const target = me && st ? guideTarget(st.level, questStore.get(), inventoryCounter()) : null;
-    const tile = target ? (target.kind === "npc" ? this.npcs.tileOf(target.id) : target) : null;
-    if (!me || !target || !tile) { this.guide.update(dt, null, area); return; }
+    const tile = me && st ? currentGuide({ x: me.tileX, y: me.tileY }, st.level) : null;
+    if (!me || !tile) { this.guide.update(dt, null, area); return; }
     const dist = Math.max(Math.abs(me.tileX - tile.x), Math.abs(me.tileY - tile.y));
     // Perto do destino a seta já cumpriu o papel (e o "!" do NPC aparece sobre ele).
     if (dist <= 2) { this.guide.update(dt, null, area); return; }
-    this.guide.update(dt, { sx: this.pcam.toScreenX((tile.x + 0.5) * TILE_SIZE), sy: this.pcam.toScreenY(tile.y * TILE_SIZE), dist, label: target.label }, area);
+    this.guide.update(dt, { sx: this.pcam.toScreenX((tile.x + 0.5) * TILE_SIZE), sy: this.pcam.toScreenY(tile.y * TILE_SIZE), dist, label: tile.label }, area);
   }
 
   /** Avança a predição local (pode iniciar um passo). */
-  private stepLocal() {
+  private stepLocal(now = performance.now()) {
     const me = this.actors.get(this.myId);
     if (!me || !this.room) return;
-    const ev = this.predictor.update(performance.now());
+    const ev = this.predictor.update(now);
     if (!ev) return;
-    if (ev.kind === "step") me.stepTo(ev.x, ev.y, ev.ms, ev.dir);
+    if (ev.kind === "step") me.stepTo(ev.x, ev.y, ev.ms, ev.dir, ev.at);
     else me.face(ev.dir);
   }
 
-  private checkStalePrediction() {
+  private checkStalePrediction(now: number) {
     const me = this.actors.get(this.myId);
     const k = this.known.get(this.myId);
     if (!me || !k) return;
-    if (this.predictor.checkStale(k.x, k.y, performance.now())) me.correctTo(k.x, k.y);
+    if (this.predictor.checkStale(k.x, k.y, now)) me.correctTo(k.x, k.y);
   }
 
   /** Criaturas a até 10 tiles → battle list (só republica se mudou). */
@@ -1165,7 +1173,7 @@ export class WorldScene extends Phaser.Scene {
     if (!r.show) return;
 
     if (ev.miss) {
-      this.fx.floatText(wx, textY, "errou", 0xb5b9c6, { size: 11, life: 650, rise: 8 });
+      this.fx.floatText(wx, textY, damageText(ev), 0xb5b9c6, { size: 11, life: 650, rise: 8 });
       this.fx.puff(wx, wy + 2);
       this.sfxAt("miss", r.gain, { volume: 0.6 });
       return;
@@ -1190,7 +1198,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     const color = ev.kind === "physical" && toMe ? 0xff6b5e : KIND_COLOR[ev.kind];
-    this.fx.floatText(wx, textY, ev.crit ? `${ev.amount}!` : `${ev.amount}`, color, { crit: !!ev.crit });
+    this.fx.floatText(wx, textY, damageText(ev), color, { crit: !!ev.crit });
 
     let ang = 0;
     if (tgt) {
@@ -1247,7 +1255,7 @@ export class WorldScene extends Phaser.Scene {
     const fresh = this.myVocation
       ? spellsFor(this.myVocation as never).filter((s) => s.level > from && s.level <= level).map((s) => s.name)
       : [];
-    showLevelBanner(level, fresh);
+    showLevelBanner(level, fresh, from);
     sfx.play("levelup", { volume: 1 });
   }
 
@@ -1272,7 +1280,10 @@ export class WorldScene extends Phaser.Scene {
     setConditions(m.list.map((c) => ({
       id: c.id,
       until: c.remainingMs != null && c.remainingMs > 0 ? now + c.remainingMs : undefined,
-      detail: c.id === "fed" ? `+${c.value ?? 0} vida/+${c.value2 ?? 0} mana a cada 2 s` : undefined,
+      detail: c.id === "fed" ? `+${c.value ?? 0} vida/+${c.value2 ?? 0} mana a cada 2 s`
+        : c.id === "imbued" ? imbuedDetail(c.effect, c.value2, c.value ?? 0) : undefined,
+      // Encantamento: minutos de combate (value) num selo fixo; não conta sozinho (só gasta lutando).
+      label: c.id === "imbued" ? fmtImbueBadge((c.value ?? 0) * 60_000) : undefined,
     })));
     this.spells.setSelfConditions(m.list.map((c) => c.id));
   }
@@ -1283,8 +1294,8 @@ export class WorldScene extends Phaser.Scene {
     sfx.play("skillup", { volume: 0.8 });
   }
 
-  onDied(killerName: string, lostXp: number) {
-    showDeath({ killerName, lostXp });
+  onDied(killerName: string, lostXp: number, bless: Pick<DiedMsg, "blessingUsed" | "savedXp"> = {}) {
+    showDeath({ killerName, lostXp, blessingUsed: bless.blessingUsed, savedXp: bless.savedXp });
     sfx.play("died", { volume: 0.9 });
   }
 

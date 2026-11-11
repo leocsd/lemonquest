@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MONSTERS, PLAYER_ATTACK_MS, S2C, monsterAbilitySpell, monsterDef, type MonsterAbility } from "@lemonquest/shared";
+import { HEAL_ALLIES_LOCKOUT_MS, MONSTERS, PLAYER_ATTACK_MS, S2C, monsterAbilitySpell, monsterDef, type MonsterAbility } from "@lemonquest/shared";
 import { MonsterAbilitySystem } from "./monsterAbilities.ts";
 import { def, openGrid, player, world } from "./testkit.ts";
 
@@ -187,5 +187,66 @@ describe("habilidades de monstros", () => {
     w.run(PLAYER_ATTACK_MS * 3);
     expect(p.hp).toBeLessThan(500);
     expect(of(w.sent, S2C.SpellCast)).toHaveLength(0);
+  });
+});
+
+describe("curandeiros com limite (ciclo 15)", () => {
+  /** Bando de 3 Necromantes (vida 1.500 e o Pacto Sombrio de verdade, sem a invocação) em volta de um jogador. */
+  function pack() {
+    const pact = MONSTERS.necromancer!.abilities!.find((a) => a.healAllies)!;
+    const spots = [{ x: 10, y: 10 }, { x: 12, y: 10 }, { x: 10, y: 12 }];
+    const w = world({
+      grid: openGrid(30, 30), spawns: spots.map((s) => ({ defId: "necro", ...s, count: 1, radius: 0 })),
+      defs: () => def({ id: "necro", hp: 1500, damage: [1, 1], attackMs: MONSTERS.necromancer!.attackMs, aggroRange: 6, abilities: [pact] }),
+    });
+    w.mm.spawnAll();
+    const abil = new MonsterAbilitySystem({
+      grid: openGrid(30, 30), monsters: w.mm, combat: w.combat, conditions: { apply: () => {} },
+      players: () => w.players.values(), broadcast: (type, msg) => w.sent.push({ to: "*", type, msg }), rng: () => 0,
+    });
+    const p = w.add(player("a", 11, 11, { hp: 1_000_000, maxHp: 1_000_000 }));
+    return { ...w, abil, p, pact, necros: [...w.mm.all()] };
+  }
+
+  it("cada monstro recebe a cura em grupo no máximo 1× a cada 10 s: 3 Necromantes curam 54 de vida/s, não 162", () => {
+    expect(HEAL_ALLIES_LOCKOUT_MS).toBe(10_000);
+    const w = pack();
+    const heals = new Map<string, number[]>(w.necros.map((m) => [m.s.id, []]));
+    // Sempre feridos (40% da vida): todo turno de qualquer um dos 3 poderia curar.
+    const hurt = () => { for (const m of w.necros) m.s.hp = 600; };
+    hurt();
+    const WINDOW = 60_000;
+    w.run(WINDOW, () => {
+      for (const m of w.necros) {
+        const at = m.healedAt;
+        const list = heals.get(m.s.id)!;
+        if (at !== undefined && list.at(-1) !== at) list.push(at);
+      }
+      hurt();
+    });
+    let total = 0;
+    for (const list of heals.values()) {
+      expect(list.length).toBeGreaterThanOrEqual(5); // cura de verdade (~1 a cada 10–12 s)
+      for (let i = 1; i < list.length; i++) expect(list[i]! - list[i - 1]!).toBeGreaterThanOrEqual(HEAL_ALLIES_LOCKOUT_MS);
+      total += list.length * Math.round(1500 * w.pact.healAllies!.pct);
+    }
+    // Teto: 3 monstros × 180 a cada 10 s = 54/s (antes cada um recebia a cura dos 3: 162/s).
+    expect(total / (WINDOW / 1000)).toBeLessThanOrEqual(54 + 1e-9);
+    expect(total / (WINDOW / 1000)).toBeGreaterThan(40);
+  });
+
+  it("com todos no limite, o curandeiro não gasta o turno: ataca normalmente até o limite passar", () => {
+    const w = pack();
+    const [a, b, c] = w.necros as [typeof w.necros[0], typeof w.necros[0], typeof w.necros[0]];
+    for (const m of [a, b, c]) m.healedAt = w.now(); // acabaram de ser curados
+    for (const m of [a, b, c]) m.s.hp = 600;
+    const hp = w.p.hp;
+    w.run(HEAL_ALLIES_LOCKOUT_MS - 1000);
+    expect(of(w.sent, S2C.SpellCast)).toHaveLength(0);
+    expect([a, b, c].map((m) => m.s.hp)).toEqual([600, 600, 600]);
+    expect(w.p.hp).toBeLessThan(hp); // os turnos viraram ataque básico
+    w.run(4000);
+    expect(of(w.sent, S2C.SpellCast).filter((s) => s.msg.spellId === "m:necro:heal_allies")).toHaveLength(1);
+    expect([a, b, c].map((m) => m.s.hp)).toEqual([780, 780, 780]); // +12% de 1.500
   });
 });

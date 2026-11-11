@@ -12,6 +12,8 @@ export class PlayerState extends Schema implements PlayerView {
   @type("uint8") dir = 4;
   @type("uint16") stepMs = 0;
   @type("uint32") seq = 0;
+  /** Passo da tecla recusado (ver PlayerView.bump). */
+  @type("uint8") bump = 0;
   @type("uint32") hp = 150;
   @type("uint32") maxHp = 150;
   @type("uint32") mana = 50;
@@ -41,8 +43,7 @@ export class PlayerState extends Schema implements PlayerView {
   @type("boolean") blessed = false;
   /** Tom de tingimento ativo (id em OUTFIT_TONES; "" = cor natural). */
   @type("string") tone = "";
-  /** Encantamento ativo (id em IMBUEMENTS; "" = nenhum). Só vale no PvE. */
-  @type("string") imbuement = "";
+  // Encantamento: fora do schema desde o ciclo 16 (systems/imbuement.ts; o tempo vai na faixa de condições).
 }
 
 /** Deve espelhar MonsterView (packages/shared/src/types.ts). */

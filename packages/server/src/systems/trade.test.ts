@@ -319,3 +319,23 @@ describe("trade: cancelamento", () => {
     expect(s.out).toEqual([]);
   });
 });
+
+describe("trade: refino (ciclo 16)", () => {
+  it("item refinado aparece com o nível na oferta e chega ao outro lado com ele", () => {
+    const s = setup();
+    const bpOf = (id: string) => s.w.inv.get(id)!.backpack;
+    s.w.inv.addItem(s.a, { ...makeItem("katana"), refine: 4 });
+    s.w.inv.addGold(s.b, 50_000);
+    s.open();
+    const k = bpOf("a")[0]!;
+    s.trade.onMessage(s.a, { action: "offer", items: [{ uid: k.uid, count: 1 }], gold: 0 });
+    s.trade.onMessage(s.b, { action: "offer", items: [], gold: 50_000 });
+    expect(s.last("b")).toMatchObject({ theirs: { items: [expect.objectContaining({ defId: "katana", refine: 4 })] } });
+    s.confirm(s.a);
+    s.confirm(s.b);
+    const got = bpOf("b").find((i) => i?.defId === "katana")!;
+    expect([got.uid, got.refine]).toEqual([k.uid, 4]);
+    expect(bpOf("a").some((i) => i?.defId === "katana")).toBe(false);
+    expect(s.w.inv.gold("a")).toBe(50_000);
+  });
+});

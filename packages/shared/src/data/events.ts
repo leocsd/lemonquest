@@ -27,15 +27,26 @@ export const WEEKLY_EVENTS: readonly GameEventDef[] = [
   // agendador devolve um evento só, então as janelas não podem se sobrepor.
   { id: "cacada_de_terca", name: "Caçada de Terça", desc: "XP em dobro", xpMult: 2, lootMult: 1, day: 2, hour: 13, durationMin: 60 },
   { id: "tarde_de_sabado", name: "Tarde de Sábado", desc: "XP ×1,5 e loot +25%", xpMult: 1.5, lootMult: 1.25, day: 6, hour: 14, durationMin: 120 },
+  // Tradições do escritório (ciclo 10): o "Sextou" das 17h de sexta (entre Demodras, 12h15–13h, e a Noite de Caçada,
+  // 19h) e a Reunião Geral de segunda às 9h, quando a TV da War Room fala sozinha (antes do Lich, 12h15).
+  { id: "sextou", name: "Sextou!", desc: "XP ×1,5 e loot +25% até o fim do expediente", xpMult: 1.5, lootMult: 1.25, day: 5, hour: 17, durationMin: 60 },
+  { id: "reuniao_geral", name: "Reunião Geral", desc: "Enquanto a TV da War Room fala, os monstros largam mais loot: +50%", xpMult: 1, lootMult: 1.5, day: 1, hour: 9, durationMin: 45 },
   // Chefes no almoço (seg, ter, qui, sex; a quarta é da Maré de Tesouros), do mais fácil ao mais difícil na semana.
   { id: "despertar_do_lich", name: "Despertar do Lich", desc: "O Lich do Pântano acordou! Loot +50%", xpMult: 1, lootMult: 1.5, day: 1, ...LUNCH, boss: "swamp_lich" },
   { id: "cacada_ao_rei", name: "Caçada ao Rei Goblin", desc: "O Rei Goblin voltou às Ruínas! Loot +50%", xpMult: 1, lootMult: 1.5, day: 2, ...LUNCH, boss: "goblin_king" },
   // Raids das Terras Selvagens, como no Tibia: o chefe aparece no covil dele na hora marcada.
   { id: "rugido_do_yeti", name: "Rugido do Yeti", desc: "O Yeti saiu da caverna na Ilha Gelada! Loot +50%", xpMult: 1, lootMult: 1.5, day: 4, ...LUNCH, boss: "yeti" },
   { id: "furia_de_demodras", name: "Fúria de Demodras", desc: "Demodras acordou no Vale dos Dragões! Loot +50%", xpMult: 1, lootMult: 1.5, day: 5, ...LUNCH, boss: "demodras" },
+  // Malha da Ferrovia (ciclo 11): o apito das cinco de quarta, fim do expediente. Fora do almoço porque a quarta ao meio-dia
+  // é da Maré de Tesouros e o almoço já tem um chefe por dia útil; antes das 18h para o Orshabaal seguir o único noturno.
+  { id: "apito_da_locomotiva", name: "Apito da Locomotiva", desc: "O Tirano da Serra desceu ao Túnel da Serra! Loot +50%", xpMult: 1, lootMult: 1.5, day: 3, hour: 17, durationMin: 60, boss: "locomotiva_fantasma" },
   // Fim de semana: Ferumbras à tarde e o único chefe noturno (Orshabaal), para quem joga de casa.
   { id: "retorno_de_ferumbras", name: "Retorno de Ferumbras", desc: "Ferumbras voltou à Cidadela! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 0, hour: 15, durationMin: 90, boss: "ferumbras" },
   { id: "invasao_de_orshabaal", name: "Invasão de Orshabaal", desc: "Orshabaal subiu do Abismo! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 6, hour: 21, durationMin: 90, boss: "orshabaal" },
+  // Ciclo 12: em produção ninguém tinha matado Ferumbras nem Orshabaal (só apareciam no fim de semana, sem ninguém
+  // online). Ganham também uma edição no fim do expediente, nos dias livres às 17h (como o Apito da Locomotiva).
+  { id: "ferumbras_no_expediente", name: "Ferumbras na Cidadela", desc: "Ferumbras voltou à Cidadela! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 2, hour: 17, durationMin: 60, boss: "ferumbras" },
+  { id: "orshabaal_no_expediente", name: "Cerco de Orshabaal", desc: "Orshabaal subiu do Abismo! XP ×1,5 e loot +50%", xpMult: 1.5, lootMult: 1.5, day: 4, hour: 17, durationMin: 60, boss: "orshabaal" },
 ];
 
 /** Evento em andamento (agendado ou disparado por admin). */
@@ -83,6 +94,46 @@ export function nextScheduled(now: Date, defs: readonly GameEventDef[] = WEEKLY_
   }
   return best;
 }
+
+/** Ocorrência de um evento agendado (ms epoch). `live` = já começou e ainda não acabou. */
+export interface UpcomingEvent { def: GameEventDef; start: number; end: number; live: boolean }
+
+/**
+ * Agenda: as próximas `n` ocorrências (a em andamento primeiro), em ordem de início. O padrão (uma por evento) é a
+ * semana inteira a partir de agora: cada evento se repete a cada 7 dias. Mesmo fuso do agendador (horário local da
+ * máquina, como `scheduledEvent`/`nextScheduled`); a janela de ontem que atravessa a meia-noite também conta.
+ */
+export function upcomingEvents(now: Date, n: number = WEEKLY_EVENTS.length, defs: readonly GameEventDef[] = WEEKLY_EVENTS): UpcomingEvent[] {
+  const t = now.getTime();
+  const out: UpcomingEvent[] = [];
+  for (const def of defs) {
+    for (let ahead = -1; ahead <= 7; ahead++) {
+      const s = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ahead, def.hour, def.minute ?? 0, 0, 0);
+      if (s.getDay() !== def.day) continue;
+      const start = s.getTime(), end = start + def.durationMin * 60_000;
+      if (end > t) out.push({ def, start, end, live: start <= t });
+    }
+  }
+  return out.sort((a, b) => a.start - b.start || a.def.id.localeCompare(b.def.id)).slice(0, Math.max(0, n));
+}
+
+/** Aviso de "evento começando": quanto antes do início (S2C.EventSoon, Feed e título da aba). */
+export const EVENT_SOON_MS = 10 * 60_000;
+
+const WEEKDAY_SHORT = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"] as const;
+/** "12:15" no fuso local (o do servidor, para o /agenda; o do navegador, na janela). */
+export function clockText(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+/** "hoje", "amanhã" ou o dia da semana ("qui"), em dias de calendário no fuso local. */
+export function eventDayText(start: number, now: number): string {
+  const day = (ms: number) => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  const diff = Math.round((day(start) - day(now)) / 86_400_000);
+  return diff === 0 ? "hoje" : diff === 1 ? "amanhã" : WEEKDAY_SHORT[new Date(start).getDay()]!;
+}
+/** "hoje às 12:15", "amanhã às 09:00", "qui às 17:00". */
+export const eventWhenText = (start: number, now: number): string => `${eventDayText(start, now)} às ${clockText(start)}`;
 
 /** "XP ×2 · loot ×1,5" (só o que está acima de 1, vírgula decimal). */
 export function eventBonusText(e: Pick<ActiveEvent, "xpMult" | "lootMult">): string {

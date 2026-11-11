@@ -36,7 +36,7 @@ export interface MonsterAbility {
   heal?: { pct: number; belowHpPct: number };
   /**
    * Cura em grupo (conjuradores): cada monstro aliado a até `radius` tiles (inclusive ele mesmo) recupera `pct` da
-   * própria vida máxima. Só usa se algum deles estiver abaixo de `belowHpPct`.
+   * própria vida máxima. Só usa se algum deles estiver abaixo de `belowHpPct` e fora do HEAL_ALLIES_LOCKOUT_MS.
    */
   healAllies?: { pct: number; radius: number; belowHpPct: number };
   /** Invoca `count` monstros (no máximo `max` vivos por vez). Somem quando o invocador some; não dão XP nem loot. */
@@ -48,6 +48,12 @@ export interface MonsterAbility {
   windupMs?: number;
   fx: SpellFx;
 }
+
+/**
+ * Cada monstro recebe a cura em grupo (`healAllies`) no máximo uma vez neste intervalo, venha de qual curandeiro vier
+ * (ciclo 15). Três Necromantes juntos curavam cada um 3× a cada 10 s (bando: 162 de vida/s); com o limite, 54/s.
+ */
+export const HEAL_ALLIES_LOCKOUT_MS = 10_000;
 
 /** Id do efeito do pedido de reforço (`m:<monstro>:call_help`): o grito é `MonsterDef.pack.shout`. */
 export const CALL_HELP_ID = "call_help";

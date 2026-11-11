@@ -2,7 +2,7 @@
 // e a determinística por dia + faixa já estão em quests.test.ts; aqui é a consistência dos dados e dos valores.
 import { describe, expect, it } from "vitest";
 import { BOUNTIES_PER_DAY, BOUNTY_BANDS, MONSTERS, bountyBand, monsterDef } from "@lemonquest/shared";
-import { generateBounties } from "./bounties.ts";
+import { generateBounties, restoreBounties } from "./bounties.ts";
 
 const MAX_LEVEL = 120;
 /** Quantidades possíveis por abate (bounties.ts): monstros level ≥ 24 pedem menos. */
@@ -90,13 +90,13 @@ describe("generateBounties", () => {
     expect(onlyRat.map((b) => b.monster)).toEqual(["rat"]);
   });
 
-  // bug #N candidato (bounties.ts:74-93): o índice da faixa é grampeado só para escolher o pool; a semente
-  // (`${day}:${band}`) e o ouro fixo (`50 * (band + 1)`) usam o índice cru. Com band -3 o ouro sai negativo (-60) e a
-  // lista difere da faixa 0. Hoje inalcançável (quem chama passa bountyBand(level), sempre 0..n-1), mas o grampo
-  // promete um comportamento que não cumpre. Correção: `band = clamp(band)` antes de semear e de calcular o ouro.
-  it.skip("faixa fora do intervalo é grampeada por inteiro (negativa → 1ª, grande → última)", () => {
+  // Ciclo 14 (14-21): o grampo valia só para escolher o pool; a semente e o ouro fixo usavam o índice cru (band -3 dava
+  // ouro negativo e outra lista). Agora a faixa é grampeada antes de tudo (clampBand).
+  it("faixa fora do intervalo é grampeada por inteiro (negativa → 1ª, grande → última)", () => {
     expect(generateBounties("2026-10-12", -3)).toEqual(generateBounties("2026-10-12", 0));
     expect(generateBounties("2026-10-12", 99)).toEqual(generateBounties("2026-10-12", BOUNTY_BANDS.length - 1));
+    expect(generateBounties("2026-10-12", Number.NaN)).toEqual(generateBounties("2026-10-12", 0));
+    expect(generateBounties("2026-10-12", 1.7)).toEqual(generateBounties("2026-10-12", 1));
     for (const b of generateBounties("2026-10-12", -3)) expect(b.gold).toBeGreaterThan(0);
   });
 
@@ -108,5 +108,36 @@ describe("generateBounties", () => {
     const last = BOUNTY_BANDS.length - 1;
     expect(avg(last, "gold")).toBeGreaterThan(avg(0, "gold") * 10);
     expect(avg(last, "xp")).toBeGreaterThan(avg(0, "xp") * 10);
+  });
+});
+
+describe("restoreBounties (lista gravada com o id do monstro, ciclo 14)", () => {
+  const day = "2026-10-12";
+
+  it("refaz exatamente a lista gerada a partir de monstro + quantidade (mesma XP e ouro)", () => {
+    for (let band = 0; band < BOUNTY_BANDS.length; band++) {
+      const gen = generateBounties(day, band);
+      expect(restoreBounties(day, band, gen.map((b) => ({ m: b.monster, c: b.count })))).toEqual(gen);
+    }
+  });
+
+  it("a lista gravada vale mesmo se a faixa não tiver mais o monstro (mudança de dados no meio do dia)", () => {
+    // "frost_dragon" saiu da faixa 72+ no ciclo 14: quem aceitou antes continua caçando o mesmo alvo.
+    const saved = [{ m: "frost_dragon", c: 15 }, { m: "dragon", c: 10 }, { m: "hero", c: 20 }];
+    const list = restoreBounties(day, 8, saved);
+    expect(list.map((b) => [b.monster, b.count])).toEqual([["frost_dragon", 15], ["dragon", 10], ["hero", 20]]);
+    expect(list[0]!.xp).toBe(15 * MONSTERS.frost_dragon!.xp);
+    expect(list[0]!.gold).toBeGreaterThanOrEqual(50 * 9);
+  });
+
+  it("gravação antiga (sem id), monstro desconhecido ou quantidade inválida: sorteia de novo pelo dia + faixa", () => {
+    const gen = generateBounties(day, 2);
+    expect(restoreBounties(day, 2, [{}, {}, {}])).toEqual(gen);
+    expect(restoreBounties(day, 2, [{ m: "rat", c: 15 }, { m: "nao_existe", c: 15 }, { m: "bee", c: 15 }])).toEqual(gen);
+    expect(restoreBounties(day, 2, [{ m: "rat", c: 0 }, { m: "bee", c: 15 }, { m: "slime", c: 15 }])).toEqual(gen);
+    expect(restoreBounties(day, 2, [{ m: "rat", c: 2.5 }])).toEqual(gen);
+    expect(restoreBounties(day, 2, [])).toEqual(gen);
+    // Faixa corrompida também é grampeada aqui.
+    expect(restoreBounties(day, -1, [{}])).toEqual(generateBounties(day, 0));
   });
 });

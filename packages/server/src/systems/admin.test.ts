@@ -328,6 +328,36 @@ describe("/status", () => {
   });
 });
 
+describe("/agenda e /evento de leitura (todos)", () => {
+  const events = { ids: () => ["mare_de_tesouros"], start: vi.fn(() => "ok"), stop: vi.fn(() => true), status: () => ["Nenhum evento em andamento.", "Próximo agendado: X."] };
+
+  it("jogador comum lê a agenda e o estado; /evento com argumentos não liga nem para nada", () => {
+    const t = fakeCtx();
+    t.ctx.events = events;
+    const bia = t.ps[1];
+    const bia_ = () => t.sent.filter(([id, ty]) => id === "b" && ty === S2C.Notice).map(([, , m]) => m.text as string);
+    expect(handleAdminCommand(bia, "/agenda", t.ctx)).toBe(true);
+    expect(bia_()[0]).toMatch(/^Agenda da semana/);
+    expect(bia_().length).toBeGreaterThan(3);
+    t.sent.length = 0;
+    expect(handleAdminCommand(bia, "/evento mare_de_tesouros 60", t.ctx)).toBe(true);
+    expect(bia_()).toEqual(["Nenhum evento em andamento.", "Próximo agendado: X.", "A semana inteira: /agenda (ou o botão Agenda, no trilho à direita)."]);
+    expect(handleAdminCommand(bia, "/evento parar", t.ctx)).toBe(true);
+    expect(events.start).not.toHaveBeenCalled();
+    expect(events.stop).not.toHaveBeenCalled();
+    expect(t.sent.every(([, , m]) => m.log === true)).toBe(true); // vai para o chat (copiável), não só toast
+  });
+
+  it("admin continua com o /evento de poder; /agenda vale para ele também", () => {
+    const t = fakeCtx();
+    t.ctx.events = events;
+    expect(handleAdminCommand(t.ps[0], "/evento mare_de_tesouros 30", t.ctx)).toBe(true);
+    expect(events.start).toHaveBeenCalledWith("mare_de_tesouros", 30);
+    expect(handleAdminCommand(t.ps[0], "/agenda", t.ctx)).toBe(true);
+    expect(t.replies().some((l) => l.startsWith("Agenda da semana"))).toBe(true);
+  });
+});
+
 describe("/ajuda", () => {
   it("jogador vê os comandos de grupo e o F1; só admin vê a lista de admin", () => {
     const player = helpLines("Bia", PROD), admin = helpLines("Leo", PROD);
@@ -337,6 +367,48 @@ describe("/ajuda", () => {
     expect(player.join(" ")).toContain("1–0");
     expect(player.join(" ")).not.toContain("1–8");
     expect(player.join(" ")).not.toContain("/kick");
+    expect(player.join(" ")).toContain("/agenda");
     for (const c of ADMIN_COMMANDS) expect(admin.join(" ")).toContain(c);
+  });
+});
+
+describe("admin: /vincular (ClickUp)", () => {
+  it("vincula por apelido (online ou offline, nome com espaço), desvincula e lista", () => {
+    const t = fakeCtx();
+    const links = new Map<string, { name: string; since: number }>();
+    t.ctx.work = {
+      link: (name, uid) => { for (const [k, v] of links) if (v.name === name) links.delete(k); if (uid) links.set(uid, { name, since: 0 }); },
+      list: () => [...links],
+    };
+    const leo = t.ps[0];
+    handleAdminCommand(leo, "/vincular Ana Maria pedrão", t.ctx);
+    expect(links.get("43024221")?.name).toBe("Ana Maria");
+    handleAdminCommand(leo, "/vincular caio Lucas P.", t.ctx);
+    expect(links.get("118037728")?.name).toBe("Caio");
+    handleAdminCommand(leo, "/vincular Ana Maria nenhum", t.ctx);
+    expect([...links.keys()]).toEqual(["118037728"]);
+    handleAdminCommand(leo, "/vincular Ninguem pedrao", t.ctx);
+    expect(t.replies().at(-1)).toContain("não encontrado");
+    handleAdminCommand(leo, "/vincular", t.ctx);
+    expect(t.replies().some((r) => r.includes("Caio ↔ Lucas P."))).toBe(true);
+    expect(t.lines.some((l) => l.includes("/vincular Ana Maria 43024221"))).toBe(true);
+  });
+});
+
+describe("admin: /vincular troca de dono", () => {
+  it("avisa quando o usuário do ClickUp sai de outro personagem; id longo demais não vale", () => {
+    const t = fakeCtx();
+    const links = new Map<string, { name: string; since: number }>();
+    t.ctx.work = {
+      link: (name, uid) => { for (const [k, v] of links) if (v.name === name) links.delete(k); if (uid) links.set(uid, { name, since: 0 }); },
+      list: () => [...links],
+    };
+    const leo = t.ps[0];
+    handleAdminCommand(leo, "/vincular Caio pedrao", t.ctx);
+    handleAdminCommand(leo, "/vincular Bia pedrao", t.ctx);
+    expect(links.get("43024221")?.name).toBe("Bia");
+    expect(t.replies().some((r) => r.includes("estava vinculado a Caio"))).toBe(true);
+    handleAdminCommand(leo, "/vincular Bia 1234567890123", t.ctx);
+    expect(t.replies().at(-1)).toContain("não encontrado");
   });
 });

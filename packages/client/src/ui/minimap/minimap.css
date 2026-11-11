@@ -50,3 +50,9 @@
 .daynight-pop { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); width: 150px; padding: 8px; z-index: 40; display: flex; flex-direction: column; gap: 4px; }
 .dn-opt { background: #1b2030; border: 1px solid #343b4e; color: #c4c6cf; border-radius: 3px; padding: 3px 6px; font: inherit; font-size: 12px; cursor: pointer; }
 .dn-opt.active { border-color: #d9a441; color: #f3e6b8; }
+
+/* ---------- Marcadores (ciclo 17) ---------- */
+.worldmap-legend { flex-wrap: wrap; justify-content: center; max-width: min(1100px, 96vw); }
+.worldmap-legend .dot-party { background: #7ee06d; box-shadow: 0 0 0 1px #000; }
+.wm-key { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.wm-glyph { font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; font-weight: 700; text-shadow: 0 0 2px #000, 0 1px 0 #000; }

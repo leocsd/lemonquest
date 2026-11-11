@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BACKPACK_MAX, BACKPACK_SIZE, S2C, backpackCapacity, baseStats, weaponDamageRange, playerDamageRange } from "@lemonquest/shared";
-import { MSG, fitBackpack, makeItem } from "./inventory.ts";
+import { MSG, fitBackpack, makeItem, organizeItems, sanitizeItem } from "./inventory.ts";
 import { attackProfile } from "./combat.ts";
 import { invWorld, itemsFx } from "./m4kit.ts";
 
@@ -202,12 +202,106 @@ describe("inventory: potions", () => {
     expect(w.notices().at(-1)).toBe(MSG.noMana);
   });
 
+  it("poção e comida acima do level: recusa com o level no aviso, não consome e não gasta a recarga", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { level: 10 });
+    p.maxHp = 1000; p.hp = 10;
+    w.inv.addItem(p, makeItem("hp_pot_huge", 2)); // 0: lv 30
+    w.inv.addItem(p, makeItem("ham", 1));         // 1: lv 30
+    w.inv.addItem(p, makeItem("hp_pot", 1));      // 2: lv 1
+    w.inv.onUseItem(p, { index: 0 });
+    expect(w.notices().at(-1)).toBe("Você precisa ser level 30 para usar isso.");
+    expect([p.hp, bp(w)[0]?.count]).toEqual([10, 2]);
+    w.inv.onUseItem(p, { index: 1 });
+    expect(w.notices().at(-1)).toBe("Você precisa ser level 30 para usar isso.");
+    expect(w.food.condition("p1", w.now())).toBeUndefined();
+    expect(bp(w)[1]?.count).toBe(1);
+    w.inv.onUseItem(p, { index: 2 }); // a recusa não iniciou recarga: a pequena entra na hora
+    expect(p.hp).toBe(60);
+    p.level = 30;
+    w.advance(1000);
+    w.inv.onUseItem(p, { index: 0 });
+    expect(p.hp).toBe(510);
+  });
+
+  it("Q/E: a melhor poção que o level permite, não a primeira da mochila", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { level: 20 });
+    p.maxHp = 2000; p.hp = 1; p.maxMana = 1000; p.mana = 0;
+    w.inv.addItem(p, makeItem("hp_pot", 5));       // 0: 50
+    w.inv.addItem(p, makeItem("hp_pot_huge", 5));  // 1: 450 (lv 30)
+    w.inv.addItem(p, makeItem("hp_pot_big", 5));   // 2: 200 (lv 15)
+    w.inv.addItem(p, makeItem("mana_pot_big", 1)); // 3: 300 de mana (lv 15)
+    w.inv.onQuickPotion(p, { kind: "hp" });
+    expect(p.hp).toBe(201);
+    expect(bp(w).map((x) => x?.count ?? 0).slice(0, 3)).toEqual([5, 5, 4]);
+    p.level = 30;
+    w.advance(1000);
+    w.inv.onQuickPotion(p, { kind: "hp" });
+    expect(p.hp).toBe(651);
+    expect(bp(w)[1]?.count).toBe(4);
+    // Só poções acima do level: o aviso diz o level, não "você não tem poção".
+    p.level = 5;
+    w.advance(1000);
+    w.inv.onQuickPotion(p, { kind: "mana" });
+    expect(w.notices().at(-1)).toBe("Você precisa ser level 15 para usar isso.");
+    expect([p.mana, bp(w)[3]?.count]).toEqual([0, 1]);
+  });
+
   it("discard destroys the item", () => {
     const w = invWorld();
     const p = w.mk();
     w.inv.addItem(p, makeItem("sword"));
     w.inv.onDiscard(p, { index: 0 });
     expect(bp(w)[0]).toBeNull();
+  });
+});
+
+describe("inventory: organizar o depot (ciclo 17)", () => {
+  const ids = (a: (ReturnType<typeof makeItem> | null)[]) => a.map((x) => (x ? `${x.defId}×${x.count}` : "-"));
+
+  it("junta pilhas iguais até o máximo e ordena por categoria e nome; vazios no fim, mesmo tamanho", () => {
+    const src = [null, makeItem("bone", 3), makeItem("mana_pot", 8), makeItem("sword"), null, makeItem("mana_pot", 7), makeItem("bone", 4), makeItem("shield"), makeItem("hp_pot", 2)];
+    const out = organizeItems(src, itemsFx);
+    expect(out).toHaveLength(src.length);
+    // Arma, escudo, poções (Poção de Mana 10 + 5; Poção de Vida), material (Osso 7).
+    expect(ids(out)).toEqual(["sword×1", "shield×1", "mana_pot×10", "mana_pot×5", "hp_pot×2", "bone×7", "-", "-", "-"]);
+    // Puro: a entrada não mudou e a saída são cópias; a pilha que recebeu guarda o uid dela.
+    expect(src[2]!.count).toBe(8);
+    expect(out[2]).not.toBe(src[2]);
+    expect(out[2]!.uid).toBe(src[2]!.uid);
+    const total = (a: typeof src, id: string) => a.reduce((n, x) => n + (x?.defId === id ? x.count : 0), 0);
+    for (const id of ["bone", "mana_pot", "hp_pot", "sword"]) expect(total(out, id)).toBe(total(src, id));
+  });
+
+  it("não junta raridade, refino ou bônus diferentes; dentro do mesmo item, o melhor primeiro", () => {
+    const rare = { ...makeItem("katana", 1, "rare", [{ stat: "crit", value: 2 }]), refine: 3 };
+    const common = makeItem("katana");
+    const plusFive = { ...makeItem("katana"), refine: 5 };
+    const goldBone = makeItem("bone", 2, "uncommon"), bone = makeItem("bone", 2);
+    const out = organizeItems([common, bone, rare, goldBone, plusFive], itemsFx);
+    expect(out.map((x) => [x?.defId, x?.rarity, x?.refine ?? 0, x?.count])).toEqual([
+      ["katana", "rare", 3, 1], ["katana", "common", 5, 1], ["katana", "common", 0, 1], ["bone", "uncommon", 0, 2], ["bone", "common", 0, 2],
+    ]);
+    expect(out[0]!.bonuses).toEqual([{ stat: "crit", value: 2 }]);
+  });
+
+  it("C2S.SortContainer: só com o depot aberto; organiza e reenvia o depot", () => {
+    let open = false;
+    const w = invWorld({ depotOpen: () => open });
+    const p = w.mk();
+    const dp = w.inv.get("p1")!.depot;
+    dp[5] = makeItem("bone", 2); dp[9] = makeItem("sword"); dp[11] = makeItem("bone", 3);
+    w.inv.onSortContainer(p, { where: "depot" });
+    expect(w.notices().at(-1)).toBe(MSG.depotClosed);
+    expect(dp[5]?.count).toBe(2);
+    open = true;
+    w.inv.onSortContainer(p, { where: "backpack" } as any);
+    expect(dp[0]).toBeNull();
+    w.inv.onSortContainer(p, { where: "depot" });
+    expect(ids(dp.slice(0, 3))).toEqual(["sword×1", "bone×5", "-"]);
+    w.inv.flush();
+    expect(w.sent.some((s) => s.type === S2C.Depot && s.msg.items[1]?.count === 5)).toBe(true);
   });
 });
 
@@ -224,6 +318,64 @@ describe("inventory: depot", () => {
     expect(w.inv.get("p1")!.depot[0]?.count).toBe(5);
     w.inv.flush();
     expect(w.sent.some((s) => s.type === S2C.Depot && s.msg.items[0]?.defId === "bone")).toBe(true);
+  });
+
+  // Ciclo 14 (14-18): o clique rápido aponta a primeira pilha igual com espaço (shared stackTarget); o servidor junta
+  // nela e espalha o resto pelas outras pilhas iguais e espaços vazios do destino.
+  it("guardar em pilha igual junta e o que sobra vai para o próximo espaço do depot, sem aviso", () => {
+    const w = invWorld({ depotOpen: () => true });
+    const p = w.mk();
+    const dp = w.inv.get("p1")!.depot;
+    dp[0] = makeItem("mana_pot", 8);        // máximo 10
+    dp[1] = makeItem("sword");
+    w.inv.addItem(p, makeItem("mana_pot", 7));
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "depot", index: 0 } });
+    expect([dp[0]?.count, dp[1]?.defId, dp[2]?.defId, dp[2]?.count]).toEqual([10, "sword", "mana_pot", 5]);
+    expect(bp(w)[0]).toBeNull();
+    expect(w.notices()).toEqual([]);
+  });
+
+  it("retirar para a mochila sem espaço vazio mas com pilha igual com espaço: junta, sem \"Mochila cheia\" falso", () => {
+    const w = invWorld({ depotOpen: () => true });
+    const p = w.mk();
+    w.inv.addItem(p, makeItem("mana_pot", 3));
+    for (let k = 1; k < BACKPACK_SIZE; k++) w.inv.addItem(p, makeItem("sword"));
+    expect(bp(w).every(Boolean)).toBe(true);
+    const dp = w.inv.get("p1")!.depot;
+    dp[4] = makeItem("mana_pot", 5);
+    w.inv.onMoveItem(p, { from: { where: "depot", index: 4 }, to: { where: "backpack", index: 0 } });
+    expect([bp(w)[0]?.count, dp[4]]).toEqual([8, null]);
+    expect(w.notices()).toEqual([]);
+  });
+
+  it("cheio de verdade: junta o que cabe, o resto fica na origem e aí sim avisa", () => {
+    const w = invWorld({ depotOpen: () => true });
+    const p = w.mk();
+    const dp = w.inv.get("p1")!.depot;
+    for (let k = 0; k < dp.length; k++) dp[k] = makeItem("sword");
+    dp[3] = makeItem("mana_pot", 9);
+    w.inv.addItem(p, makeItem("mana_pot", 7));
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "depot", index: 3 } });
+    expect([dp[3]?.count, bp(w)[0]?.count]).toEqual([10, 6]);
+    expect(w.notices().at(-1)).toBe(MSG.depotFull);
+    // Pilha do depot já cheia e nenhum espaço: nada muda, mesmo aviso.
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "depot", index: 3 } });
+    expect([dp[3]?.count, bp(w)[0]?.count]).toEqual([10, 6]);
+    expect(w.notices().filter((t) => t === MSG.depotFull)).toHaveLength(2);
+  });
+
+  it("dentro da própria mochila continua como antes: junta o que cabe e o resto fica, sem espalhar", () => {
+    const w = invWorld();
+    const p = w.mk();
+    w.inv.addItem(p, makeItem("mana_pot", 9));
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "backpack", index: 1 }, count: 4 });
+    w.inv.addItem(p, makeItem("mana_pot", 1)); // 0: 5 → 6
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 1 }, to: { where: "backpack", index: 0 } });
+    expect([bp(w)[0]?.count, bp(w)[1], bp(w)[2]]).toEqual([10, null, null]);
+    w.inv.addItem(p, makeItem("mana_pot", 7)); // 1: 7
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 1 }, to: { where: "backpack", index: 0 } });
+    expect([bp(w)[0]?.count, bp(w)[1]?.count]).toEqual([10, 7]);
+    expect(w.notices()).toEqual([]);
   });
 });
 
@@ -266,6 +418,16 @@ describe("inventory: stats aggregation", () => {
     expect([prof.range, prof.kind, prof.ranged]).toEqual([6, "physical", true]);
   });
 
+  it("refino (ciclo 16) entra nos atributos do equipamento: +3 de ataque na arma, +1 de armadura por nível", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { vocation: "knight", level: 40 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 2 });
+    w.inv.addItem(p, { ...makeItem("mithril_plate", 1, "rare", [{ stat: "armor", value: 1 }]), refine: 3 });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "equip", slot: "weapon" } });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 1 }, to: { where: "equip", slot: "armor" } });
+    expect(w.inv.stats("p1")).toEqual({ attack: 76, armor: 9 });
+  });
+
   it("persistence roundtrip", () => {
     const w = invWorld();
     const p = w.mk();
@@ -279,5 +441,56 @@ describe("inventory: stats aggregation", () => {
     w2.inv.load(q, { ...saved, backpack: [...saved.backpack, { defId: "nope", count: 1 }] });
     expect(w2.inv.serialize("p1")).toEqual(w.inv.serialize("p1"));
     expect(w2.inv.stat("p1", "hpMax")).toBe(29);
+  });
+});
+
+describe("inventory: refino preservado e sanitizado (ciclo 16)", () => {
+  it("sanitizeItem: mantém 1..5 em item refinável; descarta o resto (sem criar o campo)", () => {
+    const ok = sanitizeItem({ uid: "a", defId: "katana", count: 1, rarity: "rare", bonuses: [], refine: 4 }, itemsFx);
+    expect(ok).toEqual({ uid: "a", defId: "katana", count: 1, rarity: "rare", bonuses: [], refine: 4 });
+    for (const refine of [0, 6, -2, 1.5, "3", null]) {
+      const it = sanitizeItem({ uid: "a", defId: "katana", count: 1, rarity: "common", bonuses: [], refine }, itemsFx)!;
+      expect(Object.keys(it), String(refine)).not.toContain("refine");
+    }
+    // Item que não é refinável (espada sem level, anel): o campo some.
+    expect(Object.keys(sanitizeItem({ defId: "sword", refine: 2 }, itemsFx)!)).not.toContain("refine");
+    expect(Object.keys(sanitizeItem({ defId: "ring", refine: 2 }, itemsFx)!)).not.toContain("refine");
+    // Save antigo (sem o campo) continua igual.
+    expect(sanitizeItem({ uid: "b", defId: "katana", count: 1, rarity: "common", bonuses: [] }, itemsFx)).toEqual({ uid: "b", defId: "katana", count: 1, rarity: "common", bonuses: [] });
+  });
+
+  it("vai e volta do banco no equipamento, na mochila e no depot", () => {
+    const w = invWorld({ depotOpen: () => true });
+    const p = w.mk("p1", { level: 40 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 5 });
+    w.inv.addItem(p, { ...makeItem("mithril_plate"), refine: 2 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 1 });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "equip", slot: "weapon" } });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 2 }, to: { where: "depot", index: 7 } });
+    expect(w.inv.get("p1")!.depot[7]!.refine).toBe(1);
+    // Depot → mochila de volta → outro espaço do depot: continua +1.
+    w.inv.onMoveItem(p, { from: { where: "depot", index: 7 }, to: { where: "backpack", index: 2 } });
+    expect(bp(w)[2]!.refine).toBe(1);
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 2 }, to: { where: "depot", index: 3 } });
+    expect(w.inv.get("p1")!.depot[3]!.refine).toBe(1);
+    const saved = JSON.parse(JSON.stringify(w.inv.serialize("p1")));
+    const w2 = invWorld();
+    const q = w2.mk("p1", { level: 40 });
+    w2.inv.load(q, saved);
+    expect(w2.inv.serialize("p1")).toEqual(w.inv.serialize("p1"));
+    expect(eq(w2).weapon!.refine).toBe(5);
+    expect(bp(w2)[1]!.refine).toBe(2);
+    expect(w2.inv.get("p1")!.depot[3]!.refine).toBe(1);
+    expect(w2.inv.stat("p1", "attack")).toBe(85);
+  });
+
+  it("largar do equipamento leva o refino junto (a instância inteira sai)", () => {
+    const w = invWorld();
+    const p = w.mk("p1", { level: 40 });
+    w.inv.addItem(p, { ...makeItem("katana"), refine: 3 });
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "equip", slot: "weapon" } });
+    const out = w.inv.takeForDrop(p, { where: "equip", slot: "weapon" });
+    expect(out!.refine).toBe(3);
+    expect(w.inv.stat("p1", "attack")).toBe(0);
   });
 });

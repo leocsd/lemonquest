@@ -1,13 +1,13 @@
 import { e2eMode } from "../e2e.ts";
 import { CloseCode, ErrorCode, Room, ServerError, type Client, type Deferred, type RoomException, type RoomMethodName } from "@colyseus/core";
 import {
-  C2S, CLOSE_KICKED, CYCLE_START_MS, WEEKLY_EVENTS, WaterGrid, type ChallengeActionMsg, type FishMsg, type TradeMsg, wrapCycle, CLOSE_REPLACED, CLOSE_TRAINING, S2C, SKILLS, TICK_MS, baseStats,
+  C2S, CLOSE_KICKED, CYCLE_START_MS, attackSkillOf, WEEKLY_EVENTS, WaterGrid, type ChallengeActionMsg, type FishMsg, type TradeMsg, wrapCycle, CLOSE_REPLACED, CLOSE_TRAINING, S2C, SKILLS, TICK_MS, baseStats,
   type ArenaActionMsg, type AttackMsg, type CastMsg, type ChatSendMsg, type DiscardItemMsg, type ItemInstance, type DropItemMsg, type FeedMsg, type FightModeMsg, type FollowMsg, type JoinOptions,
   type MoveItemMsg, type MoveMsg, type NoticeMsg, type PartyActionMsg, type NpcInteractMsg, type NpcTradeMsg, type PickupItemMsg, type QuickPotionMsg, type SetOutfitMsg, type SetTitleMsg, type TurnMsg,
   type TrainingResultMsg, type TrainOfflineMsg, type TrainOpenMsg, type UseItemMsg, type WalkToMsg,
   type QuestActionMsg, type UseQuestObjectMsg, doorBlockReason, findObjects, findQuestLevers, findQuestObjects, questDef,
-  PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, backpackCapacity, type Hotkey, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
-  OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, imbuementDef,
+  PARTY_SHARE_RANGE, RED_SKULL_DEATH_XP_MULT, RED_SKULL_GOLD_DROP, type TravelMsg, sanitizeHotkeys, sanitizeSpellGroups, backpackCapacity, type LookGroundMsg, type MoveGroundItemMsg, type HotkeysMsg, type SetHotkeysMsg, type Vocation, zoneAt, HOTKEYS_VERSION, defaultHotkeys,
+  npcDef, objectTile, type WorkLinkMsg, OUTFIT_TONE_PRICE, toneDef, type BuyOutfitToneMsg, type OutfitTonesMsg, type MaterialRequestActionMsg, type RefineMsg, type SortContainerMsg,
 } from "@lemonquest/shared";
 import { PlayerState, WorldState } from "../state.ts";
 import { loadMap, type LoadedMap } from "../world/map.ts";
@@ -22,12 +22,16 @@ import { SocialSystem } from "../systems/social.ts";
 import { statusLines } from "../systems/status.ts";
 import { TradeSystem } from "../systems/trade.ts";
 import { EventSystem } from "../systems/events.ts";
+import { ClickUpSystem } from "../systems/clickup.ts";
 import { rollWeek } from "../systems/weekly.ts";
 import { grantLoginBonus } from "../systems/loginBonus.ts";
 import { ChallengeSystem } from "../systems/challenges.ts";
 import { MaterialRequestSystem } from "../systems/materialRequest.ts";
+import { RefineSystem } from "../systems/refine.ts";
 import { FishingSystem } from "../systems/fishing.ts";
 import { FoodSystem } from "../systems/food.ts";
+import { ImbuementSystem } from "../systems/imbuement.ts";
+import { isFirstLogin, welcomeFeed } from "../systems/welcome.ts";
 import { ConditionSystem } from "../systems/conditions.ts";
 import { SkillSystem } from "../systems/skills.ts";
 import { TrainingSystem, parseStatues } from "../systems/training.ts";
@@ -46,13 +50,14 @@ import { killCredit, type Monster } from "../systems/monsters.ts";
 import { FightModeSystem, stanceDealt, stanceTaken } from "../systems/fightmode.ts";
 import { handleDevCommand, isDevAdmin } from "../systems/devcommands.ts";
 import { HELP_COMMANDS, handleAdminCommand, helpLines, muteRemaining } from "../systems/admin.ts";
-import { grantUnlock } from "../systems/achievements.ts";
+import { addWorkTasks, grantUnlock } from "../systems/achievements.ts";
 import { applySetOutfit, loadOutfit } from "../systems/outfit.ts";
 import { AchievementSystem, setActiveAchievements } from "../systems/achievements.ts";
 import { PartySystem } from "../systems/party.ts";
 import { ErrorLog, runSafe, runSteps } from "../systems/safe.ts";
 import { PlayTelemetry, summarizePlay } from "../systems/telemetry.ts";
-import { crownWeek } from "../systems/weeklyChampion.ts";
+import { crownWeek, type ChampionHost } from "../systems/weeklyChampion.ts";
+import { crownArenaWeek } from "../systems/arenaChampion.ts";
 import { claimOnline, consumeToken, createResetCode, releaseOnline, type AuthData } from "../persistence/auth.ts";
 import {
   addAccountTone, getAccountTones, getCharacterByName, getKv, listRankingRows, nameKey, loadGroundRows, replaceGroundRows, saveCharacter, setKv, transaction,
@@ -78,13 +83,15 @@ export const KICK_DEFAULT_REASON = "Expulso por um administrador";
 export const MAX_MESSAGES_PER_SECOND = 60;
 /** Limites por tipo de mensagem (excesso descartado em silêncio). */
 export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
-  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5,
+  [C2S.WalkTo]: 5, [C2S.NpcInteract]: 5, [C2S.Arena]: 5, [C2S.Cast]: 10, [C2S.MoveItem]: 20, [C2S.TrainOpen]: 5, [C2S.TrainOffline]: 2, [C2S.SetOutfit]: 2, [C2S.BuyOutfitTone]: 2, [C2S.SetTitle]: 2, [C2S.AchievementsRequest]: 2, [C2S.Party]: 5, [C2S.Quest]: 10, [C2S.Trade]: 10, [C2S.Fish]: 3, [C2S.Challenge]: 5, [C2S.MaterialRequest]: 5, [C2S.Follow]: 5, [C2S.Travel]: 2, [C2S.UseQuestObject]: 4, [C2S.SetHotkeys]: 5, [C2S.LookGround]: 5, [C2S.Refine]: 4, [C2S.AgendaRequest]: 2, [C2S.SortContainer]: 1,
   // Chat inclui comandos (/convidar...) e palavras mágicas, que não passam pelo limite de fala do chat.ts.
   [C2S.Chat]: 6,
   // Ações de inventário/loja: cada uma é validada, mas gera mensagem de inventário e gravação; sem limite próprio só
   // valia o teto global (60/s). MoveGroundItem já era limitado por dentro (GroundSystem, 10/s); aqui fica explícito (#48).
   [C2S.NpcTrade]: 10, [C2S.UseItem]: 10, [C2S.QuickPotion]: 5, [C2S.DropItem]: 5, [C2S.PickupItem]: 5, [C2S.DiscardItem]: 5,
   [C2S.MoveGroundItem]: 10, [C2S.FightMode]: 5,
+  // Vínculo do ClickUp: cada pedido é uma ida ao ClickUp (e há limite próprio de tentativas no ClickUpSystem).
+  [C2S.WorkLink]: 1, [C2S.WorkUnlink]: 1,
 };
 /** Intervalo mínimo entre gravações "jogador + chão" depois de largar/pegar item (ver saveTransfers). */
 export const TRANSFER_SAVE_MS = 1000;
@@ -114,6 +121,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private regen!: RegenSystem;
   private conditions!: ConditionSystem;
   private food!: FoodSystem;
+  private imbue!: ImbuementSystem;
   private skills!: SkillSystem;
   private summons!: SummonSystem;
   private spells!: SpellSystem;
@@ -133,10 +141,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private social!: SocialSystem;
   private trade!: TradeSystem;
   private events!: EventSystem;
+  private clickup!: ClickUpSystem;
   private fishing!: FishingSystem;
   private weeklyAt = 0;
   private challenges!: ChallengeSystem;
   private materialRequest!: MaterialRequestSystem;
+  private refine!: RefineSystem;
   private perf = { n: 0, sum: 0, max: 0, since: Date.now() };
   /** Duração do autosave (todos os jogadores) desde o último log de desempenho. */
   private savePerf = { n: 0, sum: 0, max: 0 };
@@ -221,6 +231,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       players: () => this.state.players.values(),
       getPlayer,
       notice: (text, kind) => this.broadcast(S2C.Notice, { text, kind }),
+      bossRespawn: {
+        load: (id) => Number(getKv(`boss.respawnAt.${id}`) ?? 0) || undefined,
+        save: (id, at) => setKv(`boss.respawnAt.${id}`, String(at ?? 0)),
+      },
       errors: this.errors,
     });
     this.combat = new CombatSystem({
@@ -251,8 +265,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       heal: (p, n) => this.combat.healPlayer(p, p.id, n),
       restoreMana: (p, n) => this.combat.restoreMana(p, n),
     });
+    // Encantamento (ciclo 16): 10 h que só correm em combate contra monstro.
+    this.imbue = new ImbuementSystem({ inPveCombat: (id, now) => this.combat.inPveCombat(id, now), send });
     this.npcs = new NpcSystem({
-      npcs: parseNpcs(this.map.tiled), inventory: this.inventory,
+      npcs: parseNpcs(this.map.tiled), inventory: this.inventory, imbue: this.imbue,
       players: () => this.state.players.values(), getPlayer, send, broadcast,
       blocked: (p, npcId) => (this.arena && !this.arena.canUseShop(p, npcId) ? "A loja do Coliseu só atende na pausa depois das ondas de chefe (5, 10, 15...)." : null),
       travel: (p, x, y) => {
@@ -319,6 +335,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         this.movement.teleport(p, to.x, to.y);
         send(p.id, S2C.Teleported, to);
       },
+      // Entrada da Aniquilação 1×/dia: vai junto com o personagem (autosave), como o recorde do Coliseu.
+      getLeverDay: (id) => this.records.get(id)?.data.leverDay,
+      setLeverDay: (id, day) => { const rec = this.records.get(id); if (rec) rec.data.leverDay = day; },
       send, broadcast,
     });
     this.loot = new LootSystem({
@@ -335,7 +354,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       monsters: this.monsters, combat: this.combat, send,
       getPlayer, players: () => this.state.players.values(),
       speedBonus: (id) => this.inventory.stat(id, "speed"),
-      extra: (p, now) => this.food.condition(p.id, now),
+      extra: (p, now) => [this.food.condition(p.id, now), this.imbue.condition(p.id)],
     });
     this.summons = new SummonSystem({ monsters: this.monsters, combat: this.combat, getPlayer });
     this.spells = new SpellSystem({
@@ -345,6 +364,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       teleport: (p, x, y) => this.movement.teleport(p, x, y),
       send, broadcast,
       magicBonus: (p) => this.inventory.stat(p.id, "magic"),
+      // Potência das magias de cavaleiro/paladino (spellPower): skill da arma + bônus de skill do equipamento.
+      weaponSkillBonus: (p) => this.inventory.stat(p.id, attackSkillOf(p.vocation)),
       dealtMult: (p) => this.dealtMult(p),
       // Investida não para em NPC nem em portal (cair num portal teleportava o cavaleiro sem querer).
       isBlocked: (x, y) => this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y),
@@ -375,8 +396,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       },
       hasShield: (p) => !!this.inventory.get(p.id)?.equipment.shield,
       onShieldTry: (p) => this.skills.addTries(p, "shield", 1),
-      onPlayerDied: (p, killer) => {
-        this.telemetry.onDeath(p.id);
+      onPlayerDied: (p, killer, killerKey) => {
+        this.telemetry.onDeath(p.id, killerKey);
         this.conditions.clear(p.id);
         this.summons.despawnOwner(p.id);
         this.loot.feed(`💀 ${p.name} foi derrotado por ${killer}`, "death");
@@ -385,7 +406,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       armor: (p) => playerArmor(p) + this.inventory.stat(p.id, "armor"),
       attack: (p) => attackProfile(p, this.inventory.weaponDef(p.id), (s) => this.inventory.stat(p.id, s)),
       dealtMult: (p) => this.dealtMult(p),
-      imbuement: (p) => imbuementDef(p.imbuement),
+      // Ruptura Elemental: a condição vive no ConditionSystem (criado depois; só é lido durante o tick).
+      exposedPct: (id) => this.conditions?.value(id, "exposed") ?? 0,
+      imbuement: (p) => this.imbue.bonus(p.id),
       takenMult: stanceTaken,
       onLevelUp: (p) => {
         this.telemetry.onLevel(p.id, p.level);
@@ -407,7 +430,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       },
       onKillCredit: (pid, m) => {
         this.ach?.event(pid, "kill", { defId: m.def.id, boss: !!m.def.boss });
+        this.telemetry.onKill(pid);
       },
+      onXp: (p, n) => this.telemetry.onXp(p.id, n),
+      onDealt: (pid, dealt, resisted) => this.telemetry.onDamage(pid, dealt, resisted),
       interceptDeath: (p) => this.arena.interceptDeath(p),
       canAttackPlayer: (a, b) => this.pvp.canAttack(a, b),
       onPlayerHit: (a, b, now) => this.pvp.onHit(a, b, now),
@@ -446,6 +472,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       addGold: (p, n) => this.inventory.addGold(p, n),
       loadServerBest: () => Number(getKv("arena.serverBest") ?? 0),
       saveServerBest: (n) => setKv("arena.serverBest", String(n)),
+      getKv, setKv,
       getBest: (id) => this.records.get(id)?.data.arenaBest ?? 0,
       setBest: (id, n) => { const rec = this.records.get(id); if (rec) rec.data.arenaBest = n; },
       onWaveCleared: (p, wave) => { this.ach?.event(p.id, "arena", { wave }); this.quests.onArenaWave(p.id, wave); },
@@ -493,10 +520,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       getPlayer, record: (id) => this.records.get(id), send, inventory: this.inventory, placeLoot: (p, it) => this.placeReward(p, it),
       gainXp: (p, n) => this.combat.gainXp(p, n, p.x, p.y), save: (id) => this.save(id),
     });
+    // Refino +1..+5 no Mestre Brás (ciclo 16): sem estado próprio, só a ação.
+    this.refine = new RefineSystem({ inventory: this.inventory, send, npcOpen: (id) => this.npcs.openFor(id), save: (id) => this.save(id) });
     this.materialRequest = new MaterialRequestSystem({
       record: (id) => this.records.get(id), send, inventory: this.inventory, save: (id) => this.save(id),
+      npcOpen: (id) => this.npcs.openFor(id),
     });
-    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) } });
+    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) }, bonusStore: { get: () => getKv("event.bonus"), set: (v) => setKv("event.bonus", v) } });
+    this.clickup = this.createClickUp();
     this.trade = new TradeSystem({
       getPlayer: (id) => this.state.players.get(id), send, inventory: this.inventory,
       // Troca concluída: os dois são gravados JUNTOS (uma transação no saveTransfers do tick), nunca um sem o outro.
@@ -525,7 +556,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       teleportNear: (admin, target) => this.teleportNear(admin, target),
       resetCode: (account, by) => createResetCode(account, by),
       devTp: (pl) => isDevAdmin(pl.name),
-      status: () => this.statusLines(),
+      status: () => [...this.statusLines(), this.clickup.statusLine()],
+      work: { link: (name, uid) => this.clickup.link(name, uid), list: () => this.clickup.linkList() },
       events: {
         ids: () => WEEKLY_EVENTS.map((e) => e.id),
         start: (id, min) => { const a = this.events.start(id, min); return a ? `${a.name} iniciado por ${min} min (XP ×${a.xpMult}, loot ×${a.lootMult}).` : null; },
@@ -570,6 +602,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       this.npcs.onInteract(p, m);
       if (m?.npcId && this.npcs.openFor(p.id) === m.npcId) this.quests.onTalk(p, m.npcId);
       if (m?.npcId === "arena_master" && this.npcs.openFor(p.id) === "arena_master") this.arena.openLobbies(p);
+      // Quadro da obra (ClickUp): barras de sprint e aba "Na obra" nos NPCs com workBoard.
+      if (m?.npcId && this.npcs.openFor(p.id) === m.npcId && npcDef(m.npcId)?.workBoard) send(p.id, S2C.Work, this.clickup.workMsg(m.npcId, p.name));
     });
     this.on<ArenaActionMsg>(C2S.Arena, (p, m) => this.arena.onAction(p, m));
     this.on<NpcTradeMsg>(C2S.NpcTrade, (p, m) => this.npcs.onTrade(p, m));
@@ -584,6 +618,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.on<FishMsg>(C2S.Fish, (p, m) => this.fishing.onMessage(p, m));
     this.on<ChallengeActionMsg>(C2S.Challenge, (p, m) => this.challenges.onMessage(p, m));
     this.on<MaterialRequestActionMsg>(C2S.MaterialRequest, (p, m) => this.materialRequest.onMessage(p, m));
+    this.on<RefineMsg>(C2S.Refine, (p, m) => this.refine.onRefine(p, m));
+    this.on(C2S.AgendaRequest, (p) => this.events.sendAgenda(p.id));
+    this.on<SortContainerMsg>(C2S.SortContainer, (p, m) => this.inventory.onSortContainer(p, m));
     this.on<SetOutfitMsg>(C2S.SetOutfit, (p, m) => {
       const rec = this.records.get(p.id);
       applySetOutfit(p, rec, m, rec ? getAccountTones(rec.accountId) : []);
@@ -601,6 +638,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       c.send(S2C.Notice, { text: `Você comprou o tom ${tone.name} por ${OUTFIT_TONE_PRICE} de ouro.`, kind: "good" } satisfies NoticeMsg);
     });
     this.on<SetTitleMsg>(C2S.SetTitle, (p, m) => { this.ach.onSetTitle(p, m); });
+    // ClickUp: o próprio jogador vincula com o token pessoal (conferido fora do tick e descartado na hora).
+    this.on<WorkLinkMsg>(C2S.WorkLink, (p, m) => this.clickup.requestLink(p.id, p.name, m && typeof m === "object" ? m.token : undefined));
+    this.on<unknown>(C2S.WorkUnlink, (p) => this.clickup.unlink(p.id, p.name));
     this.on<unknown>(C2S.AchievementsRequest, (p) => { this.ach.sendState(p.id); });
 
     const players = () => this.state.players.values();
@@ -618,6 +658,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["regen", () => this.regen.tick(this.tickNow, players())],
       ["arena", () => this.arena.tick(this.tickNow)],
       ["food", () => this.food.tick(this.tickNow, players())],
+      ["imbue", () => this.imbue.tick(this.tickNow)],
       ["npcs", () => this.npcs.tick(this.tickNow)],
       ["quests", () => this.quests.tick(this.tickNow, players())],
       ["questWorld", () => this.questWorld.tick(this.tickNow)],
@@ -625,6 +666,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       ["trade", () => this.trade.tick()],
       ["fishing", () => this.fishing.tick()],
       ["events", () => this.events.tick(this.tickNow)],
+      ["clickup", () => this.clickup.tick(this.tickNow)],
       // Virada da semana com o jogador online: renova a linha de base (no máximo 1×/min).
       ["weekly", () => {
         if (this.tickNow - this.weeklyAt < 60_000) return;
@@ -642,6 +684,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
 
     this.setSimulationInterval(() => this.tick(), TICK_MS);
     this.clock.setInterval(() => this.saveAll(), AUTOSAVE_MS);
+    // ClickUp: a leitura (rede) sai daqui, fora do tick; o resultado é aplicado no passo "clickup" do tick.
+    if (this.clickup.enabled) this.clock.setInterval(() => runSafe("clickup.poll", () => this.clickup.maybePoll(), this.errors), 30_000);
     // Ciclo dia/noite: todos veem a mesma hora (o cliente extrapola entre as atualizações).
     this.cycleOriginMs = Date.now() - CYCLE_START_MS;
     this.updateWorldTime();
@@ -678,13 +722,67 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.savePerf = { n: 0, sum: 0, max: 0 };
   }
 
+  /** ClickUp dinâmico (systems/clickup.ts): sem LEMONQUEST_CLICKUP_TOKEN fica desligado. */
+  private createClickUp(): ClickUpSystem {
+    // Pontos de entrega do "Chegou!" (objetos do mapa chegou_drop*); sem eles, ao lado do Julião na Oficina.
+    const layer = this.map.tiled.layers.find((l) => l.type === "objectgroup" && l.name === "objects");
+    const LABEL: Record<string, string> = { chegou_drop: "na Estação Central da Malha", chegou_drop_oficina: "no Pátio de Encomendas" };
+    const drops = (layer?.objects ?? []).filter((o) => o.name?.startsWith("chegou_drop")).map((o) => ({
+      ...objectTile(o, this.map.tiled.tilewidth),
+      label: String(o.properties?.find((pr) => pr.name === "label")?.value ?? LABEL[o.name!] ?? "no Pátio de Encomendas"),
+    }));
+    if (!drops.length) {
+      const j = parseNpcs(this.map.tiled).find((n) => n.id === "juliao");
+      if (j) drops.push({ x: j.x, y: j.y + 1, label: "na Oficina, perto do Julião" });
+    }
+    let turn = 0;
+    // Registro em memória primeiro (online, caindo/reconectando ou no meio do login): gravar o do banco nesse caso seria
+    // sobrescrito pelo autosave e o crédito se perderia.
+    const inMemory = (name: string) => {
+      for (const [sid, rec] of this.records) if (nameKey(rec.name) === nameKey(name)) return { sid, rec };
+      return null;
+    };
+    return ClickUpSystem.fromEnv({
+      getKv, setKv,
+      feed: (text) => this.loot.feed(text, "info"),
+      dropBox: (items) => {
+        if (!drops.length) return null;
+        const d = drops[turn++ % drops.length]!;
+        let placed = 0;
+        for (const it of items) if (this.ground.placeNear(makeItem(it.defId, it.count), d.x, d.y)) placed++;
+        return placed ? d.label : null;
+      },
+      startEvent: (ev) => !!this.events.startBonus(ev),
+      credit: (name, n) => {
+        const mem = inMemory(name);
+        if (mem) {
+          if (this.state.players.has(mem.sid)) this.ach.event(mem.sid, "work", { n });
+          else addWorkTasks(mem.rec, n); // ainda entrando: o load das conquistas avalia
+          return true;
+        }
+        const rec = getCharacterByName(name);
+        if (!rec) return false;
+        addWorkTasks(rec, n);
+        saveCharacter(rec);
+        return true;
+      },
+      linkResult: (sid, ok, text) => {
+        const c = this.clients.getById(sid);
+        if (!c) return;
+        c.send(S2C.Notice, { text, kind: ok ? "good" : "warn", log: true } satisfies NoticeMsg);
+        const pl = this.state.players.get(sid), npc = this.npcs.openFor(sid);
+        if (pl && npc && npcDef(npc)?.workBoard) c.send(S2C.Work, this.clickup.workMsg(npc, pl.name));
+      },
+    });
+  }
+
   /** Campeão da semana: título rotativo para os líderes das categorias semanais (systems/weeklyChampion.ts). */
   private crownWeek(now: Date): void {
     const online = (name: string) => {
       for (const [sid, rec] of this.records) if (nameKey(rec.name) === nameKey(name)) return { sid, rec, p: this.state.players.get(sid) };
       return null;
     };
-    crownWeek({
+    const host: ChampionHost = {
       getKv, setKv,
       rows: () => listRankingRows(),
       record: (name) => online(name)?.rec ?? getCharacterByName(name),
@@ -700,7 +798,11 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       },
       save: (rec) => saveCharacter(rec),
       announce: (text) => this.loot.feed(text, "info"),
-    }, now);
+    };
+    crownWeek(host, now);
+    // Coliseu (ciclo 16): o melhor tempo das 70 ondas na semana que acabou leva o título rotativo "Campeão do Coliseu".
+    // Isolado: uma falha aqui (banco) não pode impedir a virada das bases semanais (rollWeek) que vem depois.
+    runSafe("arenaChampion", () => crownArenaWeek(host, now), this.errors);
   }
 
   /** Linhas do /status (admin). */
@@ -743,6 +845,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (prev) this.replaceSession(prev);
     const rec = getCharacterByName(auth.name); // lido DEPOIS de salvar a sessão antiga
     if (!rec) throw new ServerError(ErrorCode.AUTH_FAILED, "Personagem não encontrado");
+    // Personagem criado agora (nunca entrou: x/y nulos até a 1ª gravação). Lido antes de qualquer save, que grava x/y.
+    const firstLogin = isFirstLogin(rec);
 
     const p = new PlayerState();
     p.id = sid;
@@ -775,7 +879,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.fight.load(p, rec.data.stance, rec.data.chase, rec.data.auto);
     this.pvp.load(p, rec.data.pvpKills, rec.data.pvpWhiteUntil, rec.data.pvpPzLockUntil);
     p.blessed = !!rec.data.blessed;
-    p.imbuement = rec.data.imbuement ?? "";
+    this.imbue.load(p.id, rec.data);
     this.npcs.loadLimitedBuy(p.id, rec.data.limitedBuyWeek);
     this.food.load(p.id, rec.data, Date.now());
     this.quests.load(p, rec.data.quests);
@@ -793,7 +897,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (inv) client.send(S2C.Inventory, inv);
     if (trained) client.send(S2C.TrainingResult, trained);
     const barRebuilt = this.upgradeHotkeys(rec, p.vocation);
-    client.send(S2C.Hotkeys, { list: this.hotkeysOf(rec, p.vocation) } satisfies HotkeysMsg);
+    client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
     if (auth.weakPassword) {
       client.send(S2C.Notice, {
         text: "Sua senha é curta (menos de 6 caracteres). Considere uma senha mais forte.", kind: "warn",
@@ -808,6 +912,11 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       const pl = this.state.players.get(sid);
       if (!pl) return;
       this.social.onJoin(pl);
+      if (firstLogin) {
+        const w = welcomeFeed(pl.name, pl.vocation);
+        this.broadcast(S2C.Feed, w.all);
+        this.clients.getById(sid)?.send(S2C.Feed, w.you); // linha pessoal: Capitão Rodrigo (!) e a Agenda no trilho
+      }
       if (barRebuilt) {
         this.clients.getById(sid)?.send(S2C.Notice, {
           text: "Sua barra de magias foi reorganizada com as famílias ◆ (uma tecla para magias parecidas). Ajuste no H.",
@@ -943,14 +1052,18 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     return stanceDealt(p) * (1 + this.conditions.value(p.id, "berserk") / 100);
   }
 
-  /** C2S.SetHotkeys: guarda os atalhos válidos no personagem (salvos no próximo save). */
+  /**
+   * C2S.SetHotkeys: guarda os atalhos (e os grupos de magia, se vieram) válidos no personagem (salvos no próximo save).
+   * Os grupos vêm antes: atalho de grupo que não existe mais sai.
+   */
   private setHotkeys(p: PlayerState, m: SetHotkeysMsg) {
     const rec = this.records.get(p.id);
     if (!rec || !m || typeof m !== "object") return;
-    rec.data.hotkeys = sanitizeHotkeys(m.list, p.vocation);
+    if (m.groups !== undefined) rec.data.spellGroups = sanitizeSpellGroups(m.groups, p.vocation);
+    rec.data.hotkeys = sanitizeHotkeys(m.list, p.vocation, rec.data.spellGroups ?? []);
     rec.data.hotkeysVersion = HOTKEYS_VERSION;
-    // Confirma a lista salva: o cliente descobre se alguma edição se perdeu.
-    this.clients.getById(p.id)?.send(S2C.Hotkeys, { list: rec.data.hotkeys } satisfies HotkeysMsg);
+    // Confirma o que foi salvo: o cliente descobre se alguma edição se perdeu.
+    this.clients.getById(p.id)?.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation));
   }
 
   /**
@@ -965,9 +1078,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     return used;
   }
 
-  /** Atalhos salvos, limpos de novo (magia renomeada/removida numa atualização); null = nunca configurou. */
-  private hotkeysOf(rec: CharacterRecord, vocation: Vocation): Hotkey[] | null {
-    return rec.data.hotkeys ? sanitizeHotkeys(rec.data.hotkeys, vocation) : null;
+  /**
+   * Atalhos e grupos salvos, limpos de novo (magia renomeada/removida numa atualização); list null = nunca configurou.
+   */
+  private hotkeysMsg(rec: CharacterRecord, vocation: Vocation): HotkeysMsg {
+    const groups = sanitizeSpellGroups(rec.data.spellGroups, vocation);
+    return { list: rec.data.hotkeys ? sanitizeHotkeys(rec.data.hotkeys, vocation, groups) : null, groups };
   }
 
   /** /tp <nome>: leva o admin para um tile livre ao redor do alvo (raio 1, depois 2). */
@@ -1014,7 +1130,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.conditions.refreshPlayer(sid);
     this.arena.resend(sid);
     this.quests.resend(sid);
-    { const rec = this.records.get(sid), p = this.state.players.get(sid); if (rec && p) client.send(S2C.Hotkeys, { list: this.hotkeysOf(rec, p.vocation) } satisfies HotkeysMsg); }
+    { const rec = this.records.get(sid), p = this.state.players.get(sid); if (rec && p) client.send(S2C.Hotkeys, this.hotkeysMsg(rec, p.vocation)); }
     this.ach.sendState(sid);
     this.party.resend(sid);
     this.trade.resend(sid);
@@ -1116,6 +1232,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["skills", () => this.skills.removePlayer(sid)],
         ["regen", () => this.regen.removePlayer(sid)],
         ["food", () => this.food.removePlayer(sid)],
+        ["imbue", () => this.imbue.removePlayer(sid)],
         ["exploration", () => this.exploration.removePlayer(sid)],
         ["inventory", () => this.inventory.removePlayer(sid)],
         ["ground", () => this.ground.removePlayer(sid)],
@@ -1193,7 +1310,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     const lock = this.pvp.savedPzLockUntil(p.id);
     if (lock) rec.data.pvpPzLockUntil = lock; else delete rec.data.pvpPzLockUntil;
     rec.data.blessed = p.blessed;
-    rec.data.imbuement = p.imbuement;
+    this.imbue.saveTo(sessionId, rec.data);
     const limitedBuyWeek = this.npcs.savedLimitedBuy(p.id);
     if (limitedBuyWeek) rec.data.limitedBuyWeek = limitedBuyWeek; else delete rec.data.limitedBuyWeek;
     rec.data.outfit = p.outfit;

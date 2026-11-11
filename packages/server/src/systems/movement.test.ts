@@ -338,3 +338,76 @@ describe("MovementSystem — ground speed", () => {
     expect(p.stepMs).toBe(Math.round((DIAG * 150) / 100));
   });
 });
+
+describe("MovementSystem — passo recusado (bump)", () => {
+  it("tecla segurada contra um tile ocupado avisa uma vez por bloqueio; tecla nova avisa de novo; passo ok zera", () => {
+    const t = setup();
+    const p = t.add(player("a", 2, 2));
+    let blocked = true;
+    t.sys.setExtraBlocker((x, y) => blocked && x === 3 && y === 2);
+    t.sys.onMove(p, { dir: Dir.E, seq: 1 });
+    expect(p.x).toBe(2);
+    expect(p.bump).toBe(1);
+    t.run(500); // segurando: não repete o aviso a cada tick
+    expect(p.bump).toBe(1);
+    t.sys.onMove(p, { dir: Dir.E, seq: 2 }); // apertou de novo
+    expect(p.bump).toBe(2);
+    blocked = false;
+    t.run(100);
+    expect(p.x).toBeGreaterThan(2);
+    blocked = true; // anda até a parede do mapa e bloqueia de novo: novo aviso
+    t.sys.setExtraBlocker((x) => x === p.x + 1);
+    t.run(1000);
+    expect(p.bump).toBe(3);
+  });
+
+  it("clique no mapa (caminho) não avisa: o cliente não previu esses passos", () => {
+    const t = setup();
+    const p = t.add(player("a", 2, 2));
+    t.sys.setExtraBlocker((x, y) => x === 3 && y === 2);
+    t.sys.onWalkTo(p, { x: 5, y: 2 });
+    t.run(2000);
+    expect(p.bump ?? 0).toBe(0);
+  });
+});
+
+describe("MovementSystem — passo devido ao soltar ou trocar de direção (MoveMsg.at)", () => {
+  it("soltar antes do instante do passo: se a predição já está no próximo tile, o servidor completa esse passo", () => {
+    const t = setup();
+    const p = t.add(player("a", 2, 2));
+    t.sys.onMove(p, { dir: Dir.E, seq: 1 });
+    expect(p.x).toBe(3);
+    // Solta 10 ms antes do fim do passo no servidor, mas o cliente já previu o próximo (4,2).
+    t.setClock(t.now() + p.stepMs - 10);
+    t.sys.onMove(p, { dir: null, seq: 2, at: { x: 4, y: 2 } });
+    t.run(400);
+    expect(p.x).toBe(4);
+    t.run(1000);
+    expect(p.x).toBe(4); // só esse passo
+  });
+
+  it("sem `at`, ou com `at` que não é o próximo tile, solta como antes (nada de passo extra)", () => {
+    for (const at of [undefined, { x: 3, y: 2 }, { x: 9, y: 9 }, { x: 4.5, y: 2 }]) {
+      const t = setup();
+      const p = t.add(player("a", 2, 2));
+      t.sys.onMove(p, { dir: Dir.E, seq: 1 });
+      t.setClock(t.now() + p.stepMs - 10);
+      t.sys.onMove(p, { dir: null, seq: 2, ...(at ? { at } : {}) });
+      t.run(1000);
+      expect(p.x, JSON.stringify(at)).toBe(3);
+    }
+  });
+
+  it("trocar de direção: o passo devido na direção antiga sai primeiro, depois a nova", () => {
+    const t = setup();
+    const p = t.add(player("a", 2, 2));
+    t.sys.onMove(p, { dir: Dir.E, seq: 1 });
+    t.setClock(t.now() + p.stepMs - 10);
+    t.sys.onMove(p, { dir: Dir.S, seq: 2, at: { x: 4, y: 2 } });
+    t.run(60);
+    expect([p.x, p.y]).toEqual([4, 2]);
+    t.run(600);
+    expect(p.x).toBe(4);
+    expect(p.y).toBeGreaterThan(2);
+  });
+});

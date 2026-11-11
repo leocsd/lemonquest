@@ -3,17 +3,18 @@
 // Cocheiro (`travel`): cobra o ouro e leva o jogador ao destino (grátis até TRAVEL_FREE_LEVEL).
 // Ambientação: a cada 20–40 s cada NPC com idleLines fala (S2C.NpcSay) se houver jogador a até 15 tiles.
 import {
-  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, NPC_BUY_RATIO, NPC_RANGE, S2C, blessingPrice, findObjects, imbuementDef, keptBySellAll, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
+  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, RED_SKULL_DEATH_XP_MULT, S2C, blessingPrice, deathXpLoss, findObjects, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, imbuementDef, imbuementDesc, imbuementName, imbuementTier, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
   type NoticeMsg, type NpcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcSayMsg, type NpcTradeMsg, type TiledMap, type TravelMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
+import type { ImbuementSystem } from "./imbuement.ts";
 import { maxStackOf, makeItem, type InventorySystem } from "./inventory.ts";
 import { cheb } from "./monsters.ts";
 
 export const NPC_SAY_MIN_MS = 20_000;
 export const NPC_SAY_MAX_MS = 40_000;
 export const NPC_SAY_DIST = 15;
-export const MAX_TRADE_COUNT = 100;
+export { MAX_TRADE_COUNT };
 
 export interface NpcSpot { id: string; x: number; y: number }
 
@@ -41,6 +42,8 @@ export interface NpcOptions {
   travel?: (p: PlayerState, x: number, y: number) => void;
   /** Impede a viagem (em combate etc.). Retorna o aviso, ou null se pode. */
   travelBlocked?: (p: PlayerState) => string | null;
+  /** Encantamento ativo de cada jogador (systems/imbuement.ts). Ausente = quem tem `imbuement` não vende. */
+  imbue?: Pick<ImbuementSystem, "get" | "set">;
 }
 
 export const CLOSED: NpcOpenMsg = { npcId: "", name: "", greeting: "" };
@@ -120,7 +123,10 @@ export class NpcSystem {
     if (d.travel?.length) msg.travel = d.travel.map((t) => ({ id: t.id, label: t.label, price: travelPrice(t, p?.level ?? Infinity) }));
     if (d.blessing) msg.blessing = { price: blessingPrice(p?.level ?? 1), active: !!p?.blessed };
     if (d.casino) msg.casino = true;
-    if (d.imbuement) msg.imbuement = { active: p?.imbuement ?? "" };
+    if (d.imbuement) {
+      const a = p ? this.o.imbue?.get(p.id) : undefined;
+      msg.imbuement = a ? { active: a.effect, tier: a.tier, leftMs: a.leftMs } : { active: "", tier: 0, leftMs: 0 };
+    }
     return msg;
   }
 
@@ -146,7 +152,7 @@ export class NpcSystem {
     if (!d) return;
     if (msg.action === "blessing") return this.buyBlessing(p, d);
     if (msg.action === "casino") return this.buyCasino(p, d);
-    if (msg.action === "imbuement") return this.buyImbuement(p, d, msg.effect);
+    if (msg.action === "imbuement") return this.buyImbuement(p, d, msg.effect, msg.tier);
     if (!d.shop) return;
     if (msg.action === "sellAll") return this.sellAll(p, d.shop.buys ?? []);
     const count = msg.count;
@@ -157,6 +163,10 @@ export class NpcSystem {
       const entry = d.shop.sells.find((e) => e.itemId === msg.itemId);
       const item = entry ? inv.defs(entry.itemId) : undefined;
       if (!entry || !item) return;
+      // Poção e comida acima do level: o uso é recusado (InventorySystem.useAt), então a compra também. Equipamento
+      // continua à venda (comprar antes para equipar ao subir é escolha do jogador; equipar já confere o level).
+      const need = item.use ? levelNeeded(item, p.level) : 0;
+      if (need) return this.notice(p, `Você precisa ser level ${need} para comprar isso.`, "warn");
       if (entry.limited) {
         if (count > 1) return;
         const week = weekId(new Date(this.now()));
@@ -194,7 +204,10 @@ export class NpcSystem {
     const price = blessingPrice(p.level);
     if (!this.o.inventory.spendGold(p, price)) return this.notice(p, "Ouro insuficiente.", "warn");
     p.blessed = true;
-    this.notice(p, `Você comprou uma bênção por ${price} de ouro. Sua próxima morte não vai custar XP.`, "good");
+    // Mesma conta da morte (deathXpLoss, com a caveira vermelha): quanto a bênção salvaria se a morte fosse agora.
+    const saves = deathXpLoss(p.level, p.xp, p.skull === "red" ? RED_SKULL_DEATH_XP_MULT : 1);
+    const now = saves > 0 ? ` Hoje ela protege ~${saves.toLocaleString("pt-BR")} XP.` : "";
+    this.notice(p, `Você comprou uma bênção por ${price} de ouro. Sua próxima morte não vai custar XP.${now}`, "good");
     this.o.send(p.id, S2C.NpcOpen, this.openMsg(d, p));
   }
 
@@ -204,8 +217,10 @@ export class NpcSystem {
    */
   private buyCasino(p: PlayerState, d: NpcDef): void {
     if (!d.casino) return;
-    // Um dos prêmios é um material: sem espaço na mochila ele sumiria com o aviso de "ganhou". Confere antes de cobrar.
-    if (this.o.inventory.roomFor(p.id, CASINO_MATERIAL_POOL[0]!) < 1) return this.notice(p, "Abra um espaço na mochila antes de comprar a ficha.", "warn");
+    // Um dos prêmios é um material: sem espaço na mochila ele sumiria com o aviso de "ganhou". Confere antes de cobrar
+    // que CADA material do sorteio cabe (antes só a Barra de Ferro: uma pilha dela "abria espaço" para a Escama sumir).
+    // Conferir todos, e não só o sorteado, para a recusa não revelar o prêmio nem deixar ficha "sem material" de graça.
+    if (CASINO_MATERIAL_POOL.some((id) => this.o.inventory.roomFor(p.id, id) < 1)) return this.notice(p, "Abra um espaço na mochila antes de comprar a ficha.", "warn");
     if (!this.o.inventory.spendGold(p, CASINO_TICKET_PRICE)) return this.notice(p, "Ouro insuficiente.", "warn");
     const r = this.rng();
     if (r < 0.45) {
@@ -226,20 +241,29 @@ export class NpcSystem {
     }
   }
 
-  /** Compra/troca o encantamento ativo: gasta ouro + material, substitui o anterior sem reembolso. */
-  private buyImbuement(p: PlayerState, d: NpcDef, effectId: unknown): void {
-    if (!d.imbuement || typeof effectId !== "string") return;
-    const def = imbuementDef(effectId);
-    if (!def) return;
-    if (p.imbuement === def.effect) return this.notice(p, `Você já tem ${def.name} ativo.`, "warn");
+  /**
+   * Compra/troca o encantamento: tier 1–3 (ausente = 1) com level mínimo, ouro e material. Substitui o ativo sem
+   * reembolso e com 10 h cheias de combate (o mesmo de novo = renovar); o cliente confirma quando já há um ativo.
+   */
+  private buyImbuement(p: PlayerState, d: NpcDef, effectId: unknown, tierIn: unknown): void {
+    const imbue = this.o.imbue;
+    if (!d.imbuement || !imbue) return;
+    const t = imbuementTier(effectId, tierIn ?? 1);
+    if (!t) return;
+    const effect = imbuementDef(effectId)!.effect;
+    // Clique duplo (2 NpcTrade seguidas): o mesmo efeito e tier recém-comprado é ignorado em silêncio, sem cobrar de novo.
+    const cur = imbue.get(p.id);
+    if (cur && cur.effect === effect && cur.tier === t.tier && cur.leftMs > IMBUE_DURATION_MS - IMBUE_REBUY_GUARD_MS) return;
+    const name = imbuementName(effect, t.tier);
+    if (p.level < t.minLevel) return this.notice(p, `${name} precisa do level ${t.minLevel}.`, "warn");
     const inv = this.o.inventory;
-    if (inv.countItem(p.id, def.materialId) < def.materialCount) {
-      return this.notice(p, `Faltam materiais: ${def.materialCount}x ${inv.defs(def.materialId)?.name ?? def.materialId}.`, "warn");
+    if (inv.countItem(p.id, t.materialId) < t.materialCount) {
+      return this.notice(p, `Faltam materiais: ${t.materialCount}x ${inv.defs(t.materialId)?.name ?? t.materialId}.`, "warn");
     }
-    if (!inv.spendGold(p, def.goldPrice)) return this.notice(p, "Ouro insuficiente.", "warn");
-    inv.removeItems(p, def.materialId, def.materialCount);
-    p.imbuement = def.effect;
-    this.notice(p, `Encantamento ativo: ${def.name}. ${def.desc}`, "good");
+    if (!inv.spendGold(p, t.goldPrice)) return this.notice(p, "Ouro insuficiente.", "warn");
+    inv.removeItems(p, t.materialId, t.materialCount);
+    imbue.set(p.id, effect, t.tier);
+    this.notice(p, `Encantamento ativo: ${name}, por 10 h de combate contra monstros. ${imbuementDesc(effect, t.tier)}`, "good");
     this.o.send(p.id, S2C.NpcOpen, this.openMsg(d, p));
   }
 
@@ -255,7 +279,7 @@ export class NpcSystem {
     bp.forEach((it, index) => {
       const item = it ? inv.defs(it.defId) : undefined;
       if (!it || !item || !buys.includes(item.kind)) return;
-      if (keptBySellAll(it.rarity)) { kept++; return; }
+      if (keptBySellAll(it.rarity, it.refine)) { kept++; return; }
       const n = it.count, price = npcBuyPrice(item.value, it.rarity) * n;
       if (!inv.takeFromBackpack(p, index, n)) return;
       items += n;

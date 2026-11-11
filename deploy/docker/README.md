@@ -75,6 +75,18 @@ Abra `http://localhost:2567`. De outro PC: `http://<IP-desta-máquina>:2567` (o 
 
   (Se o `del` reclamar que os arquivos não existem, tudo bem.)
 
+### Voltar para a versão anterior (rollback)
+
+Antes de atualizar, guarde a imagem atual e uma cópia do banco: `docker tag lemonquest:latest lemonquest:pre-<versão>` e
+um backup manual do `.db` (com o jogo parado, `copy docker-data\lemonquest.db docker-data\backups\pre-<versão>.db`).
+Para voltar: `docker compose stop`, `docker tag lemonquest:pre-<versão> lemonquest:latest` e `docker compose up -d` (sem
+`--build`).
+
+> **Depois do ciclo 16 (refino +1..+5), voltar só a imagem apaga o refino.** O código antigo não conhece o campo
+> `refine` dos itens: no primeiro save de cada personagem os itens refinados voltam a +0, e o ouro e as gemas gastos não
+> voltam. Rollback para antes do ciclo 16, depois que alguém refinou, exige restaurar também o backup do banco feito antes
+> do deploy (como em "Restaurar um backup", acima; perde-se o que aconteceu depois dele) ou aceitar a perda do refino.
+
 ### Cópia dos backups em outro disco (recomendado)
 
 Se o disco da máquina morrer, `docker-data\backups\` vai junto. Com `LEMONQUEST_BACKUP_COPY_DIR`, depois de cada backup o
@@ -120,6 +132,9 @@ Edite `docker-compose.yml` (seção `environment`) e rode `docker compose up -d`
 | `LEMONQUEST_TRUST_PROXY` | vazio | Só atrás do Caddy **com a 2567 fechada** (`"uniquelocal"`): o limite de login por IP usa o IP real do jogador. |
 | `LEMONQUEST_DEV_COMMANDS` | desligado | `"1"` liga /level, /item etc. para os admins — só fora de produção (no container, que roda em produção, nunca liga). |
 | `LEMONQUEST_BACKUP_COPY_DIR` | vazio | Pasta para uma **cópia extra** de cada backup (outro disco/NAS). Veja o passo 5. |
+| `LEMONQUEST_CLICKUP_TOKEN` | vazio | Token pessoal do ClickUp (só leitura) que liga o "Chegou!", as barras de sprint, a aba "Na obra" e as conquistas de tarefas ([README](../../README.md#clickup-no-jogo-opcional)). O `docker-compose.yml` já repassa a variável: só crie um `.env` ao lado dele com `LEMONQUEST_CLICKUP_TOKEN=pk_...` e rode `docker compose up -d` (**nunca** escreva o token no compose; o `.env` não vai para o git). O container precisa de saída para `api.clickup.com` (HTTPS). |
+| `LEMONQUEST_CLICKUP_POLL_MIN` | `5` | Minutos entre leituras do ClickUp (1 a 60). |
+| `LEMONQUEST_CLICKUP_TEAM` / `LEMONQUEST_CLICKUP_PURCHASES_LIST` | do código | Workspace e lista "Controle de Compras", se mudarem. |
 
 ## 7. Servidor Linux do escritório (repositório privado no GitHub)
 
@@ -173,7 +188,8 @@ O código fica em `github.com/leocsd/lemonquest` (privado). No servidor:
 
 Coloque o seu personagem em `LEMONQUEST_ADMINS` (seção `environment`) e rode `docker compose up -d`. No jogo, digite no
 chat: `/online`, `/kick <nome> [motivo]`, `/mute <nome> <minutos>`, `/unmute <nome>`, `/anuncio <texto>`, `/tp <nome>`,
-`/resetsenha <conta>`, `/status`, `/evento <nome> [minutos]`, `/desbloquear <nome> <roupa|addon|título>` (detalhes no
+`/resetsenha <conta>`, `/status`, `/evento <nome> [minutos]`, `/desbloquear <nome> <roupa|addon|título>`,
+`/vincular <personagem> <apelido|id do ClickUp|nenhum>` (detalhes no
 [README principal](../../README.md#administradores)). Tudo fica no log com `[admin]`:
 `docker compose logs | grep "\[admin\]"`.
 
@@ -183,6 +199,7 @@ chat: `/online`, `/kick <nome> [motivo]`, `/mute <nome> <minutos>`, `/unmute <no
 ```bash
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs reset-password <conta>
 docker compose exec -u node lemonquest node packages/server/dist/admin.mjs deleted     # personagens excluídos
+docker compose exec -u node lemonquest node packages/server/dist/admin.mjs telemetria  # progressão por faixa e vocação, skills reais e causas de morte (só leitura)
 ```
 
 Conta com espaço no nome: use aspas (`reset-password "Time Azul"`). O `-u node` evita criar arquivos do banco como root.

@@ -55,14 +55,20 @@ describe("atalhos de magia", () => {
     for (const v of ["knight", "paladin", "sorcerer", "druid"] as const) {
       const d = defaultHotkeys(v);
       const covered = d.flatMap((h) => familyDef(h.spellId)?.spells ?? [h.spellId]);
-      expect([...covered].sort(), v).toEqual(spellsFor(v).map((s) => s.id).sort());
+      const all = spellsFor(v).map((s) => s.id).sort();
+      // Druida: com a Raízes da Terra (ciclo 12, lv 100) o catálogo passou de 12 para 13 avulsas/famílias e não cabe
+      // mais nas 12 teclas; a mais alta de level fica fora da barra padrão (o jogador adiciona na mão).
+      const expected = v === "druid" ? all.filter((id) => id !== "earth_roots") : all;
+      expect([...covered].sort(), v).toEqual(expected);
       expect(d.map((h) => h.key), v).toEqual(SUGGESTED_KEYS.slice(0, d.length));
       expect(sanitizeHotkeys(d, v), v).toEqual(d);
       sizes[v] = d.length;
     }
-    // A barra encolhe: menos teclas que magias em todas as vocações, e cabe no 1–0.
-    // Ciclo 9: Cura Intensa + cura própria + magia de grupo entraram avulsas (nenhuma delas tem família).
+    // A barra encolhe: menos teclas que magias em todas as vocações. Ciclo 9: Cura Intensa + cura própria entraram
+    // avulsas (nenhuma delas tem família); ciclo 12: a magia de utilidade do lv 100 idem. Cabe no 1–0, menos o
+    // druida, que usa as 12 teclas inteiras (as duas últimas em letra, ver SUGGESTED_KEYS abaixo).
     expect(sizes).toEqual({ knight: 10, paladin: 8, sorcerer: 10, druid: 12 });
+    for (const n of Object.values(sizes)) expect(n).toBeLessThanOrEqual(HOTKEY_MAX);
     expect(SUGGESTED_KEYS.slice(10, 12)).toEqual(["KeyC", "KeyF"]); // A, B, D, E são do jogo
   });
 

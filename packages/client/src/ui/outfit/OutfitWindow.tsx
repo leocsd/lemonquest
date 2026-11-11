@@ -9,6 +9,7 @@ import { PixelIcon } from "../hud/icons.tsx";
 import { achievementsStore, outfitUnlockedFor } from "../achievements/achievements.ts";
 import "../achievements/achievements.css";
 import { buyOutfitTone, closeOutfit, outfitOpen, outfitTonesStore, sendOutfit } from "./outfit.ts";
+import { buyClick, buyLabel, toneStatus, toneToWear } from "./toneShop.ts";
 import { inventoryStore } from "../items/inventory.ts";
 import { bindOverlay } from "../overlays.ts";
 import "./outfit.css";
@@ -46,6 +47,11 @@ function OutfitDialog() {
   const ach = useStore(achievementsStore);
   const unlockedTones = useStore(outfitTonesStore);
   const gold = useStore(inventoryStore)?.gold ?? 0;
+  const [confirmBuy, setConfirmBuy] = useState(false);
+  const toneSt = toneStatus(tone, unlockedTones, gold);
+  const wearTone = toneToWear(tone, unlockedTones, me?.tone ?? "");
+  const toneName = OUTFIT_TONES.find((t) => t.id === tone)?.name ?? "";
+  const pickTone = (id: string) => { setTone(id); setConfirmBuy(false); };
   // Liberado = conquista/roupa padrão/o que já veste. Sem o estado do servidor ainda, só o que veste.
   const voc = me?.vocation ?? "knight";
   const open = (id: string, bit: 0 | 1 | 2) => outfitUnlockedFor(ach, voc, current.id, me?.addons ?? 0, id, bit);
@@ -66,7 +72,13 @@ function OutfitDialog() {
   }, [auto]);
 
   const rotate = (d: number) => { setAuto(false); setFace((f) => (f + d + 4) % 4); };
-  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, tone); closeOutfit(); };
+  const ok = () => { if (!outfitOk) return; sendOutfit(outfit.id, effAddons, wearTone); closeOutfit(); };
+  const buy = () => {
+    if (toneSt !== "buy") return;
+    const r = buyClick(confirmBuy);
+    setConfirmBuy(r.confirming);
+    if (r.buy) buyOutfitTone(tone);
+  };
 
   // Enter confirma; setas giram (sem roubar teclas do jogo quando fechada). O Esc fecha pela pilha (acima).
   useEffect(() => {
@@ -124,22 +136,21 @@ function OutfitDialog() {
               <button
                 class={`outfit-tone${tone === "" ? " sel" : ""}`}
                 style={{ background: "#fff" }}
-                onClick={() => setTone("")}
+                onClick={() => pickTone("")}
                 data-tip="Natural"
                 aria-label="Natural"
                 aria-selected={tone === ""}
               />
               {OUTFIT_TONES.map((t) => {
                 const unlocked = unlockedTones.includes(t.id);
-                const afford = gold >= OUTFIT_TONE_PRICE;
                 return (
                   <button
                     key={t.id}
                     class={`outfit-tone${tone === t.id ? " sel" : ""}${unlocked ? "" : " locked"}`}
                     style={{ background: `#${t.color.toString(16).padStart(6, "0")}` }}
-                    onClick={() => (unlocked ? setTone(t.id) : afford && buyOutfitTone(t.id))}
-                    data-tip={unlocked ? t.name : `${t.name} · ${OUTFIT_TONE_PRICE} de ouro`}
-                    data-tip-sub={unlocked ? undefined : afford ? "Clique para comprar (vale pra conta toda)" : "Ouro insuficiente"}
+                    onClick={() => pickTone(t.id)}
+                    data-tip={unlocked ? t.name : `${t.name} · ${OUTFIT_TONE_PRICE.toLocaleString("pt-BR")} de ouro`}
+                    data-tip-sub={unlocked ? undefined : "Clique para ver no boneco"}
                     aria-label={t.name}
                     aria-selected={tone === t.id}
                   >
@@ -148,6 +159,19 @@ function OutfitDialog() {
                 );
               })}
             </div>
+            {toneSt !== "owned" && (
+              <div class="outfit-buy">
+                <span class="outfit-buy-note">Prévia de <b>{toneName}</b>. Comprado, vale para a conta toda.</span>
+                <button
+                  class={`outfit-btn outfit-buy-btn${confirmBuy ? " confirm" : ""}`}
+                  onClick={buy}
+                  onBlur={() => setConfirmBuy(false)}
+                  disabled={toneSt === "poor"}
+                >
+                  {buyLabel(toneSt, confirmBuy)}
+                </button>
+              </div>
+            )}
           </div>
           <ul class="outfit-grid" role="listbox" aria-label="Roupas disponíveis">
             {OUTFIT_LIST.map((o) => {
@@ -159,7 +183,7 @@ function OutfitDialog() {
                   role="option"
                   aria-selected={o.id === outfit.id}
                   onClick={() => { if (o.id !== sel) { setSel(o.id); setAddons(o.id === current.id ? me?.addons ?? 0 : addons); } }}
-                  onDblClick={() => { if (!locked) { sendOutfit(o.id, o.id === outfit.id ? effAddons : 0, tone); closeOutfit(); } }}
+                  onDblClick={() => { if (!locked) { sendOutfit(o.id, o.id === outfit.id ? effAddons : 0, wearTone); closeOutfit(); } }}
                   data-tip={o.name}
                   data-tip-sub={locked ? unlockRequirement(o.id, 0) : o.id === current.id ? "Roupa atual" : "Clique para ver · duplo clique veste"}
                   data-locked={locked ? "true" : undefined}
@@ -174,7 +198,9 @@ function OutfitDialog() {
           </ul>
         </div>
         <div class="outfit-foot">
-          <span class={`outfit-hint${lockedMsg ? " outfit-req" : ""}`}>{lockedMsg ?? "Conquistas (J) desbloqueiam novas roupas e addons."}</span>
+          <span class={`outfit-hint${lockedMsg ? " outfit-req" : ""}`}>
+            {lockedMsg ?? (toneSt !== "owned" ? "Tom não comprado: o OK mantém o tom atual." : "Conquistas (J) desbloqueiam novas roupas e addons.")}
+          </span>
           <button class="outfit-btn" onClick={closeOutfit}>Cancelar</button>
           <button class="outfit-btn primary" onClick={ok} disabled={!outfitOk}>OK</button>
         </div>

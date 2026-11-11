@@ -7,6 +7,7 @@ import { useStore } from "../hud/store.ts";
 import { vocationMeta } from "../hud/vocations.ts";
 import { playersStore } from "../hud/world.ts";
 import { partyAction, partyStore, type PartyInfo } from "./party.ts";
+import { shareBonusText } from "./shareText.ts";
 import "./party.css";
 
 const pct = (v: number, max: number) => (max > 0 ? Math.max(0, Math.min(100, (v / max) * 100)) : 0);
@@ -35,7 +36,7 @@ function PartyBody({ party }: { party: PartyInfo }) {
     <div class="party">
       <div
         class={`party-share ${share.active ? "on" : "off"}`}
-        data-tip={share.active ? "XP dividida com bônus de +20% por membro" : "XP compartilhada inativa"}
+        data-tip={share.active ? shareBonusText() : "XP compartilhada inativa"}
         data-tip-sub={`Divide entre quem atacou/curou nos últimos ${PARTY_ACTIVE_MS / 1000} s a até ${PARTY_SHARE_RANGE} sqm do abate. Menor level ≥ 2/3 do maior.`}
       >
         <span class="party-share-dot" aria-hidden="true" />

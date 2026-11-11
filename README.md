@@ -28,21 +28,25 @@ dele, na lista de personagens (pede o nome e a senha da conta; não funciona com
 | Magias da barra | `1`–`0` por padrão (ou digite as palavras mágicas no chat, ex.: `exura`). Só aparece o que o seu level já libera |
 | Família de magias (◆) | uma tecla para várias magias do mesmo tipo (ataque no alvo, área, onda): sai a mais forte que estiver pronta, com mana e no alcance. Na barra, magia de alvo fica avermelhada com o alvo longe e apagada sem alvo |
 | Escolher a tecla de cada magia | `H` (ou ⚙ no fim da barra): até 12 atalhos, qualquer tecla livre, também com `Shift`; salvo no personagem. "Recomendado" monta a barra com as famílias; magia nova entra sozinha numa tecla livre |
-| Poção de vida / mana | `Q` / `E` |
+| Montar os seus grupos de magia | `H` → **◆ Grupos**: até 8 grupos com as magias e a ordem que você quiser (arrastar, ↑↓, copiar uma família pronta como modelo); a tecla solta a primeira da lista que estiver pronta. "Pôr na barra" põe o grupo numa tecla livre |
+| Poção de vida / mana | `Q` / `E` (a que mais recupera entre as que o seu level permite) |
+| Guardar / retirar no depot | com o depot aberto, clique direito ou duplo clique no item (junta na pilha igual que tiver espaço) |
+| Organizar / buscar no depot | botão **Organizar** (junta as pilhas iguais e ordena por tipo e nome, sem mexer em raridade nem refino) e o campo de busca (sem acento, filtra pelo nome) |
 | Seguir o alvo (gruda no monstro, qualquer vocação) | `F8` |
 | Ataque automático (escolhe sozinho o monstro mais próximo) | `F9` |
 | Seguir um jogador | clique direito no jogador (no mundo ou na Batalha) → *Seguir*; quadrado verde marca quem você segue (andar, atacar ou `Esc` cancela) |
-| Atacar um jogador (PvP, fora da zona de proteção) | clique direito no jogador → *Atacar*, ou clique nele na Batalha |
+| Atacar um jogador (PvP, fora da zona de proteção) | clique direito no jogador (mundo ou Batalha; o mesmo menu) → *Atacar*, o último item, em vermelho; ou clique nele na Batalha |
 | Viajar Vila ↔ Posto da Fronteira ↔ Porto Esperança | fale com o cocheiro (portão leste da Vila / sul do Posto) ou com a Capitã Marina (barco, no Porto) |
 | Abrir baú de quest / puxar alavanca | clique no baú ou na alavanca (o personagem anda até o lado) |
 | Chat | `Enter` · comandos do chat (grupo etc.): `/ajuda` |
+| Eventos da semana | botão **Agenda** (calendário) no trilho à direita, ou o selo "Próximo: …" no topo; no chat (todos): `/agenda` (a semana, um dia por linha) e `/evento` (o que vale agora e o próximo). Aviso no chat e no título da aba 10 min antes de cada evento |
 | Modo de luta | `F2` ofensivo, `F3` equilibrado, `F4` defensivo (`F5` continua sendo o "atualizar" do navegador) |
 | Mapa | `M` |
 | Janelas | `I` equipamento/mochila · `K` habilidades · `O` roupas · `L` missões · `J` conquistas · `R` ranking · `B` bestiário |
 | Volume / mudo | botão ♪ na barra de botões à direita |
 | Painéis da barra lateral | arraste o cabeçalho para reordenar; 📌 fixa o painel (fica visível com a barra recolhida); a borda de baixo de Batalha/Mochila muda a altura (duplo clique: padrão) |
 | Minimapa | roda do mouse: zoom; clique no relógio: efeitos de luz (dia/noite) |
-| Botão direito em você | trocar roupa · pegar item do chão · sair do grupo |
+| Botão direito em você | trocar roupa · pegar item do chão · sair do grupo · trocar personagem (volta à lista de personagens da conta) |
 | Ajuda com todos os atalhos | `F1` ou `?` |
 
 Na lista de batalha e no "olhar": `★` antes do nome é criatura **elite** (a cor do nome continua dizendo a dificuldade
@@ -52,7 +56,7 @@ criatura foge com pouca vida.
 **Quests do mundo (estilo Tibia):** baús de quest dão o prêmio uma vez por personagem; quando há vários baús juntos,
 você escolhe um e os outros ficam vazios. Portas com fechadura pedem level ou uma missão concluída (quem não pode bate e
 volta). Na Cidadela de Ferumbras, a Aniquilação precisa de quatro jogadores de lv 100+ nas placas para alguém puxar a
-alavanca.
+alavanca; cada personagem entra uma vez por dia (o dia troca às 6h, como as recompensas diárias).
 
 Itens no chão somem em 10 min (raros ou melhores: 20 min). Eles sobrevivem a um reinício do servidor, mas o tempo com
 o servidor desligado também conta.
@@ -65,7 +69,8 @@ Admin = personagem listado em `LEMONQUEST_ADMINS` (vírgulas, sem diferença de 
 Esses nomes ficam **reservados**: só as contas listadas em `LEMONQUEST_ADMIN_ACCOUNTS` (login, vírgulas) conseguem criar um
 personagem com eles (inclusive variantes com/sem acento). Um personagem admin que já existe não é afetado.
 Os comandos de admin funcionam **também em produção** (os de dev — `/level`, `/item`... — continuam só com
-`LEMONQUEST_DEV_COMMANDS=1` e nunca em produção). Para quem não é admin, todos respondem "Comando desconhecido.".
+`LEMONQUEST_DEV_COMMANDS=1` e nunca em produção). Para quem não é admin, todos respondem "Comando desconhecido.", exceto
+o `/evento`, que para qualquer jogador só mostra o que vale agora e o próximo (como o `/agenda`).
 As respostas aparecem só para o admin (aviso + linha no chat). Toda ação fica no log do servidor com `[admin]`.
 
 | Comando | O que faz |
@@ -78,17 +83,48 @@ As respostas aparecem só para o admin (aviso + linha no chat). Toda ação fica
 | `/tp <nome>` | Leva você para perto do jogador. |
 | `/resetsenha <conta>` | Gera um **código de recuperação** (8 caracteres, vale 24 h, uso único) — só você vê. Passe para o dono da conta, que usa em "Esqueci minha senha" na tela de login. |
 | `/status` | Fotografia do servidor: online, monstros, tick, memória, autosave e a progressão medida (horas por level, mortes e ouro por faixa). |
-| `/evento <nome> [minutos]` · `/evento parar` | Liga um evento semanal fora do horário (sem argumentos lista os eventos e o estado). |
+| `/evento <nome> [minutos]` · `/evento parar` | Liga um evento semanal fora do horário (sem argumentos lista os eventos e o estado). Quem não é admin só lê o estado. |
 | `/desbloquear <nome> <roupa\|addon\|título>` | Libera uma roupa, addon ou título para um personagem (ex.: `pirata`, `pirata_chapeu`, `title:persistente`). |
+| `/vincular <personagem> <apelido\|id do ClickUp>` · `/vincular <personagem> nenhum` | Liga o personagem a um usuário do ClickUp (apelido da equipe, ex.: `pedrao`, `Lucas P.`, ou o id numérico): tarefas que ele fechar **a partir de agora** contam nas conquistas de tarefas. Sem argumentos lista os vínculos. Funciona com o personagem offline. |
 
-Nomes com espaço funcionam (`/kick Ana Maria spam`). Sem nenhum admin online, o dono do servidor gera o código pelo terminal:
+Nomes com espaço funcionam (`/kick Ana Maria spam`). O `/status` mostra também a última leitura do ClickUp.
+Sem nenhum admin online, o dono do servidor gera o código pelo terminal:
 
 ```bash
 npm run admin -- reset-password <conta>          # na pasta do projeto (usa LEMONQUEST_DB ou data/lemonquest.db)
 npm run admin -- deleted                         # lista personagens excluídos (arquivo deleted_characters)
+npm run admin -- telemetria                      # progressão por faixa e por vocação (XP/h, abates/h, dano/h, % resistido, mortes/h), skills reais e causas de morte
 ```
 
 Docker: veja [deploy/docker/README.md](deploy/docker/README.md#9-administração).
+
+### ClickUp no jogo (opcional)
+
+Com `LEMONQUEST_CLICKUP_TOKEN` (token pessoal do ClickUp, só leitura) o servidor lê o ClickUp a cada
+`LEMONQUEST_CLICKUP_POLL_MIN` minutos (padrão 5), **fora do tick**, e mostra no jogo, sempre passando pelo filtro de
+disfarce (`shared/workFilter.ts`: cliente real vira apelido, tarefa com termo sensível some inteira):
+**"📦 Chegou!"** quando uma compra entra em "pedidos entregues" (com Caixa de Encomenda no chão, até 3 por hora),
+**barras da sprint** e a aba **"Na obra"** no Painel da Obra e no Quadro de Gestão à Vista, o evento **Sprint Fechada**
+(XP ×1,25 por 1 h, multiplicado com o evento que estiver valendo: Noite de Caçada ×2 vira ×2,5) quando a semana alcança a média das 4 anteriores, e as **conquistas de tarefas** de quem
+vinculou o próprio ClickUp (abaixo) ou foi vinculado por um admin com `/vincular`. Sem token, nada disso liga e o jogo fica igual. Erro de rede: tenta de novo com espera
+crescente (até 30 min). `LEMONQUEST_CLICKUP_TEAM` e `LEMONQUEST_CLICKUP_PURCHASES_LIST` trocam o workspace e a lista
+de compras (padrões em `shared/data/workProjects.ts`).
+
+**Vincular o seu ClickUp (cada jogador, sem admin):** tarefas que você fechar no ClickUp a partir do vínculo contam nas
+conquistas de tarefas (1/10/50/200, com títulos).
+
+1. No ClickUp: avatar → **Configurações** → **Apps** → **API Token** → gere (ou copie) o token pessoal (`pk_…`).
+2. No jogo: fale com o **Quadro de Gestão à Vista** (Oficina) ou o **Painel da Obra** (Estação Central da Malha), aba
+   **"Na obra"** → **Vincular meu ClickUp**, cole o token e clique em **Vincular**.
+3. O servidor confere quem é você (`GET /user`), se a conta é do workspace da Embeddo e se o e-mail é `@embeddo.io`,
+   grava só o **id** do seu usuário no ClickUp e **descarta o token na hora**: ele não vai para banco, log nem tela.
+   Um usuário do ClickUp conta para um personagem só (vincular em outro tira do anterior). **Desvincular** fica no mesmo
+   lugar. Até 5 tentativas a cada 10 min por personagem.
+
+> O jogo roda em HTTP (sem criptografia) na rede do escritório, então o token passa **uma vez** pela LAN ao vincular.
+> O jogo não guarda o seu token; por isso, se quiser, **gere outro no ClickUp depois de vincular** (o antigo deixa de
+> valer e o vínculo continua). O vínculo funciona mesmo sem `LEMONQUEST_CLICKUP_TOKEN`, mas as tarefas só contam
+> quando o ClickUp do servidor estiver ligado.
 
 ## Desenvolvimento
 

@@ -2,8 +2,10 @@
 // forte para a mais fraca (prioridade) e nenhuma magia está em duas famílias da mesma vocação.
 import { describe, expect, it } from "vitest";
 import {
-  FAMILY_PREFIX, SPELL_FAMILIES, castableBy, familiesFor, familyDef, familyLevel, familyOf, familySpells, isFamilyId, pickFromFamily,
+  FAMILY_PREFIX, GROUP_MAX, GROUP_NAME_MAX, SPELL_FAMILIES, castableBy, cleanGroupName, familiesFor, familyDef, familyLevel, familyOf,
+  familySpells, isFamilyId, nextGroupId, pickFromFamily, resolveFamily, sanitizeSpellGroups,
 } from "./spellFamilies.ts";
+import { sanitizeHotkeys } from "../hotkeys.ts";
 import { SPELLS, spellDef } from "./spells.ts";
 import { VOCATIONS } from "../types.ts";
 
@@ -77,5 +79,45 @@ describe("SPELL_FAMILIES", () => {
     expect(castableBy("fireball", "knight")).toBe(false);
     expect(castableBy("fam:sorcerer:nada", "sorcerer")).toBe(false);
     expect(Object.keys(SPELLS)).toContain("fireball");
+  });
+});
+
+describe("grupos de magia do jogador", () => {
+  it("limpeza: id na faixa e sem repetir, nome limpo, só magias da vocação, sem repetir, até o máximo", () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ id: `fam:my:${i + 1}`, name: `g${i}`, spells: [] }));
+    expect(sanitizeSpellGroups(many, "sorcerer")).toHaveLength(GROUP_MAX);
+    const g = sanitizeSpellGroups([
+      { id: "fam:my:2", name: "\u0007  Fogo\n total  ", spells: ["fireball", "ice_shard", "fireball", "fam:sorcerer:area", 3] },
+      { id: "fam:my:2", name: "dup", spells: [] },
+      { id: "fam:sorcerer:target", name: "pronta", spells: [] },
+      { id: "fam:my:0", name: "zero", spells: [] },
+      { id: "fam:my:3", name: "   ", spells: "x" },
+      null,
+    ], "sorcerer");
+    expect(g).toEqual([
+      { id: "fam:my:2", name: "Fogo total", spells: ["fireball"] },
+      { id: "fam:my:3", name: "Grupo 3", spells: [] },
+    ]);
+    expect(sanitizeSpellGroups("lixo", "sorcerer")).toEqual([]);
+    expect(cleanGroupName("a".repeat(40), 1)).toHaveLength(GROUP_NAME_MAX);
+  });
+
+  it("vira família: mesma escolha da tecla inteligente, na ordem do jogador", () => {
+    const g = { id: "fam:my:1", name: "Meu", spells: ["fireball", "sudden_death"] };
+    const f = resolveFamily("fam:my:1", [g], "sorcerer")!;
+    expect(f.name).toBe("Meu");
+    // A ordem do jogador manda: Bola de Fogo antes de Morte Súbita, mesmo sendo mais fraca.
+    expect(pickFromFamily(f, 200, () => true)!.id).toBe("fireball");
+    expect(pickFromFamily(f, 200, (s) => s.id !== "fireball")!.id).toBe("sudden_death");
+    expect(resolveFamily("fam:my:2", [g], "sorcerer")).toBeUndefined();
+    expect(resolveFamily("fam:sorcerer:target", [], "sorcerer")?.name).toBe("Ataque no alvo");
+    expect(nextGroupId([g])).toBe("fam:my:2");
+  });
+
+  it("atalho de grupo só vale se o grupo existe", () => {
+    const g = [{ id: "fam:my:1", name: "Meu", spells: [] }];
+    const list = [{ key: "Digit1", spellId: "fam:my:1" }, { key: "Digit2", spellId: "fam:my:2" }];
+    expect(sanitizeHotkeys(list, "sorcerer", g)).toEqual([{ key: "Digit1", spellId: "fam:my:1" }]);
+    expect(sanitizeHotkeys(list, "sorcerer")).toEqual([]);
   });
 });

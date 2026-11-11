@@ -70,6 +70,7 @@ export function buildPublic() {
   copy("icons", (src) => !/preview/i.test(basename(src)));
   copy("tiles", (src) => !/preview/i.test(basename(src))); // tileset gerado pelo mapgen (lemon-terrain.png)
   copy("addons", (src) => !/preview/i.test(basename(src)));
+  copy("monsters", (src) => !/preview/i.test(basename(src))); // variações recoloridas (tools/monsters/recolor.mjs)
   copy("favicon", (src) => !/preview/i.test(basename(src))); // favicons + manifest.webmanifest
   // Só o mapa; os previews .png ficam de fora.
   mkdirSync(join(PUBLIC_DIR, "maps"), { recursive: true });

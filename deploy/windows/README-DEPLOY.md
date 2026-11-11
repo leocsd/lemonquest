@@ -175,6 +175,14 @@ Com o atalho (5B): feche a janela do servidor, rode os mesmos `git pull` / `npm 
 
 > O servidor faz backup do banco de hora em hora em `data\backups`; antes de uma atualização grande, vale guardar também uma cópia manual.
 
+**Voltar para a versão anterior (rollback):** pare o serviço, volte o código (`git checkout <commit-ou-tag-anterior>`),
+rode `npm ci` e `npm run build` e inicie de novo.
+
+> **Depois do ciclo 16 (refino +1..+5), voltar só o código apaga o refino.** O código antigo não conhece o campo `refine`
+> dos itens: no primeiro save de cada personagem os itens refinados voltam a +0, e o ouro e as gemas gastos não voltam.
+> Rollback para antes do ciclo 16, depois que alguém refinou, exige restaurar também a cópia do banco feita antes da
+> atualização (passo 8; perde-se o que aconteceu depois dela) ou aceitar a perda do refino.
+
 ## 7. Variáveis de ambiente
 
 | Variável | Padrão | Para que serve |
@@ -183,9 +191,12 @@ Com o atalho (5B): feche a janela do servidor, rode os mesmos `git pull` / `npm 
 | `LEMONQUEST_DB` | `data\lemonquest.db` (na raiz do repo) | Caminho do banco SQLite. |
 | `LEMONQUEST_BACKUP_DIR` | `data\backups` | Pasta onde o servidor grava os backups automáticos. |
 | `LEMONQUEST_DEV_COMMANDS` | desligado | `1` habilita comandos de desenvolvimento (só para teste, **não** deixe ligado em produção sem necessidade). |
-| `LEMONQUEST_ADMINS` | vazio | Nomes de personagens admin, separados por vírgula (ex.: `Leo,Ana`). Comandos de admin (`/kick`, `/mute`, `/unmute`, `/anuncio`, `/online`, `/resetsenha`, `/tp`, `/status`, `/evento`, `/desbloquear`) valem em produção; os de dev só com `LEMONQUEST_DEV_COMMANDS=1` fora de produção. Veja "Administradores" no README principal. |
+| `LEMONQUEST_ADMINS` | vazio | Nomes de personagens admin, separados por vírgula (ex.: `Leo,Ana`). Comandos de admin (`/kick`, `/mute`, `/unmute`, `/anuncio`, `/online`, `/resetsenha`, `/tp`, `/status`, `/evento`, `/desbloquear`, `/vincular`) valem em produção; os de dev só com `LEMONQUEST_DEV_COMMANDS=1` fora de produção. Veja "Administradores" no README principal. |
 | `LEMONQUEST_ADMIN_ACCOUNTS` | vazio | Contas (login) que podem criar personagens com nome de admin; sem ela, esses nomes ficam reservados se o personagem ainda não existir. |
 | `LEMONQUEST_BACKUP_COPY_DIR` | vazio | Pasta extra (outro disco/pasta de rede) que recebe uma cópia de cada backup, com rotação própria (1 por dia, 14 dias). Se estiver indisponível, só loga. |
+| `LEMONQUEST_CLICKUP_TOKEN` | vazio | Token pessoal do ClickUp (só leitura): liga o "Chegou!", as barras de sprint, a aba "Na obra" e as conquistas de tarefas (veja "ClickUp no jogo" no README principal). Sem ele, nada disso liga. Precisa de saída HTTPS para `api.clickup.com`. |
+| `LEMONQUEST_CLICKUP_POLL_MIN` | `5` | Minutos entre leituras do ClickUp (1 a 60). |
+| `LEMONQUEST_CLICKUP_TEAM` / `LEMONQUEST_CLICKUP_PURCHASES_LIST` | do código | Workspace e lista "Controle de Compras", se mudarem. |
 | `NODE_ENV` | - | Use `production` (o `npm run start:fast` já define). |
 
 No serviço, acrescente-as em `AppEnvironmentExtra` (ex.: `nssm set LemonQuest AppEnvironmentExtra NODE_ENV=production LEMONQUEST_BACKUP_DIR=D:\backups-lemonquest`). Lembre que esse comando **substitui** a lista inteira.

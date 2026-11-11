@@ -3,7 +3,7 @@
 // Soltar fora dos painéis (sobre o mundo) = largar no chão naquele tile (raro ou melhor pede confirmação). Arrastar um item
 // do chão (WorldScene → beginGroundPress) até um slot = pegar; até outro tile do mundo = mover no chão.
 import {
-  BACKPACK_SIZE, DEPOT_SIZE, EQUIP_SLOTS, type EquipSlot, type ItemDef, type ItemInstance, type ItemLocation,
+  BACKPACK_SIZE, DEPOT_SIZE, EQUIP_SLOTS, refinedName, type EquipSlot, type ItemDef, type ItemInstance, type ItemLocation,
 } from "@lemonquest/shared";
 import { createStore } from "../hud/store.ts";
 import { playersStore, selectMe } from "../hud/world.ts";
@@ -218,7 +218,7 @@ function drop(d: DragState, x: number, y: number, shift: boolean) {
   // Pilha (mais de 1): escolhe a quantidade na barrinha (começa em tudo) — a barrinha já é a confirmação.
   // Item único raro ou melhor: pergunta antes (a fresta entre trilho e coluna engolia arrastos por engano).
   if (from.where === "depot") return;
-  const name = d.def?.name ?? "item";
+  const name = d.def ? refinedName(d.def, d.inst) : "item";
   if (d.inst.count > 1) {
     openDialog({
       kind: "count", title: `Largar ${name}`, verb: "Largar", max: d.inst.count, initial: d.inst.count,

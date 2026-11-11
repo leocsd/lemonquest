@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { IMBUEMENTS, PLAYER_ATTACK_MS, REGEN_INTERVAL_MS, S2C, baseStats, deathPenalty, xpForLevel } from "@lemonquest/shared";
+import { IMBUE_SPELL_MULT, OUT_OF_COMBAT_MS, PLAYER_ATTACK_MS, imbuementBonus, REGEN_INTERVAL_MS, S2C, baseStats, deathPenalty, xpForLevel } from "@lemonquest/shared";
 import { RegenSystem } from "./regen.ts";
 import { LootSystem } from "./loot.ts";
 import { KILL_CREDIT_RANGE } from "./monsters.ts";
@@ -160,28 +160,28 @@ describe("imbuement (encantamento)", () => {
   // Monstro com dano 0 e muita vida: o revide não tira vida e ele não morre, isolando o efeito do próprio ataque.
   it("dreno de vida: cura % do dano causado contra monstro selvagem", () => {
     const w = setup({ hp: 3000, armor: 0, aggroRange: 0, damage: [0, 0] });
-    w.combat.hooks = { imbuement: () => IMBUEMENTS.lifesteal };
+    w.combat.hooks = { imbuement: () => imbuementBonus("lifesteal", 1) };
     const p = w.add(player("k", 11, 10, { name: "Leo", hp: 50, maxHp: 500 }));
     w.combat.onAttack(p, { targetId: w.m.s.id });
     w.run(PLAYER_ATTACK_MS + 10);
     const dealt = w.sent.filter((s) => s.type === S2C.Combat).flatMap((s: any) => s.msg.events).find((e: any) => e.targetId === w.m.s.id)!.amount;
     expect(dealt).toBeGreaterThan(0);
-    expect(p.hp).toBe(50 + Math.round(dealt * IMBUEMENTS.lifesteal.value));
+    expect(p.hp).toBe(50 + Math.round(dealt * imbuementBonus("lifesteal", 1).value));
   });
 
   it("dreno de mana: recupera % do dano causado", () => {
     const w = setup({ hp: 3000, armor: 0, aggroRange: 0, damage: [0, 0] });
-    w.combat.hooks = { imbuement: () => IMBUEMENTS.manasteal };
+    w.combat.hooks = { imbuement: () => imbuementBonus("manasteal", 1) };
     const p = w.add(player("k", 11, 10, { name: "Leo", mana: 10, maxMana: 500 }));
     w.combat.onAttack(p, { targetId: w.m.s.id });
     w.run(PLAYER_ATTACK_MS + 10);
     const dealt = w.sent.filter((s) => s.type === S2C.Combat).flatMap((s: any) => s.msg.events).find((e: any) => e.targetId === w.m.s.id)!.amount;
-    expect(p.mana).toBe(10 + Math.round(dealt * IMBUEMENTS.manasteal.value));
+    expect(p.mana).toBe(10 + Math.round(dealt * imbuementBonus("manasteal", 1).value));
   });
 
   it("dreno não cura ao bater no boneco de treino (dano só mostrado)", () => {
     const w = setup({ hp: 30, armor: 0, aggroRange: 0, invulnerable: true });
-    w.combat.hooks = { imbuement: () => IMBUEMENTS.lifesteal };
+    w.combat.hooks = { imbuement: () => imbuementBonus("lifesteal", 1) };
     const p = w.add(player("k", 11, 10, { name: "Leo", hp: 50, maxHp: 500 }));
     w.combat.onAttack(p, { targetId: w.m.s.id });
     w.run(PLAYER_ATTACK_MS + 10);
@@ -192,20 +192,20 @@ describe("imbuement (encantamento)", () => {
   // Jogador nunca ataca (targetId sempre ""): só o monstro (aggroRange 5) bate, isolando o reflexo dos espinhos.
   it("espinhos: devolve % do dano recebido pro monstro que bateu", () => {
     const w = setup({ hp: 100_000, armor: 0, aggroRange: 5, damage: [40, 40], name: "Lobo" });
-    w.combat.hooks = { imbuement: () => IMBUEMENTS.thorns };
+    w.combat.hooks = { imbuement: () => imbuementBonus("thorns", 1) };
     w.add(player("v", 11, 10, { name: "Ana", hp: 5000, maxHp: 5000, targetId: "" }));
     w.run(PLAYER_ATTACK_MS + 10);
     const ev = w.sent.filter((s) => s.type === S2C.Combat).flatMap((s: any) => s.msg.events);
     const taken = ev.find((e: any) => e.targetId === "v" && e.sourceId === w.m.s.id)!.amount;
     const reflected = ev.find((e: any) => e.sourceId === "v" && e.targetId === w.m.s.id);
     expect(reflected).toBeTruthy();
-    expect(reflected.amount).toBe(Math.round(taken * IMBUEMENTS.thorns.value));
+    expect(reflected.amount).toBe(Math.round(taken * imbuementBonus("thorns", 1).value));
   });
 
   it("perfurante: mesma rolagem, mais dano contra monstro com armadura (armadura efetiva menor)", () => {
     const dealtWith = (imbuement: boolean) => {
-      const w = setup({ hp: 30, armor: 6, aggroRange: 0, invulnerable: true });
-      if (imbuement) w.combat.hooks = { imbuement: () => IMBUEMENTS.pierce };
+      const w = setup({ hp: 100_000, armor: 6, aggroRange: 0, damage: [0, 0] });
+      if (imbuement) w.combat.hooks = { imbuement: () => imbuementBonus("pierce", 1) };
       const p = w.add(player("k", 11, 10, { name: "Leo", hp: 500, maxHp: 500 }));
       w.combat.onAttack(p, { targetId: w.m.s.id });
       w.run(PLAYER_ATTACK_MS + 10);
@@ -214,16 +214,118 @@ describe("imbuement (encantamento)", () => {
     expect(dealtWith(true)).toBeGreaterThan(dealtWith(false));
   });
 
-  it("veloz: ataca mais vezes no mesmo tempo (intervalo reduzido)", () => {
-    const run = (imbuement: boolean) => {
-      const w = setup({ hp: 100_000, armor: 0, aggroRange: 0 });
-      if (imbuement) w.combat.hooks = { imbuement: () => IMBUEMENTS.haste };
-      const p = w.add(player("k", 11, 10, { name: "Leo", hp: 500, maxHp: 500 }));
+  const hitsIn = (o: { haste: boolean; invulnerable?: boolean; tier?: 1 | 2 | 3 }) => {
+    const w = setup({ hp: 100_000, armor: 0, aggroRange: 0, damage: [0, 0], invulnerable: o.invulnerable });
+    if (o.haste) w.combat.hooks = { imbuement: () => imbuementBonus("haste", o.tier ?? 1) };
+    const p = w.add(player("k", 11, 10, { name: "Leo", hp: 500, maxHp: 500 }));
+    w.combat.onAttack(p, { targetId: w.m.s.id });
+    w.run(PLAYER_ATTACK_MS * 25);
+    return w.sent.filter((s) => s.type === S2C.Combat).flatMap((s: any) => s.msg.events).filter((e: any) => e.targetId === w.m.s.id).length;
+  };
+
+  it("veloz: ataca mais vezes no mesmo tempo (intervalo reduzido); tier III mais que o I", () => {
+    expect(hitsIn({ haste: true })).toBeGreaterThan(hitsIn({ haste: false }));
+    expect(hitsIn({ haste: true, tier: 3 })).toBeGreaterThan(hitsIn({ haste: true, tier: 1 }));
+  });
+
+  it("no boneco de treino o encantamento não vale (lá o tempo não gasta): Veloz não acelera o treino", () => {
+    expect(hitsIn({ haste: true, invulnerable: true })).toBe(hitsIn({ haste: false, invulnerable: true }));
+  });
+
+  it("dreno de vida tier III cura o dobro do tier I", () => {
+    const healed = (tier: 1 | 3) => {
+      const w = setup({ hp: 100_000, armor: 0, aggroRange: 0, damage: [0, 0] });
+      w.combat.hooks = { imbuement: () => imbuementBonus("lifesteal", tier) };
+      const p = w.add(player("k", 11, 10, { name: "Leo", hp: 50, maxHp: 100_000, level: 100 }));
       w.combat.onAttack(p, { targetId: w.m.s.id });
-      w.run(PLAYER_ATTACK_MS * 5);
-      return w.sent.filter((s) => s.type === S2C.Combat).flatMap((s: any) => s.msg.events).filter((e: any) => e.targetId === w.m.s.id).length;
+      w.run(PLAYER_ATTACK_MS - 100); // um golpe só
+      const hits = w.sent.filter((s) => s.type === S2C.Combat).flatMap((s: any) => s.msg.events).filter((e: any) => e.targetId === w.m.s.id);
+      expect(hits).toHaveLength(1);
+      return { dealt: hits[0].amount as number, healed: p.hp - 50 };
     };
-    expect(run(true)).toBeGreaterThan(run(false));
+    const t1 = healed(1), t3 = healed(3);
+    expect(t1.dealt).toBe(t3.dealt); // mesma rolagem
+    expect(t1.healed).toBe(Math.round(t1.dealt * 0.05));
+    expect(t3.healed).toBe(Math.round(t3.dealt * 0.10));
+  });
+});
+
+describe("encantamento em magia (spellHitMonster): metade do efeito", () => {
+  it("dreno de vida/mana devolvem metade do valor sobre o dano da magia", () => {
+    const w = setup({ hp: 100_000, armor: 0, aggroRange: 0, damage: [0, 0] });
+    w.combat.hooks = { imbuement: (p) => imbuementBonus(p.id === "k" ? "lifesteal" : "manasteal", 3) };
+    const k = w.add(player("k", 11, 10, { hp: 50, maxHp: 5000 }));
+    const s = w.add(player("s", 9, 10, { mana: 10, maxMana: 5000 }));
+    expect(w.combat.spellHitMonster(k, w.m, 400, "fire", w.now())).toBe(400);
+    expect(k.hp).toBe(50 + Math.round(400 * 0.10 * IMBUE_SPELL_MULT)); // 20
+    expect(w.combat.spellHitMonster(s, w.m, 400, "fire", w.now())).toBe(400);
+    expect(s.mana).toBe(10 + Math.round(400 * 0.08 * IMBUE_SPELL_MULT)); // 16
+  });
+
+  it("perfurante corta metade da armadura que cortaria; sem encantamento é o mitigateSpell normal", () => {
+    const hit = (pierce: boolean, kind: "physical" | "fire") => {
+      const w = setup({ hp: 100_000, armor: 40, aggroRange: 0, damage: [0, 0] });
+      if (pierce) w.combat.hooks = { imbuement: () => imbuementBonus("pierce", 3) };
+      const p = w.add(player("k", 11, 10));
+      return w.combat.spellHitMonster(p, w.m, 200, kind, w.now());
+    };
+    expect(hit(false, "physical")).toBe(160);
+    expect(hit(true, "physical")).toBe(200 - Math.round(40 * (1 - 0.3 * IMBUE_SPELL_MULT))); // armadura 34
+    expect(hit(false, "fire")).toBe(180); // magia elemental: metade da armadura
+    expect(hit(true, "fire")).toBe(183); // 20 × (1 − 0,15) = 17
+  });
+
+  it("veloz e espinhos não mexem na magia; boneco de treino não drena", () => {
+    for (const effect of ["haste", "thorns"] as const) {
+      const w = setup({ hp: 100_000, armor: 40, aggroRange: 0, damage: [0, 0] });
+      w.combat.hooks = { imbuement: () => imbuementBonus(effect, 3) };
+      const p = w.add(player("k", 11, 10, { hp: 50, maxHp: 5000, mana: 10, maxMana: 5000 }));
+      expect(w.combat.spellHitMonster(p, w.m, 200, "physical", w.now()), effect).toBe(160);
+      expect([p.hp, p.mana], effect).toEqual([50, 10]);
+    }
+    const w = setup({ hp: 100_000, armor: 0, aggroRange: 0, damage: [0, 0], invulnerable: true });
+    w.combat.hooks = { imbuement: () => imbuementBonus("lifesteal", 3) };
+    const p = w.add(player("k", 11, 10, { hp: 50, maxHp: 5000 }));
+    w.combat.spellHitMonster(p, w.m, 400, "fire", w.now());
+    expect(p.hp).toBe(50);
+  });
+});
+
+describe("combate PvE (relógio do encantamento)", () => {
+  it("bater em monstro e apanhar de monstro contam; passa depois de OUT_OF_COMBAT_MS", () => {
+    const w = setup({ hp: 100_000, armor: 0, aggroRange: 0, damage: [0, 0] });
+    const p = w.add(player("k", 11, 10, { hp: 500, maxHp: 500 }));
+    expect(w.combat.inPveCombat("k", w.now())).toBe(false);
+    w.combat.onAttack(p, { targetId: w.m.s.id });
+    w.run(PLAYER_ATTACK_MS - 100);
+    expect(w.combat.inPveCombat("k", w.now())).toBe(true);
+    // Relógio adiantado sem tique (o monstro revidando também seria combate PvE).
+    w.setClock(w.now() + OUT_OF_COMBAT_MS);
+    expect(w.combat.inPveCombat("k", w.now())).toBe(false);
+    w.combat.damagePlayer(p, w.m.s.id, 0, "physical", w.now()); // golpe de monstro (mesmo errando)
+    expect(w.combat.inPveCombat("k", w.now())).toBe(true);
+  });
+
+  it("boneco de treino marca combate, mas não combate PvE", () => {
+    const w = setup({ hp: 30, armor: 0, aggroRange: 0, invulnerable: true });
+    const p = w.add(player("k", 11, 10, { hp: 500, maxHp: 500 }));
+    w.combat.onAttack(p, { targetId: w.m.s.id });
+    w.run(PLAYER_ATTACK_MS * 3);
+    expect(w.combat.inCombat("k", w.now())).toBe(true);
+    expect(w.combat.inPveCombat("k", w.now())).toBe(false);
+  });
+
+  it("PvP marca combate, mas não combate PvE (nem para quem bate nem para quem apanha)", () => {
+    const w = setup({ hp: 30, armor: 0, aggroRange: 0 });
+    w.combat.hooks = { canAttackPlayer: () => null };
+    const a = w.add(player("a", 20, 20, { hp: 5000, maxHp: 5000 }));
+    w.add(player("b", 21, 20, { hp: 5000, maxHp: 5000 }));
+    w.combat.onAttack(a, { targetId: "b" });
+    w.run(PLAYER_ATTACK_MS * 3);
+    expect(w.combat.inCombat("a", w.now())).toBe(true);
+    expect(w.combat.inCombat("b", w.now())).toBe(true);
+    expect(w.combat.inPveCombat("a", w.now())).toBe(false);
+    expect(w.combat.inPveCombat("b", w.now())).toBe(false);
   });
 });
 
@@ -302,6 +404,39 @@ describe("player death", () => {
     expect(w.sent.find((s) => s.to === "v" && s.type === S2C.Notice && s.msg.text.includes("bênção"))).toBeTruthy();
   });
 
+  it("bênção não é gasta numa morte sem XP a perder (ciclo 14: recém-subido de level)", () => {
+    const w = setup({ aggroRange: 5, damage: [40, 40], name: "Lobo" });
+    const level = 5, xp = xpForLevel(5);
+    const p = w.add(player("v", 11, 10, { name: "Ana", level, xp, hp: 70, maxHp: 210, targetId: "", blessed: true }));
+    w.combat.onAttack(p, { targetId: w.m.s.id });
+    w.run(1200);
+    expect(w.sent.find((s) => s.type === S2C.Died)).toMatchObject({ to: "v", msg: { lostXp: 0 } });
+    expect(w.sent.find((s) => s.type === S2C.Died)!.msg.blessingUsed).toBeUndefined();
+    expect(p.blessed).toBe(true);
+    expect(w.sent.find((s) => s.to === "v" && s.type === S2C.Notice && s.msg.text.includes("bênção"))).toBeUndefined();
+  });
+
+  it("morte no lv 100 (ciclo 15): perde 30% da XP do level; com bênção, o Died diz quanto ela salvou", () => {
+    const xp = xpForLevel(101) - 1; // fim do level: a perda cheia cabe
+    const die = (blessed: boolean) => {
+      // Vida alta: o lv 100 não mata o lobo antes de levar o golpe.
+      const w = setup({ aggroRange: 5, damage: [40, 40], name: "Lobo", hp: 100_000 });
+      const p = w.add(player("v", 11, 10, { name: "Ana", level: 100, xp, hp: 30, maxHp: 1338, targetId: "", blessed }));
+      w.combat.onAttack(p, { targetId: w.m.s.id });
+      w.run(1200);
+      return { p, died: w.sent.find((s) => s.type === S2C.Died)!.msg, notices: w.sent.filter((s) => s.to === "v" && s.type === S2C.Notice).map((s) => s.msg.text as string) };
+    };
+    const plain = die(false);
+    expect(plain.died).toEqual({ lostXp: 19328, killerName: "Lobo" });
+    expect(plain.p.xp).toBe(xp - 19328);
+    expect(plain.p.level).toBe(100);
+    const saved = die(true);
+    expect(saved.died).toEqual({ lostXp: 0, killerName: "Lobo", blessingUsed: true, savedXp: 19328 });
+    expect(saved.p.xp).toBe(xp);
+    expect(saved.p.blessed).toBe(false);
+    expect(saved.notices).toContain("Sua bênção te protegeu: 19.328 XP salvos.");
+  });
+
   it("removePlayer clears monster targets", () => {
     const w = setup({ aggroRange: 5 });
     w.add(player("v", 12, 10));
@@ -366,5 +501,54 @@ describe("crédito do abate: só quem está perto", () => {
     expect(xp.map((s) => s.to)).toEqual(["near"]);
     expect(xp[0]!.msg.amount).toBe(90);
     expect(far.xp).toBe(0);
+  });
+});
+
+describe("resistência elemental", () => {
+  it("bicho do elemento toma metade do dano desse elemento; outros elementos e físico, normal; resist do dado manda", () => {
+    const w = setup({ hp: 10_000, armor: 0, damageKind: "fire" });
+    expect(w.combat.damageMonster(w.m, "p", 100, "fire", w.now())).toBe(50);
+    expect(w.combat.damageMonster(w.m, "p", 100, "energy", w.now())).toBe(100);
+    expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(115); // fraqueza do bicho de fogo (ciclo 15)
+    expect(w.combat.damageMonster(w.m, "p", 100, "physical", w.now())).toBe(100);
+    w.m.def = { ...w.m.def, resist: { fire: 1, ice: 1.25 } };
+    expect(w.combat.damageMonster(w.m, "p", 100, "fire", w.now())).toBe(100);
+    expect(w.combat.damageMonster(w.m, "p", 100, "ice", w.now())).toBe(125);
+  });
+
+  it("o evento leva o multiplicador (resisted) só quando ≠ 1 e houve golpe; zerado pela resistência vem como miss", () => {
+    const w = setup({ hp: 10_000, armor: 0, damageKind: "fire" });
+    w.combat.damageMonster(w.m, "p", 100, "fire", w.now());
+    w.combat.damageMonster(w.m, "p", 100, "ice", w.now());
+    w.combat.damageMonster(w.m, "p", 100, "energy", w.now());
+    w.combat.damageMonster(w.m, "p", 0, "fire", w.now()); // errou de verdade: nada a marcar
+    expect(w.combat.pending.map((e) => [e.amount, e.resisted])).toEqual([[50, 0.5], [115, 1.15], [100, undefined], [0, undefined]]);
+    // Imune ao fogo: o golpe zera e sai como miss com resisted 0 (o cliente escreve "resistiu", não "errou").
+    w.m.def = { ...w.m.def, resist: { fire: 0 } };
+    w.combat.damageMonster(w.m, "p", 100, "fire", w.now());
+    expect(w.combat.pending.at(-1)).toMatchObject({ amount: 0, miss: true, resisted: 0 });
+    // Boneco de treino também mostra.
+    const d = setup({ hp: 10_000, armor: 0, invulnerable: true, damageKind: "ice" });
+    d.combat.damageMonster(d.m, "q", 100, "ice", d.now());
+    expect(d.combat.pending[0]).toMatchObject({ amount: 50, resisted: 0.5 });
+  });
+});
+
+describe("telemetria de dano (ciclo 12)", () => {
+  it("onDealt recebe o dano tirado do monstro e o que a resistência cortou; dano em boneco não conta", () => {
+    const w = setup({ hp: 10_000, armor: 0, damageKind: "fire" });
+    w.add(player("p", 11, 10));
+    const got: [string, number, number][] = [];
+    w.combat.hooks = { ...w.combat.hooks, onDealt: (id, d, r) => got.push([id, d, r]) };
+    w.combat.damageMonster(w.m, "p", 100, "fire", w.now());
+    w.combat.damageMonster(w.m, "p", 100, "energy", w.now()); // elemento neutro (gelo seria fraqueza: 115)
+    w.combat.damageMonster(w.m, "ninguem", 100, "energy", w.now()); // fonte que não é jogador
+    expect(got).toEqual([["p", 50, 50], ["p", 100, 0]]);
+    const d = setup({ hp: 10_000, armor: 0, invulnerable: true });
+    d.add(player("q", 11, 10));
+    const got2: unknown[] = [];
+    d.combat.hooks = { ...d.combat.hooks, onDealt: (...a) => got2.push(a) };
+    d.combat.damageMonster(d.m, "q", 100, "physical", d.now());
+    expect(got2).toEqual([]);
   });
 });

@@ -2,19 +2,10 @@
 import Phaser from "phaser";
 import { BASE_STEP_MS, TILE_SIZE, type Dir, type Facing } from "@lemonquest/shared";
 import { dirToFacing } from "./facing.ts";
+import { playSegments, type Segment } from "./segments.ts";
 import { ADDON_ORIGIN_Y, walkAnimKey, type CharacterLook } from "./sprites.ts";
 import { TEX } from "./textures.ts";
 import { textRes } from "./textRes.ts";
-
-interface Segment {
-  fx: number; fy: number; // px (canto superior esquerdo do tile)
-  tx: number; ty: number;
-  dur: number;
-  t: number;
-  walk: boolean;
-  started: boolean;
-  facing?: Facing;
-}
 
 /** Saltos maiores que isto (em tiles) são teleporte/respawn: sem animação. */
 const SNAP_TILES = 2;
@@ -106,6 +97,8 @@ export class Actor {
   /** Posição renderizada (px, canto superior esquerdo do tile). */
   rx: number;
   ry: number;
+  /** Instante (performance.now) em que o último passo da fila terminou (emenda dos passos previstos). */
+  endAt = 0;
   facing: Facing;
   readonly scale: number;
   /** Escondido por estar longe da câmera. */
@@ -450,15 +443,18 @@ export class Actor {
 
   get isMoving() { return this.queue.length > 0; }
 
-  /** Novo passo vindo do servidor/predição: encadeia depois do que já está na fila. */
-  stepTo(x: number, y: number, ms: number, dir: Dir) {
+  /**
+   * Novo passo vindo do servidor/predição: encadeia depois do que já está na fila. `at` = início do passo no relógio da
+   * predição (performance.now), só para os passos previstos do próprio jogador (ver Segment.at).
+   */
+  stepTo(x: number, y: number, ms: number, dir: Dir, at?: number) {
     const far = Math.max(Math.abs(x - this.tileX), Math.abs(y - this.tileY)) > SNAP_TILES;
     this.tileX = x; this.tileY = y;
     if (far) return this.snapTo(x, y, dir);
     const from = this.endPx;
     this.queue.push({
       fx: from.x, fy: from.y, tx: x * TILE_SIZE, ty: y * TILE_SIZE,
-      dur: Math.max(1, ms), t: 0, walk: true, started: false, facing: dirToFacing(dir),
+      dur: Math.max(1, ms), t: 0, walk: true, started: false, facing: dirToFacing(dir), at,
     });
   }
 
@@ -501,33 +497,9 @@ export class Actor {
     if (!this.isMoving) this.showIdle();
   }
 
-  update(dtMs: number) {
-    // Atraso acumulado (rede/jitter): acelera um pouco para não ficar para trás.
-    const rate = this.queue.length > 1 ? 1 + 0.35 * (this.queue.length - 1) : 1;
-    let budget = dtMs * rate;
-    while (budget > 0 && this.queue.length) {
-      const s = this.queue[0];
-      if (!s.started) {
-        s.started = true;
-        if (s.walk) {
-          this.facing = s.facing ?? this.facingOf(s);
-          // Ritmo das pernas segue a duração DESTE passo (lama = passos lentos, estrada = rápidos).
-          this.stepMs = s.dur;
-          this.deps.onStepStart?.(s.fx, s.fy, s.dur);
-        }
-      }
-      const need = s.dur - s.t;
-      if (budget >= need) {
-        s.t = s.dur; budget -= need;
-        this.rx = s.tx; this.ry = s.ty;
-        this.queue.shift();
-      } else {
-        s.t += budget; budget = 0;
-        const k = s.t / s.dur;
-        this.rx = s.fx + (s.tx - s.fx) * k;
-        this.ry = s.fy + (s.ty - s.fy) * k;
-      }
-    }
+  /** `now` = performance.now do quadro (o mesmo relógio da predição). */
+  update(dtMs: number, now = performance.now()) {
+    playSegments(this.queue, this, dtMs, now, this.onSegmentStart);
 
     // Feedback de combate (sem alocações): flash, hit-stop e retorno do empurrão.
     if (this.flashLeft > 0) {
@@ -583,6 +555,14 @@ export class Actor {
   /** Centro do corpo (px de mundo) — origem/destino de projéteis e efeitos. */
   get bodyX() { return this.rx + TILE_SIZE / 2; }
   get bodyY() { return this.ry + TILE_SIZE - (this.contentH * this.scale) / 2; }
+
+  private onSegmentStart = (s: Segment) => {
+    if (!s.walk) return;
+    this.facing = s.facing ?? this.facingOf(s);
+    // Ritmo das pernas segue a duração DESTE passo (lama = passos lentos, estrada = rápidos).
+    this.stepMs = s.dur;
+    this.deps.onStepStart?.(s.fx, s.fy, s.dur);
+  };
 
   private facingOf(s: Segment): Facing {
     const dx = Math.sign(s.tx - s.fx), dy = Math.sign(s.ty - s.fy);

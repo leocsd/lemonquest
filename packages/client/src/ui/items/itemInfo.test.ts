@@ -13,6 +13,12 @@ describe("itemInfo", () => {
     const l = statLines(sword, inst("s", [{ stat: "attack", value: 2 }]));
     expect(l[0]).toMatchObject({ stat: "attack", total: 12, base: 10, bonus: 2 });
   });
+  it("refino entra no total e aparece separado do bônus da raridade (mesma conta do servidor)", () => {
+    const katana = itemDef("mithril_katana")!;
+    const it = { ...inst("mithril_katana", [{ stat: "attack", value: 2 }]), refine: 3 };
+    expect(statLines(katana, it)[0]).toMatchObject({ stat: "attack", total: 81, base: 70, bonus: 2, refine: 9 });
+    expect(compareStats(katana, it, katana, inst("mithril_katana"))).toEqual([{ stat: "attack", label: "Ataque", delta: 11 }]);
+  });
   it("compara com o equipado", () => {
     expect(compareStats(better, inst("s2"), sword, inst("s"))).toEqual([
       { stat: "attack", label: "Ataque", delta: 2 }, { stat: "armor", label: "Armadura", delta: 1 },

@@ -26,6 +26,7 @@ import { achievementsOpen, rankingOpen, toggleAchievements, toggleRanking } from
 import { a11yOpen, autoOpen, helpOpen, NARROW_PX, sidebarOpen, SIDEBAR_GAP, SIDEBAR_W, skillsOpen, soundOpen, toggle } from "./uiState.ts";
 import { meStore } from "./world.ts";
 import { bestiaryOpen, toggleBestiary } from "../bestiary/Bestiary.tsx";
+import { agendaOpen, toggleAgenda } from "../agenda/agenda.ts";
 
 export function Sidebar() {
   const open = useStore(sidebarOpen);
@@ -42,6 +43,7 @@ export function Sidebar() {
   const questLog = useStore(questLogOpen);
   const achOpen = useStore(achievementsOpen);
   const rankOpen = useStore(rankingOpen);
+  const agenda = useStore(agendaOpen);
 
   const order = useStore(panelOrderStore);
   const pins = useStore(panelPinsStore);
@@ -118,6 +120,9 @@ export function Sidebar() {
         </button>
         <button class="rail-btn" onClick={openWorldMap} data-tip="Mapa do mundo" data-tip-sub="Tecla M" aria-label="Mapa do mundo">
           <PixelIcon name="map" size={14} />
+        </button>
+        <button class={`rail-btn${agenda ? " active" : ""}`} onClick={toggleAgenda} data-tip="Agenda de eventos" data-tip-sub="Eventos da semana · /agenda no chat" aria-label="Agenda de eventos" aria-pressed={agenda} data-testid="rail-agenda">
+          <PixelIcon name="calendar" size={14} />
         </button>
         <button class={`rail-btn${help ? " active" : ""}`} onClick={() => { soundOpen.set(false); autoOpen.set(false); a11yOpen.set(false); toggle(helpOpen); }} data-tip="Atalhos" data-tip-sub="Tecla ?" aria-label="Atalhos e ajuda" aria-expanded={help}>
           <span class="rail-q">?</span>

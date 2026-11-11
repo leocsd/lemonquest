@@ -1,5 +1,5 @@
 // Baús e alavancas de quest (objetos "quest_chest"/"quest_lever" do mapa): só acerto de clique; o desenho vem do próprio
-// mapa. Usar = ficar ao lado (o servidor exige Chebyshev QUEST_OBJECT_RANGE) e mandar C2S.UseQuestObject.
+// mapa (baús `drawn` dos covis: game/drawnChests.ts). Usar = ficar ao lado (o servidor exige Chebyshev QUEST_OBJECT_RANGE) e mandar C2S.UseQuestObject.
 import { C2S, QUEST_OBJECT_RANGE, TILE_SIZE, findQuestObjects, type QuestObjectSpot, type TiledMap, type UseQuestObjectMsg } from "@lemonquest/shared";
 import { send } from "../ui/items/net.ts";
 

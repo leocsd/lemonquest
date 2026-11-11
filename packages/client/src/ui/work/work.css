@@ -1,0 +1,23 @@
+/* Aba "Na obra" (ClickUp) */
+.work-tab { display: flex; flex-direction: column; gap: 6px; }
+.work-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; color: var(--hud-gold); text-transform: uppercase; letter-spacing: 0.04em; }
+.work-head small { color: var(--hud-faint); text-transform: none; letter-spacing: 0; }
+.work-total { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--hud-muted); }
+.work-total.fired { color: #9fe09a; }
+.work-bars, .work-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.work-bars { max-height: 180px; overflow-y: auto; }
+.work-bar-row { display: grid; grid-template-columns: 130px 1fr 44px; align-items: center; gap: 6px; font-size: 12px; }
+.work-bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-bar-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--hud-muted); }
+.work-bar { position: relative; display: block; height: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--hud-line-soft); border-radius: 4px; overflow: hidden; }
+.work-bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--hud-gold); }
+.work-bar-fill.full { background: #7fd07a; }
+.work-tasks { max-height: 240px; overflow-y: auto; }
+.work-task { padding: 4px 6px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--hud-line-soft); border-radius: 5px; }
+.work-task-title { font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+.work-task-meta { font-size: 11px; color: var(--hud-muted); }
+.work-link { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--hud-line-soft); }
+.work-link-help { font-size: 11px; line-height: 1.4; color: var(--hud-muted); }
+.work-link-state { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.work-link-form { display: flex; gap: 6px; }
+.work-link-form input { flex: 1; min-width: 0; height: 26px; padding: 0 6px; font: inherit; font-size: 12px; color: #fff; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 4px; }

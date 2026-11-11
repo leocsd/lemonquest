@@ -3,7 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CALL_HELP_ID } from "./monsterAbilities.ts";
-import { ELITE, ELITE_CHANCE, HELP_RADIUS, MONSTERS, canBeElite, eliteName, monsterAbilitySpell, monsterDamageMult, summonScaled } from "./monsters.ts";
+import {
+  BOSS_ROOT_SLOW_PCT, BOSS_SLOW_MULT, ELEMENT_WEAKNESS, ELITE, ELITE_CHANCE, HELP_RADIUS, MONSTERS, OWN_ELEMENT_TAKEN, bossCondition, canBeElite,
+  damageTakenMult, eliteName, monsterAbilitySpell, monsterDamageMult, monsterNatures, monsterResistances, summonScaled, type MonsterNature,
+} from "./monsters.ts";
+import { SPELLS } from "./spells.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const world = JSON.parse(readFileSync(root + "assets/maps/world.json", "utf8"));
@@ -30,6 +34,21 @@ describe("MONSTERS", () => {
       expect(existsSync(root + "assets/" + d.sprite.url), d.id).toBe(true);
       if (d.sprite.layout === "custom") expect(d.sprite.walk, d.id).toBeDefined();
     }
+  });
+
+  it("frames cabem no PNG (largura e altura múltiplas do frame; frames da caminhada existem)", () => {
+    for (const d of Object.values(MONSTERS)) {
+      const png = readFileSync(root + "assets/" + d.sprite.url);
+      const w = png.readUInt32BE(16), h = png.readUInt32BE(20);
+      const { frameWidth: fw, frameHeight: fh } = d.sprite;
+      expect(w % fw, `${d.id}: largura ${w} / ${fw}`).toBe(0);
+      expect(h % fh, `${d.id}: altura ${h} / ${fh}`).toBe(0);
+      const total = (w / fw) * (h / fh);
+      for (const f of Object.values(d.sprite.walk ?? {}).flat()) expect(f, d.id).toBeLessThan(total);
+    }
+    // Samurai Rubro: tira 576x48 de 6 frames 96x48 (em 12 de 48 cada frame mostrava meio samurai).
+    const s = MONSTERS.abyss_samurai!.sprite;
+    expect([s.frameWidth, s.frameHeight, s.walk!.down]).toEqual([96, 48, [0, 1, 2, 3, 4, 5]]);
   });
 
   it("campos sensatos", () => {
@@ -76,19 +95,24 @@ describe("ciclo 8: dano por level, respawn, elites e bandos", () => {
     expect([19, 20, 39, 40, 69, 70, 99, 100].map((level) => monsterDamageMult({ level, xp: 1 }))).toEqual([1, 1.4, 1.4, 1.5, 1.5, 1.6, 1.6, 1.7]);
   });
 
-  it("Lobo Espiritual escala com o level do druida: lv 20 = catálogo; lv 46 = vida 570 e dano ×1,75 (GD-05)", () => {
+  it("Lobo Espiritual escala com o level do druida: lv 20 = catálogo; lv 46 = vida 830 e dano ×2,5 (GD-05, ciclo 15)", () => {
+    // Ciclo 15: 25 de vida por level (era 15) e bônus de dano 1,5 (era 0,75). Antes: lv 46 vida 570 e dano [25, 46];
+    // lv 100 vida 1.380 e dano [46, 86].
     const wolf = MONSTERS.summoned_wolf!;
     expect(wolf).toMatchObject({ level: 20, hp: 180, damage: [14, 26] });
     expect(summonScaled(wolf, 20)).toBe(wolf);   // no level base devolve o próprio catálogo (sem cópia)
     expect(summonScaled(wolf, 5)).toBe(wolf);    // abaixo do base nada muda
     const lv46 = summonScaled(wolf, 46);
-    expect(lv46.hp).toBe(570);                    // 180 + 15 × 26
-    expect(lv46.damage).toEqual([25, 46]);        // [14, 26] × 1,75 arredondado
-    expect(summonScaled(wolf, 33).hp).toBe(375);  // linear no meio do caminho
+    expect(lv46.hp).toBe(830);                    // 180 + 25 × 26
+    expect(lv46.damage).toEqual([35, 65]);        // [14, 26] × 2,5 arredondado
+    expect(summonScaled(wolf, 33).hp).toBe(505);  // linear no meio do caminho
+    const lv100 = summonScaled(wolf, 100);
+    expect(lv100.hp).toBe(2180);                  // 180 + 25 × 80
+    expect(lv100.damage).toEqual([79, 146]);      // × (1 + 1,5 × 80/26) ≈ 5,6
     expect(wolf.hp).toBe(180);                    // o catálogo não é alterado
     // Um monstro lv 1 escalado pelo nível do invocador: ganhos lineares, inteiros
     const d = summonScaled(MONSTERS.rat!, 27);
-    expect(d.hp).toBe(MONSTERS.rat!.hp + 15 * 26);
+    expect(d.hp).toBe(MONSTERS.rat!.hp + 25 * 26);
     expect(d.damage.every(Number.isInteger)).toBe(true);
   });
 
@@ -139,6 +163,127 @@ describe("ciclo 8: dano por level, respawn, elites e bandos", () => {
       expect(a.id, id).toBe("heal_allies");
       expect(a.healAllies!.pct, id).toBeGreaterThan(0);
       expect(a.fx).toBe("heal");
+    }
+  });
+});
+
+describe("resistência elemental", () => {
+  it("todo bicho de elemento resiste ao próprio; físico nunca muda; dragões de fogo e de gelo resistem cada um ao seu", () => {
+    for (const m of Object.values(MONSTERS)) {
+      expect(damageTakenMult(m, "physical"), m.id).toBe(1);
+      if (m.damageKind !== "physical") expect(damageTakenMult(m, m.damageKind), m.id).toBe(OWN_ELEMENT_TAKEN);
+    }
+    expect(damageTakenMult(MONSTERS.dragon!, "fire")).toBe(0.5);
+    expect(damageTakenMult(MONSTERS.dragon!, "energy")).toBe(1);
+    expect(damageTakenMult(MONSTERS.frost_dragon!, "ice")).toBe(0.5);
+    expect(damageTakenMult(MONSTERS.frost_dragon!, "energy")).toBe(1);
+    expect(monsterResistances(MONSTERS.rat!)).toEqual([]);
+  });
+
+  it("fraquezas (ciclo 15): morto-vivo +25% de sagrado, bicho de fogo +15% de gelo, bicho de gelo +15% de fogo", () => {
+    expect(ELEMENT_WEAKNESS).toEqual({ undead: { kind: "holy", mult: 1.25 }, fire: { kind: "ice", mult: 1.15 }, ice: { kind: "fire", mult: 1.15 } });
+    // Antes do ciclo 15 o dragão tomava gelo normal (1) e o de gelo, fogo normal.
+    expect(damageTakenMult(MONSTERS.dragon!, "ice")).toBe(1.15);
+    expect(damageTakenMult(MONSTERS.frost_dragon!, "fire")).toBe(1.15);
+    expect(damageTakenMult(MONSTERS.skeleton!, "holy")).toBe(1.25);
+    expect(damageTakenMult(MONSTERS.dragon!, "holy")).toBe(1);
+    expect(damageTakenMult(MONSTERS.skeleton!, "physical")).toBe(1);
+    // Crânio Flamejante: morto-vivo e de fogo (resiste a fogo, fraco a gelo e a sagrado).
+    expect(monsterResistances(MONSTERS.flame_skull!)).toEqual([{ kind: "fire", mult: 0.5 }, { kind: "ice", mult: 1.15 }, { kind: "holy", mult: 1.25 }]);
+    expect(monsterResistances(MONSTERS.frost_dragon!)).toEqual([{ kind: "ice", mult: 0.5 }, { kind: "fire", mult: 1.15 }]);
+    // Ruptura Elemental tira a resistência, mas a fraqueza fica: 1,25 × 1,15.
+    expect(damageTakenMult(MONSTERS.skeleton!, "holy", 15)).toBeCloseTo(1.4375, 10);
+    expect(damageTakenMult(MONSTERS.dragon!, "fire", 15)).toBeCloseTo(1.15, 10);
+    // O `resist` do monstro sobrepõe a fraqueza.
+    const custom = { damageKind: "fire", undead: true, resist: { holy: 1, ice: 0.8 } } as const;
+    expect(damageTakenMult(custom, "holy")).toBe(1);
+    expect(damageTakenMult(custom, "ice")).toBe(0.8);
+  });
+
+  it("mortos-vivos, bichos de fogo e de gelo do jogo (lista travada: mudou de propósito, atualize aqui)", () => {
+    const by = (n: MonsterNature) => Object.values(MONSTERS).filter((m) => monsterNatures(m).includes(n)).map((m) => m.id).sort();
+    // Mortos-vivos por dado (`undead`): esqueletos, fantasmas/espectros, liches, crânios, lanternas assombradas e o Olho
+    // Maligno do Cemitério. O Necromante (humano que ergue os mortos) e o Ferumbras (feiticeiro) não são.
+    expect(by("undead")).toEqual([
+      "bonelord", "flame_skull", "frame_descartado", "ghost", "iluminador_rebelde", "red_lantern", "skeleton", "swamp_lich",
+    ]);
+    // Fogo/gelo = o elemento do ataque (o mesmo critério da resistência).
+    expect(by("fire")).toEqual([
+      "demodras", "demon", "dragon", "dragon_lord", "flame_skull", "flame_spirit", "hellhound", "iluminador_rebelde", "lair_flame",
+      "magma_elemental", "minotaur_mage", "orshabaal", "slag_slime",
+    ]);
+    expect(by("ice")).toEqual(["frost_dragon", "ice_witch", "kappa", "lair_kraken", "winter_wolf", "yeti"]);
+    expect(MONSTERS.necromancer!.undead).toBeUndefined();
+    expect(MONSTERS.ferumbras!.undead).toBeUndefined();
+  });
+
+  it("nenhum monstro é fraco ao próprio elemento nem a físico; todo morto-vivo é fraco a sagrado", () => {
+    for (const m of Object.values(MONSTERS)) {
+      const weak = monsterResistances(m).filter((r) => r.mult > 1).map((r) => r.kind);
+      expect(weak, m.id).not.toContain(m.damageKind);
+      expect(weak, m.id).not.toContain("physical");
+      if (m.undead) expect(damageTakenMult(m, "holy"), m.id).toBe(1.25);
+      for (const r of monsterResistances(m)) expect(r.mult, `${m.id}/${r.kind}`).toBeLessThanOrEqual(1.25);
+    }
+  });
+
+  it("chefes (ciclo 15): raiz vira lentidão de 30%, lentidão pela metade; o resto passa igual", () => {
+    expect([BOSS_ROOT_SLOW_PCT, BOSS_SLOW_MULT]).toEqual([30, 0.5]);
+    expect(bossCondition("rooted", undefined)).toEqual({ id: "slow", value: 30 });
+    expect(bossCondition("slow", 50)).toEqual({ id: "slow", value: 25 }); // Fúria da Natureza, Flecha Paralisante
+    expect(bossCondition("slow", 40)).toEqual({ id: "slow", value: 20 }); // Chuva de Gelo, Nevasca
+    expect(bossCondition("burn", 30)).toEqual({ id: "burn", value: 30 });
+    expect(bossCondition("exposed", 15)).toEqual({ id: "exposed", value: 15 });
+    // Raízes da Terra (lv 100) seguem a melhor lentidão contra chefe: nenhuma lentidão de magia pela metade chega a 30%.
+    const slows = Object.values(SPELLS).filter((s) => s.condition?.id === "slow").map((s) => bossCondition("slow", s.condition!.value).value!);
+    expect(slows.length).toBeGreaterThan(0);
+    expect(Math.max(...slows)).toBeLessThan(bossCondition(SPELLS.earth_roots!.condition!.id, undefined).value!);
+  });
+
+  it("o Dragão de Gelo usa o sprite próprio (não o dragão verde tingido)", () => {
+    expect(MONSTERS.frost_dragon!.sprite.url).toBe("monsters/FrostDragon.png");
+    expect(MONSTERS.frost_dragon!.sprite.tint).toBeUndefined();
+  });
+});
+
+describe("chefes de covil (ciclo 16)", () => {
+  // [id, level, vida (tabela do plano), prova, sprite do pack sem uso]
+  const LAIRS = [
+    ["lair_mole_king", 28, 4500, "mole_king_claw", "Boss/GiantRacoon/"],
+    ["lair_kraken", 54, 11000, "kraken_eye", "Boss/SquidGreen/"],
+    ["lair_flame", 82, 22000, "ancestral_heart", "Boss/GiantFlam/"],
+    ["lair_shogun", 125, 45000, "shogun_seal", "Boss/GiantBlueSamurai/"],
+  ] as const;
+
+  it("level, vida e sprite da tabela; chefe que deixa a prova a 100%; respawn de 2 a 4 h", () => {
+    for (const [id, level, hp, proof, sprite] of LAIRS) {
+      const d = MONSTERS[id]!;
+      expect([d.level, d.hp, d.boss], id).toEqual([level, hp, true]);
+      expect(d.sprite.url, id).toContain(sprite);
+      expect(d.loot!.find((l) => l.itemId === proof)?.chance, id).toBe(1);
+      expect(d.respawnMs, id).toBeGreaterThanOrEqual(7_200_000);
+      expect(d.respawnMs, id).toBeLessThanOrEqual(14_400_000);
+      expect(d.abilities?.some((a) => a.summon), `${id} invoca ajudantes`).toBe(true);
+    }
+    // Tiras largas: Squid 304x79 = 4 de 76x79; Samurai 576x48 = 6 de 96x48 (meio samurai se cortasse em 48).
+    expect([MONSTERS.lair_kraken!.sprite.frameWidth, MONSTERS.lair_kraken!.sprite.frameHeight]).toEqual([76, 79]);
+    expect([MONSTERS.lair_shogun!.sprite.frameWidth, MONSTERS.lair_shogun!.sprite.frameHeight]).toEqual([96, 48]);
+  });
+
+  it("XP por vida, dano máximo e ouro por vida entre os dos chefes vizinhos de level (±10%)", () => {
+    const others = Object.values(MONSTERS).filter((m) => m.boss && !m.id.startsWith("lair_"));
+    for (const [id] of LAIRS) {
+      const d = MONSTERS[id]!;
+      const below = others.filter((m) => m.level <= d.level).sort((a, b) => b.level - a.level)[0]!;
+      const above = others.filter((m) => m.level >= d.level).sort((a, b) => a.level - b.level)[0]!;
+      const within = (f: (m: typeof d) => number, what: string) => {
+        const lo = Math.min(f(below), f(above)) * 0.9, hi = Math.max(f(below), f(above)) * 1.1;
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeGreaterThanOrEqual(lo);
+        expect(f(d), `${id} ${what} (vizinhos ${below.id} e ${above.id})`).toBeLessThanOrEqual(hi);
+      };
+      within((m) => m.xp / m.hp, "xp/vida");
+      within((m) => m.damage[1], "dano máximo");
+      within((m) => m.gold![1] / m.hp, "ouro/vida");
     }
   });
 });

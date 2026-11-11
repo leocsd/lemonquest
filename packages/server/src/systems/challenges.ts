@@ -1,7 +1,7 @@
 // Desafios da semana: progresso = ganho desde a linha de base da semana (systems/weekly.ts); resgate manual, uma vez por
 // desafio por semana. Tudo ou nada: sem espaço na mochila para TODOS os itens juntos, nada é entregue.
 import {
-  CHALLENGES, CHALLENGE_BONUS, S2C, challengeDef, challengeTarget, weekEndsAt, weekGain, weekId,
+  CHALLENGES, CHALLENGE_BONUS, S2C, challengeDef, challengeTarget, levelForXp, weekEndsAt, weekGain, weekId,
   type ChallengeActionMsg, type ChallengeReward, type ChallengesMsg, type ItemInstance, type NoticeMsg,
 } from "@lemonquest/shared";
 import type { CharacterRecord } from "../persistence/types.ts";
@@ -29,12 +29,22 @@ export class ChallengeSystem {
   private now() { return this.o.now?.() ?? Date.now(); }
   private notice(id: string, text: string, kind: NoticeMsg["kind"] = "info") { this.o.send(id, S2C.Notice, { text, kind } satisfies NoticeMsg); }
 
-  /** Estado da semana atual (zera na virada, guardando o level do começo da semana para a meta de XP). */
+  /**
+   * Estado da semana atual (zera na virada, guardando o level do começo da semana para a meta de XP). O level vem da
+   * linha de base da semana (weekly.ts), gravada pela sala no 1º login da semana e na virada com o jogador online, e
+   * não de quando o cliente abre a janela: antes, quem subia de level antes de abrir ganhava uma meta maior. Estado já
+   * criado nesta semana com o level errado é corrigido aqui. Sem linha de base desta semana (a virada da sala roda 1×
+   * por minuto), vale o level atual.
+   */
   private state(rec: CharacterRecord, level: number): State {
     const w = weekId(new Date(this.now()));
+    const base = rec.data.week?.id === w ? levelForXp(rec.data.week.xp) : undefined;
     const s = rec.data.challenges;
-    if (s && s.week === w) return s;
-    return (rec.data.challenges = { week: w, level, claimed: [], bonus: false });
+    if (s && s.week === w) {
+      if (base !== undefined) s.level = base;
+      return s;
+    }
+    return (rec.data.challenges = { week: w, level: base ?? level, claimed: [], bonus: false });
   }
 
   view(p: PlayerState): ChallengesMsg | null {

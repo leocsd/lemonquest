@@ -14,34 +14,51 @@ test("sinks: encantamento (Dona Marta), tingimento (janela de roupas) e ficha de
   await expect.poll(() => countOf(page, "wolf_fang")).toBe(5);
   await recordToasts(page);
 
-  // Encantamento: Dreno de Vida = 5 000 + 5 presas de lobo. A linha vira "Ativo" (o servidor reabre a janela).
+  // Encantamento (aba Encantar, grade efeito × tier): Dreno de Vida I = 5 000 + 5 presas de lobo, 10 h de combate. A
+  // célula vira "Renovar" (o servidor reabre a janela) e a faixa de condições mostra o ícone com "10h" (sem combate,
+  // o tempo não anda).
   const marta = await openNpc(page, "herbalist", "Dona Marta, Ervanária");
-  const lifesteal = marta.locator(".shop-row", { hasText: "Dreno de Vida" });
-  await expect(lifesteal).toContainText("5/5x Presa de Lobo");
-  await lifesteal.getByRole("button", { name: "Trocar" }).click();
-  await expect(lifesteal.getByRole("button", { name: "Ativo" })).toBeDisabled();
-  await expect(lifesteal.locator(".shop-name")).toContainText("Ativo");
-  await seenToast(page, "Encantamento ativo: Dreno de Vida");
+  await marta.getByRole("tab", { name: "Encantar" }).click();
+  await expect(marta.locator(".imbue-status")).toContainText("Nenhum encantamento ativo.");
+  const lifesteal = marta.locator('[data-imbue="lifesteal:1"]');
+  await expect(lifesteal).toContainText("5/5");
+  await lifesteal.getByRole("button", { name: "Comprar Dreno de Vida I" }).click(); // sem ativo: compra direto
+  await expect(lifesteal).toHaveClass(/active/);
+  await expect(lifesteal.getByRole("button", { name: "Renovar Dreno de Vida I" })).toBeDisabled(); // acabou o material
+  await expect(marta.locator(".imbue-status")).toContainText("Ativo: Dreno de Vida I · 10h de combate");
+  await seenToast(page, "Encantamento ativo: Dreno de Vida I");
   await expect.poll(() => gold(page)).toBe(15_000);
   await expect.poll(() => countOf(page, "wolf_fang")).toBe(0);
-  // Sem material, outro efeito fica travado.
-  await expect(marta.locator(".shop-row", { hasText: "Espinhos" }).getByRole("button", { name: "Trocar" })).toBeDisabled();
+  await expect(page.locator('.conditions .cond[data-tip="Encantado"] .cond-time')).toHaveText("10h");
+  // Sem material, outro efeito fica travado; tier II pede level 60.
+  await expect(marta.locator('[data-imbue="thorns:1"]').getByRole("button")).toBeDisabled();
+  await expect(marta.locator('[data-imbue="lifesteal:2"]')).toContainText("Lv 60");
+  await expect(marta.locator('[data-imbue="lifesteal:2"]').getByRole("button")).toBeDisabled();
   await snap(page, "sink-imbuement");
   await marta.getByRole("button", { name: "Fechar" }).click();
   await expect(marta).toBeHidden();
 
-  // Tingimento: na janela de roupas (botão do trilho = tecla O) o tom nasce trancado; o 1º clique compra (8 000),
-  // o 2º seleciona; OK aplica. (O estado sincronizado não expõe o tom à sonda: confere-se o desbloqueio e o ouro.)
+  // Tingimento: na janela de roupas (botão do trilho = tecla O) o tom nasce trancado; clicar nele só faz a prévia no
+  // boneco; o botão "Comprar (8.000)" pede um 2º clique para confirmar e só então compra; OK aplica. (O estado
+  // sincronizado não expõe o tom à sonda: confere-se o desbloqueio e o ouro.)
   await page.locator('.rail-btn[data-tip="Roupas"]').click();
   const outfit = page.getByRole("dialog", { name: "Roupas" });
   await expect(outfit).toBeVisible();
   const crimson = outfit.getByRole("listbox", { name: "Tons de tingimento" }).getByRole("button", { name: "Carmesim" });
   await expect(crimson).toHaveClass(/locked/);
-  await expect(crimson).toHaveAttribute("data-tip", "Carmesim · 8000 de ouro");
+  await expect(crimson).toHaveAttribute("data-tip", "Carmesim · 8.000 de ouro");
+  const before = await gold(page);
   await crimson.click();
+  await expect(crimson).toHaveAttribute("aria-selected", "true");
+  await expect(crimson).toHaveClass(/locked/); // prévia: nada comprado
+  const buy = outfit.getByRole("button", { name: "Comprar (8.000)" });
+  await buy.click();
+  await expect(outfit.getByRole("button", { name: "Clique de novo para comprar (8.000)" })).toBeVisible();
+  expect(await gold(page)).toBe(before);
+  await outfit.getByRole("button", { name: "Clique de novo para comprar (8.000)" }).click();
   await expect(crimson).not.toHaveClass(/locked/);
   await expect.poll(() => gold(page)).toBe(7_000);
-  await crimson.click();
+  await expect(outfit.getByRole("button", { name: /Comprar|comprar/ })).toHaveCount(0);
   await expect(crimson).toHaveAttribute("aria-selected", "true");
   await snap(page, "sink-tone");
   await outfit.getByRole("button", { name: "OK" }).click();

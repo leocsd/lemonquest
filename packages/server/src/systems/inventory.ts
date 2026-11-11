@@ -4,16 +4,16 @@
 // calcula os atributos do equipamento e envia S2C.Inventory/S2C.Depot (uma vez por tick, em flush()).
 import { randomBytes } from "node:crypto";
 import {
-  BACKPACK_MAX, BACKPACK_SIZE, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, RARITIES, S2C, baseStats, itemDef,
+  BACKPACK_MAX, BACKPACK_SIZE, DEFAULT_MAX_STACK, DEPOT_SIZE, EQUIP_SLOTS, backpackCapacity, backpackRoom, maxStackOf, RARITIES, S2C, baseStats, itemDef,
+  instanceStats, levelNeeded, pickQuickPotion, refineLevel,
   type DepotMsg, type DiscardItemMsg, type DropFrom, type PickupTo, type EquipSlot, type InventoryMsg, type ItemDef, type ItemInstance,
-  type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
-  type StatId, type Stats, type UseItemMsg, type Vocation,
+  type ItemKind, type ItemLocation, type MoveItemMsg, type NoticeMsg, type QuickPotionMsg, type Rarity, type SkillId,
+  type SortContainerMsg, type StatId, type Stats, type UseItemMsg, type Vocation,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CharacterData } from "../persistence/types.ts";
 
 export const GOLD_ID = "gold_coin";
-export const DEFAULT_MAX_STACK = 100;
 export const STAT_IDS: StatId[] = ["attack", "armor", "hpMax", "manaMax", "magic", "melee", "distance", "shield", "speed", "crit", "hpRegen", "manaRegen"];
 
 export type ItemDefs = (id: string) => ItemDef | undefined;
@@ -45,7 +45,8 @@ export function newUid(): string {
   return randomBytes(6).toString("base64url");
 }
 
-export const maxStackOf = (d: ItemDef | undefined): number => (d?.stackable ? Math.max(1, d.maxStack ?? DEFAULT_MAX_STACK) : 1);
+// A conta de pilha e de espaço vive no shared (o cliente usa a mesma para o "Máx" da loja).
+export { DEFAULT_MAX_STACK, maxStackOf };
 
 export function makeItem(defId: string, count = 1, rarity: Rarity = "common", bonuses: ItemInstance["bonuses"] = []): ItemInstance {
   return { uid: newUid(), defId, count: Math.max(1, Math.floor(count)), rarity, bonuses: bonuses.map((b) => ({ ...b })) };
@@ -68,21 +69,27 @@ export function emptyInventory(): Inventory {
   return { equipment: {}, backpack: Array(BACKPACK_SIZE).fill(null), depot: Array(DEPOT_SIZE).fill(null), gold: 0 };
 }
 
-/** Valida/normaliza um item vindo do banco. undefined = descartar. */
-export function sanitizeItem(raw: unknown, defs: ItemDefs): ItemInstance | undefined {
+/**
+ * Valida/normaliza um item vindo do banco. undefined = descartar. `clampStack: false` (chão) não corta a pilha no
+ * maxStack: o ouro da caveira vermelha cai como uma pilha só, que pode passar de 1 milhão.
+ */
+export function sanitizeItem(raw: unknown, defs: ItemDefs, o: { clampStack?: boolean } = {}): ItemInstance | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const r = raw as Record<string, unknown>;
   if (typeof r.defId !== "string") return undefined;
   const d = defs(r.defId);
   if (!d) return undefined;
-  const count = Number.isFinite(r.count) ? Math.max(1, Math.min(maxStackOf(d), Math.floor(r.count as number))) : 1;
+  const max = o.clampStack === false ? Number.MAX_SAFE_INTEGER : maxStackOf(d);
+  const count = Number.isFinite(r.count) ? Math.max(1, Math.min(max, Math.floor(r.count as number))) : 1;
   const rarity = RARITIES.includes(r.rarity as Rarity) ? (r.rarity as Rarity) : "common";
   const bonuses = Array.isArray(r.bonuses)
     ? (r.bonuses as { stat: unknown; value: unknown }[])
       .filter((b) => b && STAT_IDS.includes(b.stat as StatId) && Number.isFinite(b.value))
       .slice(0, 3).map((b) => ({ stat: b.stat as StatId, value: Math.round(b.value as number) }))
     : [];
-  return { uid: typeof r.uid === "string" && r.uid ? r.uid : newUid(), defId: d.id, count, rarity, bonuses };
+  // Refino (ciclo 16): só 1..5 em item refinável; qualquer outra coisa vira +0 (o campo nem aparece).
+  const refine = refineLevel(d, r.refine);
+  return { uid: typeof r.uid === "string" && r.uid ? r.uid : newUid(), defId: d.id, count, rarity, bonuses, ...(refine ? { refine } : {}) };
 }
 
 function loadArray(raw: unknown, size: number, defs: ItemDefs): (ItemInstance | null)[] {
@@ -102,14 +109,56 @@ export function fitBackpack(inv: Pick<Inventory, "backpack">, level: number): vo
   while (inv.backpack.length > cap && inv.backpack[inv.backpack.length - 1] === null) inv.backpack.pop();
 }
 
-/** Soma dos atributos (definição + bônus) dos itens equipados. */
+/** Ordem das categorias no "Organizar": equipamento na ordem do corpo, depois consumíveis, materiais e o resto. */
+const ORGANIZE_KIND_ORDER: readonly ItemKind[] = ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "potion", "food", "material", "key", "quest"];
+
+/** Mesma pilha para o "Organizar": mesmo item, raridade, refino e bônus (nada de raridade/refino se perde ao juntar). */
+const stackKey = (it: ItemInstance): string =>
+  `${it.defId}|${it.rarity}|${it.refine ?? 0}|${it.bonuses.map((b) => `${b.stat}:${b.value}`).join(",")}`;
+
+/**
+ * "Organizar" (C2S.SortContainer): junta as pilhas iguais até o máximo da pilha e ordena por categoria, nome, raridade
+ * (melhor primeiro), refino e quantidade; os vazios vão para o fim. Puro: devolve um array novo do mesmo tamanho com
+ * cópias; a pilha que sobra de cada junção guarda o uid, a raridade, os bônus e o refino dela.
+ */
+export function organizeItems(items: readonly (ItemInstance | null)[], defs: ItemDefs): (ItemInstance | null)[] {
+  const kept: ItemInstance[] = [];
+  const open = new Map<string, ItemInstance[]>(); // pilhas com espaço, por chave
+  for (const raw of items) {
+    if (!raw) continue;
+    const it: ItemInstance = { ...raw, bonuses: raw.bonuses.map((b) => ({ ...b })) };
+    const d = defs(it.defId);
+    if (d?.stackable) {
+      const max = maxStackOf(d);
+      const key = stackKey(it);
+      for (const s of open.get(key) ?? []) {
+        if (it.count <= 0) break;
+        const mv = Math.min(it.count, max - s.count);
+        s.count += mv;
+        it.count -= mv;
+      }
+      if (it.count <= 0) continue;
+      open.set(key, [...(open.get(key) ?? []), it].filter((s) => s.count < max));
+    }
+    kept.push(it);
+  }
+  const RANK = Object.fromEntries(RARITIES.map((r, i) => [r, i])) as Record<Rarity, number>;
+  const kindRank = (it: ItemInstance) => { const k = defs(it.defId)?.kind; const i = k ? ORGANIZE_KIND_ORDER.indexOf(k) : -1; return i < 0 ? ORGANIZE_KIND_ORDER.length : i; };
+  kept.sort((a, b) =>
+    kindRank(a) - kindRank(b)
+    || (defs(a.defId)?.name ?? a.defId).localeCompare(defs(b.defId)?.name ?? b.defId, "pt-BR")
+    || RANK[b.rarity] - RANK[a.rarity]
+    || (b.refine ?? 0) - (a.refine ?? 0)
+    || b.count - a.count);
+  return [...kept, ...Array<null>(Math.max(0, items.length - kept.length)).fill(null)];
+}
+
+/** Soma dos atributos dos itens equipados (cada um por instanceStats: definição + bônus + refino). */
 export function totalStats(inv: Inventory, defs: ItemDefs): Stats {
   const out: Stats = {};
   for (const it of Object.values(inv.equipment)) {
     if (!it) continue;
-    const d = defs(it.defId);
-    for (const [k, v] of Object.entries(d?.stats ?? {})) if (Number.isFinite(v)) out[k as StatId] = (out[k as StatId] ?? 0) + (v as number);
-    for (const b of it.bonuses) out[b.stat] = (out[b.stat] ?? 0) + b.value;
+    for (const [k, v] of Object.entries(instanceStats(defs(it.defId), it))) out[k as StatId] = (out[k as StatId] ?? 0) + (v as number);
   }
   return out;
 }
@@ -249,13 +298,7 @@ export class InventorySystem {
     const inv = this.inv.get(id);
     const d = this.defs(defId);
     if (!inv || !d) return 0;
-    const max = maxStackOf(d);
-    let room = 0;
-    for (const it of inv[arr]) {
-      if (!it) room += max;
-      else if (d.stackable && it.defId === defId) room += Math.max(0, max - it.count);
-    }
-    return room;
+    return backpackRoom(inv[arr], d);
   }
 
   /** Coloca o item na mochila (empilha primeiro). Ouro vira contador. Retorna quantas unidades NÃO couberam. */
@@ -402,6 +445,12 @@ export class InventorySystem {
     return undefined;
   }
 
+  /** O item em `at` mudou no lugar (refino, systems/refine.ts): reenvia o inventário e, se equipado, recalcula os atributos. */
+  itemChanged(p: PlayerState, at: DropFrom): void {
+    this.dirty.add(p.id);
+    if (at.where === "equip") this.equipmentChanged(p);
+  }
+
   /**
    * Remove `count` unidades de `from` para largar no chão. Pilha inteira = a própria instância;
    * parte = cópia com uid novo. Equipamento sai inteiro (e recalcula atributos).
@@ -478,6 +527,16 @@ export class InventorySystem {
     this.moveContainer(p, inv, from, to, msg.count ?? undefined);
   }
 
+  /** C2S.SortContainer: "Organizar" o depot aberto (junta pilhas iguais e ordena; nenhum item muda). */
+  onSortContainer(p: PlayerState, msg: SortContainerMsg): void {
+    const inv = this.inv.get(p.id);
+    if (!inv || !msg || typeof msg !== "object" || msg.where !== "depot" || p.hp <= 0) return;
+    if (!this.o.depotOpen?.(p.id)) return this.warn(p, MSG.depotClosed);
+    const sorted = organizeItems(inv.depot, this.defs);
+    for (let i = 0; i < inv.depot.length; i++) inv.depot[i] = sorted[i] ?? null;
+    this.touched(p, inv, inv.depot);
+  }
+
   /** C2S.UseItem */
   onUseItem(p: PlayerState, msg: UseItemMsg): void {
     const inv = this.inv.get(p.id);
@@ -485,16 +544,13 @@ export class InventorySystem {
     this.useAt(p, inv, msg.index);
   }
 
-  /** C2S.QuickPotion: primeira poção de vida/mana da mochila. */
+  /** C2S.QuickPotion: a melhor poção de vida/mana que o level permite (regra em shared/itemRules.ts; o cliente mostra a mesma). */
   onQuickPotion(p: PlayerState, msg: QuickPotionMsg): void {
     const inv = this.inv.get(p.id);
     if (!inv || !msg || (msg.kind !== "hp" && msg.kind !== "mana")) return;
-    const idx = inv.backpack.findIndex((it) => {
-      const u = it ? this.defs(it.defId)?.use : undefined;
-      return !!u && (msg.kind === "hp" ? (u.heal ?? 0) > 0 : (u.mana ?? 0) > 0);
-    });
-    if (idx < 0) return this.warn(p, msg.kind === "hp" ? MSG.noHp : MSG.noMana);
-    this.useAt(p, inv, idx);
+    const { index, needLevel } = pickQuickPotion(inv.backpack, msg.kind, p.level, this.defs);
+    if (index < 0) return this.warn(p, needLevel ? MSG.level(needLevel) : msg.kind === "hp" ? MSG.noHp : MSG.noMana);
+    this.useAt(p, inv, index);
   }
 
   /** C2S.DiscardItem: destrói o item do slot da mochila. */
@@ -631,11 +687,15 @@ export class InventorySystem {
       if (n === it.count) { dst[di] = it; src[si] = null; }
       else { dst[di] = { ...it, uid: newUid(), count: n, bonuses: it.bonuses.map((b) => ({ ...b })) }; it.count -= n; }
     } else if (d?.stackable && target.defId === it.defId && target.rarity === it.rarity) {
-      const mv = Math.min(n, maxStackOf(d) - target.count);
-      if (mv <= 0) return;
+      const mv = Math.max(0, Math.min(n, maxStackOf(d) - target.count));
       target.count += mv;
       it.count -= mv;
       if (it.count <= 0) src[si] = null;
+      // Entre mochila e depot (o clique rápido aponta a primeira pilha igual, shared/itemRules.ts stackTarget), o que
+      // não coube nela vai para as outras pilhas iguais e os espaços vazios do destino; "cheio" só se algo ficou de fora.
+      const spilled = src !== dst && n > mv ? this.spill(src, si, dst, n - mv, d) : 0;
+      if (src !== dst && mv + spilled < n) this.warn(p, dst === inv.depot ? MSG.depotFull : MSG.full);
+      if (mv + spilled <= 0) return;
     } else if (n === it.count) {
       dst[di] = it;
       src[si] = target;
@@ -645,11 +705,44 @@ export class InventorySystem {
     this.touched(p, inv, src, dst);
   }
 
+  /**
+   * Põe até `count` unidades da pilha `src[si]` em `dst`: primeiro nas pilhas iguais (item e raridade) com espaço,
+   * depois nos espaços vazios (o resto inteiro vai como a própria instância; parte, como cópia com uid novo).
+   * Retorna quantas unidades moveu.
+   */
+  private spill(src: (ItemInstance | null)[], si: number, dst: (ItemInstance | null)[], count: number, d: ItemDef): number {
+    const it = src[si];
+    if (!it) return 0;
+    const max = maxStackOf(d);
+    let left = count;
+    for (const s of dst) {
+      if (left <= 0) break;
+      if (!s || s === it || s.defId !== it.defId || s.rarity !== it.rarity || s.count >= max) continue;
+      const mv = Math.min(left, max - s.count);
+      s.count += mv;
+      it.count -= mv;
+      left -= mv;
+    }
+    for (let i = 0; i < dst.length && left > 0; i++) {
+      if (dst[i]) continue;
+      const mv = Math.min(left, max);
+      if (mv === it.count) { dst[i] = it; src[si] = null; }
+      else { dst[i] = { ...it, uid: newUid(), count: mv, bonuses: it.bonuses.map((b) => ({ ...b })) }; it.count -= mv; }
+      left -= mv;
+    }
+    if (it.count <= 0 && src[si] === it) src[si] = null;
+    return count - left;
+  }
+
   private useAt(p: PlayerState, inv: Inventory, index: number): void {
     const it = inv.backpack[index];
     if (!it || p.hp <= 0) return;
-    const use = this.defs(it.defId)?.use;
+    const def = this.defs(it.defId);
+    const use = def?.use;
     if (!use) return this.warn(p, MSG.notUsable);
+    // Level do item vale para usar, não só para equipar: a Poção de Vida Grande (lv 30) curava 450 no lv 1.
+    const need = levelNeeded(def, p.level);
+    if (need) return this.warn(p, MSG.level(need));
     const now = this.now();
     if (use.chest) {
       if (!this.o.openChest) return this.warn(p, MSG.notUsable);

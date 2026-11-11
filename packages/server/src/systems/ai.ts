@@ -17,6 +17,11 @@ export const AI_PATH_MAX_NODES = 600;
 export const AI_PATH_MAX_DIST = 30;
 /** Voltando há mais que isso sem chegar → teleporta para o spawn. */
 export const RETURN_STUCK_MS = 15_000;
+/**
+ * Fugindo há tanto tempo sem levar dano → desiste e volta ao spawn (lá cura). Sem prazo o monstro ficava fugindo do
+ * alvo para sempre: não curava nem revidava quem chegasse depois (ciclo 14).
+ */
+export const FLEE_GIVE_UP_MS = 10_000;
 /** Limite de nós da busca (BFS) por um tile com linha de visão quando o alvo está atrás de parede. */
 export const LOS_SEARCH_MAX_NODES = 400;
 
@@ -24,8 +29,9 @@ const ALL_DIRS: Dir[] = [Dir.N, Dir.NE, Dir.E, Dir.SE, Dir.S, Dir.SW, Dir.W, Dir
 
 export function updateMonster(m: Monster, w: MonsterManager, now: number): void {
   if (m.def.stationary) return; // boneco de treino: nunca pensa, anda, foge, volta nem ataca
-  // Provocação (taunt): enquanto durar, o alvo é forçado a ser quem provocou.
-  if (m.tauntBy && now < (m.tauntUntil ?? 0)) {
+  // Provocação (taunt): enquanto durar, o alvo é forçado a ser quem provocou. Voltando pela coleira (imune) não
+  // atende: perseguiria imune dentro da coleira, sem nunca chegar ao spawn para perder a imunidade.
+  if (m.tauntBy && !m.evading && now < (m.tauntUntil ?? 0)) {
     const t = validFor(m, w, m.tauntBy);
     if (t && (m.s.targetId !== t.id || m.mode !== "chase")) { engage(m, t); m.sleeping = false; m.nextThinkAt = now; }
   }
@@ -69,6 +75,7 @@ function nearestAggroTarget(m: Monster, w: MonsterManager): PlayerState | undefi
 
 function engage(m: Monster, p: CreatureState) {
   m.mode = "chase";
+  m.evading = false;
   m.s.targetId = p.id;
   m.lostSince = 0;
   m.path = null;
@@ -79,8 +86,10 @@ function thinkIdle(m: Monster, w: MonsterManager, _now: number) {
   if (t) engage(m, t);
 }
 
-export function startReturn(m: Monster, now: number) {
+/** Volta ao spawn. `evade`: passou da coleira — imune e sem revidar até chegar (Monster.evading). */
+export function startReturn(m: Monster, now: number, evade = false) {
   m.mode = "return";
+  m.evading = evade;
   m.s.targetId = "";
   m.path = null;
   m.lostSince = 0;
@@ -89,6 +98,7 @@ export function startReturn(m: Monster, now: number) {
 
 function arrive(m: Monster, now: number) {
   m.mode = "idle";
+  m.evading = false;
   m.s.hp = m.s.maxHp;
   m.s.targetId = "";
   m.damageBy.clear();
@@ -113,7 +123,7 @@ function think(m: Monster, w: MonsterManager, now: number) {
   }
 
   // chase / flee
-  if (!m.bounds && cheb(s.x, s.y, m.spawn.x, m.spawn.y) > LEASH_DIST) { startReturn(m, now); return; }
+  if (!m.bounds && cheb(s.x, s.y, m.spawn.x, m.spawn.y) > LEASH_DIST) { startReturn(m, now, true); return; }
   let target = validFor(m, w, s.targetId);
   if (!target) {
     target = nearestAggroTarget(m, w) ?? validFor(m, w, m.lastAttackerId);
@@ -133,7 +143,10 @@ function think(m: Monster, w: MonsterManager, now: number) {
   m.mode = m.def.fleeAtHpPct > 0 && s.hp < m.def.fleeAtHpPct * s.maxHp ? "flee" : "chase";
   if (m.mode === "flee") {
     m.path = null;
-    if (was !== "flee" && m.def.pack) w.callForHelp(m, target.id, now, HELP_FLEE); // fugindo, chama o bando
+    if (was !== "flee") {
+      m.fleeSince = now;
+      if (m.def.pack) w.callForHelp(m, target.id, now, HELP_FLEE); // fugindo, chama o bando
+    } else if (!m.bounds && now - Math.max(m.fleeSince ?? 0, m.hurtAt ?? 0) >= FLEE_GIVE_UP_MS) startReturn(m, now);
     return;
   }
 

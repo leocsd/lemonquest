@@ -3,7 +3,7 @@
 import { createStore } from "../hud/store.ts";
 import { meStore } from "../hud/world.ts";
 import { AUTO_POTION_MAX, parseSettings, shouldDrink, type AutoPotionSettings } from "./autoPotionLogic.ts";
-import { firstPotion, potionCooling, quickPotion, type PotionKind } from "./potions.ts";
+import { potionCooling, quickPotion, quickPotionPick, type PotionKind } from "./potions.ts";
 
 export { AUTO_POTION_MAX };
 export type { AutoPotionSettings };
@@ -25,7 +25,7 @@ function check() {
   // Vida primeiro: quem está quase morrendo não espera mana.
   for (const [kind, cur, max, pct] of [["hp", me.hp, me.maxHp, s.hp], ["mana", me.mana, me.maxMana, s.mana]] as const) {
     if (!shouldDrink(cur, max, pct, now, last[kind])) continue;
-    if (potionCooling() || !firstPotion(kind)) continue; // sem poção: não enche a tela de avisos
+    if (potionCooling() || !quickPotionPick(kind).it) continue; // sem poção usável: não enche a tela de avisos
     last[kind] = now;
     quickPotion(kind);
     return;

@@ -4,7 +4,13 @@ import type { DamageKind, Vocation } from "../types.ts";
 export type ConditionId =
   | "combat" | "poison" | "burn" | "energy" | "bleed" | "freeze"
   | "protect" | "haste" | "slow" | "drunk" | "regen" | "pz"
-  | "manashield" | "rooted" | "taunted" | "fed" | "berserk";
+  | "manashield" | "rooted" | "taunted" | "fed" | "berserk"
+  /** Monstro sem resistência elemental e com +value% de dano elemental (Ruptura Elemental, lv 100). */
+  | "exposed"
+  /** Jogador com encantamento ativo (server/systems/imbuement.ts; só na faixa do HUD, sem efeito no ConditionSystem). */
+  | "imbued"
+  /** Varinha de Treino (NPC, consumível "por hora"): value = % de tentativas a mais na skill. */
+  | "trainMelee" | "trainDistance" | "trainMagic" | "trainShield";
 
 /** Fórmula de magia (estilo Tibia): valor = base + level*perLevel + magicLevel*perMagic, ±variance. */
 export interface SpellFormula {
@@ -103,9 +109,11 @@ export const SPELLS: Record<string, SpellDef> = {
   },
 
   // ------------------------------------------------------------------ CAVALEIRO (tank corpo a corpo)
+  // Ciclo 15-13: as seis magias de dano do cavaleiro +40% (base, por level e por magia) — o plano pedia +30% até o lv 35;
+  // os +10% e as do lv 70/90 fecham o lv 60 em vocationBalance.test.ts junto com o level no spellPower (formulas.ts).
   spin_strike: {
     id: "spin_strike", name: "Golpe Giratório", words: "exori", vocations: ["knight"], level: 1, mana: 8, cooldownMs: 4000,
-    target: "area_self", radius: 1, damage: { kind: "physical", base: 16, perLevel: 1.4, perMagic: 2, variance: 0.2 }, fx: "physical",
+    target: "area_self", radius: 1, damage: { kind: "physical", base: 22.4, perLevel: 1.96, perMagic: 2.8, variance: 0.2 }, fx: "physical",
     description: "Gira a arma e atinge todos os inimigos ao seu redor.",
   },
   provoke: {
@@ -115,7 +123,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   charge: {
     id: "charge", name: "Investida", words: "exori hur", vocations: ["knight"], level: 10, mana: 20, cooldownMs: 8000,
-    target: "target", range: 4, dash: true, damage: { kind: "physical", base: 20, perLevel: 2, perMagic: 3, variance: 0.2 }, fx: "charge",
+    target: "target", range: 4, dash: true, damage: { kind: "physical", base: 28, perLevel: 2.8, perMagic: 4.2, variance: 0.2 }, fx: "charge",
     description: "Avança sobre o alvo e o atinge com força.",
   },
   iron_skin: {
@@ -125,7 +133,7 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   brutal_strike: {
     id: "brutal_strike", name: "Golpe Brutal", words: "exori gran", vocations: ["knight"], level: 30, mana: 45, cooldownMs: 8000,
-    target: "target", range: 1, damage: { kind: "physical", base: 40, perLevel: 4, perMagic: 4, variance: 0.2 }, fx: "physical",
+    target: "target", range: 1, damage: { kind: "physical", base: 56, perLevel: 5.6, perMagic: 5.6, variance: 0.2 }, fx: "physical",
     description: "Um golpe devastador no alvo à sua frente.",
   },
 
@@ -177,9 +185,10 @@ export const SPELLS: Record<string, SpellDef> = {
     description: "Explode o alvo e a área ao redor, deixando os atingidos em chamas.",
   },
   mana_shield: {
-    id: "mana_shield", name: "Escudo de Mana", words: "utamo vita", vocations: ["sorcerer"], level: 15, mana: 30, cooldownMs: 30_000,
+    // Ciclo 15: o druida também conjura (era só do feiticeiro; a sobrevivência do druida no lv 30 ficava em 43%).
+    id: "mana_shield", name: "Escudo de Mana", words: "utamo vita", vocations: ["sorcerer", "druid"], level: 15, mana: 30, cooldownMs: 30_000,
     target: "self", condition: { id: "manashield", durationMs: 20_000 }, fx: "buff",
-    description: "Por 20 segundos, o dano recebido consome mana antes da vida.",
+    description: "Por 20 segundos, metade do dano recebido sai da mana e metade da vida (sem mana, tudo na vida). Use a Cura junto.",
   },
   energy_beam: {
     id: "energy_beam", name: "Raio de Energia", words: "exori vis", vocations: ["sorcerer"], level: 20, mana: 45, cooldownMs: 4000,
@@ -207,7 +216,8 @@ export const SPELLS: Record<string, SpellDef> = {
     description: "Raízes prendem o alvo no lugar por 3 segundos.",
   },
   ice_rain: {
-    id: "ice_rain", name: "Chuva de Gelo", words: "exevo mas frigo", vocations: ["druid"], level: 10, mana: 40, cooldownMs: 6000,
+    // Ciclo 15-13: recarga 6 s → 4 s (o druida lv 30 rendia 0,63 do feiticeiro em dano × sobrevivência; agora 0,74).
+    id: "ice_rain", name: "Chuva de Gelo", words: "exevo mas frigo", vocations: ["druid"], level: 10, mana: 40, cooldownMs: 4000,
     target: "area_target", range: 5, radius: 2, damage: { kind: "ice", base: 8, perLevel: 1.4, perMagic: 2.4, variance: 0.2 },
     condition: { id: "slow", durationMs: 4000, value: 40 }, fx: "ice",
     description: "Estilhaços de gelo caem na área e deixam os inimigos mais lentos.",
@@ -238,7 +248,7 @@ export const SPELLS: Record<string, SpellDef> = {
     id: "front_sweep", name: "Golpe Frontal", words: "exori min", vocations: ["knight"], level: 35, mana: 30, cooldownMs: 5000,
     // Ciclo 7: era length 1 / base 20 (3 tiles, mesmo dano por alvo do Golpe Giratório com 4× a mana). Retângulo 3×3
     // (não cone): continua pegando as duas diagonais encostadas na frente do cavaleiro.
-    target: "wave", length: 3, width: 3, rect: true, damage: { kind: "physical", base: 30, perLevel: 1.9, perMagic: 2, variance: 0.2 }, fx: "physical",
+    target: "wave", length: 3, width: 3, rect: true, damage: { kind: "physical", base: 42, perLevel: 2.66, perMagic: 2.8, variance: 0.2 }, fx: "physical",
     description: "Um golpe largo que atinge uma área de 3×3 tiles à sua frente.",
   },
   berserk: {
@@ -248,12 +258,12 @@ export const SPELLS: Record<string, SpellDef> = {
   },
   whirlwind: {
     id: "whirlwind", name: "Fúria Giratória", words: "exori mas", vocations: ["knight"], level: 70, mana: 80, cooldownMs: 8000,
-    target: "area_self", radius: 2, damage: { kind: "physical", base: 40, perLevel: 2.4, perMagic: 3, variance: 0.2 }, fx: "physical",
+    target: "area_self", radius: 2, damage: { kind: "physical", base: 56, perLevel: 3.36, perMagic: 4.2, variance: 0.2 }, fx: "physical",
     description: "Gira com toda a força e atinge todos os inimigos num raio de 2 tiles.",
   },
   annihilation_strike: {
     id: "annihilation_strike", name: "Golpe Aniquilador", words: "exori gran ico", vocations: ["knight"], level: 90, mana: 100, cooldownMs: 12_000,
-    target: "target", range: 1, damage: { kind: "physical", base: 80, perLevel: 5.5, perMagic: 5, variance: 0.2 }, fx: "physical",
+    target: "target", range: 1, damage: { kind: "physical", base: 112, perLevel: 7.7, perMagic: 7, variance: 0.2 }, fx: "physical",
     description: "O golpe mais forte do cavaleiro, no alvo à sua frente.",
   },
 
@@ -352,28 +362,31 @@ export const SPELLS: Record<string, SpellDef> = {
     description: "Cura na hora e deixa você regenerando vida por mais 6 segundos.",
   },
 
-  // ------------------------------------------------------------------ FAIXA 90-120: utilidade em grupo (lv 110)
-  // Cada vocação ganha 1 magia de suporte que alcança o grupo (raio 4, como a Cura em Grupo), reaproveitando
-  // condições que hoje só vão no próprio conjurador. Preenche o buraco de grupo no fim de jogo (GD-ciclo 9).
-  group_shield: {
-    id: "group_shield", name: "Escudo em Grupo", words: "utamo tempo mas", vocations: ["knight"], level: 110, mana: 120, cooldownMs: 25_000,
-    target: "party", radius: 4, condition: { id: "protect", durationMs: 8000, value: 20 }, fx: "buff",
-    description: "Reduz em 20% o dano recebido por você e aliados num raio de 4 tiles, por 8 segundos.",
+  // --- Lv 100 (ciclo 12, GD-08): uma magia de UTILIDADE por vocação para o fim de jogo em grupo (Orshabaal, Ferumbras,
+  // Colossos). Sem dano: cada uma muda o que o grupo consegue fazer, não o número da rotação.
+  shield_wall: {
+    id: "shield_wall", name: "Muralha de Escudos", words: "utamo mas res", vocations: ["knight"], level: 100, mana: 120, cooldownMs: 40_000,
+    // Não soma com a Pele de Ferro (30%, só nele): a condição mais forte ativa não é rebaixada (ConditionSystem.apply).
+    target: "party", radius: 3, condition: { id: "protect", durationMs: 8000, value: 20 }, fx: "buff",
+    description: "Você e os aliados a até 3 tiles recebem 20% menos dano por 8 segundos.",
   },
-  group_haste: {
-    id: "group_haste", name: "Avanço em Grupo", words: "utani hur mas", vocations: ["paladin"], level: 110, mana: 140, cooldownMs: 30_000,
-    target: "party", radius: 4, condition: { id: "haste", durationMs: 20_000, value: 30 }, fx: "buff",
-    description: "Aumenta a velocidade de você e aliados num raio de 4 tiles em 30%, por 20 segundos.",
+  restoring_light: {
+    // Ciclo 15: recarga 30 s → 20 s (450 de vida em 10 s a cada 30 s pesava pouco no fim de jogo em grupo).
+    id: "restoring_light", name: "Luz Restauradora", words: "exura mas san", vocations: ["paladin"], level: 100, mana: 150, cooldownMs: 20_000,
+    target: "party", radius: 4, condition: { id: "regen", durationMs: 10_000, value: 45 }, fx: "heal",
+    description: "Uma luz cobre o grupo a até 4 tiles: cada um recupera 45 de vida por segundo durante 10 segundos.",
   },
-  group_manashield: {
-    id: "group_manashield", name: "Escudo de Mana em Grupo", words: "utamo vita mas", vocations: ["sorcerer"], level: 110, mana: 150, cooldownMs: 30_000,
-    target: "party", radius: 4, condition: { id: "manashield", durationMs: 15_000 }, fx: "buff",
-    description: "Por 15 segundos, o dano recebido por você e aliados num raio de 4 tiles consome mana antes da vida.",
+  elemental_rupture: {
+    id: "elemental_rupture", name: "Ruptura Elemental", words: "exori mas vis", vocations: ["sorcerer"], level: 100, mana: 120, cooldownMs: 20_000,
+    // Responde à resistência elemental (monstro toma metade do próprio elemento): por 12 s o alvo perde a resistência e
+    // toma +15% de todo dano elemental, de qualquer um do grupo.
+    target: "target", range: 5, condition: { id: "exposed", durationMs: 12_000, value: 15 }, fx: "energy",
+    description: "Rompe as defesas do alvo por 12 segundos: ele perde a resistência elemental e toma 15% a mais de dano mágico.",
   },
-  group_regen: {
-    id: "group_regen", name: "Regeneração em Grupo", words: "exura mas tera", vocations: ["druid"], level: 110, mana: 200, cooldownMs: 30_000,
-    target: "party", radius: 4, condition: { id: "regen", durationMs: 8000, value: 50 }, fx: "heal",
-    description: "Cura 50 de vida por segundo em você e aliados num raio de 4 tiles, por 8 segundos.",
+  earth_roots: {
+    id: "earth_roots", name: "Raízes da Terra", words: "exevo mas tera", vocations: ["druid"], level: 100, mana: 160, cooldownMs: 25_000,
+    target: "area_self", radius: 3, condition: { id: "rooted", durationMs: 3000 }, fx: "root",
+    description: "Raízes brotam do chão num raio de 3 tiles e prendem os inimigos no lugar por 3 segundos.",
   },
 };
 
@@ -390,7 +403,8 @@ export function spellByWords(text: string): SpellDef | undefined {
 }
 
 /*
- * Tabela de balanceamento (valor esperado no level de desbloqueio; ML estimado: mago 0.75*lvl, paladino lvl/4, cavaleiro lvl/7).
+ * Tabela de balanceamento (valor esperado no level de desbloqueio; ML estimado antigo: mago 0.75*lvl, paladino lvl/4,
+ * cavaleiro lvl/7; sem o spellPower de cavaleiro/paladino, que no jogo rende bem mais).
  * Gerada pelo console.table do spells.test.ts. dmg/heal = média por alvo, sem variância.
  *
  * magia                voc       lvl  mana  cd(s)  esperado
@@ -401,14 +415,14 @@ export function spellByWords(text: string): SpellDef | undefined {
  *                                 (antes: 22 + 2*level + 1.8*ML → mago 36% no lv20 e 41% no lv30)
  * Cura em Grupo        druid     15    80     5    cura 72,5/alvo (r4); lv 90 (ML 67): ~363 a cada 5 s  [antes 50 mana, cd 8, 52/alvo]
  * Pés Ligeiros (utani hur)  todas  5  20  15    haste +30%, 30 s (correr; fora do cooldown global)
- * Removidas: Cura Intensa (exura gran), Cura Vital (exura vita), Cura Sagrada Leve (exura san) e Tratar Ferimentos (exura ico):
- * cada vocação tem exatamente UMA cura própria.
+ * Reabertas no ciclo 9 (ver bloco "curas novas" no fim do arquivo): Cura Intensa (exura gran, todas), Cura Vital
+ * (exura vita, druid), Cura Sagrada (exura san, paladin) e Restauração Arcana (exura ico, sorcerer).
  *
- * Golpe Giratório      knight     1     8     4    dmg 17 (área r1, 2.3x auto)
+ * Golpe Giratório      knight     1     8     4    dmg 24 (área r1, 2.2x auto)  [ciclo 15-13: magias de dano do cavaleiro +40%]
  * Provocar             knight     5    15    20    taunt r3, 5 s
- * Investida            knight    10    20     8    dmg 43 (dash 4)
+ * Investida            knight    10    20     8    dmg 60 (dash 4)
  * Pele de Ferro        knight    15    20    30    -30% dano, 10 s
- *  * Golpe Brutal         knight    30    45     8    dmg 176 (3.3x auto)
+ * Golpe Brutal         knight    30    45     8    dmg 246 (4,6x auto)
  * Flecha Perfurante    paladin    1     8     2    dmg 14 (2.3x auto)
  * Chuva de Flechas     paladin   15    35     6    dmg 47 (área r2)
  * Flecha Sagrada       paladin   20    30     4    dmg 103 (holy)
@@ -416,19 +430,19 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Bola de Fogo         sorcerer   1     8     2    dmg 12 (2.3x auto)
  * Onda de Energia      sorcerer   5    20     4    dmg 29 (onda 4x3)
  * Explosão de Fogo     sorcerer  10    40     6    dmg 43 (área r2 + burn); lvl 15: 60, lvl 20: 78
- * Escudo de Mana       sorcerer  15    30    30    manashield 20 s
+ * Escudo de Mana       sorc/druid 15   30    30    manashield 20 s (druida desde o ciclo 15)
  * Raio de Energia      sorcerer  20    45     4    dmg 100 (alvo único)
  * Inferno              sorcerer  30   160     8    dmg 208 (área r3 + burn)
  * Raiz                 druid      5    20    15    dmg 17 + root 3 s
- * Chuva de Gelo        druid     10    40     6    dmg 39 (área r2 + slow); lvl 15: 55, lvl 20: 72
+ * Chuva de Gelo        druid     10    40     4    dmg 39 (área r2 + slow); lvl 15: 55, lvl 20: 72  [recarga 6 s até o ciclo 15]
  * Invocar Lobo         druid     20    90    60    1 lobo espiritual, 60 s
  * Nevasca              druid     30   150     8    dmg 199 (área r3 + slow)
  *
  * FIM DE JOGO (lv 35-90) — magia               voc       lvl  mana (% da máx.)  cd(s)  esperado
- * Golpe Frontal        knight     35    30 (14%)    5    dmg 107 (retângulo 3x3 à frente, 9 tiles)  [antes 97, 1x3]
+ * Golpe Frontal        knight     35    30 (14%)    5    dmg 150 (retângulo 3x3 à frente, 9 tiles)
  * Fúria                knight     50    60 (20%)   30    buff + berserk 25
- * Fúria Giratória      knight     70    80 (20%)    8    dmg 238 (área r2)
- * Golpe Aniquilador    knight     90   100 (20%)   12    dmg 635 (alvo)
+ * Fúria Giratória      knight     70    80 (20%)    8    dmg 333 (área r2)
+ * Golpe Aniquilador    knight     90   100 (20%)   12    dmg 889 (alvo)
  * Flecha Explosiva     paladin    35    50 (9%)    6    dmg 152 (área no alvo r1)
  * Flecha Paralisante   paladin    50    60 (8%)    8    dmg 232 (alvo + slow)
  * Julgamento Divino    paladin    70   120 (11%)    8    dmg 342 (área no alvo r2)
@@ -442,13 +456,10 @@ export function spellByWords(text: string): SpellDef | undefined {
  * Tempestade de Terra  druid      70   260 (12%)    8    dmg 508 (área r4 + poison)
  * Fúria da Natureza    druid      90   180 (7%)   10    dmg 693 (alvo + slow)
  *
- * CICLO 9 — curas novas (reabrindo o catálogo, antes 1 por vocação) e grupo lv 110 (faixa 90-120)
+ * CICLO 9 — curas novas (reabrindo o catálogo, antes 1 por vocação)
  * Cura Intensa (exura gran)      todas     60    60-170    3    heal, mana bem maior que a Cura
  * Cura Vital (exura vita)        druid     45    55-140    6    heal + regen 18/s por 6 s
  * Restauração Arcana (exura ico) sorcerer  45    60-150    5    heal maior, sem efeito sustentado
  * Cura Sagrada (exura san)       paladin   45    45-120    5    heal menor + remove veneno/queimadura/etc.
- * Escudo em Grupo                knight   110   120        25   protect -20%, 8 s, raio 4
- * Avanço em Grupo                paladin  110   140        30   haste +30%, 20 s, raio 4
- * Escudo de Mana em Grupo        sorcerer 110   150        30   manashield, 15 s, raio 4
- * Regeneração em Grupo           druid    110   200        30   regen 50/s, 8 s, raio 4
+ * (a magia de utilidade em grupo do fim de jogo saiu daqui: o ciclo 12 fez a mesma ideia no lv 100, ver bloco acima)
  */

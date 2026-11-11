@@ -39,6 +39,7 @@ export const S = {
   ruinStatue: ['V', 0, 3, 3, 3, { baseRows: 2 }], pillar: ['V', 2, 3, 1, 3, { baseRows: 1 }],
   // ---- caves
   caveMouthGray: ['D', 0, 7, 3, 3, { baseRows: 3, doors: [[1, 2]] }],
+  caveMouthBrown: ['D', 3, 7, 3, 3, { baseRows: 3, doors: [[1, 2]] }],
   crystalA: ['N', 0, 15, 1, 1], crystalB: ['N', 1, 15, 1, 1], crystalC: ['N', 2, 15, 1, 1], crystalD: ['N', 3, 15, 1, 1],
   crystalBigA: ['N', 0, 16, 1, 1], crystalBigB: ['N', 1, 16, 1, 1], crystalBigC: ['N', 2, 16, 1, 1], crystalBigD: ['N', 3, 16, 1, 1],
 };

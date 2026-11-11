@@ -26,6 +26,8 @@ export interface NpcDef {
   casino?: boolean;
   /** Vende encantamento (shared/data/imbuement.ts): 1 efeito ativo por personagem. */
   imbuement?: boolean;
+  /** Quadro de obra: mostra a aba "Na obra" e as barras de sprint vindas do ClickUp (server/systems/clickup.ts). */
+  workBoard?: boolean;
 }
 
 /** Preço fixo da ficha de cassino, igual pra qualquer level. */
@@ -46,6 +48,14 @@ export const NPC_RANGE = 3;
 const C = "ninja/Actor/Character/";
 /** Chegada em Porto Esperança (Costa Esmeralda), de carroça. Tile andável conferido em npcs.test.ts. */
 const PORT_ARRIVAL: TravelDest = { id: "port", label: "Porto Esperança", x: 372, y: 64, price: 250 };
+/** Chegada na Vila de Pedra Clara (mesmo tile usado pela Cocheira Zuleica e pela Capitã Marina). */
+const VILLAGE_ARRIVAL = { x: 97, y: 98 } as const;
+/**
+ * Chegada de trem na Estação Central da Malha da Ferrovia (ciclo 11, tools/mapgen/expansion4.mjs).
+ * Plataforma 1, a 2+ tiles de NPC e longe do portal oculto (44,371) que liga a Estação à Vila (npcs.test.ts confere
+ * que é andável).
+ */
+const MALHA_ARRIVAL: TravelDest = { id: "malha", label: "Estação Central da Malha", x: 60, y: 374, price: 200 };
 const sells = (...ids: string[]): NpcShopEntry[] => ids.map((itemId) => ({ itemId }));
 /** Tier 6-7: preço = valor de loot × 1,5 (sink pra ouro acumulado), 1 por semana por personagem. */
 const limited = (...entries: [string, number][]): NpcShopEntry[] =>
@@ -79,9 +89,9 @@ export const NPCS: Record<string, NpcDef> = {
         // loot/chefe normalmente, isso é só uma saída extra pra ouro acumulado).
         ...limited(
           ["fire_sword", 90000], ["giant_sword", 100000], ["royal_crossbow", 90000], ["starstorm_wand", 90000], ["northwind_rod", 90000],
-          ["crown_helmet", 24000], ["crown_armor", 56000], ["crown_legs", 32000], ["crown_shield", 32000],
+          ["crown_helmet", 24000], ["crown_armor", 56000], ["crown_legs", 32000], ["crown_shield", 32000], ["crown_boots", 16000],
           ["magic_longsword", 190000], ["demon_axe", 210000], ["celestial_bow", 190000], ["destruction_wand", 190000], ["ancient_root_rod", 190000],
-          ["demon_helmet", 60000], ["demon_armor", 140000], ["demon_legs", 80000], ["demon_shield", 80000],
+          ["demon_helmet", 60000], ["demon_armor", 140000], ["demon_legs", 80000], ["demon_shield", 80000], ["demon_boots", 40000],
         ),
       ],
       buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material"],
@@ -90,6 +100,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Promoção! Poções de vida pela metade do preço... de ontem.",
       "Esse couro de lobo vale ouro, sabia?",
       "Já viu o preço dessas botas? Roubo é o que não é!",
+      "Chegou! Mercadoria nova… quer dizer, encomenda nova.",
     ],
   },
   priest: {
@@ -101,6 +112,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Quem cai, levanta. Quem desiste, não.",
       "Rezo por todos que partem para a floresta.",
       "A cripta guarda mais do que ossos...",
+      "Quem cai, levanta. Quem desiste, abre chamado.",
     ],
   },
   depot: {
@@ -109,6 +121,7 @@ export const NPCS: Record<string, NpcDef> = {
     idleLines: [
       "Tudo etiquetado, tudo no lugar.",
       "Mochila cheia? Deixe o peso comigo.",
+      "Etiqueta vermelha na tampa? Faz aniversário aqui dentro.",
     ],
   },
   guard_captain: {
@@ -132,8 +145,9 @@ export const NPCS: Record<string, NpcDef> = {
           "elven_bow", "master_archer_helmet", "master_archer_armor", "master_archer_legs", "master_archer_boots",
           "health_potion", "meat", "fish", "beaf", "yakitori", "fishing_rod"),
         // tier 6-7: encomenda especial (ver Bento), 1 peça por personagem por semana.
-        ...limited(["royal_crossbow", 90000], ["royal_helmet", 22000], ["royal_armor", 52000], ["royal_legs", 30000],
-          ["celestial_bow", 190000], ["dragon_scale_helmet", 55000], ["dragon_scale_armor", 130000], ["dragon_scale_legs", 75000]),
+        ...limited(["royal_crossbow", 90000], ["royal_helmet", 22000], ["royal_armor", 52000], ["royal_legs", 30000], ["royal_boots", 15000],
+          ["celestial_bow", 190000], ["dragon_scale_helmet", 55000], ["dragon_scale_armor", 130000], ["dragon_scale_legs", 75000],
+          ["dragon_scale_boots", 37000]),
       ],
       buys: ["material", "food"],
     },
@@ -141,6 +155,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Paciência, garoto. A caça vem a quem espera.",
       "Já abati um urso com um graveto. Bem... quase.",
       "O vento mudou. Chuva à noite.",
+      "Antes de culpar a rede, confira o cabo.",
     ],
   },
   herbalist: {
@@ -157,11 +172,15 @@ export const NPCS: Record<string, NpcDef> = {
           "ember_wand", "moss_rod", "arcane_helmet", "arcane_armor", "arcane_legs", "arcane_boots",
           // tier 5 (lv 35): fim de jogo, preço de tabela.
           "inferno_wand", "glacier_rod", "archmage_helmet", "archmage_armor", "archmage_legs", "archmage_boots",
+          // Livros de magia (escudo dos magos), tiers 2-5.
+          "spellbook_apprentice", "spellbook_adept", "spellbook_arcane", "spellbook_archmage",
         ),
         // tier 6-7: encomenda especial (ver Bento), 1 peça por personagem por semana.
         ...limited(
           ["starstorm_wand", 90000], ["northwind_rod", 90000], ["mystic_helmet", 20000], ["mystic_armor", 50000], ["mystic_legs", 28000],
+          ["mystic_boots", 14000], ["spellbook_mystic", 32000],
           ["destruction_wand", 190000], ["ancient_root_rod", 190000], ["ferumbras_helmet", 50000], ["ferumbras_armor", 120000], ["ferumbras_legs", 70000],
+          ["ferumbras_boots", 34000], ["spellbook_ferumbras", 80000],
         ),
       ],
       buys: ["material", "potion", "food"],
@@ -170,6 +189,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Erva-doce para a tosse, erva-azeda para o mau humor.",
       "Gosma de slime? Ótima para unguentos!",
       "Cuidado com as abelhas: o mel compensa, o ferrão não.",
+      "Essa poção ficou 20 minutos sem leitura. Considero desconectada.",
     ],
   },
   bounty_board: {
@@ -179,6 +199,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Procura-se: aventureiros corajosos.",
       "Recompensas novas todo dia às 6h!",
       "Paga-se bem por cabeças de monstros.",
+      "Sprint da semana: três cabeças, um baú.",
     ],
   },
   arena_master: {
@@ -188,6 +209,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Sangue, areia e glória! Quem entra no Coliseu?",
       "Grupos formados rendem mais glória. Chame seus amigos!",
       "Cada onda é mais feroz que a anterior.",
+      "Sextou? Então troca de roupa antes da onda.",
     ],
   },
   arena_shop_1: {
@@ -248,6 +270,7 @@ export const NPCS: Record<string, NpcDef> = {
       "Escama de dragão? Pago bem! Chifre de demônio? Pago melhor!",
       "Poção grande é a melhor amiga de quem caça ciclope.",
       "Trouxe presunto de dragão? Isso aqui é uma iguaria!",
+      "Compras onfire: ficha em promoção. Mentira, preço fixo.",
     ],
   },
   frontier_depot: {
@@ -270,8 +293,18 @@ export const NPCS: Record<string, NpcDef> = {
   coach_village: {
     id: "coach_village", name: "Cocheiro Bastião", sprite: C + "Villager2/SpriteSheet.png",
     greeting: "Carroça para o Posto da Fronteira, no leste. A estrada é longa, mas a minha mula conhece o caminho.",
-    travel: [{ id: "frontier", label: "Posto da Fronteira", x: 214, y: 61, price: 150 }, PORT_ARRIVAL],
-    idleLines: ["Carroça para a Fronteira! Saída imediata!", "Essa mula já viu mais dragão que muito aventureiro."],
+    travel: [
+      { id: "frontier", label: "Posto da Fronteira", x: 214, y: 61, price: 150 },
+      PORT_ARRIVAL,
+      // Chegada no Pátio de Encomendas da Oficina dos Engenhos (bloco gerado por tools/mapgen/expansion3.mjs, ao sul
+      // da Vila). Perto, barato: é a zona de novato lv 5–22. Tile andável conferido em npcs.test.ts.
+      { id: "oficina", label: "Oficina dos Engenhos", x: 83, y: 330, price: 100 },
+    ],
+    idleLines: [
+      "Carroça para a Fronteira! Saída imediata!",
+      "Essa mula já viu mais dragão que muito aventureiro.",
+      "Mula nova. Chegou! Foto depois.",
+    ],
   },
   coach_frontier: {
     id: "coach_frontier", name: "Cocheira Zuleica", sprite: C + "ManGreen/SpriteSheet.png",
@@ -365,6 +398,254 @@ export const NPCS: Record<string, NpcDef> = {
     idleLines: [
       "Pele de inverno vale ouro aqui no norte.",
       "Não pise no gelo fino perto da caverna.",
+    ],
+  },
+
+  // ===== Oficina dos Engenhos (ciclo 10): o escritório entra no mundo por metáfora e piada interna. Apelido + papel,
+  // nunca nome completo; clientes só disfarçados; nada do chat privado. Mapa em tools/mapgen/expansion3.mjs.
+  pedrao: {
+    id: "pedrao", name: "Pedrão, o Visionário", sprite: C + "SamuraiBlue/SpriteSheet.png",
+    greeting: "Go ou NoGo? Depende da luz. Nove iluminadores de dez chegam queimados, e o décimo acende por teimosia. Se achar algum, me traga.",
+    idleLines: [
+      "Nove iluminadores de dez chegam queimados.",
+      "Frame inspecionável! Anota aí: um em vinte e seis.",
+      "Quem mexeu na exposição?",
+    ],
+  },
+  juliao: {
+    id: "juliao", name: "Julião dos Embarcados", sprite: C + "Villager/SpriteSheet.png",
+    greeting: "Chegou! …Não, era o vento. Enquanto a encomenda não chega, vendo poção básica e compro o que você arrancar das máquinas.",
+    shop: {
+      sells: sells("health_potion", "mana_potion", "nuts"),
+      buys: ["material"],
+    },
+    idleLines: [
+      "Chegou! Não, era o vento.",
+      "Cordão roído não é defeito, é documentação.",
+      "Soldar não; crimpar, sim.",
+    ],
+  },
+  bianca: {
+    id: "bianca", name: "Bianca da Logística", sprite: C + "Village6/SpriteSheet.png",
+    greeting: "A marmita de tampa vermelha faz aniversário amanhã e ninguém assume. Mas antes disso: as Gosmas Azuis fugiram do pátio de novo, com as etiquetas das bombonas.",
+    idleLines: [
+      "Gosma azul não corre: quica. E quica rápido.",
+      "Sem etiqueta, não embarca. Sem rótulo, não existe.",
+      "O frete chega quando chega. A encomenda, só quando alguém grita 'Chegou!'.",
+    ],
+  },
+  luan: {
+    id: "luan", name: "Luan do Cubo", sprite: C + "NinjaBlue/SpriteSheet.png",
+    greeting: "git caiu? Não? Então é problema seu. Brincadeira: senta aí que eu te mostro como resolver o cubo em 40 segundos.",
+    idleLines: [
+      "git caiu?",
+      "Resolvo o cubo em 40 s. O merge, nunca.",
+      "Funciona na minha máquina.",
+    ],
+  },
+  iago: {
+    id: "iago", name: "Iago do Cofre", sprite: C + "NinjaGray/SpriteSheet.png",
+    greeting: "Papel não é cofre. Se achar algum bilhete amassado por aí com senha, traga pra mim antes que alguém leia.",
+    idleLines: [
+      "Papel não é cofre.",
+      "Rotaciona a senha. De novo.",
+      "Quem anotou a senha no monitor?",
+    ],
+  },
+  gabriel: {
+    id: "gabriel", name: "Gabriel do Sextou", sprite: C + "Boy/SpriteSheet.png",
+    greeting: "Compras onfire! Rifa do Sextou: mil de ouro a ficha, prêmio surpresa. Tema do dia: sobreviver.",
+    casino: true,
+    idleLines: [
+      "Compras onfire!",
+      "Sextou! Tema do dia: sobreviver.",
+      "Ficha é mil. Prêmio é surpresa.",
+    ],
+  },
+  guilherme_boss: {
+    id: "guilherme_boss", name: "Guilherme, o Boss", sprite: C + "Sultan/SpriteSheet.png",
+    greeting: "Baú e seguro contra perda de XP, com nota fiscal. Sem nota fiscal não tem reembolso.",
+    depot: true, blessing: true,
+    idleLines: [
+      "Sem nota fiscal não tem reembolso.",
+      "Fechou o mês? Fechou o caixa.",
+      "Bênção é despesa dedutível.",
+    ],
+  },
+  alexandre_quantico: {
+    id: "alexandre_quantico", name: "Alexandre do Quântico", sprite: C + "SorcererBlack/SpriteSheet.png",
+    greeting: "Eu guardo a porta do Banheiro Quântico. Livre e ocupado ao mesmo tempo, até alguém bater. Meu modelo previu isso.",
+    idleLines: [
+      "Livre e ocupado até alguém bater.",
+      "Meu modelo previu isso. Depois.",
+      "Dados não mentem. Interpretações, sim.",
+    ],
+  },
+  coach_oficina: {
+    id: "coach_oficina", name: "Cocheiro Dito", sprite: C + "Villager2/SpriteSheet.png",
+    greeting: "Carroça de volta pra Vila de Pedra Clara, ou até o Porto pra quem tem pressa e ouro.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 100 }, PORT_ARRIVAL],
+    idleLines: ["Volta pra Vila! A mula já está encilhada.", "Encomenda eu não levo. Gente, sim."],
+  },
+  // Placas e máquinas (NPCs sem papel, só ambientação). A Geladeira é a única loja de comida da Oficina.
+  geladeira: {
+    id: "geladeira", name: "Geladeira da Copa", sprite: C + "RobotGrey/SpriteSheet.png",
+    greeting: "Zumbido. A porta abre: ensopado do viajante, chá de ervas e tigelas vazias. Marmita sem nome é marmita de todos.",
+    shop: {
+      sells: sells("marmita_tampa_vermelha", "cafe_oficina", "vasilha_empilhada", "nuts"),
+    },
+    idleLines: [
+      "Marmita sem nome é marmita de todos.",
+      "A tampa vermelha faz aniversário amanhã.",
+      "Zzzzum.",
+    ],
+  },
+  quadro_gestao: {
+    id: "quadro_gestao", name: "Quadro de Gestão à Vista", sprite: C + "Inspector/SpriteSheet.png", workBoard: true,
+    greeting: "Post-its coloridos, uma coluna 'Feito' vazia e uma 'Fazendo' que não cabe no quadro.",
+    idleLines: [
+      "Sprints_P08 | Abr - 14",
+      "Backlog - Matriz de Requisitos: 212 itens",
+      "Impedimento: nenhum. Suspeito.",
+    ],
+  },
+  banheiro_quantico: {
+    id: "banheiro_quantico", name: "Banheiro Quântico", sprite: C + "Statue/SpriteSheet.png",
+    greeting: "A porta diz: Livre. E Ocupado.",
+    idleLines: ["Livre.", "Ocupado.", "Livre e ocupado."],
+  },
+  em1000: {
+    // id antigo mantido (o objeto do mapa usa npcId "em1000"); nome e falas neutros desde o ciclo 11: o código de
+    // produto e a meta de horas eram de um projeto de cliente confidencial.
+    id: "em1000", name: "Robô de Bancada", sprite: C + "RobotGreen/SpriteSheet.png",
+    greeting: "Bip. Watchdog ativo. Última falha: nenhuma registrada, porque reiniciei antes de registrar.",
+    idleLines: [
+      "Firmware novo, bug novo.",
+      "Self-healing: reiniciei sozinho. De novo.",
+      "Watchdog: latindo.",
+    ],
+  },
+  trofeu_demoday: {
+    id: "trofeu_demoday", name: "Troféu do Demoday", sprite: C + "GoldStatue/SpriteSheet.png",
+    greeting: "Um troféu dourado com a placa: 'Funcionou na demo'.",
+    idleLines: ["Demoday: demonstrou, dia.", "Funcionou na demo. Sério."],
+  },
+
+  // ===== Malha da Ferrovia (ciclo 11): região isolada, só de trem (tools/mapgen/expansion4.mjs). NPCs por papel real da
+  // inspeção ferroviária (sem nome próprio), cliente disfarçado de "a Ferrovia", pátios inventados; ids do contrato com o mapa.
+  chefe_estacao_vila: {
+    id: "chefe_estacao_vila", name: "Chefe da Estação de Pedra Clara", sprite: C + "Villager4/SpriteSheet.png",
+    greeting: "Trem para a Malha da Ferrovia! Pórtico, rodeiro, truque e muita roda para inspecionar. Até o level 8 a passagem é por conta da casa.",
+    travel: [MALHA_ARRIVAL],
+    idleLines: [
+      "Próxima partida: quando o maquinista terminar o café.",
+      "Passagem só de ida? Não, aqui toda passagem tem volta. E às vezes duplica.",
+      "Embarque pela plataforma 1. A plataforma 2 é imaginária.",
+    ],
+  },
+  chefe_estacao_malha: {
+    id: "chefe_estacao_malha", name: "Chefe da Estação Central", sprite: C + "Sultan2/SpriteSheet.png",
+    greeting: "Bem-vindo à Estação Central da Malha. Trem para a Vila de Pedra Clara aqui, quando você quiser. Daqui saem o Pátio de Manobra, o Portal de Inspeção e a Oficina de Vagões; o trem também para com o Maquinista, na entrada do Túnel, e com o Agente da Parada, perto do Portal e da Oficina.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 }],
+    idleLines: [
+      "Trem para a Vila aqui! Embarque pela plataforma 1.",
+      "Composição de 1.124 eixos! Recorde. Ninguém contou a mão.",
+      "Longe da plataforma? O Maquinista, no Túnel, e o Agente da Parada, perto do Portal e da Oficina, também vendem passagem.",
+      "Cabeceira A, cabeceira B... e a cabeceira U, de 'ué'.",
+      "Vagão é quatro eixos, locomotiva é seis. O resto é VAG-TEMP.",
+    ],
+  },
+  ferramenteiro: {
+    id: "ferramenteiro", name: "Ferramenteiro da Malha", sprite: C + "Caveman/SpriteSheet.png",
+    greeting: "Chave, graxa e poção. Compro tudo o que você arrancar dos bichos da via: pino, placa, engrenagem, cunha, até cascalho.",
+    shop: {
+      sells: sells(
+        "health_potion_medium", "health_potion_large", "mana_potion_medium", "mana_potion_large",
+        "beaf", "yakitori", "sushi", "cafe_oficina", "marmita_tampa_vermelha",
+      ),
+      buys: ["weapon", "shield", "helmet", "armor", "legs", "boots", "ring", "amulet", "material", "food", "potion"],
+    },
+    idleLines: [
+      "Chave 32? Emprestei. Para quem? Não lembro.",
+      "Cunha torta não volta. Cunha torta vira chaveiro.",
+      "Graxa não é sujeira. É documentação de manutenção.",
+    ],
+  },
+  depot_malha: {
+    id: "depot_malha", name: "Guarda-Volumes da Estação", sprite: C + "EggGirl/SpriteSheet.png", depot: true,
+    greeting: "O mesmo baú da Vila, aqui na plataforma. Etiquetado, e com tag RFID lida na primeira, prometo.",
+    idleLines: [
+      "Volume sem etiqueta vira VAG-TEMP. Etiquete.",
+      "Deixe o peso aqui antes de descer para o túnel.",
+    ],
+  },
+  painel_obra: {
+    id: "painel_obra", name: "Painel da Obra", sprite: C + "Inspector/SpriteSheet.png", workBoard: true,
+    greeting: "Um painel de compensado com a sprint da semana do ClickUp, uma barra por projeto e um aviso escrito à mão: 'NÃO É PARA MEXER NO CLICKUP SÓ PARA SUBIR A BARRA'.",
+    idleLines: [
+      "Status: Processando Imagens...",
+      "Kanban: Não inspecionados / Em andamento / Inspecionados.",
+      "Trem preso em EM_ANDAMENTO desde terça.",
+    ],
+  },
+  inspetora_portal: {
+    id: "inspetora_portal", name: "Inspetora de Rodas", sprite: C + "Cavegirl/SpriteSheet.png",
+    greeting: "Quatro câmeras, quatro iluminadores e uma decisão por roda: com defeito ou sem defeito. Roda sem imagem não deixa o vagão fechar, e o trem nunca encerra.",
+    idleLines: [
+      "Trinca no disco, aro fraturado, calo, escamação. Vermelho, laranja, âmbar, ciano. Na tela, só cores.",
+      "Quem trocou o S pelo N na legenda? Reprovei e aprovou!",
+      "Imagem chegando três horas antes do trem. Fuso, de novo.",
+    ],
+  },
+  operador_abrigo: {
+    id: "operador_abrigo", name: "Técnico do CLP", sprite: C + "NinjaBlue2/SpriteSheet.png",
+    greeting: "Mantenho o abrigo: o CLP, o servidor e o switch moram aqui, e eu de vez em quando. Os sensores de roda medem velocidade e sentido; quando contam errado, a passagem duplica.",
+    idleLines: [
+      "AGUARDANDO_SYS2... AGUARDANDO_SYS2...",
+      "Não selecione texto no console. Trava a captura. Sério.",
+      "Velocidade NaN. O trem andou ou não andou?",
+    ],
+  },
+  mecanico_vagao: {
+    id: "mecanico_vagao", name: "Engenheiro do Dark-field", sprite: C + "MaskRacoon/SpriteSheet.png",
+    greeting: "Luz rasante, quase de lado: é assim que a trinca no disco aparece. Aqui na Oficina de Vagões eu estudo cada defeito que o pórtico deixou passar, e as rodas reprovadas atraíram bicho de todo tipo.",
+    idleLines: [
+      "Olho Sangrento no galpão? Sinal de roda reprovada por perto.",
+      "Calo é roda que arrastou. Arrastou porque a sapata travou.",
+      "Brita parada e fumaça enganam a câmera. A trinca, não.",
+    ],
+  },
+  maquinista_aposentado: {
+    id: "maquinista_aposentado", name: "Maquinista", sprite: C + "OldMan/SpriteSheet.png",
+    greeting: "Quarenta anos de cabine. Já vi trem sem tag, vagão sem eixo e locomotiva sem eixo lido deslocando a composição inteira. Essa última ainda passa no túnel, toda quarta, às cinco, e o Tirano da Serra desce junto. Se cansou da via, o trem para aqui: Vila ou Estação Central.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 }, MALHA_ARRIVAL],
+    idleLines: [
+      "No meu tempo, a inspeção era no olho. E no ouvido.",
+      "Ouviu o rugido? Não? Então ainda não é quarta.",
+      "Lastro bom é lastro que não anda. Esse aí anda.",
+      "O trem para aqui. Vila ou Estação Central, é só pedir.",
+    ],
+  },
+  // Parada do lado leste (pedido do dono, 2026-10-24): sem ela, a única volta era a pé até a Estação Central.
+  agente_parada: {
+    id: "agente_parada", name: "Agente da Parada", sprite: C + "NinjaYellow/SpriteSheet.png",
+    greeting: "Parada do Portal e da Oficina! Daqui sai o trem de volta: Vila de Pedra Clara ou Estação Central. Até o level 8, por conta da casa.",
+    travel: [{ id: "village", label: "Vila de Pedra Clara", x: VILLAGE_ARRIVAL.x, y: VILLAGE_ARRIVAL.y, price: 200 }, MALHA_ARRIVAL],
+    idleLines: [
+      "Trem de volta sai daqui! Vila ou Estação Central.",
+      "Parada não tem plataforma, mas tem horário. Mais ou menos.",
+      "Saiu da Oficina com a mochila cheia? Embarque aqui, não precisa andar até a Estação.",
+    ],
+  },
+  // Ciclo 16: ferreiro ao lado do Bento (objeto no fim do mapa, lateObjects14). O refino (16-5) pendura a aba neste id.
+  blacksmith: {
+    id: "blacksmith", name: "Mestre Brás, o Ferreiro", sprite: C + "KnightGold/SpriteSheet.png",
+    greeting: "Bigorna quente, conversa curta. Desceu aos covis das caves fundas? Os baús lá de baixo só abrem para quem ajudou a derrubar o dono do covil, e o dono nunca facilita.",
+    idleLines: [
+      "Ferro bom se conhece pelo barulho. Esse aí está desafinado.",
+      "O Bento vende, eu conserto. Ele fica com o lucro, eu fico com o calo.",
+      "Garra de toupeira gigante? Já usei de martelo. Não recomendo.",
+      "Quem bate no Shogun volta com a espada torta. Quando volta.",
     ],
   },
 };

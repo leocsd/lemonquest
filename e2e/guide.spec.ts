@@ -1,4 +1,5 @@
-// Seta-guia do novato: aponta o Capitão, depois a floresta dos ratos, e some quando o personagem passa do level inicial.
+// Seta-guia do novato: aponta o Capitão, depois a floresta dos ratos, e some quando o personagem passa do level inicial;
+// depois o botão "Guiar" do rastreador religa a seta para a missão (ciclo 17).
 import { expect, test, type Page } from "@playwright/test";
 import { clickTile, enterGame, setLevel, teleport, walkableNear } from "./helpers.ts";
 
@@ -32,5 +33,12 @@ test("seta-guia: Capitão → floresta → some ao subir de level", async ({ pag
 
   // Passou do level inicial: a seta some.
   await setLevel(page, 10);
+  await expect.poll(() => guide(page)).toBeNull();
+
+  // Ciclo 17: "Guiar" no rastreador liga a seta para a missão (qualquer level) e "Guiando" desliga.
+  const row = page.locator('.quest-tracker li[data-quest="rats_barn"]');
+  await row.getByRole("button", { name: "Guiar" }).click();
+  await expect.poll(() => guide(page)).toMatchObject({ label: expect.stringContaining("Ratos — Floresta Sussurrante") });
+  await row.getByRole("button", { name: "Guiando" }).click();
   await expect.poll(() => guide(page)).toBeNull();
 });

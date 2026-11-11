@@ -2,7 +2,7 @@
 // Efeitos: haste/slow/rooted (velocidade), protect (−% dano), manashield, regen (cura/1 s),
 // burn/poison/energy/bleed/freeze (dano a cada 2 s), taunted (monstro forçado a atacar quem provocou).
 // O jogador recebe S2C.Conditions sempre que a lista dele muda (inclui "combat" e "pz", calculados aqui).
-import { S2C, type ConditionId, type ConditionsMsg, type DamageKind } from "@lemonquest/shared";
+import { S2C, bossCondition, type ConditionId, type ConditionsMsg, type DamageKind } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import type { CombatSystem } from "./combat.ts";
 import type { MonsterManager } from "./monsters.ts";
@@ -29,6 +29,8 @@ interface Cond {
   value: number;
   sourceId: string;
   nextTickAt: number;
+  /** Dano contínuo: causa da morte para a telemetria ("burn@dragon", "pvp"), fixada ao aplicar (o dono pode sumir antes). */
+  cause?: string;
 }
 
 export interface ConditionOptions {
@@ -39,8 +41,8 @@ export interface ConditionOptions {
   send: (sessionId: string, type: string, msg: unknown) => void;
   /** Bônus de velocidade (%) do equipamento do jogador, somado ao haste. */
   speedBonus?: (playerId: string) => number;
-  /** Condições extras do jogador mantidas fora daqui (ex.: "fed" da comida). */
-  extra?: (p: PlayerState, now: number) => ConditionsMsg["list"][number] | undefined;
+  /** Condições extras do jogador mantidas fora daqui ("fed" da comida, "imbued" do encantamento). */
+  extra?: (p: PlayerState, now: number) => ConditionsMsg["list"][number] | undefined | (ConditionsMsg["list"][number] | undefined)[];
 }
 
 /** Velocidade resultante (100 = normal; 0 = enraizado). */
@@ -59,16 +61,29 @@ export class ConditionSystem {
   apply(targetId: string, id: ConditionId, durationMs: number, value: number | undefined, sourceId: string, now: number): void {
     if (!targetId || !(durationMs > 0)) return;
     if (!this.o.getPlayer(targetId) && !this.o.monsters.get(targetId)) return;
+    // Chefe (ciclo 15): raiz vira lentidão de 30% e lentidão vale metade (shared bossCondition).
+    if (this.o.monsters.get(targetId)?.def.boss) ({ id, value } = bossCondition(id, value));
     let map = this.byId.get(targetId);
     if (!map) { map = new Map(); this.byId.set(targetId, map); }
     const interval = id === "regen" ? REGEN_TICK_MS : DOT_KIND[id] ? DOT_INTERVAL_MS : 0;
     const prev = map.get(id);
+    // Não rebaixa: uma condição mais forte ainda ativa fica (a Muralha de Escudos de 20% do grupo não apaga a Pele de
+    // Ferro de 30% do cavaleiro; uma Luz Restauradora fraca não troca uma regen mais forte).
+    if (prev && prev.until > now && prev.value > Math.max(0, value ?? 0)) return;
     map.set(id, {
       id, until: now + durationMs, value: Math.max(0, value ?? 0), sourceId,
       // Renovar não reinicia o relógio dos tiques (evita tique duplo ou perdido).
       nextTickAt: prev && interval ? prev.nextTickAt : now + interval,
+      cause: DOT_KIND[id] ? this.causeOf(id, sourceId) : undefined,
     });
     this.refresh(targetId);
+  }
+
+  /** Causa da morte por dano contínuo: aplicado por jogador = "pvp"; por monstro = "condição@id do monstro". */
+  private causeOf(id: ConditionId, sourceId: string): string {
+    if (this.o.getPlayer(sourceId)) return "pvp";
+    const m = this.o.monsters.get(sourceId);
+    return m ? `${id}@${m.def.id}` : id;
   }
 
   remove(targetId: string, id: ConditionId): void {
@@ -117,7 +132,7 @@ export class ConditionSystem {
           if (c.value > 0) {
             if (c.id === "regen") { if (p) this.o.combat.healPlayer(p, c.sourceId || tid, c.value); }
             else if (m) this.o.combat.damageMonster(m, c.sourceId, c.value, kind!, now);
-            else if (p) this.o.combat.damagePlayer(p, c.sourceId, c.value, kind!, now, { killerName: DOT_LABEL[c.id] ?? c.id });
+            else if (p) this.o.combat.damagePlayer(p, c.sourceId, c.value, kind!, now, { killerName: DOT_LABEL[c.id] ?? c.id, killerKey: c.cause ?? c.id });
           }
           // O dano pode ter matado/limpado a criatura.
           if (this.byId.get(tid) !== map) break;
@@ -133,7 +148,7 @@ export class ConditionSystem {
   sync(now: number): void {
     for (const p of this.o.players()) {
       const list = this.listFor(p, now);
-      const sig = list.map((c) => `${c.id}:${c.value ?? ""}:${c.remainingMs === undefined ? "" : now + c.remainingMs}`).join("|");
+      const sig = list.map((c) => `${c.id}:${c.value ?? ""}:${c.value2 ?? ""}:${c.effect ?? ""}:${c.remainingMs === undefined ? "" : now + c.remainingMs}`).join("|");
       if (this.sentSig.get(p.id) === sig) continue;
       this.sentSig.set(p.id, sig);
       this.o.send(p.id, S2C.Conditions, { list } satisfies ConditionsMsg);
@@ -148,12 +163,16 @@ export class ConditionSystem {
       list.push(c.value ? { id: c.id, remainingMs: Math.max(0, c.until - now), value: c.value } : { id: c.id, remainingMs: Math.max(0, c.until - now) });
     }
     const extra = this.o.extra?.(p, now);
-    if (extra) list.push(extra);
+    for (const c of Array.isArray(extra) ? extra : [extra]) if (c) list.push(c);
     return list;
   }
 
-  /** Recalcula a velocidade do jogador (equipamento mudou). */
+  /**
+   * Recalcula a velocidade do jogador (equipamento mudou, entrada, reconexão) e força o reenvio da lista no próximo
+   * sync: o que saiu durante uma queda se perdeu (o "imbued", por exemplo, só muda a cada minuto de combate).
+   */
   refreshPlayer(id: string): void {
+    this.sentSig.delete(id);
     this.refresh(id);
   }
 

@@ -2,6 +2,7 @@
 // Drawn in code in the Ninja Adventure style (16x16, 1px dark outline #141b1b, same palette family as the CC0 pack) and
 // appended as the LAST tileset of world.json (image: assets/tiles/lemon-terrain.png), so all pack gids stay stable.
 // Everything is deterministic. Tiles are allocated on demand (blend/overlay variants), the atlas is cropped to the used rows.
+import { createHash } from 'node:crypto';
 import { mulberry32 } from './lib.mjs';
 
 export const COLS = 16, CAP_ROWS = 160;
@@ -501,5 +502,293 @@ export function createLemon(ts) {
     web(cv, flip) { for (let i = 0; i < 1; i++) cv.paste(S_web(flip), 0, 0); },
   };
   const S_web = (flip) => { const cvw = cobweb(flip); return cvw; };
+  // arte da ferrovia (ciclo 11): só aloca tiles quando chamada (ver createRail)
+  L.rail = () => (L._rail ??= createRail(L));
   return L;
+}
+
+// ===================================================================== Ferrovia (ciclo 11, tools/mapgen/expansion4.mjs)
+// ALOCAÇÃO ADIADA: nada daqui entra no atlas até `L.rail()` ser chamado, e só a expansion4 (a última etapa do gerador)
+// chama. Assim todos os tiles Lemon antigos mantêm o id e os gids do mapa antigo não mudam.
+// Trilho, lastro e dormentes são desenhados por pixel a partir de segmentos da via (H, V ou 45°, em coordenadas de
+// centro de tile): cada tile vira um Cv e a chave do atlas é o hash do conteúdo, então tiles iguais (a reta comprida)
+// saem uma vez só e AMVs, curvas de 45° e cruzamentos saem de graça.
+const RP = {
+  bal0: '#aaa293', bal1: '#928b7d', bal2: '#787164', bal3: '#5e5850',
+  sl0: '#93653f', sl1: '#74492f', sl2: '#523322',
+  head: '#e3e6e8', side: '#7d8790', foot: '#454b52',
+  bump1: '#d14b34', bump2: '#f2eaf1',
+  steel0: '#c3ccd2', steel1: '#93a0aa', steel2: '#66737d', steel3: '#454f57',
+  conc0: '#ddd6c6', conc1: '#cdc5b3', conc2: '#b3aa96', conc3: '#7d7668', conc4: '#5d574d',
+  yel: '#e6c23e', yel2: '#b8962a',
+};
+const contentKey = (pfx, cv) => pfx + ':' + createHash('md5').update(cv.d).digest('hex').slice(0, 16);
+
+function createRail(L) {
+  const tileCv = (pfx, cv, props) => { for (let k = 3; k < cv.d.length; k += 4) if (cv.d[k]) return L.tile(contentKey(pfx, cv), cv, props); return 0; };
+  const R = { RP };
+
+  /** segmentos: { a:[tx,ty], b:[tx,ty], endA?, endB? } (endX = para-choque naquela ponta). Pré-calcula a geometria em pixels. */
+  R.prep = (segs) => segs.map((s) => {
+    const ax = s.a[0] * 16 + 8, ay = s.a[1] * 16 + 8, bx = s.b[0] * 16 + 8, by = s.b[1] * 16 + 8;
+    const len = Math.hypot(bx - ax, by - ay), dx = (bx - ax) / len, dy = (by - ay) / len;
+    const kind = dy === 0 ? 'h' : dx === 0 ? 'v' : dx * dy > 0 ? 'd1' : 'd2';
+    const minx = Math.min(s.a[0], s.b[0]) - 2, maxx = Math.max(s.a[0], s.b[0]) + 2, miny = Math.min(s.a[1], s.b[1]) - 2, maxy = Math.max(s.a[1], s.b[1]) + 2;
+    const ext = kind === 'h' || kind === 'v' ? 5 : 1;
+    return { ...s, ax, ay, len, dx, dy, kind, minx, maxx, miny, maxy, e0: s.endA ? 6 : ext, e1: s.endB ? 6 : ext };
+  });
+  const near = (segs, tx, ty) => segs.filter((s) => tx >= s.minx && tx <= s.maxx && ty >= s.miny && ty <= s.maxy);
+  const uv = (s, px, py) => { const rx = px - s.ax, ry = py - s.ay; return [rx * s.dx + ry * s.dy, -rx * s.dy + ry * s.dx]; };
+  const inSpan = (s, u, extra = 0) => u >= -s.e0 - extra && u <= s.len + s.e1 + extra;
+  // dormentes: H/V a cada 4 px (2 de madeira); diagonais a cada 8 em x±y (perpendiculares à via)
+  const phase = (s, px, py) => {
+    const x = Math.floor(px), y = Math.floor(py);
+    if (s.kind === 'h') return ((x % 4) + 4) % 4 >= 2;
+    if (s.kind === 'v') return ((y % 4) + 4) % 4 >= 2;
+    const k = s.kind === 'd1' ? x + y : x - y; return ((k % 8) + 8) % 8 < 4;
+  };
+  function railHead(segs, px, py) {
+    for (const s of segs) {
+      const [u, v] = uv(s, px, py); if (!inSpan(s, u, -1)) continue;
+      const a = Math.abs(v);
+      if (s.kind === 'h' || s.kind === 'v' ? Math.abs(a - 3.5) < 0.5 : Math.abs(a - 3.536) < 0.36) return true;
+    }
+    return false;
+  }
+  // no AMV os dormentes seguem a reta (dormentes longos), não a diagonal
+  function sleeper(segs, px, py) {
+    let straight = null, diag = null;
+    for (const s of segs) { const [u, v] = uv(s, px, py); if (!inSpan(s, u) || Math.abs(v) > 6.2) continue; if (s.kind === 'h' || s.kind === 'v') straight = straight ?? s; else diag = diag ?? s; }
+    const s = straight ?? diag; return !!s && phase(s, px, py);
+  }
+  function bumper(segs, px, py) {
+    for (const s of segs) {
+      if (s.kind !== 'h' && s.kind !== 'v') continue;
+      const [u, v] = uv(s, px, py);
+      if (Math.abs(v) > 6.5) continue;
+      const stripe = ((Math.floor(v + 8) >> 1) & 1) ? 1 : 3;
+      if (s.endA && u >= -6 && u <= -2) return Math.abs(v) > 5.5 || u < -5 ? 2 : stripe;
+      if (s.endB && u >= s.len + 2 && u <= s.len + 6) return Math.abs(v) > 5.5 || u > s.len + 5 ? 2 : stripe;
+    }
+    return 0;
+  }
+  /** tile de trilho (camada deco, fundo transparente) em (tx,ty) */
+  R.trackCv = (segsAll, tx, ty) => {
+    const segs = near(segsAll, tx, ty); const cv = new Cv(); if (!segs.length) return cv;
+    for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) {
+      const px = tx * 16 + i + 0.5, py = ty * 16 + j + 0.5;
+      const b = bumper(segs, px, py);
+      if (b) { cv.set(i, j, b === 2 ? OL : b === 1 ? RP.bump1 : RP.bump2); continue; }
+      if (railHead(segs, px, py)) { cv.set(i, j, RP.head); continue; }
+      if (railHead(segs, px, py - 1) || railHead(segs, px - 1, py)) { cv.set(i, j, RP.side); continue; }
+      if (sleeper(segs, px, py)) { const up = sleeper(segs, px, py - 1), dn = sleeper(segs, px, py + 1); cv.set(i, j, !up ? RP.sl0 : !dn ? RP.sl2 : RP.sl1); continue; }
+      if (railHead(segs, px, py - 2) && !railHead(segs, px, py - 1)) { cv.set(i, j, RP.foot, 150); continue; }
+      if (sleeper(segs, px, py - 1)) cv.set(i, j, OL, 55);
+    }
+    return cv;
+  };
+  R.track = (segsAll, tx, ty) => tileCv('rk', R.trackCv(segsAll, tx, ty));
+
+  // ---- lastro (brita): textura periódica por tile (os tiles repetem e o atlas os guarda uma vez), 4 variantes
+  const gravelPx = (i, j, v) => {
+    const h = hashf(Math.floor((i + ((j >> 1) & 1)) / 2), j, 400 + v), h2 = hashf(i, j, 470 + v);
+    return h2 < 0.06 ? RP.bal3 : h < 0.18 ? RP.bal0 : h < 0.62 ? RP.bal1 : h < 0.9 ? RP.bal2 : RP.bal3;
+  };
+  /** chão com lastro sob a via: `basePx(i,j)` -> [r,g,b] do chão original (grama, terra...); sem basePx = tudo brita */
+  R.ballastCv = (segsAll, tx, ty, basePx, variant) => {
+    const segs = near(segsAll, tx, ty); const cv = new Cv();
+    const dist = (px, py) => { let best = 99; for (const s of segs) { const [u, v] = uv(s, px, py); if (!inSpan(s, u, s.kind === 'h' || s.kind === 'v' ? 3 : 0)) continue; best = Math.min(best, Math.abs(v)); } return best; };
+    for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) {
+      const px = tx * 16 + i + 0.5, py = ty * 16 + j + 0.5;
+      const lim = 9.5 + hashf(i, j, 33) * 1.6;
+      const w = basePx ? dist(px, py) : 0;
+      if (w <= lim) { const c = hexc(gravelPx(i, j, variant)), k = w > 7.5 ? 0.86 : 1; cv.set(i, j, [c[0] * k, c[1] * k, c[2] * k]); }
+      else { const c = basePx(i, j), wa = dist(px, py - 1); cv.set(i, j, wa <= lim + 0.5 ? [c[0] * 0.74, c[1] * 0.74, c[2] * 0.74] : c); }
+    }
+    return cv;
+  };
+  R.ballast = (segsAll, tx, ty, basePx, variant) => { const cv = R.ballastCv(segsAll, tx, ty, basePx, variant); return L.tile(contentKey('bal', cv), cv); };
+  R.gravel = (v) => L.tile('malha_brita' + v, () => { const cv = new Cv(); for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) cv.set(i, j, gravelPx(i, j, v)); return cv; });
+
+  // ---- plataforma de concreto. n/s: 0 = continua, 1 = borda comum, 2 = beira da via (faixa amarela); e/w: 0/1.
+  // A borda sul mostra a face da plataforma (vista 3/4); a norte, só o beiral.
+  R.platform = (n, e, s, w, v = 0) => L.tile(`malha_plat:${n}${+e}${s}${+w}:${v}`, () => {
+    const cv = new Cv();
+    for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) {
+      let c = (i % 8 === 7 || j % 8 === 7) ? RP.conc2 : hashf(i, j, 90 + v) < 0.08 ? RP.conc1 : hashf(i >> 1, j >> 1, 95 + v) < 0.2 ? RP.conc1 : RP.conc0;
+      if (w && i === 0) c = RP.conc3;
+      if (e && i === 15) c = RP.conc3;
+      if (s === 2) { if (j === 9 || j === 10) c = (i % 4 === 1) ? RP.yel2 : RP.yel; else if (j === 11 || j === 12) c = '#ece7da'; else if (j === 13) c = RP.conc3; else if (j >= 14) c = RP.conc4; }
+      else if (s === 1) { if (j === 12) c = '#ece7da'; else if (j === 13) c = RP.conc3; else if (j >= 14) c = RP.conc4; }
+      if (n === 2) { if (j === 0) c = RP.conc3; else if (j <= 2) c = '#ece7da'; else if (j === 4 || j === 5) c = (i % 4 === 1) ? RP.yel2 : RP.yel; }
+      else if (n === 1 && j === 0) c = RP.conc3;
+      cv.set(i, j, c);
+    }
+    return cv;
+  });
+  // ---- ponte ferroviária (via E-O): tabuleiro de madeira escura sobre vigas de aço. part: n (guarda-corpo), m, s (viga)
+  R.bridge = (part) => L.tile('malha_ponte_' + part, () => {
+    const cv = new Cv();
+    for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) cv.set(i, j, j % 4 === 3 ? '#4a3123' : (i + (j >> 2) * 5) % 16 === 0 ? '#523322' : j % 4 === 0 ? '#7b5236' : '#684530');
+    if (part === 'n') { cv.rect(0, 0, 16, 1, OL); cv.rect(0, 1, 16, 2, RP.steel1); cv.rect(0, 1, 16, 1, RP.steel0); for (const x of [3, 11]) cv.rect(x, 0, 2, 4, RP.steel2); }
+    if (part === 's') { cv.rect(0, 11, 16, 4, RP.steel2); cv.rect(0, 11, 16, 1, RP.steel1); for (const x of [2, 7, 12]) cv.set(x, 13, RP.steel0); cv.rect(0, 15, 16, 1, OL); }
+    return cv;
+  });
+  // ---- pedra do alto da serra: o planalto de neve do TilesetRelief recolorido para grama (bordas de rocha mantidas)
+  R.plateau = (gid) => L.overlay(gid, 'serra', 0, (cv) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const [r, g, b, a] = cv.get(x, y); if (!a) continue; const k = (r << 16) | (g << 8) | b; if (k === 0xf2eaf1) cv.set(x, y, '#adbc3a'); else if (k === 0xb8dce5) cv.set(x, y, '#8ea23a'); }
+  });
+
+  // ---- peças desenhadas no tamanho real e fatiadas em tiles
+  const sheetOf = (key, cv, wt, ht) => L.sheet('malha_' + key, cv, wt, ht);
+  const wheel = (cv, x, y) => { cv.ell(x, y, 2.6, 2.6, '#2a2629'); cv.set(x - 1, y - 1, '#6b6670'); cv.set(x, y, '#4a454c'); };
+  const bogie = (cv, x0, yb) => { cv.rect(x0, yb - 6, 12, 3, '#3d3a3c'); cv.rect(x0 + 1, yb - 6, 10, 1, '#5d585c'); wheel(cv, x0 + 3, yb - 2); wheel(cv, x0 + 9, yb - 2); cv.rect(x0 + 5, yb - 5, 2, 2, '#c9a832'); };
+  /** vagão (3 tiles de comprimento, 2 de altura): corpo na linha de cima, rodas sobre a via na linha de baixo */
+  function wagonCv(kind) {
+    const cv = new Cv(48, 32), yb = 30;
+    bogie(cv, 3, yb); bogie(cv, 33, yb);
+    cv.rect(1, yb - 9, 46, 3, '#2e2a2b'); cv.rect(0, yb - 8, 1, 2, '#2e2a2b'); cv.rect(47, yb - 8, 1, 2, '#2e2a2b'); // estrado + engates
+    const ribs = (x0, x1, y0, y1, base, rib, top) => { cv.rect(x0, y0, x1 - x0, y1 - y0, base); for (let x = x0 + 3; x < x1 - 1; x += 6) cv.rect(x, y0, 1, y1 - y0, rib); cv.rect(x0, y0, x1 - x0, 1, top); cv.rect(x0, y1 - 1, x1 - x0, 1, rib); };
+    if (kind === 'gondola') { // gôndola de minério: caixa enferrujada, minério escuro por cima
+      cv.rect(2, 6, 44, 6, '#7e3a24'); cv.rect(3, 7, 42, 4, '#3b2a2a');
+      for (let x = 4; x < 44; x++) { const hgt = Math.round(3.4 * Math.sin(((x - 4) / 40) * Math.PI)) + (x % 7 === 0 ? 1 : 0); for (let y = 10 - hgt; y < 11; y++) cv.set(x, y, hashf(x, y, 5) < 0.3 ? '#5a3a34' : hashf(x, y, 6) < 0.15 ? '#7a4a3a' : '#3b2a2a'); }
+      ribs(2, 46, 11, yb - 9, '#9c4a2e', '#6e3220', '#c06a43');
+    } else if (kind === 'box') { // vagão fechado (carga geral)
+      cv.rect(2, 4, 44, 7, '#8a9a96'); cv.rect(2, 4, 44, 1, '#b5c2be'); cv.rect(2, 7, 44, 1, '#6f7e7a');
+      ribs(2, 46, 11, yb - 9, '#4f6b6b', '#3b5252', '#6f8c8a');
+      cv.rect(18, 12, 12, yb - 21, '#3f5757'); cv.rect(18, 12, 1, yb - 21, '#6f8c8a'); cv.rect(23, 17, 2, 1, '#c9a832');
+    } else if (kind === 'tank') { // vagão-tanque
+      for (let y = 7; y < yb - 9; y++) { const t = (y - 7) / (yb - 16); const c = t < 0.15 ? '#a3acb1' : t < 0.35 ? '#7c868d' : t < 0.75 ? '#59626a' : '#3a4148'; const inset = y < 9 || y > yb - 12 ? 2 : 0; cv.rect(2 + inset, y, 44 - inset * 2, 1, c); }
+      cv.rect(21, 4, 6, 3, '#7c868d'); cv.rect(21, 4, 6, 1, '#a3acb1'); cv.rect(4, 15, 40, 1, RP.yel);
+    } else if (kind === 'hopper') { // hopper (grãos/cimento)
+      cv.rect(2, 5, 44, 6, '#a7a9a3'); for (let x = 6; x < 44; x += 9) cv.rect(x, 6, 5, 3, '#7c7e78');
+      ribs(2, 46, 11, yb - 12, '#8d8f8a', '#6d6f6a', '#b5b7b1');
+      for (const x0 of [8, 20, 32]) for (let k = 0; k < 4; k++) cv.rect(x0 + k, yb - 12 + k, 8 - k * 2, 1, '#6d6f6a');
+    } else { // plataforma com contêiner
+      cv.rect(2, yb - 12, 44, 3, '#7b473c'); cv.rect(2, yb - 12, 44, 1, '#965746');
+      cv.rect(5, 3, 38, 7, '#d98a3a'); cv.rect(5, 3, 38, 1, '#f0b060');
+      cv.rect(5, 10, 38, yb - 22, '#c46a2a'); for (let x = 7; x < 42; x += 3) cv.rect(x, 10, 1, yb - 22, '#9c4f1e');
+    }
+    cv.outline();
+    return cv;
+  }
+  function locoCv() { // locomotiva diesel amarelo-limão com faixa verde, cabine à esquerda
+    const cv = new Cv(64, 32), yb = 30;
+    bogie(cv, 4, yb); bogie(cv, 48, yb); cv.rect(1, yb - 9, 62, 3, '#2e2a2b');
+    cv.rect(3, 3, 16, 5, '#7d8486'); cv.rect(3, 3, 16, 1, '#a3a9ab');
+    cv.rect(19, 7, 42, 3, '#c9a832'); cv.rect(19, 7, 42, 1, '#e8d14a');
+    for (let x = 24; x < 58; x += 8) cv.rect(x, 7, 4, 2, '#5d585c'); cv.rect(40, 4, 3, 3, '#3d3a3c');
+    cv.rect(2, 8, 18, yb - 17, '#e8d14a'); cv.rect(19, 10, 43, yb - 19, '#e1c63e');
+    cv.rect(4, 10, 6, 5, '#2b3d52'); cv.rect(12, 10, 6, 5, '#2b3d52'); cv.set(5, 11, '#7d9ab8'); cv.set(13, 11, '#7d9ab8');
+    cv.rect(2, yb - 13, 60, 3, '#3f7a3a'); cv.rect(2, yb - 13, 60, 1, '#5e9f4f');
+    for (let x = 23; x < 59; x += 5) cv.rect(x, 13, 3, 4, '#c9a832');
+    cv.rect(0, 16, 2, 2, '#fff6c0'); cv.rect(62, 16, 2, 2, '#fff6c0');
+    cv.outline();
+    return cv;
+  }
+  /** pórtico do Portal de Inspeção (5×4 tiles) sobre via N-S no tile do meio: colunas, viga, câmeras e iluminadores */
+  function archCv() {
+    const cv = new Cv(80, 64);
+    for (let k = 0; k < 2; k++) {
+      const x0 = k ? 67 : 3;
+      cv.rect(x0, 10, 10, 50, RP.steel1); cv.rect(x0, 10, 2, 50, RP.steel0); cv.rect(x0 + 8, 10, 2, 50, RP.steel2);
+      for (let y = 16; y < 58; y += 8) { cv.line(x0 + 2, y, x0 + 7, y + 6, RP.steel2); cv.line(x0 + 7, y, x0 + 2, y + 6, RP.steel2); }
+      cv.rect(x0 - 2, 58, 14, 5, RP.conc2); cv.rect(x0 - 2, 58, 14, 1, RP.conc0);
+    }
+    cv.rect(1, 5, 78, 11, RP.steel1); cv.rect(1, 5, 78, 2, RP.steel0); cv.rect(1, 14, 78, 2, RP.steel3);
+    for (let x = 4; x < 76; x += 8) { cv.line(x, 7, x + 4, 13, RP.steel2); cv.line(x + 4, 7, x + 8, 13, RP.steel2); }
+    // 4 iluminadores (barras de LED) na face interna das colunas, 2 de cada lado
+    for (const [x, y] of [[13, 24], [13, 38], [64, 24], [64, 38]]) { cv.rect(x, y, 3, 8, '#4a5158'); cv.rect(x + (x < 40 ? 2 : 0), y + 1, 1, 6, '#fffbe0'); cv.glow(x + 1.5, y + 4, 7, '#e8f4ff', 60); }
+    // 4 câmeras penduradas na viga, apontando para a via
+    for (const x of [22, 33, 45, 56]) { cv.rect(x, 16, 1, 3, RP.steel3); cv.rect(x - 2, 19, 6, 4, '#25282c'); cv.rect(x - 2, 19, 6, 1, '#4a5158'); cv.set(x, 22, '#5fd0e8'); cv.set(x + 1, 22, '#2a8aa0'); }
+    cv.outline();
+    return cv;
+  }
+  function shelterCv() { // abrigo de equipamentos (contêiner) com o CLP: porta, ar-condicionado, placa de alerta
+    const cv = new Cv(48, 48);
+    cv.rect(1, 6, 46, 8, '#b8bcbd'); cv.rect(1, 6, 46, 1, '#d8dcdc'); cv.rect(1, 13, 46, 1, '#7e8486'); cv.rect(0, 14, 48, 2, '#5d6264');
+    cv.rect(2, 16, 44, 29, '#e4e2da'); for (let x = 5; x < 45; x += 4) cv.rect(x, 16, 1, 29, '#c9c6bc');
+    cv.rect(17, 23, 13, 22, '#7b8287'); cv.rect(17, 23, 13, 1, '#a3a9ab'); cv.rect(18, 24, 1, 21, '#959ca0'); cv.rect(27, 34, 2, 1, '#2e2a2b');
+    cv.rect(34, 20, 10, 9, '#d5d8d6'); cv.rect(34, 20, 10, 1, '#f0f2f0'); for (let y = 22; y < 28; y += 2) cv.rect(35, y, 8, 1, '#8a8f91'); cv.ell(39, 24.5, 2.2, 2.2, '#8a8f91');
+    for (let k = 0; k < 5; k++) cv.rect(8 - k, 20 + k, 1 + k * 2, 1, RP.yel); cv.set(8, 21, OL); cv.set(8, 22, OL); cv.set(8, 24, OL);
+    cv.rect(2, 45, 44, 3, RP.conc2);
+    cv.outline();
+    return cv;
+  }
+  function stationCv() { // prédio da estação (10×5 tiles): telhado de barro, fachada creme, janelas em arco, relógio
+    const Wd = 160, cv = new Cv(Wd, 80);
+    for (let y = 2; y < 30; y++) { const inset = Math.max(0, 6 - y); for (let x = 2 + inset; x < Wd - 2 - inset; x++) cv.set(x, y, (y % 4 === 1) ? '#9e4a31' : ((x + (y >> 2) * 3) % 6 === 0) ? '#a9553a' : '#c4633f'); }
+    cv.rect(8, 2, Wd - 16, 2, '#d98a5e'); cv.rect(2, 29, Wd - 4, 2, '#7a3826');
+    cv.rect(64, 0, 32, 12, '#c4633f'); for (let y = 1; y < 12; y += 4) cv.rect(64, y, 32, 1, '#9e4a31'); cv.rect(62, 10, 36, 2, '#7a3826');
+    cv.rect(4, 31, Wd - 8, 49, '#efe2c2'); cv.rect(4, 31, Wd - 8, 2, '#c9b48a');
+    for (let x = 4; x < Wd - 4; x += 26) cv.rect(x, 33, 4, 39, '#d9c8a2');
+    cv.rect(4, 72, Wd - 8, 8, '#b59a72'); cv.rect(4, 72, Wd - 8, 1, '#d2b37d');
+    const win = (x) => { cv.rect(x, 44, 12, 18, '#f7f1e3'); cv.rect(x + 2, 46, 8, 14, '#3b5878'); cv.ell(x + 6, 46, 4, 3, '#3b5878'); cv.rect(x + 2, 52, 8, 1, '#f7f1e3'); cv.rect(x + 6, 46, 1, 14, '#f7f1e3'); cv.set(x + 3, 47, '#8fb0cc'); cv.set(x + 3, 48, '#8fb0cc'); cv.rect(x - 1, 62, 14, 2, '#d9c8a2'); };
+    for (const x of [14, 38, 108, 132]) win(x);
+    cv.rect(68, 46, 24, 34, '#f7f1e3'); cv.ell(80, 47, 11, 6, '#f7f1e3'); cv.rect(71, 48, 18, 32, '#7b473c'); cv.ell(80, 49, 8, 4, '#7b473c'); cv.rect(79, 48, 2, 32, '#5a342b'); cv.set(76, 62, RP.yel); cv.set(83, 62, RP.yel);
+    cv.ell(80, 37, 6.5, 6.5, '#7b473c'); cv.ell(80, 37, 5, 5, '#fbf8ee'); cv.line(80, 37, 80, 33, OL); cv.line(80, 37, 83, 37, OL);
+    for (const x0 of [50, 98]) { cv.rect(x0, 36, 12, 5, '#2f5a3c'); cv.rect(x0 + 1, 37, 10, 1, '#cfe3c0'); cv.rect(x0 + 1, 39, 7, 1, '#cfe3c0'); }
+    cv.outline();
+    return cv;
+  }
+  function benchCv() { const cv = new Cv(32, 16); cv.rect(3, 3, 26, 3, '#9a6a44'); cv.rect(3, 3, 26, 1, '#b98a5c'); cv.rect(2, 8, 28, 3, '#9a6a44'); cv.rect(2, 8, 28, 1, '#b98a5c'); cv.rect(2, 10, 28, 1, '#7b4f33'); for (const x of [4, 26]) cv.rect(x, 6, 2, 9, '#3d3a3c'); cv.outline(); return cv; }
+  function clockPostCv() { const cv = new Cv(16, 32); cv.rect(7, 12, 2, 18, '#3d4a44'); cv.rect(7, 12, 1, 18, '#5e7066'); cv.rect(5, 29, 6, 2, '#3d4a44'); cv.ell(8, 7, 6, 6, '#3d4a44'); cv.ell(8, 7, 4.6, 4.6, '#fbf8ee'); cv.line(8, 7, 8, 4, OL); cv.line(8, 7, 10, 8, OL); cv.outline(); return cv; }
+  function signalCv(aspect) {
+    const cv = new Cv(16, 32), red = aspect === 'red';
+    cv.rect(7, 10, 2, 20, '#7d8486'); cv.rect(7, 10, 1, 20, '#a3a9ab'); cv.rect(5, 29, 6, 2, '#5d6264'); cv.rect(4, 1, 8, 12, '#25282c'); cv.rect(4, 1, 8, 1, '#4a5158');
+    cv.ell(8, 4.5, 2, 2, red ? '#ff5a3c' : '#5a2a24'); cv.ell(8, 9.5, 2, 2, red ? '#1f4a2a' : '#5cf07a'); cv.glow(8, red ? 4.5 : 9.5, 6, red ? '#ff6a4a' : '#7aff9a', 60);
+    cv.outline(); return cv;
+  }
+  function crossbuckCv() {
+    const cv = new Cv(16, 32);
+    cv.rect(7, 8, 2, 22, '#f2eaf1'); for (let y = 10; y < 30; y += 4) cv.rect(7, y, 2, 2, '#2e2a2b'); cv.rect(5, 29, 6, 2, '#5d6264');
+    for (let t = 0; t <= 12; t++) { cv.rect(1 + t, 1 + Math.round(t * 0.75), 2, 2, '#f2eaf1'); cv.rect(13 - t, 1 + Math.round(t * 0.75), 2, 2, '#f2eaf1'); }
+    for (let t = 2; t <= 10; t += 4) { cv.set(1 + t, 2 + Math.round(t * 0.75), RP.bump1); cv.set(13 - t, 2 + Math.round(t * 0.75), RP.bump1); }
+    cv.outline(); return cv;
+  }
+  function kmPostCv() { const cv = new Cv(); cv.rect(6, 4, 4, 10, '#f2eaf1'); cv.rect(9, 4, 1, 10, '#c9c6bc'); cv.rect(6, 7, 4, 2, '#2e2a2b'); cv.rect(5, 13, 6, 2, RP.conc2); cv.outline(); return cv; }
+  function wheelsetCv() { const cv = new Cv(); cv.rect(4, 8, 8, 2, '#7d8486'); cv.rect(4, 8, 8, 1, '#a3a9ab'); for (const x of [3, 12]) { cv.ell(x + 0.5, 8.5, 2.2, 5.5, '#3d3a3c'); cv.rect(x, 4, 1, 9, '#6b6670'); } cv.outline(); for (let x = 3; x < 14; x++) cv.over(x, 15, OL, 50); return cv; }
+  function bogieCv() { const cv = new Cv(32, 16); cv.rect(3, 5, 26, 5, '#3d3a3c'); cv.rect(3, 5, 26, 1, '#5d585c'); for (const x of [8, 23]) { cv.ell(x, 10, 3.5, 3.5, '#2a2629'); cv.set(x - 1, 9, '#6b6670'); } for (let y = 3; y < 9; y += 2) cv.rect(14, y, 4, 1, '#c9a832'); cv.outline(); return cv; }
+  function railStackCv() { const cv = new Cv(32, 16); for (const x of [4, 26]) cv.rect(x, 9, 3, 5, '#74492f'); for (let k = 0; k < 4; k++) { cv.rect(1, 4 + k * 2, 30, 1, RP.head); cv.rect(1, 5 + k * 2, 30, 1, RP.side); } cv.outline(); return cv; }
+  function sleeperStackCv() { const cv = new Cv(32, 16); for (let r = 0; r < 3; r++) for (let c = 0; c < 3 - (r === 0 ? 0 : 1); c++) { const x = 2 + c * 9 + (r ? 4 : 0), y = 10 - r * 4; cv.rect(x, y, 8, 4, RP.sl1); cv.rect(x, y, 8, 1, RP.sl0); cv.rect(x + 7, y, 1, 4, RP.sl2); } cv.outline(); return cv; }
+
+  // sensor de roda preso no trilho (via N-S): caixinha amarela e preta colada no trilho oeste, com cabo
+  R.wheelSensor = (segsAll, tx, ty) => { const cv = R.trackCv(segsAll, tx, ty); cv.rect(1, 5, 3, 6, RP.yel); cv.rect(1, 7, 3, 1, '#25282c'); cv.rect(1, 9, 3, 1, '#25282c'); cv.set(4, 8, '#25282c'); cv.rect(0, 10, 1, 6, '#25282c'); return tileCv('ws', cv); };
+  // cancela da passagem de nível: poste com contrapeso e braço listrado (2 tiles), aberto para um lado
+  function gateCv(flip) {
+    const cv = new Cv(32, 16), X = (x) => (flip ? 31 - x : x);
+    cv.rect(X(3) - (flip ? 2 : 0), 4, 3, 11, '#5d6264'); cv.rect(X(2) - (flip ? 4 : 0), 13, 5, 2, '#3d3a3c');
+    for (let x = 5; x < 31; x++) cv.rect(X(x), 6, 1, 2, ((x >> 2) & 1) ? RP.bump1 : RP.bump2);
+    cv.rect(X(1) - (flip ? 1 : 0), 5, 2, 4, '#3d3a3c'); cv.set(X(4), 3, '#ff5a3c'); cv.glow(X(4), 3, 4, '#ff6a4a', 50);
+    cv.outline(); return cv;
+  }
+  R.gate = (flip) => sheetOf('cancela' + (flip ? 'R' : 'L'), gateCv(flip), 2, 1);
+  R.wagonCv = wagonCv; R.locoCv = locoCv; R.archCv = archCv;
+  R.shelter = () => sheetOf('shelter', shelterCv(), 3, 3);
+  R.station = () => sheetOf('station', stationCv(), 10, 5);
+  R.bench = () => sheetOf('bench', benchCv(), 2, 1);
+  R.clockPost = () => sheetOf('clockpost', clockPostCv(), 1, 2);
+  R.signal = (aspect) => sheetOf('signal_' + aspect, signalCv(aspect), 1, 2);
+  R.crossbuck = () => sheetOf('crossbuck', crossbuckCv(), 1, 2);
+  R.kmPost = () => L.tile('malha_km', kmPostCv);
+  R.wheelset = () => L.tile('malha_rodeiro', wheelsetCv);
+  R.bogie = () => sheetOf('truque', bogieCv(), 2, 1);
+  R.railStack = () => sheetOf('railstack', railStackCv(), 2, 1);
+  R.sleeperStack = () => sheetOf('sleeperstack', sleeperStackCv(), 2, 1);
+  /** sprite sobre a via (vagão, locomotiva, pórtico): a última linha é composta por cima do tile de trilho (mesma camada
+   *  deco); as de cima vão para `above`. Devolve [[decoGid, aboveGid], ...] por linha, da de cima para a de baixo. */
+  R.overTrack = (cv, wt, ht, segsAll, tx, ty) => {
+    const rows = [];
+    for (let j = 0; j < ht; j++) {
+      const row = [];
+      for (let i = 0; i < wt; i++) {
+        const base = R.trackCv(segsAll, tx + i, ty + j - (ht - 1)), sl = cv.slice(i, j);
+        if (j < ht - 1) row.push([tileCv('rk', base), tileCv('vh', sl)]);
+        else { base.paste(sl, 0, 0); row.push([tileCv('vh', base), 0]); }
+      }
+      rows.push(row);
+    }
+    return rows;
+  };
+  return R;
 }

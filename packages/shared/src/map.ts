@@ -6,7 +6,8 @@
  *   - objectgroup "objects": pontos com `type`/`class` = "spawn_player" | "npc" | "monster_spawn" | "portal"
  *   - "training_statue" (ponto; prop `statueId`): estátua de treino offline (o tile é bloqueado; interage-se do lado).
  *   - "zone" com prop `pz=true`: zona de proteção (a vila e o centro de treinamento).
- *   - Quests de mundo (shared/data/questWorld.ts): "quest_chest" (ponto; prop `chestId`, tile bloqueado) e "quest_lever"
+ *   - Quests de mundo (shared/data/questWorld.ts): "quest_chest" (ponto; prop `chestId`, tile bloqueado; com `drawn=true`
+ *     o baú não tem tile: o cliente desenha e CollisionGrid bloqueia pelo objeto) e "quest_lever"
  *     (ponto; props `leverId`, `plates`/`dests`/`spawns` = "x,y;x,y", `room` = "x0,y0,x1,y1"). "portal" com `minLevel`,
  *     `quest` ou `chestGroup` é uma porta de quest: quem não cumpre o requisito volta para o tile de onde veio.
  *   - Coliseu: "arena" (RETÂNGULO; props `arenaId` 1..ARENA_COUNT) = área de luta da instância;
@@ -67,6 +68,12 @@ export class CollisionGrid {
     const layer = map.layers.find((l) => l.type === "tilelayer" && l.name === "collision");
     const blocked = new Uint8Array(map.width * map.height);
     if (layer?.data) for (let i = 0; i < blocked.length; i++) blocked[i] = layer.data[i] ? 1 : 0;
+    // Baú de quest desenhado pelo cliente (prop `drawn`, covis do ciclo 16): sem tile no mapa, o bloqueio vem do objeto.
+    for (const o of findObjects(map, "quest_chest")) {
+      if (!o.properties?.some((p) => p.name === "drawn" && p.value === true)) continue;
+      const t = objectTile(o, map.tilewidth);
+      if (t.x >= 0 && t.y >= 0 && t.x < map.width && t.y < map.height) blocked[t.y * map.width + t.x] = 1;
+    }
     return new CollisionGrid(map.width, map.height, blocked);
   }
 

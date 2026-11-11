@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  PVP_AGGRESSION_MS, PZ_LOCK_MS, RED_SKULL_KILLS, RED_SKULL_WINDOW_MS, S2C, deathPenalty, xpForLevel, type SpellDef,
+  PVP_AGGRESSION_MS, PVP_DAMAGE_MULT, PZ_LOCK_MS, RED_SKULL_KILLS, RED_SKULL_WINDOW_MS, S2C, deathPenalty, xpForLevel, type SpellDef,
 } from "@lemonquest/shared";
 import { ConditionSystem } from "./conditions.ts";
 import { MovementSystem } from "./movement.ts";
@@ -207,5 +207,33 @@ describe("PvP", () => {
     b.x = 3; b.hp = 400; a.x = 5;
     expect(s.spells.cast(a, "bolt", "b").ok).toBe(false);
     expect(b.hp).toBe(400);
+  });
+
+  it("PvP tira metade do dano (ciclo 15): magia de alvo, de área e ataque básico; monstro segue cheio", () => {
+    expect(PVP_DAMAGE_MULT).toBe(0.5);
+    const s = setup();
+    const a = s.mk("a", 10, 10, { vocation: "druid" }), b = s.mk("b", 12, 10);
+    a.targetId = "b";
+    expect(s.spells.cast(a, "bolt").ok).toBe(true); // 20 de gelo
+    expect(b.hp).toBe(390);
+    b.x = 11;
+    expect(s.spells.cast(a, "ring").ok).toBe(true); // 10 de fogo
+    expect(b.hp).toBe(385);
+    // Ataque básico com faixa fixa (40): todo golpe que acerta tira 20.
+    s.w.combat.hooks.attack = () => ({ range: 1, kind: "physical", ranged: false, damage: [40, 40], critPct: 0 });
+    s.w.combat.flush(); // os eventos das magias acima saem antes da contagem
+    s.w.sent.length = 0;
+    s.tick(10_000);
+    const hits = s.w.sent.filter((m) => m.type === S2C.Combat).flatMap((m) => m.msg.events)
+      .filter((e: any) => e.sourceId === "a" && e.targetId === "b" && !e.miss).map((e: any) => e.amount);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(new Set(hits)).toEqual(new Set([20]));
+    expect(b.hp).toBe(385 - 20 * hits.length);
+    // Golpe de 1 não vira 0.
+    expect(s.w.combat.hitPlayer(a, b, 1, "physical", s.w.now())).toBe(1);
+    // Dano de monstro em jogador não passa pelo corte.
+    const hp = b.hp;
+    expect(s.w.combat.damagePlayer(b, "m1", 40, "physical", s.w.now())).toBe(40);
+    expect(b.hp).toBe(hp - 40);
   });
 });

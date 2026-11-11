@@ -44,11 +44,22 @@ describe("PortalSystem", () => {
     p.x = 5; p.y = 5; sys.check(p);
     sys.check(p); sys.check(p);
     expect([p.x, p.y]).toEqual([15, 15]);
-    p.x = 14; sys.check(p); p.x = 15; sys.check(p); // back onto target portal during cooldown: ignored
-    expect([p.x, p.y]).toEqual([15, 15]);
+    p.x = 14; sys.check(p); p.x = 15; sys.check(p); // de volta ao portal dentro da espera: não teleporta, volta ao tile anterior
+    expect([p.x, p.y]).toEqual([14, 15]);
     setClock(1000 + PORTAL_COOLDOWN_MS + 1);
     p.x = 14; sys.check(p); p.x = 15; sys.check(p);
     expect([p.x, p.y]).toEqual([5, 5]);
+  });
+
+  it("portal sem requisito dentro da espera devolve ao tile anterior: ninguém fica parado em cima dele (saída do Vulcão, ciclo 14)", () => {
+    // Saída (7,5)→(7,4) ao lado de uma área fechada: parado no portal, o passo seguinte entrava na área (7,6).
+    const { sys, p, sent } = setup([[7, 5, 7, 4]]);
+    p.x = 7; p.y = 4; sys.check(p);
+    p.y = 5; sys.check(p);
+    expect([p.x, p.y]).toEqual([7, 4]); // atravessou: espera armada
+    p.y = 5; sys.check(p);
+    expect([p.x, p.y]).toEqual([7, 4]); // dentro da espera: devolvido, não fica no portal
+    expect(sent).toEqual([{ x: 7, y: 4 }, { x: 7, y: 4 }]);
   });
 
   it("porta de quest: quem não cumpre volta para o tile de onde veio; quem cumpre passa", () => {
@@ -70,6 +81,35 @@ describe("PortalSystem", () => {
     expect(sent).toEqual([{ x: 4, y: 5 }]);
     clock += PORTAL_COOLDOWN_MS + 1;
     p.level = 30;
+    p.x = 5; sys.check(p);
+    expect([p.x, p.y]).toEqual([15, 15]);
+  });
+
+  it("porta com level: pisar de novo dentro da espera de 1 s também volta (antes, ficava parado na porta e atravessava)", () => {
+    let clock = 1000;
+    const g = new CollisionGrid(20, 20, new Uint8Array(400));
+    const mv = new MovementSystem(g, { now: () => clock });
+    const map = tiled([[5, 5, 15, 15]]);
+    map.layers[0]!.objects![0]!.properties!.push({ name: "minLevel", type: "int", value: 80 });
+    const sent: unknown[] = [], refused: string[] = [];
+    const sys = new PortalSystem(map, mv, (_id, m) => sent.push(m), () => clock, undefined,
+      (pl, req) => (pl.level < (req.minLevel ?? 0) ? `level ${req.minLevel}` : null), (_pl, t) => refused.push(t));
+    const p = player(4, 5);
+    p.level = 79;
+    mv.addPlayer(p);
+    sys.check(p);
+    // 1ª pisada, 2ª no mesmo instante (dentro da espera) e 3ª depois dela: sempre de volta ao tile anterior.
+    for (const dt of [0, 100, PORTAL_COOLDOWN_MS + 1]) {
+      clock += dt;
+      p.x = 5; sys.check(p);
+      expect([p.x, p.y]).toEqual([4, 5]);
+      sys.check(p); // tique seguinte, parado no tile anterior
+      expect([p.x, p.y]).toEqual([4, 5]);
+    }
+    expect(refused).toEqual(["level 80", "level 80", "level 80"]);
+    expect(sent).toEqual([{ x: 4, y: 5 }, { x: 4, y: 5 }, { x: 4, y: 5 }]);
+    // Ao chegar no level passa, mesmo dentro da espera de 1 s depois da última recusa (recusa não liga a espera).
+    p.level = 80;
     p.x = 5; sys.check(p);
     expect([p.x, p.y]).toEqual([15, 15]);
   });

@@ -1,26 +1,443 @@
 # Changelog
 
-## [Não lançado] — 2026-10-23 · conteúdo 90-120: magia de grupo, curas por vocação e duas missões novas
+## [Não lançado] — 2026-10-26 · curas por vocação (reabre o catálogo, parado desde o ciclo 7)
 
-Preenche o F2-8 do roadmap (faixa 90-120) e reabre o catálogo de curas, parado desde o ciclo 7 numa só por vocação.
+PR original também trazia magia de grupo no lv 110 e duas missões na faixa 95-120: o ciclo 12 (mergeado antes desta
+PR) já resolveu as duas coisas de forma independente (Muralha de Escudos e companhia no lv 100, A Marcha dos
+Colossos), então as duas partes saíram daqui para não duplicar. Ficou só a parte que não existia em nenhum lugar: a
+cura diferenciada por vocação.
 
-- **Magia de grupo (lv 110)**, uma por vocação, raio 4 (como a Cura em Grupo): Escudo em Grupo (cavaleiro, -20% dano,
-  8 s), Avanço em Grupo (paladino, +30% velocidade, 20 s), Escudo de Mana em Grupo (feiticeiro, 15 s) e Regeneração
-  em Grupo (druida, +50 vida/s, 8 s). Reaproveita condições que hoje só iam no próprio conjurador (`protect`,
-  `haste`, `manashield`, `regen`) no pipeline de magia de grupo que já existia.
 - **Cura própria por vocação (lv 45)**: Cura Vital (druida, instantânea + regeneração por 6 s), Restauração Arcana
   (feiticeiro, maior cura instantânea, sem sustentação) e Cura Sagrada (paladino, cura menor, mas remove veneno,
   queimadura, sangramento, choque e congelamento). **Cura Intensa (lv 60)**, comum às 4 vocações, é o 2º degrau que
   a Cura nunca teve em todo o jogo. Campo novo `SpellDef.cleanse`.
 - **Elite "nomeado"**: o Colosso (`juggernaut`), ao nascer elite (5% de chance, mecânica já existente), ganha nome
   próprio ("Grondar, o Colosso Partido") em vez do genérico "Elite Colosso". Campo novo `MonsterDef.eliteName`.
-- **Duas missões novas** na cadeia de Mestre Ignis, preenchendo o buraco entre Os Cães do Inferno (lv 95) e O Fim
-  de Ferumbras (lv 120): Os Portões Demoníacos (lv 100, matar 20 demônios) e A Ponte dos Colossos (lv 108, entregar
-  8 Placas de Colosso). Reaproveitam monstros e itens que já existiam no mapa, sem mapa nem arte novos.
-- Testes: `spells.test.ts` (shared e server, casos novos para cleanse, regeneração e magia de grupo), `monsters.test.ts`,
-  `quests.test.ts` (catálogo valida automaticamente ids, NPCs, pré-requisitos e XP), `hotkeys.test.ts`/`edit.test.ts`
-  recalibrados: o catálogo cresceu de 39 para 47 magias, druida e feiticeiro passam o `HOTKEY_MAX` de 12 e o resto
-  vai para teclas de letra.
+- Testes: `spells.test.ts` (shared e server, casos novos para cleanse e regeneração), `monsters.test.ts`,
+  `hotkeys.test.ts`/`edit.test.ts` recalibrados: o catálogo cresceu de 43 para 47 magias (os 43 já incluem as 4 do
+  ciclo 12); druida e feiticeiro passam o `HOTKEY_MAX` de 12 e o resto vai para teclas de letra.
+
+## [Não lançado] — 2026-10-26 · ciclo 17: descoberta, missões e interface
+
+Quarto ciclo do plano 14–20. Achados da análise que motivaram: ninguém sabia da agenda de eventos (0 abates de
+Ferumbras/Orshabaal até o ciclo 12), o novato não sabia o que fazer depois da 1ª missão, portais sem nome, resistência
+invisível e Novidades "manual" com 25 entradas. Quatro frentes (índice e navegação, missões, agenda e interface, bocas
+de caverna) + revisão cruzada.
+
+**Índice do mundo** (`shared/src/worldIndex.ts`, puro, montado em 5–22 ms no mapa real): zonas, faixa de level por
+zona, spawns por monstro, NPCs, portais com rótulo calculado, componentes a pé (portal conta como parede) e `nextHop`
+pelo grafo de portais e viagens. Ponto único no cliente (`game/worldIndex.ts`). Alimenta todo o resto.
+- **Rótulos de portal** ("Minas Abandonadas · lv 10+", vermelho pela mesma regra da porta do servidor) e "olhar" no
+  portal com o que tem do outro lado.
+- **Marcadores** no minimapa e no mapa-múndi (serviços e portais só no explorado; "!"/"?", guia e marcador pessoal com
+  clique direito, até 20, no navegador); grupo no mapa-múndi.
+- **Guia** geral (NPC, zona, spawn mais perto, quem solta o item ou a loja que vende; outra região → portal/viagem),
+  botão Guiar no rastreador, diário, Quadro e chefes da Agenda. Teste: todo passo de toda missão tem destino alcançável.
+- **Viagem** mostra o level dos monstros do destino e "perigoso para o seu level".
+
+**Missões e informação** — `shared/data/questUnlocks.ts` (`questLockReason`, `availableQuests`, `upcomingQuests`,
+`nextQuestsAfter`, `unlocksBetween`; a trava bate com o `questAvailable` do servidor em todo o catálogo). Diário com
+"Disponíveis (N)" e "Em breve"; NPC explica a trava; cartão de missão concluída e banner de level mostram o que abriu
+(`QuestCompleteMsg.questId`). Recompensas aceitas no rastreador com zona e dificuldade; Quadro e Encomenda dizem onde
+caçar; Bestiário com "Onde vive" e filtros. **Resistência visível**: `CombatEvent.resisted`, dano com ↓/↑ e "resistiu".
+
+**Agenda e interface** — `upcomingEvents`; `S2C.Agenda` (join, reconexão, pedido 2/s, começo/fim) e `S2C.EventSoon` 10
+min antes pelo relógio (reinício não repete); janela Agenda no trilho, selo "Próximo: X às HH:MM", aviso no chat e no
+título da aba; `/agenda` e `/evento` de leitura para todos. Boas-vindas no Feed ao personagem novo. "Olhar" de NPC lista
+os serviços. Novidades com só o não visto aberto e o resto em "Histórico". Menu do jogador com "Atacar" por último e em
+vermelho (o mesmo no mundo e na Batalha). Bênção na faixa de condições. Saudação do NPC não redigitada. "Trocar
+personagem" no botão direito em você. Depot com **Organizar** (`C2S.SortContainer`, 1/s; junta pilhas iguais
+respeitando raridade, refino e bônus) e busca.
+
+**Bocas de caverna (17-12, exceção autorizada pelo dono)** — etapa `tools/mapgen/entrances14.mjs` depois de tudo o que
+estava publicado: boca de caverna nas Minas (marrom) e nas Grutas (cinza), cripta com porta-caveira e estandarte nas
+Catacumbas, fenda de lava no salão do Abismo. `diff-world.mjs --allow x0,y0,x1,y1`: 58 tiles mudaram, todos dentro dos 4
+retângulos; 0 fora; 843/843 objetos antigos; o conjunto de tiles alcançáveis fora dos retângulos é idêntico; portas e
+retornos andáveis e alcançáveis.
+
+## [Não lançado] — 2026-10-26 · ciclo 16: fim de jogo (tier Abissal, covis, refino, encantamento e Coliseu 61–70)
+
+Terceiro ciclo do plano 14–20. Dados que motivaram: topo com 1,2 mi e 739 mil de ouro parados, gasto de 23% do ganho
+no 100+ e equipamento parando no lv 70. Cinco frentes (itens, encantamento, covis, refino, Coliseu) + duas revisões.
+
+**Itens (16-1, 16-2)**
+- **Botas tier 6–7** (6 peças, uma por forma; Coroa, Demoníacas, Reais, Escamas de Dragão, Místicas, de Ferumbras):
+  todas abaixo das Botas da Pressa em valor; caem de monstros comuns e entram na encomenda semanal.
+- **Tier 8 "Abissal"** (lv 100, `TIER_LEVEL` com o 100): 13 peças (ícone por tint `0xa080ff`, sem paleta nova) +
+  material **Fragmento Abissal**. Só caem do Tengu e do Samurai Rubros (0,15–0,3%) e de Orshabaal, Ferumbras e do
+  Shogun Abissal (10–12%). `ItemDef.unique` e `isExclusiveItem`: tier 8 e únicos nunca em loja nem no Baú de Recompensa.
+- **Aniquilação**: os 4 baús mantêm o id e agora guardam a arma única de cada vocação (Machado Cortapedras, Arco,
+  Varinha e Bastão Aniquiladores, 320 mil) + o Urso. Tooltip mostra "Item único".
+
+**Covis (16-4)** — objetos no fim do `generate.mjs` (`lateObjects14`): `diff-world.mjs` **0 tiles alterados**,
+826/826 objetos antigos, 17 novos.
+- Rei Toupeira (Minas, lv 28), Kraken das Grutas (lv 54), Chama Ancestral (Catacumbas, lv 82) e Shogun Abissal
+  (Profundo, lv 125; `lair_shogun`), com sprites do pack (frames conferidos nos PNGs), golpe em área e ajudantes da cave.
+- Baús do covil (3 por covil, escolha de equipamento) desenhados pelo cliente (`drawn`, baú grande do pack) — baú como
+  tile alteraria o mapa publicado. **Trava pelo abate registrado** (`needBoss`, `quests.slain`): abre para quem bateu
+  ou estava no grupo perto do chefe; Coliseu, invocação e alt com a prova na mochila não abrem (a prova vira troféu).
+- **Mestre Brás, o Ferreiro** (ao lado do Bento) e a missão **Os Quatro Covis** (Batedora Iara, lv 100, título
+  "Caçador de Covis").
+
+**Refino +1..+5 (16-5)** — `shared/data/refine.ts`, `server/systems/refine.ts`, `C2S.Refine` (4/s), aba "Refinar" no
+Mestre Brás, selo "+N". Arma +3 de ataque por nível; elmo/armadura/pernas/botas/escudo +1 de armadura; anel, amuleto e
+livro de magia não refinam; só tier 5+. Falha 0/10/25/40/50% sem destruir nem rebaixar. Custo por tentativa do tier 5
+(3–18 mil + esmeralda) ao tier 8 (25–150 mil + Fragmento Abissal): set Abissal em +5 ≈ 2,6 mi. `instanceStats` é a única
+conta (servidor e cliente); o refino viaja com a instância (depot, troca, chão, loot, reinício); "Vender tudo" não vende
+refinado e a venda avulsa pede confirmação. Chão restaurado no boot passa por `sanitizeItem` (sem cortar ouro > 1 mi).
+
+**Encantamento com tiers (16-3)** — 5 efeitos × 3 tiers (I = valores de antes; II lv 60, 30 mil + material de fim de
+jogo; III lv 90, 100 mil + 5 Essências Demoníacas). Dura **10 h de combate contra monstros** (`inPveCombat`; boneco e
+PvP não gastam nem ativam), vale pela metade em magia, aviso aos 30 min; condição `imbued` com o tempo na faixa; grade
+na Dona Marta. Os encantamentos antigos viraram tier I com 10 h; durante o ciclo 16 o save grava também o campo antigo
+(rollback de imagem não zera o que foi pago). Clique duplo não cobra duas vezes.
+
+**Coliseu 61–70 (16-6)** — portão do Abismo depois de Orshabaal: Tengus, Samurais, Colossos, Shogun Abissal na 65 e
+Ferumbras na 70. Modificador da semana só nas 61–70 (Fúria, Carapaça, Enxame, Sem Trégua, Calmaria; fixo pela semana em
+que a partida começou). Marco da 60 +20 mil; fim da 70 +50 mil e 25% da XP (regra dos 2/3). Ranking de tempo no kv e
+título rotativo **Campeão do Coliseu**; conquista **Senhor do Abismo**. Metas: grupo lv 110 cai na 61, lv 130 completa.
+
+## [Não lançado] — 2026-10-25 · ciclo 15: balanço das vocações e morte mais pesada no 60+
+
+Segundo ciclo do plano 14–20. Dados de produção que motivaram: 7 dos 15 personagens eram feiticeiros (Escudo de Mana
+absorvendo tudo + Poção de Mana Grande) e o poder da vocação mais fraca era ~40–50% do da mais forte. Feito em quatro
+frentes (modelo, combate, monstros, telemetria) + revisão cruzada.
+
+**Modelo de balanço honesto (15-1)** — `server/systems/balanceKit.ts` (novo) substitui o simulador que morava em
+`arena.test.ts`: duas mãos sem escudo, Escudo de Mana pela função real, cura, poções, Pele de Ferro/Muralha, danos
+contínuos e habilidades dos monstros, simulação a 50 ms. `vocationBalance.test.ts` mede dano/s × "aguenta" (P) por
+vocação nos lv 30/60/100. `skillEstimate` (`shared/skills.ts`) segue a **produção** (16 personagens): ML de mago
+20/29/37 e skill da arma parada em 30–35 do lv 30 ao 100 (o plano supunha 22/36/48 e 28/46/66: corpo a corpo 60 pede
+~19 h de golpes e ninguém chega lá). Achado: o modelo não reproduz o "feiticeiro solo passa da onda 30" — com o
+escudo antigo ele também cai na 29; o que separava as vocações era o dano em área do mago e o dano baixo do cavaleiro.
+
+**Regras**
+- **Escudo de Mana pela metade (15-3)**: `MANA_SHIELD_ABSORB = 0,5`, `manaShieldSplit` — vida efetiva do feiticeiro
+  lv 100 com escudo cheio 5.124 → 2.288 (cavaleiro: 2.235). Descrição travada contra a constante por teste.
+- **Druida com o Escudo de Mana (15-4)** (lv 15; barra recomendada do druida 10 → 11 teclas; quem já passou do 15
+  põe numa tecla pelos Atalhos).
+- **Magias de cavaleiro e paladino (15-5, 15-13)**: `spellPower = max(ML, ⌊(skill da arma + bônus + level − 10)/2⌋)`,
+  só no dano (cura segue pelo ML) — com a skill real de ~30, sem o termo de level a potência quase não mudava. Lv 100:
+  cavaleiro 66, paladino 68 (magos ML ~55). Magias de dano do cavaleiro **+40%** (as seis). Golpe Aniquilador médio
+  lv 100 ~680 → ~1.350; Julgamento Divino ~460 → ~690.
+- **Fraquezas elementais (15-6)**: `ELEMENT_WEAKNESS` dentro de `damageTakenMult` — mortos-vivos (campo `undead`)
+  tomam sagrado ×1,25; bichos de fogo, gelo ×1,15; bichos de gelo, fogo ×1,15. Bestiário com "Resiste a" e "Fraco contra".
+- **Curandeiros (15-7)**: cada monstro recebe cura de aliado no máximo 1× a cada 10 s (`HEAL_ALLIES_LOCKOUT_MS`):
+  bando de 3 Necromantes 162 → ≤ 54 de vida/s.
+- **Chefes (15-8)**: raiz vira lentidão de 30% e lentidão vale metade (`bossCondition`).
+- **Paladino 13 de vida por level (15-9, 15-13)** (era 10; lv 100 sem itens 1.140 → 1.437), recalculado ao entrar.
+- **Chuva de Gelo** com recarga de 4 s (era 6) (15-13).
+- **Morte (15-10)**: perda de 10% de um level até o 59, **20%** do 60, **25%** do 80, **30%** do 100 (`DEATH_PENALTY_STAGES`,
+  `deathXpLoss`), nunca derruba level; lv 100: 6.443 → 19.328 XP. A bênção só é gasta com perda > 0 (ciclo 14).
+  Tela de morte "Sua bênção salvou N XP" (e milhar com ponto no "−N XP"); sacerdotisa mostra "Protege ~X XP agora"
+  (com a caveira vermelha).
+- **PvP pela metade (15-11)**: `PVP_DAMAGE_MULT = 0,5` em `hitPlayer` (todo dano jogador → jogador), mínimo 1.
+- **Lobo Espiritual** mais forte no fim de jogo e **Luz Restauradora** com recarga de 20 s (15-12).
+
+**Resultado (pior/melhor do P, tabela de produção)**: lv 30 0,52 → **0,74**; lv 60 0,39 → **0,66**; lv 100 0,49 →
+**0,86**. Com a skill da meta do plano: 0,74 / 0,73 / 0,83 (ninguém lidera com folga: cavaleiro +2% no lv 100). O
+feiticeiro não lidera dano e sobrevivência juntos em nenhum level (travado).
+
+**Coliseu (15-14)** — só a curva de dano das ondas (`ARENA_DMG_POINTS`): onda 20 2,5 → 1,9; 30 5 → 6,2; 50 3,3 → 4,3;
+60 1,7 → 2,4. Solo lv 34 cai na 22–23; solo lv 120 na 29–30 (a onda 30, Rei Goblin, é o muro de quem vai sozinho);
+grupo no level justo da 40/45/50/55/60 cai em 38/46/48/54/completa; grupo lv 100 cai na 54; lv 120 completa.
+
+**Telemetria (15-2)** — causa de cada morte por faixa (`deathsBy`: monstro, "monstro/habilidade", "condição@monstro",
+"pvp"), via `killerKey` do combate, habilidades e condições; `admin telemetria` ganhou "Skills treinadas por vocação e
+faixa" e "Causas de morte por faixa".
+
+## [Não lançado] — 2026-10-25 · ciclo 14: correções de bugs e exploits
+
+Primeiro ciclo do plano 14–20 (`docs/PLANO_CICLOS_14-20.md`, aprovado pelo dono): 22 itens conferidos no código
+durante a análise do jogo, cada um com teste unitário. Feito em três frentes de agentes com arquivos separados +
+revisão cruzada por outros dois agentes (que acharam 6 defeitos nas correções, todos corrigidos antes do merge).
+
+**Monstros e chefes**
+- **Dança da coleira (14-1)**: monstro que passava da coleira (14 tiles) e levava dano voltando ao spawn virava para
+  perseguir, passava da coleira de novo e recomeçava a volta — nunca curava nem revidava (chefes e caves de graça para
+  quem ataca de longe). Agora volta **imune** (`Monster.evading`: o golpe sai como "errou"), sem trocar de alvo, sem
+  atender bando nem provocação, até chegar ao spawn e curar. Voltar por perder o alvo segue como antes.
+- **Chefe renascia a cada reinício (14-2)**: o prazo de respawn de chefe vai para o kv (`boss.respawnAt.<defId>`); no
+  boot o chefe morto volta no prazo original. Falha de disco não derruba o abate (try/catch com log).
+- **`callBoss` (14-14)** ignora cópias do Coliseu, da alavanca e invocadas: o evento não anuncia mais chefe que não está no covil.
+- **Fuga com prazo (14-16)**: 10 s fugindo sem levar dano (`FLEE_GIVE_UP_MS`) → volta ao spawn e cura.
+
+**Portas, alavanca e magias**
+- **Porta com level (14-3)**: o requisito é conferido antes da espera de 1 s do portal, e dentro da espera o jogador
+  volta ao tile anterior em vez de ficar parado no portal. Antes, pisar duas vezes na porta lv 80 do Vulcão (372,96) —
+  ou na saída sem level ao lado (374,96), achado da revisão — e dar mais um passo atravessava a parede.
+- **Aniquilação 1×/dia (14-7)**: cada personagem entra uma vez por dia de jogo (troca às 6h, `bountyDay()`); o grupo é
+  recusado nomeando quem já entrou. `CharacterData.leverDay`.
+- **Investida (14-8)** não termina dentro da zona de proteção para quem vem de fora (quem treina nos bonecos segue).
+- **Bênção (14-5)** só é gasta quando a morte custaria XP (morrer logo depois de subir de level a guardava à toa).
+
+**Missões e recompensas**
+- **Prova de chefe (14-6)**: Rei Goblin e Lich do Pântano ficaram só com o passo "boss" (que já credita o grupo): um
+  abate conclui para o grupo de 4. Progresso salvo é remontado pelos passos atuais (quem já matou entrega direto);
+  coroa e chave seguem caindo como lembrança.
+- **Quadro de Recompensas (14-9, 14-10, 14-21)**: a lista do dia grava o id do monstro e a quantidade (`m`/`c`), então
+  não muda se as faixas mudarem (o ciclo 13 tinha mudado faixas antigas); faixa inválida é grampeada (`clampBand`, sem
+  ouro negativo; teste religado). Alvos impossíveis trocados na mesma posição: Lobo (lv 8) → Rato Cinzento na faixa 1;
+  Dragão de Gelo (atrás do Yeti) → Crânio Flamejante na 72+. O cartão mostra a XP **com o estágio** (prometia até 8×
+  a XP real no lv 100). Teste novo `shared/data/quests.test.ts` anda pelo mapa real a partir do templo no level mínimo
+  de cada faixa e exige spawn alcançável para todo alvo e material.
+- **Encomenda semanal (14-10, 14-12)**: faixa gravada na 1ª consulta da semana (estado antigo usa o level do começo da
+  semana); entrega só com o Quadro aberto. 88+: escama de dragão de gelo → escama de dragão, placa de colosso → ametista;
+  faixa nova 106+ com os materiais do fundo do Abismo.
+- **Baú de Recompensa (14-11)**: o pool era valor ≤ 15 mil (vazio acima do lv ~58). Agora: equipamento vendido por NPC
+  ou derrubado por monstro comum, do tier de arma/armadura mais alto alcançado até o level (`chestGearPool`); a revisão
+  pegou que um anel de lv 68 subia o piso (lv 63–69 só dava acessório) — teste do lv 1 ao 120 nas 4 vocações.
+- **Desafio semanal (14-20)**: a meta de XP usa o level do começo da semana (`levelForXp(week.xp)`), não o de quando a
+  janela abre.
+- **Textos (14-19)**: plural do Quadro (`pluralPt`: "Cães Infernais", "Samurais Rubros"); diálogos de `cave_echoes`,
+  `restless_dead` e `sapata_gasta` apontam o lugar certo; promessas de escudo e da chave da Cripta reescritas;
+  `orshabaal_hunt` exige `selo_do_abismo`; dica do grupo montada das constantes (+35% por membro, +20% com 3
+  vocações); Coliseu explica a regra real dos 2/3; Novidades antigas com informação superada anotadas.
+
+**Itens e NPCs** (regras em `shared/itemRules.ts`, mesmas no servidor e no cliente)
+- **Level de poção e comida (14-4)**: conferido no uso e na compra; Q/E bebe a poção que mais recupera entre as
+  permitidas; o cliente mostra a mesma poção e desabilita "Comprar".
+- **Cassino (14-13)**: confere espaço para cada material do sorteio antes de cobrar (uma Escama sorteada sumia).
+- **Comida (14-15)**: duração soma até o teto e a taxa vira média ponderada pelo tempo (antes acumulava a taxa máxima).
+- **Depot (14-18)**: com o depot aberto, clique direito/duplo clique guarda (antes equipava ou bebia); junta em pilha
+  igual e espalha o resto; "cheio" só quando algo ficou de fora.
+- **Tingimento (14-17)**: clique no tom bloqueado só faz prévia; "Comprar (8.000)" pede um segundo clique.
+- **Samurai Rubro (14-22)**: `Walk.png` tem 6 quadros de 96×48 (estava como 12 de 48, animava meio samurai); teste
+  novo confere que todo sprite de monstro cabe no PNG.
+
+Pontos para o dono acompanhar: o baú passa a dar tier 7 do lv 82 em diante (~0,45 peça/dia com 3 diárias; na venda,
+~8 mil por baú no 70+, quase o ouro da própria recompensa) — olhar o ganho×gasto do topo na telemetria antes do ciclo 16.
+
+## [Não lançado] — 2026-10-25 · andar sem engasgos e câmera presa ao jogador
+
+Pedido do dono: "o movimento do personagem está muito ruim, com sensação de lagado". Medido quadro a quadro no
+navegador (posição do boneco e da câmera a cada quadro, na LAN e com a rede do dono simulada: 73 ms ±15 por sentido,
+engasgo de 250 ms em 3% dos pacotes). A predição já segurava a rede (0 correções e 0 desistências nas duas); o
+problema era **local, igual na LAN e na rede ruim**:
+- **Engasgo a cada tile** (~4×/s): o ator somava o delta do quadro e começava cada passo até um quadro adiantado em
+  relação à predição. Na virada do tile ele ou parava um quadro (0,1 px em vez de 1,1 px) ou dava um tranco de 35%
+  (catch-up com fila 2). Agora o passo previsto leva o instante em que começou (`PredictEvent.at` → `Segment.at`) e a
+  posição sai do relógio do quadro (timestamp do requestAnimationFrame, o mesmo da predição): passos encadeados emendam
+  exatos em qualquer taxa de quadros. Um passo nunca começa antes do anterior terminar na tela (correção, passo do
+  servidor), então não há salto. Lógica pura em `game/segments.ts` (saiu do `Actor`).
+- **Câmera com inércia**: o seguimento suave (lerp 12/s) deixava a tela ~0,7 tile atrás do boneco andando, deslizava
+  ~300 ms depois de parar e fazia o boneco balançar 1–2 px em relação à tela. A câmera agora é **presa ao jogador**,
+  como no Tibia (o deslocamento do HUD ao abrir/fechar continua suave); alvo e deslocamento são arredondados à parte,
+  então o boneco fica parado na tela e o mundo rola.
+- **Andar por clique** (passos vindos do servidor): também pelo relógio, a partir da chegada, emendando no fim do passo
+  anterior em vez do catch-up. A cadência do servidor é exata; a variação da chegada (tick + envio do estado, ±50 ms) só
+  atrasa o primeiro passo, e daí em diante não há parada nem tranco. Monstros e outros jogadores não mudaram.
+- Medição (quadros no meio de uma caminhada com velocidade fora de ±10% da vizinhança): teclado na LAN 4,6% → 0;
+  teclado na rede do dono 4,2% → 0 (2 236 quadros); clique na rede do dono 6,1% → 0. Boneco balançando na tela
+  32 px → 0. Custo do `update` da cena: 0,8 ms por quadro (mediana) com 781 monstros, sem quadros longos — não era
+  desempenho. Teste novo `segments.test.ts` (predição + fila a 60/75/144 Hz com variação e o delta suavizado do Phaser,
+  quadro perdido, correção, clique com chegada irregular); os casos sem relógio reproduzem o defeito antigo (36 de 598
+  quadros fora de ±10% no teclado, 56 no clique).
+
+## [Não lançado] — 2026-10-25 · ciclo 13: caves profundas
+
+Pedido do dono: "mais caves", nas quatro faixas (12–28, 35–55, 60–85, 100–130), com monstros conhecidos e alguns novos.
+Dados que motivaram: acima do lv 90 só havia Abismo e Cidadela (48 monstros); 60–85 só Caverna dos Heróis e Ninho.
+
+- **Mapa** (`tools/mapgen/expansion5.mjs`, 400×472 → 400×560): quatro caves escavadas abaixo do Túnel da Serra, cada
+  uma com entrada, duas salas de caça, galeria funda e covil; plantas espelhadas alternadas. **Entrada só-objeto**: um
+  portal com level mínimo num recanto da região de origem (o cliente já dá o brilho roxo de portal); a porta norte da
+  sala de entrada devolve ao lado dela. `diff-world.mjs`: **0 tiles alterados**, 699/699 objetos antigos idênticos,
+  tilesets estáveis; 9160/9160 tiles novos alcançáveis a pé.
+
+| Cave | Faixa | Entrada | Monstros (92 no total) |
+|---|---|---|---|
+| Minas Abandonadas | lv 10+ | Floresta, ao norte da cerca da Vila (89,74) | Larva das Minas*, Toupeira das Minas* (bando), aranha, morcego, esqueleto |
+| Grutas Alagadas | lv 35+ | sul da Selva de Banuta (283,116) | Kappa do Lodo*, Polvo das Grutas*, crocodilo, merlkin |
+| Catacumbas Esquecidas | lv 60+ | oeste da Floresta Sombria (163,54) | Crânio Flamejante*, Lanterna Rubra* (cura aliados), necromante, cavaleiro negro, herói |
+| Abismo Profundo | lv 100+ | salão de entrada do Abismo (256,136) | Tengu Rubro*, Samurai Rubro*, demônio, behemoth, colosso |
+
+  * monstro novo (8), com sprite do pack ainda sem uso, atributos interpolados dos vizinhos de level e loot só com itens
+  que já existiam; os monstros com elemento resistem a ele (ciclo de elementos).
+- **Quadro de Recompensas**: os novos entram nas faixas do level deles; faixa nova 106+ (Colosso, Tengu, Samurai, Demônio).
+- "Olhar": família de bando "toupeiras".
+- Testes: `monsters.test.ts` (XP/vida, dano por level), `bounties.test.ts`, `lookInfo.test.ts`; E2E novo
+  `caves.spec.ts` (porta barra abaixo do level, entra, sai pela porta norte; monstros novos no Abismo Profundo).
+
+## [Não lançado] — 2026-10-25 · ciclo 12: fim de jogo 90–120 e medição
+
+Pedido do dono depois da análise com os dados de produção (11 contas, 15 personagens): dois personagens perto do lv 100,
+dois na onda 59 do Coliseu, ninguém tinha matado Orshabaal nem Ferumbras, e o 100–109 não tinha missão (GD-08).
+Escolhidos: **(1) conteúdo de fim de jogo** e **(4) medir antes de mexer** (vocações com a resistência nova, parede
+do lv 60–80 com amostra pequena, fim de jogo solo F2-3).
+
+**Uma magia de utilidade por vocação no lv 100** (sem dano: muda o que o grupo consegue fazer)
+- Cavaleiro **Muralha de Escudos** (`utamo mas res`): grupo a 3 tiles recebe 20% menos dano por 8 s.
+- Paladino **Luz Restauradora** (`exura mas san`): grupo a 4 tiles regenera 45/s por 10 s.
+- Feiticeiro **Ruptura Elemental** (`exori mas vis`): o alvo perde a resistência elemental e toma +15% de dano
+  elemental por 12 s (condição nova `exposed`, `damageTakenMult(def, kind, exposedPct)`).
+- Druida **Raízes da Terra** (`exevo mas tera`): prende os monstros num raio de 3 por 3 s.
+- Condição mais forte ativa não é mais rebaixada por uma mais fraca (a Muralha de 20% do grupo não apaga a Pele de
+  Ferro de 30% do cavaleiro). Regra "≤ 12 magias por vocação" trocada por "a barra recomendada cabe em 12 teclas"
+  (feiticeiro e druida chegaram a 13; as famílias juntam).
+
+**Missões 100–109**: **O Selo do Abismo** (Irmão Tadeu, lv 100: 20 demônios, 10 chifres, 5 essências) e **A Marcha
+dos Colossos** (Mestre Ignis, lv 105: 15 colossos, 5 placas). Usam loot que já existia.
+
+**Chefes no expediente**: Ferumbras ganha a edição de **terça 17h** e Orshabaal a de **quinta 17h** (as de fim de
+semana continuam, para quem joga de casa).
+
+**Medição**: a telemetria por level passa a gravar **abates, XP, dano causado a monstros e dano perdido para a
+resistência** (campos só aparecem quando há dado). `npm run admin -- telemetria` (e `admin.mjs telemetria` no
+Docker) mostra o resumo por faixa e o relatório **por vocação** (XP/h, abates/h, dano/h, % resistido, mortes/h).
+Revisar em ~1 semana antes de decidir F2-3 (fim de jogo solo) e qualquer ajuste de vocação.
+
+## [Não lançado] — 2026-10-25 · resistência elemental, Dragão de Gelo e o lag ao andar
+
+**Resistência elemental** (pedido do dono: "dragão de fogo toma menos dano com magia de fogo")
+- Bicho de elemento toma **metade do dano do próprio elemento** (`OWN_ELEMENT_TAKEN`, `damageTakenMult` no shared):
+  dragões/demônios a fogo, Dragão de Gelo/Yeti a gelo, mortos-vivos a morte, aranhas/gosmas a terra. Físico nunca muda.
+  Ponto único em `CombatSystem.damageMonster` (magia, varinha/bastão, habilidade, invocação). `MonsterDef.resist`
+  permite ajustar monstro a monstro (inclusive fraqueza > 1). O Bestiário mostra "Resiste a".
+- O simulador do Coliseu (`arena.test.ts`) passou a considerar a resistência (magias e ataque da arma); metas mantidas.
+
+**Dragão de Gelo com sprite próprio**: era o dragão verde tingido (a tinta multiplica; verde nunca vira azul-gelo).
+`tools/monsters/recolor.mjs` troca a paleta cor por cor → `assets/monsters/FrostDragon.png` (pasta nova no build).
+
+**Lag ao andar** (pedido do dono: "é bug ou delay do servidor?"). Diagnóstico: o PC do dono chega ao servidor pelo
+Tailscale com ~146 ms de ida e volta e ~10% de perda; reproduzido com um proxy de rede ruim + medição por quadro no
+Playwright e com uma simulação predição × servidor. Eram **bugs da predição**, que a rede ruim só tornava visíveis:
+- **Seguir em vez de prever**: depois de qualquer correção, o passo vindo do servidor contava inteiro a partir da
+  chegada, e o cliente ficava um passo atrás só seguindo o servidor (cada variação da rede virava tranco) até soltar
+  a tecla. Agora desconta meia ida e volta e volta a liderar em ~3 passos.
+- **Último passo perdido ao soltar/trocar de direção** (até 17 puxões por minuto, já na LAN): a mensagem chegava antes
+  do instante em que o servidor daria o passo que o cliente já tinha dado. `MoveMsg.at` diz onde a predição está e o
+  servidor completa esse passo (`owed`) antes de mudar.
+- **Passo recusado em silêncio** (monstro/NPC entrou no tile, bloqueio de PvP): o cliente só desistia por tempo
+  (450 ms) e puxava 2–3 tiles. Agora o servidor avisa (`PlayerView.bump`) e a correção sai em uma ida e volta.
+- **Teleporte com a tecla segurada** (portal, morte): o servidor larga a tecla, o cliente seguia prevendo passos do outro
+  lado e puxava de volta. O cliente agora também larga (anda de novo ao reapertar).
+- Tempo-limite da confirmação 450 → 800 ms e com a variação da latência (média + 4 desvios, como o TCP): virou só rede
+  de segurança. Sonda E2E `__lq.predStats()`.
+- Medição no navegador (andando com Pés Ligeiros, 6 idas e voltas): na rede do dono, 7 puxões e paradas de ~315 ms →
+  0 desistências e nenhuma parada; na LAN, 2 desistências por rodada → 0. Teste novo `movement.lag.test.ts` (falha
+  sem as correções) e casos em `movement.test.ts`/`predictor.test.ts`.
+- Recomendação de rede: jogar pela LAN do escritório (ou Tailscale direto, sem relay); com perda de pacotes nenhum
+  ajuste de cliente some com os engasgos do TCP.
+
+## [Não lançado] — 2026-10-25 · livros de magia e grupos de magia
+
+**Grupos de magia** (pedido do dono: escolher as magias e a ordem da tecla inteligente)
+- O jogador monta até 8 grupos (`fam:my:<n>`), cada um com até 8 magias da vocação na ordem dele; a tecla solta a
+  primeira da lista que estiver pronta, com a mesma regra das famílias prontas (`pickFromFamily`). As famílias prontas
+  continuam e viram **modelos**: copiar cria um grupo igual, editável.
+- Painel novo **Grupos de magia** (botão ◆ Grupos nos Atalhos, `H`): lista de prioridade com arrastar e soltar, ↑↓ e
+  ✕; paleta de magias com filtros (no alvo, área, onda, cura, outras), clique ou arraste para a posição; prévia ao vivo
+  de qual magia sairia agora (recarga, mana e level); "Pôr na barra" e excluir com confirmação.
+- Salvos no personagem (`spellGroups`) e enviados **na mesma mensagem dos atalhos** (`SetHotkeys`/`Hotkeys` ganharam
+  `groups` opcional): grupos e barra chegam juntos e consistentes; atalho de grupo excluído sai da barra; mensagem sem
+  `groups` (cliente antigo) não mexe nos grupos. Validação em `sanitizeSpellGroups` (shared), sem mensagem nova.
+- Grupo vazio fica como slot vazio na barra; magia nova liberada que já está num grupo da barra só ganha o aviso.
+- Testes: `spellFamilies.test.ts` (limpeza, ordem do jogador, atalho de grupo), `groupsEdit.test.ts` (edição),
+  `WorldRoom.test.ts` (salvar, voltar no login, cliente antigo, excluir) e E2E `hotkeys.spec.ts` (montar, arrastar,
+  pôr na barra, conjurar pela tecla e manter depois de recarregar).
+
+**Livros de magia** (escudo dos magos)
+
+- Pedido do dono: o feiticeiro e o druida não tinham escudo próprio (só o Escudo de Madeira, armadura 1), embora a
+  varinha e o bastão usem uma mão só. Seis **livros de magia**, um por tier do 2 ao 7 (lv 8/15/25/35/50/70), só para
+  magos: armadura 1/1/2/2/3/3 (abaixo do escudo do cavaleiro do mesmo tier), mana +15/30/50/80/120/180 e magia +1
+  nos tiers 5-6 e +2 no 7. Valor igual ao do escudo do cavaleiro do tier.
+- Onde conseguir: Dona Marta vende os tiers 2-5 e faz encomenda especial (1 por semana) do Tomo das Tempestades
+  (32k) e do Grimório de Ferumbras (80k); o Yeti solta o Tomo (15%) e Ferumbras o Grimório (20%). Ícone: sprite
+  `Weapons/Book` do pack, tingido por tier.
+- Teste novo em `items.test.ts`; o simulador do Coliseu (`arena.test.ts`) já escolhe os livros para os magos e as
+  metas de ondas continuam passando.
+
+## [Não lançado] — 2026-10-24 · ajuste da Malha: nomes comuns e saídas
+
+- Pedido do dono: **por enquanto, bichos e itens com nomes comuns**; NPCs, missões e locais continuam com os nomes
+  reais do trabalho. 12 bichos (ciclos 10 e 11) e 28 itens renomeados (ex.: Escamação → Cobra Listrada, Trinca no Disco
+  → Olho Sangrento, O Trem Que Nunca Encerra → Tirano da Serra, TIFF Bruto → Pergaminho Borrado, Marmita de Tampa
+  Vermelha → Ensopado do Viajante), com descrições, gritos e habilidades de fantasia. **Nenhum id mudou**: saves,
+  depots, chão, bestiário, conquistas e missões em andamento seguem iguais. Os títulos de missão ficam.
+- **Saídas da Malha**: o trem de volta só existia na Estação Central, a oeste (a Malha tem 160 tiles). Agora o
+  Maquinista (entrada do Túnel) e o novo **Agente da Parada** (linha principal, entre o Portal de Inspeção e a Oficina
+  de Vagões) também levam à Vila ou à Estação. O Agente é o último objeto do mapa: `diff-world.mjs` deu 0 tiles
+  alterados e 698/698 objetos antigos idênticos.
+
+## [Não lançado] — 2026-10-24 · ciclo 11: Malha da Ferrovia e ClickUp dinâmico
+
+Pedido do dono: mais contexto do trabalho, começando pelo ClickUp ao vivo e por uma região inteira do segmento
+ferroviário, chegando de trem. Lore tirado dos repositórios do Gitea (Portal de Inspeção, Anomalia de Carga,
+SmartTrain, sensor de trilho) com o disfarce de sempre: "a Ferrovia", sem lugares reais nem fabricantes.
+
+**ClickUp no jogo** (`systems/clickup.ts`, `shared/workFilter.ts`; desligado sem `LEMONQUEST_CLICKUP_TOKEN`)
+- Leitura a cada 5 min fora do tick (timer + fila consumida no `runSafe`), backoff até 30 min, estado em `kv`.
+- **Chegou!**: compra que vira "pedidos entregues" é anunciada e solta uma Caixa de Encomenda na Estação ou no Pátio
+  de Encomendas da Oficina (até 3 por hora). Na primeira leitura, o passado só é marcado como visto.
+- **Sprints**: barra coletiva por projeto no Painel da Obra e no Quadro de Gestão à Vista; passar da média das 4
+  semanas anteriores dispara a **Sprint Fechada** (XP ×1,25 por 1 h). O `EventSystem` ganhou uma camada de bônus que
+  **soma** ao evento agendado em vez de substituí-lo (antes, o chefe do agendado não seria convocado).
+- **Conquistas pessoais**: métrica `work_tasks` (1/10/50/200). Pedido do dono: o **próprio jogador** vincula, na aba
+  "Na obra", colando o token pessoal do ClickUp; o servidor confere uma vez (`GET /user` e `/team`: membro do workspace
+  e e-mail da Embeddo), grava só o id do usuário e **descarta o token** (nunca em banco, kv, log ou mensagem; teste).
+  5 tentativas por 10 min. O `/vincular <personagem> <apelido|id>` do admin continua como alternativa.
+- **Na obra**: até 10 tarefas abertas dos projetos ferroviários e da Oficina, com apelido do responsável.
+- **Filtro de disfarce** endurecido pela revisão cruzada: normalização Unicode, separadores e letras soltas, cliente
+  confidencial descartado em qualquer grafia (inclusive o título inteiro da compra), fabricantes viram "Fabricante",
+  infraestrutura/RH/financeiro descartados, pessoas viram apelido ou "alguém". O token nunca aparece em log (teste).
+- `docker-compose.yml` repassa o token do `.env`; `.env` entrou no `.gitignore` e no `.dockerignore`.
+
+**Malha da Ferrovia** (`tools/mapgen/expansion4.mjs`, mapa 400×336 → 400×472)
+- 160×110 tiles: Estação Central (PZ), Pátio de Manobra (feixe de 7 linhas, AMVs, 19 vagões), Portal de Inspeção
+  (pórtico com 4 câmeras e 4 iluminadores, sensores de roda, abrigo do CLP), Oficina de Vagões, Via Permanente (ponte,
+  passagem de nível) e Túnel da Serra. Trem nos Chefes da Estação (200 de ouro) e portal oculto Vila ↔ Estação, para
+  quem desloga na Malha voltar lá. **0 tiles alterados, 623/623 objetos antigos idênticos**; arte de trilho desenhada
+  no `lemon.mjs` com alocação adiada (o atlas só cresceu).
+- Monstros com os defeitos reais do Portal (Trinca no Disco, Aro Fraturado, Calo, Escamação, nas cores do código),
+  Frame Descartado, Iluminador Rebelde, Rato de Brita; mini-chefe Vagão Não Inspecionável; chefe **O Trem Que Nunca
+  Encerra** com o evento Apito da Locomotiva (quarta 17h). 10 missões (lv 25–52), 14 itens, 9 NPCs, 10 conquistas.
+
+**Correção de conteúdo do ciclo 10**: o NPC "EM-1000" da Oficina virou "Robô de Bancada" e perdeu a fala com a meta
+de horas: o código e a métrica eram de um projeto do cliente confidencial.
+
+## [Não lançado] — 2026-10-24 · loja: compra em lote
+
+- Pedido do dono: comprar poções e outras coisas em quantidade. O servidor já aceitava até 100 por mensagem; faltava a
+  interface. A linha da loja ganhou uma segunda linha com campo de quantidade digitável (Enter compra), −/+ (Shift ±10),
+  atalho 10 e **Máx**, e o botão mostra "Comprar N". Vale também para itens não empilháveis; a encomenda semanal
+  (tier 6–7) segue 1 por vez.
+- A conta de espaço e de pilha foi para `shared/src/shop.ts` (`backpackRoom`, `shopBuyMax`, `maxStackOf`,
+  `MAX_TRADE_COUNT`): o "Máx" do cliente e a validação do servidor usam a mesma regra. Testes: `shop.test.ts` e o E2E
+  `e2e/shop.spec.ts` (compra 25 poções de uma vez, confere ouro e o Máx).
+
+## [Não lançado] — 2026-10-23 · ciclo 10: o escritório entra no jogo (Oficina dos Engenhos)
+
+O jogo foi feito para os colegas da Embeddo, mas não tinha nada do trabalho. Este ciclo traz o contexto por piada
+interna e metáfora, sem trocar a identidade medieval. Regras do dono: pessoas só por apelido + papel (nunca nome
+completo), clientes disfarçados (Ferrovia, Siderúrgica, Cervejaria…), um cliente confidencial fora de qualquer
+referência, códigos internos de produto liberados, nada do chat privado. Plano e decisões no ROADMAP (Ciclo 10).
+
+**Oficina dos Engenhos (zona nova, protegida)**
+- Bairro de 30×22 tiles ao sul da Vila com War Room, Copa, Bancada e Pátio de Encomendas; entra-se pela porta no canto
+  nordeste da paliçada da Vila ou pela carroça do Bastião (100 de ouro, grátis até o lv 8). Interior sempre iluminado.
+- O mapa cresceu **para baixo** (400×288 → 400×336) em `tools/mapgen/expansion3.mjs`: o array antigo vira prefixo do
+  novo, então **0 tiles alterados** e os 592 objetos antigos idênticos (prova: `tools/mapgen/diff-world.mjs`, novo). A
+  arte usa só tilesets já carregados (um tileset novo deslocaria os gids do TilesetLemon). Acesso por portal porque o
+  servidor só aceita login em tile alcançável a pé a partir do spawn.
+- 14 NPCs: Pedrão (visão), Julião (embarcados, loja), Bianca (logística), Luan (cubo mágico), Iago (cofre de senhas),
+  Gabriel (Rifa do Sextou, cassino), Guilherme o Boss (depósito + bênção), Alexandre do Quântico, Cocheiro Dito e as
+  "placas" Geladeira (marmita, café), Quadro de Gestão à Vista, Banheiro Quântico, Robô de Bancada e Troféu do Demoday.
+
+**Conteúdo**
+- 6 missões: Pesquisa de Clima (Capitão, lv 3) e a cadeia da Oficina (lv 5–22: Chegou!, git caiu?, Bombonas
+  Fugitivas, Rotaciona a Senha, Frames Descartados) com 3 equipamentos de recompensa.
+- 3 monstros reskin em áreas existentes: Rato do Datacenter (Floresta), Bombona Fugitiva (passiva, foge a 60%) e Gosma
+  de Escória (bando, Pântano e Cavernas). Valores dos equipamentos novos abaixo do vizinho do slot para não mexer no
+  simulador do Coliseu (`arena.test.ts` escolhe por valor).
+- 12 conquistas e 6 títulos com métricas existentes; eventos **Sextou!** (sex 17h, XP ×1,5 e loot +25%) e **Reunião
+  Geral** (seg 9h, loot +50%); falas novas em 9 NPCs antigos; 5 dicas de carregamento e 3 de morte; Novidades.
+
+**Testes**
+- `questWorld.test.ts`: todo passo `explore` precisa casar com uma zona do mapa real (antes não era validado).
+- E2E novo `e2e/oficina.spec.ts` (portal ida/volta, Geladeira, carroça, rato na Floresta). `quests.spec.ts` conclui a
+  Pesquisa de Clima antes de testar o marcador do Capitão (com duas missões ele mostra "!", corretamente).
 
 ## [Não lançado] — 2026-10-22 · ciclo 9: auditoria completa, CI verde de novo e telemetria de progressão
 

@@ -22,7 +22,7 @@ export function ContextMenu() {
   return (
     <div ref={ref} class="hud-card ctx-menu" style={{ left: `${x}px`, top: `${y}px` }} role="menu" onContextMenu={(e) => e.preventDefault()}>
       {m.items.map((it) => (
-        <button key={it.label} class="ctx-item" role="menuitem" onClick={() => { closeCtxMenu(); it.run(); }}>{it.label}</button>
+        <button key={it.label} class={`ctx-item${it.danger ? " danger" : ""}`} role="menuitem" onClick={() => { closeCtxMenu(); it.run(); }}>{it.label}</button>
       ))}
     </div>
   );

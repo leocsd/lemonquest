@@ -44,7 +44,7 @@ export const familyOf = (spellId: string, vocation: Vocation): SpellFamily | und
 /** Magias da família (na ordem de prioridade). */
 export const familySpells = (f: SpellFamily): SpellDef[] => f.spells.map((id) => spellDef(id)).filter((s): s is SpellDef => !!s);
 
-/** Level em que a família libera a primeira magia. */
+/** Level em que a família libera a primeira magia (grupo vazio: Infinity). */
 export const familyLevel = (f: SpellFamily): number => Math.min(...familySpells(f).map((s) => s.level));
 
 /** A primeira magia (mais forte) liberada no level que `ready` aceita; null = nenhuma. */
@@ -52,8 +52,87 @@ export function pickFromFamily(f: SpellFamily, level: number, ready: (s: SpellDe
   return familySpells(f).find((s) => s.level <= level && ready(s)) ?? null;
 }
 
-/** Atalho válido para a vocação: magia dela ou família dela. */
-export function castableBy(id: string, vocation: Vocation): boolean {
+/** Atalho válido para a vocação: magia dela, família dela ou grupo do jogador que existe em `groups`. */
+export function castableBy(id: string, vocation: Vocation, groups: readonly { id: string }[] = []): boolean {
+  if (id.startsWith(GROUP_PREFIX)) return groups.some((g) => g.id === id);
   if (isFamilyId(id)) return familyDef(id)?.vocation === vocation;
   return !!spellDef(id)?.vocations.includes(vocation);
+}
+
+// --- Grupos do jogador ---------------------------------------------------------------------------------------------
+// Famílias montadas pelo próprio jogador (painel "Grupos de magia"): nome e magias escolhidos por ele, na ordem de
+// prioridade dele. Mesma regra das famílias prontas: sai a primeira da lista que estiver pronta. Salvos no personagem
+// junto com os atalhos (C2S.SetHotkeys), e o id vai no atalho como o de uma família ("fam:my:<n>").
+
+export const GROUP_PREFIX = `${FAMILY_PREFIX}my:`;
+/** Máximo de grupos por personagem. */
+export const GROUP_MAX = 8;
+/** Máximo de magias num grupo. */
+export const GROUP_SPELLS_MAX = 8;
+/** Tamanho máximo do nome. */
+export const GROUP_NAME_MAX = 20;
+
+export interface SpellGroup {
+  /** "fam:my:<1..GROUP_MAX>". */
+  id: string;
+  name: string;
+  /** Ids de magias da vocação, na ordem de prioridade (pode estar vazio enquanto o jogador monta). */
+  spells: string[];
+}
+
+export const isGroupId = (id: string): boolean => id.startsWith(GROUP_PREFIX);
+const GROUP_ID = new RegExp(`^${GROUP_PREFIX}([1-9]\d?)$`);
+
+/** Nome limpo: sem caracteres de controle, espaços colapsados, até GROUP_NAME_MAX; vazio vira "Grupo <n>". */
+export function cleanGroupName(raw: unknown, n: number): string {
+  const s = typeof raw === "string" ? raw.replace(/[\p{C}]/gu, "").replace(/\s+/g, " ").trim().slice(0, GROUP_NAME_MAX).trim() : "";
+  return s || `Grupo ${n}`;
+}
+
+/**
+ * Lista recebida do cliente → lista válida: até GROUP_MAX grupos de id "fam:my:<1..GROUP_MAX>" sem repetir; magias que
+ * a vocação conjura (famílias não entram em grupo), sem repetir, até GROUP_SPELLS_MAX.
+ */
+export function sanitizeSpellGroups(raw: unknown, vocation: Vocation): SpellGroup[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SpellGroup[] = [];
+  const ids = new Set<string>();
+  for (const r of raw.slice(0, GROUP_MAX * 2)) {
+    if (out.length >= GROUP_MAX) break;
+    if (!r || typeof r !== "object") continue;
+    const { id, name, spells } = r as Record<string, unknown>;
+    const m = typeof id === "string" ? GROUP_ID.exec(id) : null;
+    const n = m ? Number(m[1]) : 0;
+    if (!m || n < 1 || n > GROUP_MAX || ids.has(id as string)) continue;
+    const list: string[] = [];
+    if (Array.isArray(spells)) {
+      for (const s of spells.slice(0, GROUP_SPELLS_MAX * 2)) {
+        if (list.length >= GROUP_SPELLS_MAX) break;
+        if (typeof s === "string" && !list.includes(s) && spellDef(s)?.vocations.includes(vocation)) list.push(s);
+      }
+    }
+    ids.add(id as string);
+    out.push({ id: id as string, name: cleanGroupName(name, n), spells: list });
+  }
+  return out;
+}
+
+/** Id livre para um grupo novo (null = já tem GROUP_MAX). */
+export function nextGroupId(groups: readonly SpellGroup[]): string | null {
+  for (let n = 1; n <= GROUP_MAX; n++) if (!groups.some((g) => g.id === `${GROUP_PREFIX}${n}`)) return `${GROUP_PREFIX}${n}`;
+  return null;
+}
+
+/** O grupo como família (mesmo cálculo de magia escolhida, nível e recarga no cliente). */
+export function groupFamily(g: SpellGroup, vocation: Vocation): SpellFamily {
+  const names = g.spells.map((id) => spellDef(id)?.name).filter(Boolean);
+  const desc = names.length ? `Seu grupo: a primeira pronta entre ${names.join(", ")}.` : "Seu grupo, ainda sem magias.";
+  return { id: g.id, name: g.name, desc, vocation, spells: g.spells };
+}
+
+/** Família pronta ou grupo do jogador pelo id do atalho. */
+export function resolveFamily(id: string, groups: readonly SpellGroup[], vocation: Vocation): SpellFamily | undefined {
+  if (!isGroupId(id)) return familyDef(id);
+  const g = groups.find((x) => x.id === id);
+  return g ? groupFamily(g, vocation) : undefined;
 }
