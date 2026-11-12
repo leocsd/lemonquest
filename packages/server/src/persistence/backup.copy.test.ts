@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backupFileName, copyBackupOffsite, runBackup } from "./backup.ts";
+import { backupFileName, backupState, backupStatusLine, copyBackupOffsite, runBackup } from "./backup.ts";
 import { closeDb, initDb } from "./db.ts";
 
 let tmp = "";
@@ -91,5 +91,25 @@ describe("cópia externa do backup (LEMONQUEST_BACKUP_COPY_DIR)", () => {
     expect(runBackup(local, now, path.join(tmp, "sem-disco"))).toBe(path.join(local, backupFileName(now)));
     await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith(expect.stringContaining("cópia externa falhou"), expect.anything()));
     expect(fs.existsSync(path.join(local, backupFileName(now)))).toBe(true);
+  });
+});
+
+describe("estado dos backups no /status", () => {
+  beforeEach(() => { for (const k of Object.keys(backupState)) delete (backupState as Record<string, unknown>)[k]; });
+
+  it("falha do backup e da cópia externa aparecem; o próximo bom limpa o aviso", async () => {
+    const t = Date.now();
+    expect(backupStatusLine(t, null)).toBe("Backup: nenhum desde que o servidor subiu");
+    initDb(path.join(tmp, "lq.db"));
+    // Pasta de backup impossível (um arquivo no caminho): o backup lança e fica registrado.
+    fs.writeFileSync(path.join(tmp, "arquivo"), "x");
+    expect(runBackup(path.join(tmp, "arquivo", "b"), new Date(t), null)).toBeNull();
+    expect(backupStatusLine(t + 60_000, null)).toMatch(/FALHOU há 1 min/);
+    expect(runBackup(path.join(tmp, "b"), new Date(t + 120_000), null)).not.toBeNull();
+    expect(backupStatusLine(t + 180_000, null)).toBe("Backup: último há 1 min");
+    expect(backupStatusLine(t + 3 * 3_600_000, null)).toMatch(/atrasado/);
+    const f = fakeBackup(path.join(tmp, "local"), new Date(t));
+    await copyBackupOffsite(f, path.join(tmp, "sem-disco"), new Date(t + 120_000));
+    expect(backupStatusLine(t + 180_000, path.join(tmp, "sem-disco"))).toMatch(/cópia externa FALHOU/);
   });
 });

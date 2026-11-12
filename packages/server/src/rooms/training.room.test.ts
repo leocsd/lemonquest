@@ -51,6 +51,7 @@ describe("WorldRoom: treino offline", () => {
     const before = Date.now();
     r.startOfflineTraining(p, { skill: "melee" }, c);
     expect(c.leave).toHaveBeenCalledWith(CLOSE_TRAINING, "Treinando offline");
+    expect(r.kicked.has("s1")).toBe(true); // fechamento do servidor: onDrop/onLeave tiram na hora
     const saved = getCharacterByName("Leo")!.data.offlineTraining!;
     expect(saved).toMatchObject({ skill: "melee", statueId: "s1" });
     expect(saved.sinceMs).toBeGreaterThanOrEqual(before);
@@ -70,14 +71,17 @@ describe("WorldRoom: treino offline", () => {
     expect(getCharacterByName("Ana")!.data.offlineTraining).toBeUndefined();
   });
 
-  it("onDrop com CLOSE_TRAINING não reserva reconexão", () => {
+  it("onDrop do treino fechado pelo servidor não reserva reconexão; o mesmo código forjado pelo cliente reserva", () => {
     const r = makeRoom();
     createAccount("Bia", "h", "s", "paladin");
     const c = fakeClient(r, "b1");
     r.onJoin(c, {}, auth("Bia"));
-    const allow = vi.spyOn(r, "allowReconnection");
+    const allow = vi.spyOn(r, "allowReconnection").mockImplementation(() => Object.assign(new Promise(() => {}), { reject: vi.fn() }) as any);
+    r.onDrop(c, CLOSE_TRAINING); // ws.close(4101) no console: vale como queda comum
+    expect(allow).toHaveBeenCalledTimes(1);
+    r.kicked.add("b1"); // o que startOfflineTraining faz antes do c.leave(CLOSE_TRAINING)
     r.onDrop(c, CLOSE_TRAINING);
-    expect(allow).not.toHaveBeenCalled();
+    expect(allow).toHaveBeenCalledTimes(1);
   });
 
   it("ao voltar: aplica o progresso, limpa, cura tudo, põe ao lado da estátua e envia TrainingResult", () => {

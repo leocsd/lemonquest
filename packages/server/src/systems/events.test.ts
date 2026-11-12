@@ -174,6 +174,23 @@ describe("EventSystem: chefe do evento", () => {
   });
 });
 
+describe("EventSystem: o mesmo evento com outro fim", () => {
+  it("/evento do mesmo id durante ele: onExtend (sem onEnd/onStart) e, depois, onEnd com o fim novo", () => {
+    const calls: string[] = [];
+    let t = at(18, 0);
+    const ev = new EventSystem({
+      broadcast: () => {}, send: () => {}, now: () => t,
+      onStart: (e) => calls.push(`start:${e.until}`), onEnd: (e) => calls.push(`end:${e.until}`),
+      onExtend: (a, b) => calls.push(`extend:${a.until}->${b.until}`),
+    });
+    ev.tick(t = at(19, 0)); // Noite de Caçada agendada, até 20h
+    ev.start("noite_de_cacada", 90, t = at(19, 30)); // prorroga até 21h
+    ev.tick(t = at(20, 30));
+    ev.tick(t = at(21, 0));
+    expect(calls).toEqual([`start:${at(20, 0)}`, `extend:${at(20, 0)}->${at(21, 0)}`, `end:${at(21, 0)}`]);
+  });
+});
+
 describe("EventSystem: persistência do evento manual", () => {
   const mk = (kv: { v?: string }, t: number) => new EventSystem({
     broadcast: () => {}, send: () => {}, now: () => t,

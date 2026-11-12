@@ -127,6 +127,14 @@ export class HuntRaceSystem {
     }
   }
 
+  /** A corrida foi prorrogada/encurtada (EventHost.onExtend): fim novo no placar (o próximo sync manda) e na chave. */
+  extend(prev: ActiveEvent, next: ActiveEvent): void {
+    const r = this.run;
+    if (!r || r.key !== prev.until) return;
+    r.key = next.until;
+    r.end = next.until;
+  }
+
   end(ev: ActiveEvent): void {
     const r = this.run;
     if (!r || r.key !== ev.until) return;

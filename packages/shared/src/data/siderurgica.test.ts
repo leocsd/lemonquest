@@ -37,12 +37,11 @@ const ZONES: [string, number, number, number, number, boolean, string | undefine
  * zona de dentro; `old` = os portais que ela substituiu (não existem mais).
  */
 const DOORS = [
-  { id: "sid_patio", minLevel: 10, door: [23, 607], to: "Pátio de Minério", old: [[23, 606], [24, 608]] },
+  { id: "sid_patio", minLevel: 10, door: [24, 607], to: "Pátio de Minério", old: [[23, 606], [24, 608]] },
   { id: "sid_correias", minLevel: 25, door: [100, 604], to: "Correias e Coqueria", old: [[99, 604], [101, 605]] },
   { id: "sid_altoforno", minLevel: 40, door: [152, 627], to: "Alto-Forno", old: [[152, 626], [153, 628]] },
   { id: "sid_aciaria", minLevel: 60, door: [123, 652], to: "Aciaria", old: [[124, 652], [122, 653]] },
   { id: "sid_lingotamento", minLevel: 80, door: [65, 660], to: "Lingotamento e Laminação", old: [[66, 660], [64, 661]] },
-  { id: "sid_coracao", minLevel: 100, door: [34, 677], to: "Coração do Forno", old: [[34, 672], [34, 683]] },
 ];
 /** NPCs e placas (§1.4, globais). */
 const NPC_TILES: [string, number, number][] = [
@@ -151,7 +150,7 @@ describe("Siderúrgica: geometria", () => {
 });
 
 describe("Siderúrgica: portas e acesso", () => {
-  it("seis portas de sala com level crescente (10 → 100), na parede entre duas zonas, sem portal nenhum", () => {
+  it("cinco portas de sala com level crescente (10 → 80), na parede entre duas zonas, sem portal nenhum", () => {
     const doors = findDoors(map);
     let last = 0;
     for (const d of DOORS) {
@@ -169,7 +168,21 @@ describe("Siderúrgica: portas e acesso", () => {
       for (const [x, y] of d.old) expect(portalAt(x!, y!), `portal antigo ${x},${y}`).toBeUndefined();
     }
     expect(index.doorAt(100, 604)?.label).toBe("Correias e Coqueria · lv 25+");
-    expect(index.doorAt(34, 677)?.label).toBe("Coração do Forno · lv 100+");
+    // A porta é a arte do lugar: a cancela do Pátio (braço deitado = fechada, erguido = aberta) e a folha do portão de correr.
+    const patio = doors.find((d) => d.id === "sid_patio")!;
+    expect(patio.art.map((a) => [a.layer, a.dx, a.dy])).toEqual([["deco", 0, 0], ["deco", -1, 0], ["above", -1, -1]]);
+    for (const d of doors.filter((x) => x.id.startsWith("sid_"))) {
+      const deco = map.layers.find((l) => l.name === "deco")!.data!;
+      for (const a of d.art.filter((x) => x.layer === "deco")) expect(deco[(d.y + a.dy) * map.width + d.x + a.dx], `${d.id}: o mapa vem com a porta fechada`).toBe(a.closed);
+    }
+  });
+
+  it("Coração do Forno: a escotilha (lv 100) desce para a área de baixo; a saída de volta fica lá embaixo", () => {
+    const hatch = portalAt(34, 672), exit = portalAt(34, 683);
+    expect([prop(hatch, "toX"), prop(hatch, "toY"), prop(hatch, "minLevel")]).toEqual([34, 686, 100]);
+    expect([prop(exit, "toX"), prop(exit, "toY")]).toEqual([35, 673]);
+    expect(index.portalAt(34, 672)?.label).toBe("Coração do Forno · lv 100+");
+    expect(findDoors(map).some((d) => d.id === "sid_coracao")).toBe(false);
   });
 
   it("sem o atalho oculto da Malha: Estação Central ↔ Estação do Minério só pelos chefes de estação", () => {

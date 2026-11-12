@@ -112,6 +112,15 @@ describe("spawns", () => {
     expect(w.mm.callBoss("outro", w.now())).toBe("unknown"); // sem spawn desse monstro
   });
 
+  it("callBoss com o grupo esperando no meio do covil (raio 3): o chefe nasce mesmo assim, sem encostar em ninguém", () => {
+    const w = world({ grid: openGrid(30, 12), spawns: [sp(10, 6, 1, 3, "rei")], defs: () => def({ id: "rei", boss: true, name: "Rei", respawnMs: 7_200_000, aggroRange: 0 }) });
+    w.add(player("a", 10, 6));
+    w.run(100); // o tick atualiza a lista de jogadores (no jogo, o evento roda depois do tick dos monstros)
+    expect(w.mm.callBoss("rei", w.now())).toBe("spawned");
+    const rei = [...w.mm.all()][0]!;
+    expect(Math.max(Math.abs(rei.s.x - 10), Math.abs(rei.s.y - 6))).toBeGreaterThan(1);
+  });
+
   it("respawn de chefe sobrevive a reinício (ciclo 14): o boot respeita o prazo gravado", () => {
     const kv = new Map<string, number | null>();
     const bossRespawn = { load: (id: string) => kv.get(id) ?? undefined, save: (id: string, at: number | null) => { kv.set(id, at); } };

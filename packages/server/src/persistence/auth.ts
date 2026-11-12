@@ -252,9 +252,15 @@ export async function handleLogin(req: LoginRequest, ctx: LoginContext = {}): Pr
 
   const acc = findAccount(account);
   if (req.create === true) {
-    if (acc) return fail("account_taken");
+    // Senha fraca antes de olhar a conta, e "já existe" conta como falha do IP (como a conta inexistente no login):
+    // antes, `create` com senha curta respondia account_taken × weak_password sem limite e varria os nomes de conta.
     if (req.password.length < MIN_PASSWORD_LEN) {
       return fail("weak_password", `A senha precisa ter pelo menos ${MIN_PASSWORD_LEN} caracteres.`);
+    }
+    if (acc) {
+      ipFails.begin(ip);
+      ipFails.end(ip, true, now());
+      return fail("account_taken");
     }
     const cw = e2eMode() ? 0 : creations.waitFor(ip, now());
     if (cw > 0) return limited(cw);
@@ -394,6 +400,13 @@ function closeAccountSessions(accountId: number) {
 let kickSession: ((sessionId: string, reason: string) => void) | null = null;
 export function setSessionKicker(fn: ((sessionId: string, reason: string) => void) | null): void { kickSession = fn; }
 
+/**
+ * Personagem excluído: o mundo limpa o que guarda pelo NOME (vínculo do ClickUp, baús do Coliseu esperando). Sem isso
+ * quem criasse depois um personagem com o mesmo nome herdava as tarefas do ClickUp de outra pessoa e o prêmio dela.
+ */
+let characterDeleted: ((name: string) => void) | null = null;
+export function setCharacterDeletedHook(fn: ((name: string) => void) | null): void { characterDeleted = fn; }
+
 /** Senha trocada: tokens de entrada pendentes caem e os personagens da conta que estão no mundo são desconectados. */
 function closeAccountPlay(accountId: number) {
   const keys = new Set(listCharacters(accountId).map((c) => nameKey(c.name)));
@@ -503,6 +516,7 @@ export async function handleDeleteCharacter(req: DeleteCharacterRequest, ctx: Lo
   if (pending) { tokens.delete(pending); pendingByKey.delete(ckey); }
   if (!deleteCharacterArchived(again.id, s.accountId, s.account, now())) return fail("no_character");
   console.log(`[auth] personagem excluído: ${again.name} (level ${again.level} ${again.vocation}) da conta ${s.account} — arquivado em deleted_characters`);
+  try { characterDeleted?.(again.name); } catch (e) { console.error("[auth] limpeza do personagem excluído falhou:", e); }
   return sessionResponse(req.session, s);
 }
 

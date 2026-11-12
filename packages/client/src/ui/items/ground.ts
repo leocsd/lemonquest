@@ -1,6 +1,7 @@
 // Itens no chão (lado da UI): largar (mochila/equipamento → tile do mundo) e pegar (chão → mochila/slot).
 // A cena (WorldScene) registra como converter a posição do mouse em tile e qual é o tile do jogador.
 import { C2S, type DropFrom, type DropItemMsg, type MoveGroundItemMsg, type PickupItemMsg, type PickupTo } from "@lemonquest/shared";
+import { uidAt } from "./inventory.ts";
 import { send } from "./net.ts";
 
 export interface GroundBridge {
@@ -19,7 +20,8 @@ export const setGroundBridge = (b: GroundBridge | null): void => { bridge = b; }
 
 /** Larga o item em (x,y). O servidor valida (alcance 3, linha livre, andável) e, se não der, larga no seu tile. */
 export function dropItem(from: DropFrom, x: number, y: number, count?: number): void {
-  const m: DropItemMsg = count != null ? { from, x, y, count } : { from, x, y };
+  const uid = uidAt(from);
+  const m: DropItemMsg = { from, x, y, ...(count != null ? { count } : {}), ...(uid ? { uid } : {}) };
   send(C2S.DropItem, m);
 }
 

@@ -196,6 +196,9 @@ describe("ready e cast silencioso (Estagiário)", () => {
     expect(w.spells.ready(p, "bolt")).toBe(true);
     p.mana = 5;
     expect(w.spells.ready(p, "bolt")).toBe(false); // mana
+    expect(w.spells.readyIgnoringMana(p, "bolt")).toBe(true); // só a mana segura (diário: "sem mana")
+    expect(w.spells.readyIgnoringMana(p, "heal")).toBe(false); // recarga própria, não a mana
+    expect(w.spells.readyIgnoringMana(p, "big")).toBe(false); // level
     p.mana = 500; p.hp = 0;
     expect(w.spells.ready(p, "bolt")).toBe(false); // morto
   });

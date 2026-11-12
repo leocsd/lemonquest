@@ -75,7 +75,6 @@ export function buildPublic() {
   copy("addons", (src) => !/preview/i.test(basename(src)));
   copy("monsters", (src) => !/preview/i.test(basename(src))); // variações recoloridas (tools/monsters/recolor.mjs)
   copy("favicon", (src) => !/preview/i.test(basename(src))); // favicons + manifest.webmanifest
-  copy("fx", (src) => !/preview/i.test(basename(src))); // efeitos desenhados em código (tools/fx: portal animado)
   copy("wiki", (src) => basename(src) !== ".wiki-gerada"); // wiki estática gerada acima (tools/wiki/generate.mts)
   // Só o mapa; os previews .png ficam de fora.
   mkdirSync(join(PUBLIC_DIR, "maps"), { recursive: true });

@@ -23,6 +23,7 @@ import { RegenSystem } from "../systems/regen.ts";
 import { handleChat, clearChatState, type ChatHooks } from "../systems/chat.ts";
 import { SocialSystem } from "../systems/social.ts";
 import { statusLines } from "../systems/status.ts";
+import { backupStatusLine } from "../persistence/backup.ts";
 import { TradeSystem } from "../systems/trade.ts";
 import { EventSystem } from "../systems/events.ts";
 import { ClickUpSystem } from "../systems/clickup.ts";
@@ -114,7 +115,10 @@ export const MESSAGE_LIMITS: Partial<Record<string, number>> = {
 /** Intervalo mínimo entre gravações "jogador + chão" depois de largar/pegar item (ver saveTransfers). */
 export const TRANSFER_SAVE_MS = 1000;
 /** Aviso da rota do Estagiário desligada na entrada/saída do Coliseu. */
-const AVISO_COLISEU = "O Estagiário não trabalha no Coliseu: a rota foi desligada.";
+// Coliseu: a rota desliga (as ondas não são caça); Cura, Ataque e Buffs ligados sem rota seguem ajudando nas ondas
+// (decisão do dono, 2026-11-11: no Coliseu só o texto mudou; no duelo, jogador contra jogador, ele para tudo).
+const AVISO_COLISEU = "O Estagiário não caça no Coliseu: a rota foi desligada (Cura, Ataque e Buffs continuam ajudando nas ondas).";
+const AVISO_DUELO = "O Estagiário não luta em duelo: ele para até o duelo acabar e volta sozinho.";
 const AVISO_SALAO = "O Estagiário não joga no Salão de Minijogos: a rota foi desligada.";
 const DEV = process.env.NODE_ENV !== "production";
 /** Log de desempenho do tick: dev = a cada 60 s; produção = a cada 5 min e só se algum tick passou de 30 ms. */
@@ -354,6 +358,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       partyMembers: (p) => this.party.membersOf(p.id), // linha no chat do grupo quando um membro pega raro+ do loot de grupo
       onDropped: (p) => { this.transferred.add(p.id); this.ach?.event(p.id, "drop"); },
       onPickedUp: (p) => { this.transferred.add(p.id); this.ach?.event(p.id, "pickup"); },
+      holdFlush: () => this.transferred.size > 0, // o saveTransfers grava jogador + chão juntos
+
       canHold: (x, y) => this.map.grid.isWalkable(x, y) && !this.npcs.isNpcAt(x, y) && !this.portals.isPortalTile(x, y) && !this.doors.isDoorTile(x, y),
       seeThrough: (x, y) => this.map.grid.isWalkable(x, y),
     });
@@ -419,7 +425,13 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       // Investida não para em NPC nem em portal (cair num portal teleportava o cavaleiro sem querer).
       isBlocked: (x, y) => this.npcs.isNpcAt(x, y) || this.portals.isPortalTile(x, y) || this.doors.isDoorTile(x, y),
       isAlly: (a, b) => this.party.sameParty(a.id, b.id),
-      areaHitsPlayer: (a, b) => !this.pvp.canAttack(a, b) && (b.id === a.targetId || this.pvp.justified(a, b)),
+      // Área/onda: no duelo vale a regra do duelo (antes ia pela do PvP comum: a regra dos 2/3 ou o "justificado", que
+      // nunca vale no duelo, faziam a área do mago acertar só o alvo e às vezes ninguém); fora dele, o PvP normal.
+      areaHitsPlayer: (a, b) => {
+        const d = this.duel?.canAttack(a, b);
+        if (d !== undefined) return d === null;
+        return !this.pvp.canAttack(a, b) && (b.id === a.targetId || this.pvp.justified(a, b));
+      },
       castBlocked: (p) => !!this.minigames?.inGame(p.id),
     });
     this.monsterAbilities = new MonsterAbilitySystem({
@@ -454,6 +466,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       alimentadoMs: (id, now) => this.food.remainingMs(id, now),
       comer: (p) => this.inventory.eatAny(p, { silent: true }),
       aliados: (p) => this.party.membersOf(p.id).filter((id) => id !== p.id).map(getPlayer).filter((q): q is PlayerState => !!q),
+      pausado: (id) => !!this.duel?.inDuel(id), // duelo: para tudo e volta sozinho no fim
       attackRange: (p) => this.combat.attackOf(p).range,
     });
     this.combat.hooks = {
@@ -505,7 +518,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         this.ach?.event(pid, "kill", { defId: m.def.id, boss: !!m.def.boss });
         this.telemetry.onKill(pid);
       },
-      onXp: (p, n) => this.telemetry.onXp(p.id, n),
+      // A XP do registro acompanha a viva: desafios, ranking e campeão da semana medem por `rec.xp`, que antes só mudava
+      // no save (até 15 s atrás): o "cumprido" demorava e o "Resgatar" dizia "ainda não concluído".
+      onXp: (p, n) => { this.telemetry.onXp(p.id, n); const rec = this.records.get(p.id); if (rec) rec.xp = p.xp; },
       onDealt: (pid, dealt, resisted, m) => { this.telemetry.onDamage(pid, dealt, resisted); this.invasion?.onDamage(pid, m, dealt); this.raid?.onDamage(pid, m, dealt); },
       onHealOther: (healer, target, healed) => { this.invasion?.onHealOther(healer, target, healed); this.raid?.onHealOther(healer, target, healed); },
       onPlayerDamaged: (p, sourceId, dealt) => this.invasion?.onPlayerDamaged(p, sourceId, dealt),
@@ -573,8 +588,18 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       teleport: (p, x, y) => this.movement.teleport(p, x, y),
       isFree: (x, y, self) => this.isFreeTile(x, y, self),
       partyMates: (id) => this.party.membersOf(id).filter((m) => m !== id),
-      busy: (p) => this.arena.partyFor(p.id) ? `${p.name} está no Coliseu.` : null,
+      // O duelo enche vida e mana e tira da luta: em combate ou com bloqueio de PZ ele virava fuga com cura total (e o
+      // logout no duelo é imediato). No Salão, a volta do duelo caía numa sala de minijogo sem porta.
+      busy: (p) => {
+        const now = Date.now();
+        if (this.arena.partyFor(p.id)) return `${p.name} está no Coliseu.`;
+        if (this.minigames.roomOf(p.id) || this.minigames.inSalao(p.x, p.y)) return `${p.name} está no Salão de Minijogos.`;
+        if (this.pvp.pzLockRemaining(p.id, now) > 0) return `${p.name} está com bloqueio de PZ (atacou um jogador).`;
+        if (this.combat.inCombat(p.id, now)) return `${p.name} está em combate: espere uns segundos.`;
+        return null;
+      },
       inPz: (x, y) => this.monsters.inPz(x, y),
+      onEnter: (p) => { this.npcs.close(p.id); this.estagiario.desligarRota(p, undefined, "duelo"); if (this.estagiario.algoLigado(p)) send(p.id, S2C.Notice, { text: AVISO_DUELO, kind: "info" } satisfies NoticeMsg); },
       onExit: (p) => { this.npcs.close(p.id); this.summons.despawnOwner(p.id); this.conditions.clear(p.id); },
       onWin: (p) => this.ach.event(p.id, "duel"),
       getKv, setKv,
@@ -591,7 +616,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       buyTone: (p, toneId) => this.buySalaoTone(p, toneId),
       onEnter: (p) => {
         this.npcs.close(p.id);
-        this.estagiario.desligarRota(p, AVISO_SALAO);
+        this.estagiario.desligarRota(p, AVISO_SALAO, "Salão de Minijogos");
         this.summons.despawnOwner(p.id);
         this.conditions.clear(p.id); // sem Pés Ligeiros: todo mundo anda no mesmo passo (só o level muda um pouco)
       },
@@ -600,7 +625,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     });
     this.ach = new AchievementSystem({
       record: (id) => this.records.get(id), getPlayer, players: () => this.state.players.values(), send, broadcast,
-      explorePct: (id) => this.exploration.percent(id, this.reachable),
+      explorePct: (id) => this.exploration.percent(id),
       equippedCount: (id) => this.inventory.equippedCount(id),
     });
     setActiveAchievements(this.ach);
@@ -645,6 +670,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       { width: grid.width, height: grid.height, isWalkable: (x, y) => grid.isWalkable(x, y) || this.doors.isDoorTile(x, y) },
       [this.map.spawn, ...travelArrivals], (x, y) => this.portals.destination(x, y),
     );
+    this.exploration.setReachable(this.reachable);
     let nReach = 0;
     for (const v of this.reachable) nReach += v;
     console.log(`[lemonquest] ${nReach} tiles alcançáveis a partir do spawn`);
@@ -674,7 +700,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       record: (id) => this.records.get(id), send, inventory: this.inventory, save: (id) => this.save(id),
       npcOpen: (id) => this.npcs.openFor(id),
     });
-    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); this.invasion.start(ev); this.raid.start(ev); this.race.start(ev); }, onEnd: (ev) => { this.invasion.end(ev); this.raid.end(ev); this.race.end(ev); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) }, bonusStore: { get: () => getKv("event.bonus"), set: (v) => setKv("event.bonus", v) } });
+    this.events = new EventSystem({ broadcast, send, onStart: (ev) => { if (ev.boss) this.monsters.callBoss(ev.boss); this.invasion.start(ev); this.raid.start(ev); this.race.start(ev); }, onEnd: (ev) => { this.invasion.end(ev); this.raid.end(ev); this.race.end(ev); }, onExtend: (prev, next) => { this.raid.extend(prev, next); this.race.extend(prev, next); }, store: { get: () => getKv("event.manual"), set: (v) => setKv("event.manual", v) }, bonusStore: { get: () => getKv("event.bonus"), set: (v) => setKv("event.bonus", v) } });
     this.clickup = this.createClickUp();
     this.trade = new TradeSystem({
       getPlayer: (id) => this.state.players.get(id), send, inventory: this.inventory,
@@ -725,7 +751,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       teleportNear: (admin, target) => this.teleportNear(admin, target),
       resetCode: (account, by) => createResetCode(account, by),
       devTp: (pl) => isDevAdmin(pl.name),
-      status: () => [...this.statusLines(), this.clickup.statusLine()],
+      status: () => [...this.statusLines(), backupStatusLine(), this.clickup.statusLine()],
       metricas: (nome) => this.metrics?.lines(nome) ?? ["Métricas indisponíveis."],
       work: { link: (name, uid) => this.clickup.link(name, uid), list: () => this.clickup.linkList() },
       events: {
@@ -1199,6 +1225,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       return;
     }
     console.log(`[world] ${p.name} foi treinar ${t.skill} offline`);
+    this.kicked.add(p.id); // fechamento do servidor: sai na hora (o código de fechamento sozinho não prova nada, ver onDrop)
     c.leave(CLOSE_TRAINING, "Treinando offline");
   }
 
@@ -1248,6 +1275,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (old) {
       try { old.leave(CLOSE_REPLACED, REPLACED_REASON); } catch (e) { this.errors.report("replaceSession.leave", e); }
     }
+  }
+
+  /** Personagem excluído (auth): esquece o que fica guardado pelo nome, para quem reusar o nome não herdar. */
+  onCharacterDeleted(name: string): void {
+    runSafe("excluir/clickup", () => { if (this.clickup.linkOf(name)) this.clickup.link(name, null); }, this.errors);
+    runSafe("excluir/coliseu", () => takeArenaPrize({ getKv, setKv }, name), this.errors);
   }
 
   /** /kick: fecha a sessão com CLOSE_KICKED + motivo (sem reconexão automática; onLeave salva e limpa). */
@@ -1422,9 +1455,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
    */
   onDrop(client: Client, code?: number) {
     const sid = client.sessionId;
-    if (this.shuttingDown || !this.records.has(sid) || code === CloseCode.WITH_ERROR || code === CLOSE_REPLACED || code === CLOSE_TRAINING || code === CLOSE_KICKED) return; // → onLeave
+    // Só o que o PRÓPRIO servidor fechou pula a reconexão (kick e treino marcam `kicked`; a troca de sessão já limpou o
+    // registro). O código de fechamento vem do outro lado do socket: um `ws.close(4101)` no console fingia o treino e
+    // tirava o personagem do mundo na hora, sem os 20 s da queda nem a permanência do combate (fuga da morte, #11).
+    if (this.shuttingDown || !this.records.has(sid) || this.kicked.has(sid)) return; // → onLeave
     const p = this.state.players.get(sid);
-    if (p) { this.movement.teleport(p, p.x, p.y); this.pauseAuto(p); } // para de andar e de escolher alvos sozinho
+    // Para de andar e de escolher alvos sozinho; e, como na permanência, larga o alvo e o "seguir": caído ele seguia
+    // perseguindo e batendo por até 20 s (no PvP renovava o bloqueio de PZ e a caveira sem ninguém no teclado).
+    if (p) { this.movement.teleport(p, p.x, p.y); this.pauseAuto(p); p.targetId = ""; p.followId = ""; }
     if (p) this.estagiario.desligarTudo(p); // queda: o Estagiário para até reconectar (a rota desliga; cura/ataque/buffs voltam com ele)
     console.log(`[world] ${p?.name ?? sid} caiu (código ${code}); aguardando reconexão por ${RECONNECT_S} s`);
     const r = this.allowReconnection(client, RECONNECT_S);
@@ -1465,7 +1503,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   onLeave(client: Client, code?: number) {
     const sid = client.sessionId;
     const name = this.names.get(sid);
-    const kicked = this.kicked.delete(sid) || code === CLOSE_KICKED || code === CLOSE_TRAINING;
+    const kicked = this.kicked.delete(sid); // marcado pelo servidor (kick, treino); o código do cliente não basta
     const ms = kicked ? 0 : this.lingerMs(sid, code === CloseCode.CONSENTED);
     { const p = this.state.players.get(sid); if (p) this.estagiario.desligarTudo(p); } // fechou o cliente: para (também na permanência); o que estava ligado vai no save
     if (ms > 0) {
@@ -1533,6 +1571,10 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     try {
       // Coliseu antes de salvar: quem estava numa partida volta para a saída (e é salvo lá), sem penalidade.
       runSafe("saída/arena", () => this.arena.removePlayer(sid), this.errors);
+      // Duelo e Salão também antes de salvar: quem sai no meio volta para onde estava (duelo, de vida cheia) ou para o
+      // saguão, e é ESSA posição que vai para o banco (antes gravava o tile da sala do Coliseu e a vida do meio da luta).
+      runSafe("saída/duel", () => this.duel.removePlayer(sid), this.errors);
+      runSafe("saída/minigames", () => this.minigames.removePlayer(sid), this.errors);
       if (this.transferred.size) {
         // Transferência ainda não gravada (troca/chão neste tick): quem sai grava JUNTO com os outros envolvidos e o
         // chão, numa transação (senão a troca podia ficar gravada só de um lado se o processo caísse logo depois).
@@ -1560,8 +1602,6 @@ export class WorldRoom extends Room<{ state: WorldState }> {
         ["imbue", () => this.imbue.removePlayer(sid)],
         ["invasion", () => this.invasion.removePlayer(sid)],
         ["race", () => this.race.removePlayer(sid)],
-        ["duel", () => this.duel.removePlayer(sid)],
-        ["minigames", () => this.minigames.removePlayer(sid)],
         ["exploration", () => this.exploration.removePlayer(sid)],
         ["inventory", () => this.inventory.removePlayer(sid)],
         ["ground", () => this.ground.removePlayer(sid)],

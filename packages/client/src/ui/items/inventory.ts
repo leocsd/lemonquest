@@ -31,12 +31,20 @@ export function firstEmptyBackpack(): number {
 export const countInBackpack = (defId: string): number =>
   (inventoryStore.get()?.backpack ?? []).reduce((n, it) => n + (it && it.defId === defId ? it.count : 0), 0);
 
+/**
+ * `uid` do item que está em `loc` na tela agora: vai junto das ações por posição para o servidor recusar se a mochila
+ * mudou antes de a mensagem chegar (MoveItemMsg em shared/messages.ts).
+ */
+export const uidAt = (loc: ItemLocation): string | undefined => itemAt(loc)?.uid;
+
 export function moveItem(from: ItemLocation, to: ItemLocation, count?: number): void {
-  const m: MoveItemMsg = count != null ? { from, to, count } : { from, to };
+  const uid = uidAt(from);
+  const m: MoveItemMsg = { from, to, ...(count != null ? { count } : {}), ...(uid ? { uid } : {}) };
   send(C2S.MoveItem, m);
 }
 export function useBackpackItem(index: number): void {
-  const m: UseItemMsg = { index };
+  const uid = uidAt({ where: "backpack", index });
+  const m: UseItemMsg = uid ? { index, uid } : { index };
   send(C2S.UseItem, m);
 }
 

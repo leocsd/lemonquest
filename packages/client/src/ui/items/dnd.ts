@@ -171,6 +171,7 @@ function startPress(sx: number, sy: number, shiftDown: boolean, from: DragFrom, 
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     window.removeEventListener("pointercancel", off);
+    window.removeEventListener("blur", off);
     setHover(null);
     dragStore.set(null);
     if (cleanup === off) cleanup = null;
@@ -179,6 +180,9 @@ function startPress(sx: number, sy: number, shiftDown: boolean, from: DragFrom, 
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
   window.addEventListener("pointercancel", off);
+  // Perdeu o foco no meio do arrasto (Alt+Tab, notificação do Teams): o pointerup pode nunca chegar e o item ficava
+  // grudado no mouse, largado no chão no próximo clique. Cancela o arrasto.
+  window.addEventListener("blur", off);
 }
 
 const PANEL_SEL = ".hud-panel, .hud-rail, .npc-window, .hud-window, .action-bar, .quick-slots, .chat, .item-dialog, .compact-vitals";

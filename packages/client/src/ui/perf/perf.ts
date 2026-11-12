@@ -95,14 +95,17 @@ export function startPerfReporter(probe: PerfProbe, send: (m: ClientPerfMsg) => 
   clearInterval: (h) => globalThis.clearInterval(h as number),
 }): () => void {
   const win = new FpsWindow();
-  let elapsed = 0;
+  // Tempo pelo relógio (uptimeMs = performance.now), não por disparo: com a aba escondida há mais de 5 min o navegador
+  // segura o timer em 1×/min, e o "+1000 por disparo" mandava o relatório 1×/h — justo nas abas ociosas abertas o dia
+  // todo, o caso que as métricas foram feitas para ver.
+  const t0 = probe.uptimeMs();
   let next = CLIENT_PERF_FIRST_MS;
   const h = timers.setInterval(() => {
     try {
       win.add(probe.fps());
-      elapsed += 1000;
+      const elapsed = probe.uptimeMs() - t0;
       if (elapsed < next) return;
-      next += CLIENT_PERF_EVERY_MS;
+      while (next <= elapsed) next += CLIENT_PERF_EVERY_MS; // atrasou muito: um relatório só, e o próximo no ritmo
       send(buildReport(win, probe));
     } catch { /* métrica não é motivo para quebrar o cliente */ }
   }, 1000);

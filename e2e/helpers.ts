@@ -118,7 +118,7 @@ export async function teleport(page: Page, x: number, y: number): Promise<void> 
   await waitSettled(page);
 }
 
-const sameTile = (a: Tile | null | undefined, b: Tile) => !!a && a.x === b.x && a.y === b.y;
+export const sameTile = (a: Tile | null | undefined, b: Tile) => !!a && a.x === b.x && a.y === b.y;
 
 /** A porta em (x,y) está desenhada aberta (comum aberta, ou de level/missão com alguém dentro)? */
 export const doorOpen = (page: Page, door: Tile) => page.evaluate(([x, y]) =>

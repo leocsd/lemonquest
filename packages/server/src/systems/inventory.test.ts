@@ -229,7 +229,10 @@ describe("inventory: potions", () => {
     p.hp = 10; p.mana = 0;
     w.inv.addItem(p, makeItem("hp_pot", 3));
     w.inv.addItem(p, makeItem("mana_pot", 2));
-    w.inv.onUseItem(p, { index: 0 });
+    w.inv.onUseItem(p, { index: 0, uid: bp(w)[1]!.uid }); // uid de outro item: não usa
+    w.inv.onMoveItem(p, { from: { where: "backpack", index: 0 }, to: { where: "backpack", index: 5 }, uid: "x" });
+    expect([p.hp, bp(w)[0]?.count]).toEqual([10, 3]);
+    w.inv.onUseItem(p, { index: 0, uid: bp(w)[0]!.uid });
     expect(p.hp).toBe(60);
     expect(bp(w)[0]?.count).toBe(2);
     w.inv.onQuickPotion(p, { kind: "mana" });

@@ -1121,7 +1121,7 @@ const { map: world8 } = expand8({ old: world7, ts, S, spawnTile: SPAWN });
 // salas, cava os corredores de DOOR_RECTS e põe as portas (objetos "door") no fim. Provar com
 // `diff-world.mjs <antigo> --removed <ids> --allow <DOOR_RECTS> ...` (os ids saem no log abaixo).
 {
-  const { removedIds } = placeDoors22({ map: world8, spawnTile: SPAWN });
+  const { removedIds } = placeDoors22({ map: world8, spawnTile: SPAWN, lemon: LEMON });
   console.log(`doors22: ids removidos ${removedIds.join(',')}`);
 }
 

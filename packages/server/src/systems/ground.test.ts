@@ -65,7 +65,12 @@ describe("ground: drop", () => {
     const t = groundWorld();
     const p = t.add("p1", 5, 5);
     t.w.inv.addItem(p, makeItem("sword", 1, "rare", [{ stat: "attack", value: 3 }]));
-    t.ground.onDrop(p, { from: { where: "backpack", index: 0 }, x: 4, y: 3 });
+    // uid de outro item (a mochila se reorganizou depois do clique): não larga nada.
+    t.ground.onDrop(p, { from: { where: "backpack", index: 0 }, x: 4, y: 3, uid: "outro" });
+    t.ground.onDiscard(p, { index: 0, uid: "outro" });
+    expect(t.bp("p1")[0]).not.toBeNull();
+    t.step();
+    t.ground.onDrop(p, { from: { where: "backpack", index: 0 }, x: 4, y: 3, uid: t.bp("p1")[0]!.uid });
     expect(t.bp("p1")[0]).toBeNull();
     const [e] = t.onTile(4, 3);
     expect(e!.item.bonuses).toEqual([{ stat: "attack", value: 3 }]);
@@ -460,6 +465,25 @@ describe("ground: persistência", () => {
     w.advance(SAVE_DEBOUNCE_MS);
     g.tick(w.now());
     expect(store.rows).toHaveLength(0);
+  });
+
+  it("com transferência de jogador pendente o chão não grava sozinho (vai junto no saveTransfers)", () => {
+    const w = invWorld();
+    const store = memStore();
+    let pending = true;
+    const g = new GroundSystem({
+      inventory: w.inv, collection: new Map<string, GroundItemState>(), now: w.now, log: () => {}, store,
+      canHold: (x, y) => MAP.isWalkable(x, y), seeThrough: (x, y) => MAP.isWalkable(x, y), send: () => {},
+      holdFlush: () => pending,
+    });
+    w.advance(10_000);
+    g.place(makeItem("bone", 1), 4, 4);
+    g.tick(w.now());
+    expect(store.rows).toHaveLength(0);
+    pending = false;
+    w.advance(1000);
+    g.tick(w.now());
+    expect(store.rows).toHaveLength(1);
   });
 
   it("ignora tiles inválidos e itens de definição desconhecida", () => {

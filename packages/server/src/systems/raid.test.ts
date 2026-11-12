@@ -125,6 +125,30 @@ describe("RaidSystem", () => {
     expect(raid.start(e)).toBe(false);
   });
 
+  it("o chefe só percebe quem está perto (não mira quem caça do outro lado do mapa)", () => {
+    const { w, raid, ev } = setup();
+    raid.start(ev());
+    const boss = raid.boss!;
+    const longe = w.add(player("longe", 85, 65));
+    const perto = w.add(player("perto", 44, 15));
+    expect(w.mm.allowedFor(boss, longe.id)).toBe(false);
+    expect(w.mm.allowedFor(boss, perto.id)).toBe(true);
+  });
+
+  it("evento prorrogado (/evento durante o raide): o fim com o horário novo encerra o raide", () => {
+    const { w, raid, ev, feeds } = setup();
+    const e = ev();
+    raid.start(e);
+    const longer = ev(75);
+    raid.end(longer); // sem o extend: fim de outra ocorrência, ignorado
+    expect(raid.boss).toBeDefined();
+    raid.extend(e, longer);
+    raid.end(longer);
+    expect([...w.mm.all()].filter((m) => m.questLever === RAID_LEVER)).toHaveLength(0);
+    expect(feeds().some((t) => t.includes("foi embora"))).toBe(true);
+    expect(raid.start(longer)).toBe(false);
+  });
+
   it("evento sem raide e mapa sem o ponto: nada nasce", () => {
     const { raid, w } = setup();
     expect(raid.start(toActive(eventDef("sextou")!, w.now() + MIN))).toBe(false);

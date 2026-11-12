@@ -90,6 +90,10 @@ export class RaidSystem {
     if (!pt || !def) { this.o.log?.(`[raide] sem ponto ${RAID_POINT} ou chefe: nada nasce`); return false; }
     const boss = this.o.monsters.spawnQuest(def, pt.x, pt.y, { leverId: RAID_LEVER, bounds: this.bounds(pt), hpMult: raidBossHp([]) / def.hp });
     if (!boss) { this.o.log?.(`[raide] sem tile livre em ${pt.x},${pt.y}`); return false; }
+    // Com `bounds` a IA percebe o "mapa inteiro" (feito para a sala do Coliseu, que filtra pelo `allow`): sem filtro o
+    // chefe mirava quem caçava a 150 tiles e os ajudantes (herdam o allow) ficavam parados atrás desse alvo distante.
+    // Conta da posição do chefe (como a invasão): quem bate de longe da borda do confinamento ainda é visto.
+    boss.allow = (p) => cheb(p.x, p.y, boss.s.x, boss.s.y) <= RAID_AREA;
     this.run = { key: ev.until, start: now, boss, slices: new Map(), names: new Map(), half: false };
     this.nextTick = now;
     const text = `⚔ Raide: ${def.name} chegou ao norte da Vila! Todo mundo junto, de qualquer level: quem lutar ganha Baú de Recompensa.`;
@@ -97,6 +101,11 @@ export class RaidSystem {
     this.o.broadcast(S2C.Notice, { text, kind: "warn", log: true } satisfies NoticeMsg);
     this.o.log?.(`[raide] ${def.name} nasceu em ${boss.s.x},${boss.s.y}`);
     return true;
+  }
+
+  /** O evento do raide foi prorrogado/encurtado (EventHost.onExtend): a ocorrência passa a ter o fim novo. */
+  extend(prev: ActiveEvent, next: ActiveEvent): void {
+    if (this.run && this.run.key === prev.until) this.run.key = next.until;
   }
 
   /** Fim do evento: se o chefe ainda está vivo, ele vai embora (sem XP nem loot) e quem se engajou leva o prêmio menor. */

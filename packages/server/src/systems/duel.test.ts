@@ -100,7 +100,12 @@ describe("DuelSystem", () => {
     expect(duel.canAttack(a2, b2)).toBeNull();
     duel.interceptDeath(b);
     expect(duel.inDuel(a.id)).toBe(true);
-    expect(duel.canAttack(a, b)).toBe("Fora do duelo.");
+    expect(duel.canAttack(a, b)).toBe("Você está num duelo: só vale atacar o outro lado.");
+    // Quem caiu já está fora: PvP normal com quem está de fora, logout com permanência (inDuel false).
+    const c = add("c", 12, 12);
+    expect(duel.inDuel(b.id)).toBe(false);
+    expect(duel.canAttack(c, b)).toBeUndefined();
+    expect(duel.isDuelHit(b, a)).toBe(false);
     duel.interceptDeath(b2);
     expect(duel.inDuel(a.id)).toBe(false);
     expect(wins.sort()).toEqual(["a", "a2"]);

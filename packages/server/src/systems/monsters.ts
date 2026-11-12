@@ -34,6 +34,8 @@ export const RESPAWN_RETRY_MS = 5000;
  */
 export const RESPAWN_FORCE_AFTER_MS = 30_000;
 export const RESPAWN_FORCE_DIST = 3;
+/** Chefe chamado por evento com o covil ocupado: nasce em qualquer tile livre a mais de 1 tile de jogadores. */
+export const CALLED_BOSS_MIN_DIST = 1;
 /** Monstros ociosos sem jogador a esta distância dormem (não pensam nem andam). */
 export const SLEEP_DIST = 16;
 
@@ -229,7 +231,8 @@ export class MonsterManager {
   private readonly mask: Uint8Array;
   private readonly occ = new Map<number, Monster>();
   private readonly list = new Map<string, Monster>();
-  private readonly respawns: { spawn: SpawnPoint; at: number; due: number }[] = [];
+  /** `minDist`: distância mínima de jogadores fixa (chefe chamado por evento); ausente = a regra normal do respawn. */
+  private readonly respawns: { spawn: SpawnPoint; at: number; due: number; minDist?: number }[] = [];
   private readonly warned = new Set<string>();
   /** Último grito de reforço por família (HELP_SHOUT_MS). */
   private readonly lastShoutAt = new Map<string, number>();
@@ -403,8 +406,11 @@ export class MonsterManager {
     // Cópias do Coliseu, da alavanca ou invocadas por outro monstro não contam: o evento anunciaria um chefe que não está no covil.
     for (const m of this.list.values()) if (m.def.id === defId && !m.arenaId && !m.questLever && !m.minionOf) return "alive";
     for (let i = this.respawns.length - 1; i >= 0; i--) if (this.respawns[i]!.spawn === sp) this.respawns.splice(i, 1);
-    if (this.spawnOne(sp, def, now, RESPAWN_FORCE_DIST)) return "spawned";
-    this.respawns.push({ spawn: sp, at: now + RESPAWN_RETRY_MS, due: now + RESPAWN_RETRY_MS }); // sem tile livre agora: tenta de novo
+    // O grupo que veio pelo aviso espera DENTRO do covil: num covil de raio 3 um jogador no meio fica a ≤ 3 de todo tile
+    // e o chefe não nascia (a nova tentativa ainda caía no respawn comum, que pede > 7 para chefe). Sem tile a mais de 3,
+    // vale qualquer tile livre que não encoste num jogador.
+    if (this.spawnOne(sp, def, now, RESPAWN_FORCE_DIST) || this.spawnOne(sp, def, now, CALLED_BOSS_MIN_DIST)) return "spawned";
+    this.respawns.push({ spawn: sp, at: now + RESPAWN_RETRY_MS, due: now + RESPAWN_RETRY_MS, minDist: CALLED_BOSS_MIN_DIST }); // covil cheio: tenta de novo
     return "unknown";
   }
 
@@ -753,7 +759,7 @@ export class MonsterManager {
       const def = this.def(r.spawn.defId);
       if (!def) { this.respawns.splice(i, 1); continue; }
       const forced = !def.boss && now - r.due >= RESPAWN_FORCE_AFTER_MS;
-      if (this.spawnOne(r.spawn, def, now, forced ? RESPAWN_FORCE_DIST : RESPAWN_PLAYER_DIST)) this.respawns.splice(i, 1);
+      if (this.spawnOne(r.spawn, def, now, r.minDist ?? (forced ? RESPAWN_FORCE_DIST : RESPAWN_PLAYER_DIST))) this.respawns.splice(i, 1);
       else r.at = now + RESPAWN_RETRY_MS;
     }
   }

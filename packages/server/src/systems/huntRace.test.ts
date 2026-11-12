@@ -101,4 +101,18 @@ describe("HuntRaceSystem", () => {
     race.end(ev);
     expect(race.start(ev)).toBe(false);
   });
+
+  it("corrida prorrogada: o placar mostra o fim novo e o fim com o horário novo premia", () => {
+    const { w, race, last } = setup();
+    const a = w.add(player("a", 1, 1, { level: 40 }));
+    const ev = toActive(EV, w.now() + 60_000);
+    race.start(ev);
+    const longer = toActive(EV, w.now() + 20 * 60_000);
+    race.extend(ev, longer);
+    race.tick(w.now() + 10_000);
+    expect(last(a.id)?.active?.end).toBe(longer.until);
+    race.end(longer);
+    expect(race.teamOf("a")).toBeUndefined();
+    expect(race.start(longer)).toBe(false);
+  });
 });

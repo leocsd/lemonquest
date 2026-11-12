@@ -5,7 +5,8 @@ import {
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { InventorySystem, makeItem } from "./inventory.ts";
-import { QuestSystem, chestEligible, chestFallbackGem, chestGearPool, rollChest, type ZoneRect } from "./quests.ts";
+import { chestFallbackGem } from "@lemonquest/shared";
+import { QuestSystem, chestEligible, chestGearPool, rollChest, type ZoneRect } from "./quests.ts";
 import { bountyDay, generateBounties, nextBountyReset, tzOffsetMs } from "./bounties.ts";
 import { player, seeded } from "./testkit.ts";
 

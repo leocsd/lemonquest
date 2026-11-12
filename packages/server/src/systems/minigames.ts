@@ -120,6 +120,8 @@ export class MinigameSystem {
   private readonly now: () => number;
   private readonly rng: () => number;
   private lobbyDirty = false;
+  /** Próxima conferência de quem ainda está no Salão (salas em lobby). */
+  private nextPresenceAt = 0;
   private lobbySentAt = 0;
 
   constructor(private readonly o: MinigameHost) {
@@ -138,6 +140,8 @@ export class MinigameSystem {
 
   get open(): boolean { return this.rooms.length > 0 && !!this.o.layout.exit; }
   roomOf(id: string): Readonly<Room> | undefined { return this.byPlayer.get(id); }
+  /** Dentro do Salão (saguão ou salas). */
+  inSalao(x: number, y: number): boolean { return this.o.inSalao(x, y); }
   /** Jogando dentro de uma sala (contagem ou partida): sem magias, sem troca. */
   inGame(id: string): boolean {
     const r = this.byPlayer.get(id);
@@ -292,6 +296,20 @@ export class MinigameSystem {
   // --- partida -------------------------------------------------------------------------------------------------------
 
   tick(now = this.now()): void {
+    // Lobby: quem saiu do Salão perde a vaga (1×/s). Antes só o "Começar" conferia, e a sala do anfitrião que foi
+    // caçar ficava presa em "lobby" (só ele começa) até ele voltar ou deslogar.
+    if (now >= this.nextPresenceAt) {
+      this.nextPresenceAt = now + 1000;
+      for (const r of this.rooms) {
+        if (r.phase !== "lobby") continue;
+        for (const x of [...r.players]) {
+          const pl = this.o.getPlayer(x.id);
+          if (pl && this.o.inSalao(pl.x, pl.y)) continue;
+          this.leave(x.id, false);
+          if (pl) { this.notice(pl.id, "Você saiu do Salão e perdeu a vaga na sala.", "warn"); this.openLobby(pl); }
+        }
+      }
+    }
     for (const r of this.rooms) {
       if (r.phase === "countdown" && now >= r.until) this.begin(r, now);
       else if (r.phase === "playing") this.play(r, now);

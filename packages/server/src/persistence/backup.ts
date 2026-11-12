@@ -73,9 +73,12 @@ export async function copyBackupOffsite(file: string, copyDir: string | null = b
     await fs.promises.copyFile(file, tmp);
     await fs.promises.rename(tmp, dest);
     console.log(`[backup] cópia externa: ${dest} (${(performance.now() - t0).toFixed(0)} ms)`);
+    backupState.copyOkAt = now.getTime();
   } catch (e) {
     await fs.promises.rm(tmp, { force: true }).catch(() => {});
     console.error(`[backup] cópia externa falhou (${copyDir}):`, (e as Error).message ?? e);
+    backupState.copyError = String((e as Error).message ?? e).slice(0, 120);
+    backupState.copyErrorAt = now.getTime();
     return false;
   }
   try {
@@ -89,6 +92,26 @@ export async function copyBackupOffsite(file: string, copyDir: string | null = b
   return true;
 }
 
+/**
+ * Último resultado dos backups (o /status mostra): antes a falha era só uma linha no console, que some no rodízio do
+ * `docker logs` — backup parado por dias (disco cheio, NAS desmontado) só se descobria na hora de restaurar.
+ */
+export const backupState: { okAt?: number; error?: string; errorAt?: number; copyOkAt?: number; copyError?: string; copyErrorAt?: number } = {};
+
+/** Linha do /status: o último backup bom e a última falha (se for mais nova que ele). */
+export function backupStatusLine(now = Date.now(), copyDir: string | null = backupCopyDir()): string {
+  const ago = (t: number) => { const m = Math.max(0, Math.round((now - t) / 60_000)); return m < 60 ? `há ${m} min` : `há ${Math.round(m / 60)} h`; };
+  const s = backupState;
+  let line = s.okAt ? `Backup: último ${ago(s.okAt)}` : "Backup: nenhum desde que o servidor subiu";
+  if (s.errorAt && (!s.okAt || s.errorAt > s.okAt)) line += ` · ⚠ FALHOU ${ago(s.errorAt)}: ${s.error}`;
+  else if (s.okAt && now - s.okAt > 2 * 3_600_000) line += " · ⚠ atrasado (era para ser de hora em hora)";
+  if (copyDir) {
+    if (s.copyErrorAt && (!s.copyOkAt || s.copyErrorAt > s.copyOkAt)) line += ` · ⚠ cópia externa FALHOU ${ago(s.copyErrorAt)}: ${s.copyError}`;
+    else line += s.copyOkAt ? ` · cópia externa ${ago(s.copyOkAt)}` : " · cópia externa: nenhuma ainda";
+  }
+  return line;
+}
+
 /** Faz o backup da hora atual e roda a rotação. Nunca lança (loga). Com LEMONQUEST_BACKUP_COPY_DIR, copia em seguida (assíncrono). */
 export function runBackup(dir = backupDir(), now = new Date(), copyDir: string | null = backupCopyDir()): string | null {
   const file = path.join(dir, backupFileName(now));
@@ -97,8 +120,11 @@ export function runBackup(dir = backupDir(), now = new Date(), copyDir: string |
     backupTo(file);
     const kb = Math.round(fs.statSync(file).size / 1024);
     console.log(`[backup] ${file} (${kb} KB, ${(performance.now() - t0).toFixed(0)} ms)`);
+    backupState.okAt = now.getTime();
   } catch (e) {
     console.error("[backup] falhou:", e);
+    backupState.error = String((e as Error)?.message ?? e).slice(0, 120);
+    backupState.errorAt = now.getTime();
     return null;
   }
   try {

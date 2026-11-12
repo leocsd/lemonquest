@@ -26,10 +26,9 @@ import { QUEST_OBJECT_RANGE, QuestObjectIndex, useQuestObject } from "../game/qu
 import { ChestLabels } from "../game/chestLabels.ts";
 import { PortalLabels } from "../game/portalLabels.ts";
 import { DoorSprites } from "../game/doors.ts";
-import { PortalSprites, preloadPortalSprites } from "../game/portalSprites.ts";
 import { ensureWorldIndex } from "../game/worldIndex.ts";
 import { drawDrawnChests, preloadDrawnChests } from "../game/drawnChests.ts";
-import { onTabReturn, settleActors } from "../game/tabReturn.ts";
+import { fxPaused, onTabReturn, settleActors } from "../game/tabReturn.ts";
 import { KeyboardInput } from "../game/input.ts";
 import { applyTextRes, onTextResChange, sceneTexts } from "../game/textRes.ts";
 import { PixelCamera } from "../game/pixelCamera.ts";
@@ -141,7 +140,6 @@ export class WorldScene extends Phaser.Scene {
   private npcs!: NpcManager;
   private chestLabels!: ChestLabels;
   private portalLabels!: PortalLabels;
-  private portalSprites!: PortalSprites;
   private doorSprites!: DoorSprites;
   private loot!: LootFx;
   private ground!: GroundItems;
@@ -194,7 +192,6 @@ export class WorldScene extends Phaser.Scene {
     CombatFx.preload(this);
     LootFx.preload(this);
     preloadDrawnChests(this);
-    preloadPortalSprites(this);
   }
 
   /** Alimenta a tela de carregamento com o progresso REAL do loader (mapa, tilesets, sprites, efeitos). */
@@ -277,9 +274,8 @@ export class WorldScene extends Phaser.Scene {
     this.questObjs = new QuestObjectIndex(this.world.tiled);
     this.chestLabels = new ChestLabels(this, this.uiLayer, this.questObjs.list);
     this.portalLabels = new PortalLabels(this, this.uiLayer, ensureWorldIndex(this.world.tiled));
-    this.portalSprites = new PortalSprites(this, this.worldLayer, ensureWorldIndex(this.world.tiled).portals, { quests: questStore.get, reducedMotion });
     drawDrawnChests(this, this.worldLayer, this.questObjs.list);
-    this.doorSprites = new DoorSprites(this, this.worldLayer, this.questObjs.doors, this.world.grid);
+    this.doorSprites = new DoorSprites(this.world.tilemap, this.questObjs.doors, this.world.grid);
     this.loot = new LootFx(this, this.worldLayer, this.uiLayer, this.fx, () => {
       const me = this.actors.get(this.myId);
       return me ? { x: me.bodyX, y: me.bodyY, headY: me.headY } : null;
@@ -1160,7 +1156,6 @@ export class WorldScene extends Phaser.Scene {
     this.npcs.placeUi(zoom, dt, (wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
     this.chestLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height);
     this.portalLabels.placeUi((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy), this.scale.width, this.scale.height, this.myLevel);
-    this.portalSprites.update(this.cameras.main, this.myLevel, time);
     this.doorSprites.update((x, y) => { for (const a of this.actors.values()) if (a.tileX === x && a.tileY === y) return true; return false; });
     this.updateGuide(me, dt);
     this.bobbers.update((wx) => this.pcam.toScreenX(wx), (wy) => this.pcam.toScreenY(wy));
@@ -1326,6 +1321,10 @@ export class WorldScene extends Phaser.Scene {
    * local ou o grupo dele. `at` = posição (tiles) do acontecimento quando os atores já não existem.
    */
   private fxReach(ids: string[], at?: { x: number; y: number }): { show: boolean; gain: number } {
+    // Aba escondida: o Phaser pausa o laço (sprites/tweens só voltam ao pool no update), mas as mensagens continuam
+    // chegando. Com o Estagiário caçando e a aba em segundo plano, cada golpe pegava um sprite novo: em 1 h, milhares
+    // presos nos pools para sempre e uma chuva de efeitos velhos ao voltar. Vida e posição vêm do estado: nada se perde.
+    if (fxPaused()) return { show: false, gain: 0 };
     const me = this.actors.get(this.myId);
     if (!me || ids.some((id) => id && (id === this.myId || isPartyMember(id)))) return { show: true, gain: 1 };
     let d = Infinity;
@@ -1347,14 +1346,14 @@ export class WorldScene extends Phaser.Scene {
 
   onXpGain(amount: number) {
     const me = this.actors.get(this.myId);
-    if (!me) return;
+    if (!me || fxPaused()) return;
     this.fx.floatText(me.bodyX, me.headY + 2, `+${amount} XP`, 0xffd447, { size: 14, life: 1200, rise: 16, dx: 0 });
     sfx.play("xp", { volume: 0.7 });
   }
 
   onLevelUp(level: number) {
     const me = this.actors.get(this.myId);
-    if (me) this.fx.levelUp(me.root, me.bodyX, me.ry + TILE_SIZE - 2);
+    if (me && !fxPaused()) this.fx.levelUp(me.root, me.bodyX, me.ry + TILE_SIZE - 2);
     const from = this.unlockedUpTo;
     this.unlockedUpTo = Math.max(from, level);
     const fresh = this.myVocation
@@ -1395,7 +1394,7 @@ export class WorldScene extends Phaser.Scene {
 
   onSkillUp(m: SkillUpMsg) {
     pushToast({ text: `Você avançou para ${SKILL_LABELS[m.skill] ?? m.skill} ${m.level}`, kind: "good" });
-    this.spells.sparkle(this.myId);
+    if (!fxPaused()) this.spells.sparkle(this.myId);
     sfx.play("skillup", { volume: 0.8 });
   }
 
@@ -1411,7 +1410,7 @@ export class WorldScene extends Phaser.Scene {
     if (wasTarget) { this.curTarget = ""; setTarget(null); }
     const a = this.creatures.get(m.id);
     // Longe: o corpo some (estado) mas sem cadáver nem som.
-    const r = wasTarget ? { show: true, gain: 1 } : this.fxReach([m.id], { x: m.x, y: m.y });
+    const r = wasTarget && !fxPaused() ? { show: true, gain: 1 } : this.fxReach([m.id], { x: m.x, y: m.y });
     if (!r.show) { a?.ghost(); return; }
     if (a) {
       const f = a.frameInfo;
@@ -1575,7 +1574,7 @@ export class WorldScene extends Phaser.Scene {
     if (me) this.pcam.jumpTo(me.rx + TILE_SIZE / 2, me.ry + TILE_SIZE / 2);
   }
 
-  onLoot(m: LootMsg) { this.loot.drop(m); }
+  onLoot(m: LootMsg) { if (!fxPaused()) this.loot.drop(m); } // só a animação: o loot em si vem pelo inventário
   addNpc(id: string, x: number, y: number) { this.npcs.add(id, x, y); }
   npcSay(id: string, text: string) { this.npcs.say(id, text); }
 

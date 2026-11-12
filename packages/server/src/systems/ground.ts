@@ -106,6 +106,12 @@ export interface GroundOptions {
    * que veio de abate em grupo. Ausente = sem a linha (a reserva em si usa `p.partyId`, que o PartySystem mantém).
    */
   partyMembers?: (p: PlayerState) => string[];
+  /**
+   * Há jogador com item que entrou/saiu do chão ainda não gravado: o chão espera para ir ao banco JUNTO com ele (a sala
+   * grava os dois numa transação). Gravar o chão sozinho nesse meio-tempo deixava o item na mochila e no chão (ou em
+   * nenhum dos dois) se o processo caísse antes do save do jogador.
+   */
+  holdFlush?: () => boolean;
 }
 
 export const cheb = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
@@ -145,6 +151,7 @@ export class GroundSystem {
     if (!msg || typeof msg !== "object" || p.hp <= 0) return;
     if (!this.limiter.allow(`${p.id}:drop`, GROUND_RATE)) return;
     if (msg.count !== undefined && msg.count !== null && (!isInt(msg.count) || msg.count < 1)) return;
+    if (!msg.from || typeof msg.from !== "object" || !this.o.inventory.uidMatches(p.id, msg.from, msg.uid)) return;
     this.dropFrom(p, msg.from, isInt(msg.x) ? msg.x : p.x, isInt(msg.y) ? msg.y : p.y, msg.count ?? undefined);
   }
 
@@ -152,6 +159,7 @@ export class GroundSystem {
   onDiscard(p: PlayerState, msg: DiscardItemMsg): void {
     if (!msg || typeof msg !== "object" || p.hp <= 0) return;
     if (!this.limiter.allow(`${p.id}:drop`, GROUND_RATE)) return;
+    if (!this.o.inventory.uidMatches(p.id, { where: "backpack", index: msg.index }, msg.uid)) return;
     this.dropFrom(p, { where: "backpack", index: msg.index }, p.x, p.y);
   }
 
@@ -348,7 +356,7 @@ export class GroundSystem {
     if (now < this.nextSweep) return;
     this.nextSweep = now + SWEEP_MS;
     for (const [id, e] of this.entries) if (e.expiresAt <= now) this.remove(id);
-    if (this.dirty && now - this.lastSave >= SAVE_DEBOUNCE_MS) this.flush(now);
+    if (this.dirty && now - this.lastSave >= SAVE_DEBOUNCE_MS && !this.o.holdFlush?.()) this.flush(now);
   }
 
   /** Grava o chão agora, se mudou desde a última gravação (debounce na varredura / desligamento). */

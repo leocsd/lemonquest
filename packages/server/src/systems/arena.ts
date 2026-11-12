@@ -108,7 +108,8 @@ export interface ArenaOptions {
 }
 
 /** Resultado de um grupo do desafio grupo × grupo, esperando o outro terminar. */
-interface VersusDone { wave: number; ms: number; names: string[]; ids: string[] }
+/** `names`/`ids` = quem leva o baú se vencer (venceu ao menos uma onda na faixa); `label` = o grupo todo, para o Feed. */
+interface VersusDone { wave: number; ms: number; names: string[]; ids: string[]; label: string[] }
 
 interface Member {
   id: string;
@@ -293,7 +294,7 @@ export class ArenaSystem {
     }
     this.versusDone.delete(party.rival);
     const w = arenaVersusWinner(res, other);
-    const txt = (r: VersusDone) => `${r.names.join(", ")} (${r.wave} ondas)`;
+    const txt = (r: VersusDone) => `${r.label.join(", ")} (${r.wave} ondas)`;
     const head = w === null ? `empate entre ${txt(res)} e ${txt(other)}` : `${txt(w === 0 ? res : other)} venceu ${txt(w === 0 ? other : res)}`;
     this.o.broadcast(S2C.Feed, { text: `🏟️ Desafio no Coliseu: ${head}!`, kind: "info" } satisfies FeedMsg);
     if (w === null) return;
@@ -661,15 +662,18 @@ export class ArenaSystem {
   private endMatch(party: Party, reason: ArenaResultMsg["reason"]): void {
     // Coliseu competitivo: a partida entra no ranking de ondas da semana em que começou; o desafio decide quando os dois
     // grupos terminam. Isolado: falha no kv não impede o fim da partida.
-    const names = party.members.map((m) => m.name), ids = party.members.map((m) => m.id);
+    // Ranking e baú do desafio só para quem venceu ao menos uma onda na faixa de level (como o recorde de tempo e a XP
+    // das ondas): antes ia o grupo inteiro, até quem desistiu na contagem ou o alt carregado fora da faixa.
+    const scored = party.members.filter((m) => m.cleared >= 1 && m.inRange !== false);
+    const names = scored.map((m) => m.name), ids = scored.map((m) => m.id);
     const ms = party.startedAt && party.lastClearAt ? party.lastClearAt - party.startedAt : 0;
-    if (party.startedAt && this.o.getKv && this.o.setKv) {
+    if (party.startedAt && names.length && this.o.getKv && this.o.setKv) {
       try {
         submitArenaWaves({ getKv: this.o.getKv, setKv: this.o.setKv },
           { names, wave: party.cleared, ms, week: weekId(new Date(party.startedAt)), at: this.now() });
       } catch (e) { console.error("[arena] falha ao gravar o ranking de ondas:", e); }
     }
-    try { this.versusEnded(party, { wave: party.cleared, ms, names, ids }); } catch (e) { console.error("[arena] falha no desafio:", e); }
+    try { this.versusEnded(party, { wave: party.cleared, ms, names, ids, label: party.members.map((m) => m.name) }); } catch (e) { console.error("[arena] falha no desafio:", e); }
     for (const m of party.members) if (m.alive) this.memberOut(party, m, reason);
     for (const id of party.monsterIds) { const mon = this.o.monsters.get(id); if (mon) this.o.monsters.despawn(mon); }
     party.monsterIds.clear();
@@ -733,11 +737,14 @@ export class ArenaSystem {
   private removeFromLobby(party: Party, id: string, silent = false): void {
     const i = party.members.findIndex((m) => m.id === id);
     if (i < 0) return;
-    party.members.splice(i, 1);
+    const [gone] = party.members.splice(i, 1);
     this.partyOf.delete(id);
     if (!silent) this.o.send(id, S2C.ArenaState, { state: null } satisfies ArenaStateMsg);
     if (!party.members.length) {
       this.parties.delete(party.id);
+      // Desafio grupo × grupo: o grupo sumiu antes de entrar (queda/afastou na contagem da Vila) = terminou com 0 ondas.
+      // Sem isso o rival ficava "Esperando o outro grupo..." para sempre e não levava o baú.
+      if (party.rival) try { this.versusEnded(party, { wave: 0, ms: 0, names: [], ids: [], label: [gone!.name] }); } catch (e) { console.error("[arena] falha no desafio:", e); }
       const q = this.queue.indexOf(party);
       if (q >= 0) this.queue.splice(q, 1);
       if (party.arena && this.busy.get(party.arena.id) === party) { this.busy.delete(party.arena.id); this.startQueued(); }

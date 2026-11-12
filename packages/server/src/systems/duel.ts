@@ -28,6 +28,8 @@ export interface DuelHost {
   /** Ocupado em outra coisa (Coliseu, troca...): não entra em duelo. Texto do motivo ou null. */
   busy?: (p: PlayerState) => string | null;
   inPz?: (x: number, y: number) => boolean;
+  /** Entrou na sala (começo do duelo): o Estagiário para, janelas de NPC fecham. */
+  onEnter?: (p: PlayerState) => void;
   /** Saiu da sala (fim ou caiu): some com invocações, limpa condições (o mesmo do Coliseu). */
   onExit?: (p: PlayerState) => void;
   /** Venceu um duelo (conquistas). */
@@ -64,7 +66,15 @@ export class DuelSystem {
 
   /** Duelo do jogador (testes e regras). */
   duelOf(id: string): Readonly<Duel> | undefined { return this.byPlayer.get(id); }
-  inDuel(id: string): boolean { return this.byPlayer.has(id); }
+  /**
+   * Duelo em que o jogador ainda luta. No 2×2 quem caiu volta para onde estava e fica no `byPlayer` só até o resultado:
+   * para o resto do jogo ele já saiu (PvP normal, logout com permanência), senão ficava até 3 min imune fora da sala.
+   */
+  private active(id: string): Duel | undefined {
+    const d = this.byPlayer.get(id);
+    return d && !d.fighters.find((f) => f.id === id)?.out ? d : undefined;
+  }
+  inDuel(id: string): boolean { return !!this.active(id); }
 
   private notice(id: string, text: string, kind: NoticeMsg["kind"] = "info"): void {
     this.o.send(id, S2C.Notice, { text, kind } satisfies NoticeMsg);
@@ -164,6 +174,7 @@ export class DuelSystem {
       this.o.teleport(p, t.x, t.y);
       p.hp = p.maxHp;
       p.mana = p.maxMana;
+      this.o.onEnter?.(p);
     }));
     this.duels.add(duel);
     const names = (side: 0 | 1) => duel.fighters.filter((f) => f.side === side).map((f) => f.name).join(" e ");
@@ -185,11 +196,10 @@ export class DuelSystem {
    * (lados opostos, na luta, os dois na sala); texto = não pode.
    */
   canAttack(a: PlayerState, b: PlayerState): string | null | undefined {
-    const da = this.byPlayer.get(a.id), db = this.byPlayer.get(b.id);
+    const da = this.active(a.id), db = this.active(b.id);
     if (!da && !db) return undefined;
     if (da !== db) return da ? "Você está num duelo: só vale atacar o outro lado." : `${b.name} está num duelo.`;
     const fa = da!.fighters.find((f) => f.id === a.id)!, fb = da!.fighters.find((f) => f.id === b.id)!;
-    if (fa.out || fb.out) return "Fora do duelo.";
     if (fa.side === fb.side) return "É do seu lado no duelo.";
     if (da!.phase !== "fight") return "Aguarde a contagem do duelo.";
     return null;
@@ -197,8 +207,8 @@ export class DuelSystem {
 
   /** Golpe entre os dois lados de um duelo (sem caveira, sem registro de PvP). */
   isDuelHit(a: PlayerState, b: PlayerState): boolean {
-    const d = this.byPlayer.get(a.id);
-    return !!d && d === this.byPlayer.get(b.id);
+    const d = this.active(a.id);
+    return !!d && d === this.active(b.id);
   }
 
   /** CombatHooks.interceptDeath: quem cairia no duelo sai da sala de vida cheia (true = a morte não acontece). */

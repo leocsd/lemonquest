@@ -34,17 +34,21 @@ describe("heapMb", () => {
 });
 
 describe("startPerfReporter", () => {
+  /** Relógio da página (começa em 15 s) que anda 1 s a cada disparo; `stall` = disparos que atrasaram (aba escondida). */
+  let clock = 15_000;
   function fakeTimers() {
     let fn: (() => void) | null = null;
+    clock = 15_000;
     return {
       timers: { setInterval: (f: () => void) => { fn = f; return 1; }, clearInterval: () => { fn = null; } },
-      advance: (s: number) => { for (let i = 0; i < s; i++) fn?.(); },
+      advance: (s: number) => { for (let i = 0; i < s; i++) { clock += 1000; fn?.(); } },
+      stall: (ms: number) => { clock += ms; fn?.(); },
       running: () => fn !== null,
     };
   }
   const probe = (over: Partial<PerfProbe> = {}): PerfProbe => ({
     fps: () => 60, textures: () => [{ width: 2048, height: 2048 }], objetos: () => 900, app: () => "desktop",
-    heap: () => 250, uptimeMs: () => 45_000, ...over,
+    heap: () => 250, uptimeMs: () => clock, ...over,
   });
 
   it("primeiro relatório aos 30 s, depois a cada 60 s; o relatório passa na validação do servidor; stop para", () => {
@@ -62,6 +66,18 @@ describe("startPerfReporter", () => {
     expect(sent).toHaveLength(2);
     stop();
     expect(t.running()).toBe(false);
+  });
+
+  it("aba escondida (timer segurado em 1×/min): o relatório sai pelo relógio, um por atraso", () => {
+    const t = fakeTimers();
+    const sent: ClientPerfMsg[] = [];
+    startPerfReporter(probe(), (m) => sent.push(m), t.timers);
+    t.advance(CLIENT_PERF_FIRST_MS / 1000);
+    expect(sent).toHaveLength(1);
+    for (let i = 0; i < 5; i++) t.stall(60_000); // 5 disparos, 1 por minuto
+    expect(sent).toHaveLength(6);
+    t.stall(10 * 60_000); // 10 min de uma vez: um relatório só
+    expect(sent).toHaveLength(7);
   });
 
   it("leitura que lança não derruba: só pula o envio", () => {
