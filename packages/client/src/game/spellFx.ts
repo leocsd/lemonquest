@@ -58,6 +58,10 @@ interface Aura { id: ConditionId; objs: Phaser.GameObjects.Image[]; acc: number 
 const tc = (x: number, y: number) => ({ x: (x + 0.5) * TS, y: (y + 0.5) * TS });
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
+/** Tetos dos pools de sprites e brilhos (rede de segurança contra rajadas; ver release/glow). */
+const SPELL_POOL_MAX = 128;
+const GLOW_POOL_MAX = 64;
+
 export class SpellEffects {
   private ready = false;
   private free: Phaser.GameObjects.Sprite[] = [];
@@ -121,6 +125,7 @@ export class SpellEffects {
       emitting: false, lifespan: { min: 300, max: 700 }, speed: { min: 18, max: 90 }, angle: { min: 0, max: 360 },
       scale: { start: 2, end: 0.5 }, alpha: { start: 1, end: 0 }, tint: [p.main, p.light, p.dark],
       gravityY: up ? -45 : k === "earth" || k === "ice" ? 50 : -10, blendMode: k === "earth" || k === "death" ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD,
+      maxParticles: 300,
     });
     this.layer.add(e.setDepth(FX_DEPTH));
     return e;
@@ -163,6 +168,8 @@ export class SpellEffects {
     s.anims.stop();
     this.scene.tweens.killTweensOf(s);
     s.removeAllListeners();
+    // Pool com teto: depois de uma rajada (magias de área de vários jogadores) o excesso é destruído, não guardado.
+    if (this.free.length >= SPELL_POOL_MAX) { s.destroy(); return; }
     s.setVisible(false);
     this.free.push(s);
   }
@@ -190,6 +197,7 @@ export class SpellEffects {
   /** Brilho aditivo que "ilumina" a cena por alguns instantes. */
   glow(x: number, y: number, color: number, radiusPx: number, ms = 320, alpha = 0.8) {
     let g = this.glows.find((i) => !i.visible);
+    if (!g && this.glows.length >= GLOW_POOL_MAX) return; // rajada: o brilho é só enfeite
     if (!g) { g = this.scene.add.image(0, 0, TEX.glow).setBlendMode(Phaser.BlendModes.ADD); this.layer.add(g); this.glows.push(g); }
     this.scene.tweens.killTweensOf(g);
     lightBus.burst(x, y, color, radiusPx * 2.4, ms * 1.5, Math.min(1, alpha + 0.2));

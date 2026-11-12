@@ -22,8 +22,11 @@ export class ExploredMask {
     return (this.bits[i >> 3] & (1 << (i & 7))) !== 0;
   }
 
-  /** Revela um quadrado de raio r (cantos arredondados). Retorna quantos tiles novos foram revelados. */
-  reveal(cx: number, cy: number, r = EXPLORE_RADIUS): number {
+  /**
+   * Revela um quadrado de raio r (cantos arredondados). Retorna quantos tiles novos foram revelados; `onNew` recebe o
+   * índice (y × largura + x) de cada um (o servidor conta os alcançáveis sem varrer o mapa).
+   */
+  reveal(cx: number, cy: number, r = EXPLORE_RADIUS, onNew?: (i: number) => void): number {
     let added = 0;
     for (let y = Math.max(0, cy - r); y <= Math.min(this.height - 1, cy + r); y++) {
       for (let x = Math.max(0, cx - r); x <= Math.min(this.width - 1, cx + r); x++) {
@@ -31,7 +34,7 @@ export class ExploredMask {
         if (dx * dx + dy * dy > r * r + r) continue;
         const i = y * this.width + x;
         const m = 1 << (i & 7);
-        if ((this.bits[i >> 3] & m) === 0) { this.bits[i >> 3] |= m; added++; }
+        if ((this.bits[i >> 3] & m) === 0) { this.bits[i >> 3] |= m; added++; onNew?.(i); }
       }
     }
     return added;

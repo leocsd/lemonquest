@@ -29,3 +29,11 @@ export function onTabReturn(onReturn: () => void, doc: Pick<Document, "hidden" |
   doc.addEventListener("visibilitychange", handler);
   return () => doc.removeEventListener("visibilitychange", handler);
 }
+
+/**
+ * Efeitos cosméticos (golpe, magia, cadáver, loot, números) devem ser pulados agora? Sim com a aba escondida: o laço
+ * do Phaser está parado e cada efeito ficaria preso num sprite do pool até a aba voltar (e os pools não encolhem).
+ */
+export function fxPaused(doc: Pick<Document, "hidden"> | undefined = typeof document === "undefined" ? undefined : document): boolean {
+  return !!doc?.hidden;
+}

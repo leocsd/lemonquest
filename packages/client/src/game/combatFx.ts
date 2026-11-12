@@ -64,10 +64,15 @@ interface ProjItem {
 }
 interface GhostItem { s: Phaser.GameObjects.Sprite; age: number; base: number; y0: number }
 
+/** Tetos dos pools: com a aba visível nunca se chega perto; só seguram uma rajada (muitos bichos de uma vez). */
+const FX_POOL_MAX = 64;
+const PARTICLES_MAX = 200;
+
 export class CombatFx {
   private floats: FloatItem[] = [];
   private floatCursor = 0;
   private fxs: FxItem[] = [];
+  private fxNext = 0;
   private projs: ProjItem[] = [];
   private ghosts: GhostItem[] = [];
   private emitters = {} as Record<DamageKind, Phaser.GameObjects.Particles.ParticleEmitter>;
@@ -125,7 +130,7 @@ export class CombatFx {
       emitting: false, lifespan: { min: 180, max: 340 },
       speed: { min: 28, max: 80 }, angle: { min: 0, max: 360 },
       scale: { start: 2, end: 1 }, alpha: { start: 1, end: 0 },
-      tint: [c, light], gravityY: kind === "heal" || kind === "mana" ? -50 : 60,
+      tint: [c, light], gravityY: kind === "heal" || kind === "mana" ? -50 : 60, maxParticles: PARTICLES_MAX,
     });
     this.worldLayer.add(e.setDepth(FX_DEPTH));
     return e;
@@ -164,6 +169,8 @@ export class CombatFx {
 
   private acquireFx(): FxItem {
     for (const f of this.fxs) if (!f.active) return f;
+    // Teto (rede de segurança contra rajadas): reaproveita o mais antigo em vez de criar sprites sem fim.
+    if (this.fxs.length >= FX_POOL_MAX) { const it = this.fxs[this.fxNext++ % this.fxs.length]!; it.s.anims.stop(); return it; }
     const s = this.scene.add.sprite(0, 0, "fx_cut").setVisible(false);
     this.worldLayer.add(s.setDepth(FX_DEPTH));
     const it = { s, active: false };

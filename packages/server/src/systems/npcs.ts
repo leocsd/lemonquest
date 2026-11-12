@@ -3,7 +3,7 @@
 // Cocheiro (`travel`): cobra o ouro e leva o jogador ao destino (grátis até TRAVEL_FREE_LEVEL).
 // Ambientação: a cada 20–40 s cada NPC com idleLines fala (S2C.NpcSay) se houver jogador a até 15 tiles.
 import {
-  CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, RED_SKULL_DEATH_XP_MULT, S2C, blessingPrice, deathXpLoss, findObjects, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, imbuementDef, imbuementDesc, imbuementMaterials, imbuementName, imbuementTier, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
+  CASINO_GOLD_BACK_MULT, CASINO_JACKPOT_MULT, CASINO_MATERIAL_POOL, CASINO_ODDS, CASINO_TICKET_PRICE, MAX_TRADE_COUNT, NPC_BUY_RATIO, NPC_RANGE, RED_SKULL_DEATH_XP_MULT, S2C, blessingPrice, deathXpLoss, findObjects, IMBUE_DURATION_MS, IMBUE_REBUY_GUARD_MS, imbuementDef, imbuementDesc, imbuementMaterials, imbuementName, imbuementTier, keptBySellAll, levelNeeded, npcBuyPrice, npcDef, objectTile, travelPrice, weekId,
   type NoticeMsg, type NpcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcSayMsg, type NpcTradeMsg, type TiledMap, type TravelMsg,
 } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
@@ -186,6 +186,7 @@ export class NpcSystem {
     } else if (msg.action === "sell") {
       const it = inv.get(p.id)?.backpack[msg.index];
       if (!Number.isInteger(msg.index) || !it) return;
+      if (msg.uid !== undefined && msg.uid !== it.uid) return; // a mochila mudou depois do clique (ver MoveItemMsg)
       const item = inv.defs(it.defId);
       if (!item) return;
       if (!d.shop.buys || !d.shop.buys.includes(item.kind as never)) return this.notice(p, "Não compro isso.", "warn");
@@ -212,8 +213,8 @@ export class NpcSystem {
   }
 
   /**
-   * Ficha de cassino: 45% nada, 35% ouro de volta (40% do preço), 15% material aleatório (flavor), 5% prêmio
-   * grande (3× o preço). Em expectativa paga menos que o preço da ficha: sink de diversão, nunca poder de combate.
+   * Ficha de cassino (CASINO_ODDS): 45% nada, 35% ouro de volta (40% do preço), 15% material aleatório (flavor), 5%
+   * prêmio grande (3× o preço). Em expectativa paga menos que o preço da ficha: sink de diversão, nunca poder de combate.
    */
   private buyCasino(p: PlayerState, d: NpcDef): void {
     if (!d.casino) return;
@@ -223,19 +224,20 @@ export class NpcSystem {
     if (CASINO_MATERIAL_POOL.some((id) => this.o.inventory.roomFor(p.id, id) < 1)) return this.notice(p, "Abra um espaço na mochila antes de comprar a ficha.", "warn");
     if (!this.o.inventory.spendGold(p, CASINO_TICKET_PRICE)) return this.notice(p, "Ouro insuficiente.", "warn");
     const r = this.rng();
-    if (r < 0.45) {
+    const o = CASINO_ODDS;
+    if (r < o.nothing) {
       this.notice(p, "Ficha: nada esta vez. Mais sorte na próxima!", "info");
-    } else if (r < 0.80) {
-      const gold = Math.round(CASINO_TICKET_PRICE * 0.4);
+    } else if (r < o.nothing + o.goldBack) {
+      const gold = Math.round(CASINO_TICKET_PRICE * CASINO_GOLD_BACK_MULT);
       this.o.inventory.addGold(p, gold);
       this.notice(p, `Ficha: +${gold} de ouro de volta.`, "good");
-    } else if (r < 0.95) {
+    } else if (r < o.nothing + o.goldBack + o.material) {
       const matId = CASINO_MATERIAL_POOL[Math.floor(this.rng() * CASINO_MATERIAL_POOL.length)]!;
       const item = this.o.inventory.defs(matId);
       if (item) { this.o.inventory.addItem(p, makeItem(matId, 1)); this.notice(p, `Ficha: você ganhou 1x ${item.name}!`, "good"); }
       else this.notice(p, "Ficha: nada esta vez.", "info");
     } else {
-      const gold = CASINO_TICKET_PRICE * 3;
+      const gold = CASINO_TICKET_PRICE * CASINO_JACKPOT_MULT;
       this.o.inventory.addGold(p, gold);
       this.notice(p, `Ficha: PRÊMIO GRANDE! +${gold} de ouro!`, "good");
     }

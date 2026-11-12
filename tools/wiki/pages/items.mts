@@ -4,7 +4,8 @@
 // (30 % do valor × multiplicador da raridade). Rótulos de atributo e de tipo iguais aos do balão do jogo
 // (client/src/ui/items/itemInfo.ts), para o jogador achar na wiki a mesma palavra que vê no jogo.
 import {
-  ABYSS_ITEM_IDS, BOUNTY_NPC, CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, CHALLENGES, CHALLENGE_BONUS_PRIZE, FOOD_MAX_MS,
+  ABYSS_ITEM_IDS, BOUNTY_NPC, CHEST_FOOD_CHANCE, CHEST_FOOD_COUNT, CHEST_GEAR_CHANCE, CHEST_GEAR_SPAN, CHEST_GEM_RANGES, CHEST_GOLD,
+  CHEST_GOLD_LEVEL_DIV, CHEST_MANA_CHANCE_MAGE, CHEST_MANA_CHANCE_OTHER, CHEST_POTION_CHANCE, CHEST_POTION_COUNT, CHEST_POTION_RANGES, FISHER_CHEST_EVERY, FISH_ODDS, FISH_ROD, chestGold, CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE, CHALLENGES, CHALLENGE_BONUS_PRIZE, FOOD_MAX_MS,
   FOOD_TICK_MS, HEALTH_POTION_CD_MS, IMBUEMENTS, IMBUEMENT_TIERS, MANA_POTION_CD_MS, MONSTERS, NPC_BUY_RATIO, QUEST_CHESTS,
   QUEST_CHEST_GROUPS, RARITIES, RARITY_LABEL, RARITY_PRICE_MULT, REFINE_ATTACK_PER_LEVEL, REFINE_ARMOR_PER_LEVEL, REFINE_EXTRA,
   REFINE_EXTRA_FROM, REFINE_FAIL_CHANCE, REFINE_MATERIAL, REFINE_MATERIAL_COUNT, REFINE_MAX, REFINE_NPC, REFINE_TIERS,
@@ -68,27 +69,15 @@ const CATEGORIES: { id: string; title: string; kinds: ItemKind[] }[] = [
 /** A Moeda de Ouro é "material" nos dados (empilha até 1 milhão), mas é a moeda: fica com os itens especiais. */
 const catOf = (d: ItemDef) => (d.id === "gold_coin" ? CATEGORIES[CATEGORIES.length - 1]! : CATEGORIES.find((c) => c.kinds.includes(d.kind)) ?? CATEGORIES[CATEGORIES.length - 1]!);
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Fontes que só o servidor sorteia (a wiki não importa o servidor: o estado Colyseus exige os decorators dele).
-// Espelho dos números de server/systems/quests.ts (rollChest, chestEligible, chestPotion, chestFallbackGem) e
-// server/systems/fishing.ts (rollFish, FISHER_CHEST_EVERY). Mudou lá, mude aqui.
-// ---------------------------------------------------------------------------------------------------------------------
-
+// Fontes que só o servidor sorteia (Baú de Recompensa, pesca): números em shared/data/serverOdds.ts, os mesmos do servidor.
 const CHEST = {
-  gold: [15, 40] as const, potion: 0.65, potionCount: [2, 5] as const, manaMage: 0.6, manaOther: 0.3,
-  food: 0.5, foodCount: [2, 4] as const, gear: 0.15, gearSpan: 12,
+  gold: CHEST_GOLD, goldLevelDiv: CHEST_GOLD_LEVEL_DIV, potion: CHEST_POTION_CHANCE, potionCount: CHEST_POTION_COUNT,
+  manaMage: CHEST_MANA_CHANCE_MAGE, manaOther: CHEST_MANA_CHANCE_OTHER, food: CHEST_FOOD_CHANCE, foodCount: CHEST_FOOD_COUNT,
+  gear: CHEST_GEAR_CHANCE, gearSpan: CHEST_GEAR_SPAN,
 };
-/** Poção do baú pela faixa de level de quem abre: [de, até] (até null = sem teto). */
-const CHEST_POTIONS: Record<string, [number, number | null]> = {
-  health_potion: [1, 14], mana_potion: [1, 14], health_potion_medium: [15, 29], mana_potion_medium: [15, 29],
-  health_potion_large: [30, null], mana_potion_large: [30, null],
-};
-/** Gema no lugar do equipamento quando não há peça possível. */
-const CHEST_GEMS: Record<string, [number, number | null]> = { gem_green: [1, 34], gem_yellow: [35, 59], gem_purple: [60, null] };
-/** Peixe sorteado quando morde (o resto da fatia é truta). */
-const FISH: Record<string, number> = { golden_fish: 0.04, salmon: 0.26, trout: 0.7 };
-const FISHER_CHEST_EVERY = 25;
-const FISH_ROD = "fishing_rod";
+const CHEST_POTIONS = CHEST_POTION_RANGES;
+const CHEST_GEMS = CHEST_GEM_RANGES;
+const FISH: Readonly<Record<string, number>> = FISH_ODDS;
 const BOUNTY_CHEST = "bounty_chest";
 const GOLD = "gold_coin";
 
@@ -558,13 +547,13 @@ ${table(["Baú", "Onde", "Level", "Quantidade", "Junto vem", "Escolha"], [...new
 
   // --- Baú de Recompensa (o próprio) ---------------------------------------------------------------------------------
   if (d.id === BOUNTY_CHEST) {
-    const lv50 = [Math.round(CHEST.gold[0] * (1 + 50 / 5)), Math.round(CHEST.gold[1] * (1 + 50 / 5))] as const;
+    const lv50 = [chestGold(50, CHEST.gold[0]), chestGold(50, CHEST.gold[1])] as const;
     const pot = (ids: string[]) => ids.map((id) => `${itemLink(id, D)} (${esc(lvRange(CHEST_POTIONS[id]!))})`).join(", ");
     const gems = Object.entries(CHEST_GEMS).map(([id, r]) => `${itemLink(id, D)} (${esc(lvRange(r))})`).join(", ");
     parts.push(`<h2>O que vem no baú</h2>
 <p>Use o baú (clique direito) para abrir. O prêmio é sorteado na hora, pelo level e pela vocação de quem abre:</p>
 <ul>
-<li><b>Ouro:</b> ${CHEST.gold[0]} a ${CHEST.gold[1]} × (1 + level ÷ 5). No level 50, de ${fmt(lv50[0])} a ${fmt(lv50[1])}.</li>
+<li><b>Ouro:</b> ${CHEST.gold[0]} a ${CHEST.gold[1]} × (1 + level ÷ ${CHEST.goldLevelDiv}). No level 50, de ${fmt(lv50[0])} a ${fmt(lv50[1])}.</li>
 <li><b>Poção</b> (${pct(CHEST.potion)}): ${CHEST.potionCount[0]} a ${CHEST.potionCount[1]} da faixa do level: ${pot(["health_potion", "health_potion_medium", "health_potion_large"])} ou as de mana da mesma faixa. Feiticeiros e druidas tiram mana ${pct(CHEST.manaMage)} das vezes; as outras vocações, ${pct(CHEST.manaOther)}.</li>
 <li><b>Comida</b> (${pct(CHEST.food)}): ${CHEST.foodCount[0]} a ${CHEST.foodCount[1]} de uma comida sorteada entre as que o level já come.</li>
 <li><b>Equipamento</b> (${pct(CHEST.gear)}): uma peça que a vocação usa, de até ${CHEST.gearSpan} levels abaixo do personagem, incomum ou melhor. Só entram peças vendidas em loja ou derrubadas por criatura comum: prêmios de missão e de baú, itens só de chefe, itens únicos e o tier 8 ficam de fora. Sem peça possível, vem uma gema: ${gems}.</li>

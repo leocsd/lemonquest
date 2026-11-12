@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { onTabReturn, settleActors, type Settleable } from "./tabReturn.ts";
+import { fxPaused, onTabReturn, settleActors, type Settleable } from "./tabReturn.ts";
 
 const actor = (moving: boolean, x: number, y: number) => {
   const a = { isMoving: moving, tileX: x, tileY: y, snaps: [] as [number, number][], snapTo(sx: number, sy: number) { a.snaps.push([sx, sy]); a.isMoving = false; } };
@@ -31,5 +31,13 @@ describe("volta à aba", () => {
     expect(fn).toHaveBeenCalledTimes(1);
     off();
     expect(listeners.size).toBe(0);
+  });
+});
+
+describe("efeitos com a aba escondida", () => {
+  it("pula com a aba escondida; desenha com ela visível ou fora do navegador", () => {
+    expect(fxPaused({ hidden: true })).toBe(true);
+    expect(fxPaused({ hidden: false })).toBe(false);
+    expect(fxPaused(undefined)).toBe(false);
   });
 });

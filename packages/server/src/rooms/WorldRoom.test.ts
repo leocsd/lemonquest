@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { C2S, CLOSE_REPLACED, DEFAULT_LOOT_FILTER, TURNO_MAX_MS, estagiarioPadrao, HOTKEYS_VERSION, OUT_OF_COMBAT_MS, defaultHotkeys, PARTY_SHARE_RANGE, PZ_LOCK_MS, RED_SKULL_KILLS, S2C, backpackCapacity, findObjects, objectTile, questChestDef } from "@lemonquest/shared";
 import { MESSAGE_LIMITS, RECONNECT_S, REPLACED_REASON, TRANSFER_SAVE_MS, WorldRoom, currentWorld } from "./WorldRoom.ts";
-import { createAccountWithCharacter as createAccount, getCharacterByName, initDb, loadGroundRows, saveCharacter } from "../persistence/db.ts";
+import { createAccountWithCharacter as createAccount, getCharacterByName, getKv, initDb, loadGroundRows, saveCharacter, setKv } from "../persistence/db.ts";
 import { GOLD_ID, makeItem } from "../systems/inventory.ts";
 import { MAX_PER_TILE } from "../systems/ground.ts";
 import { handleCreateCharacter, handleLogin, handlePlay, onlineOwner, resetAuthState, type AuthData } from "../persistence/auth.ts";
@@ -137,7 +137,7 @@ describe("WorldRoom: sessões", () => {
     expect(err).toHaveBeenCalled();
   });
 
-  it("onDrop mantém o jogador; WITH_ERROR/sessão desconhecida não reserva reconexão", () => {
+  it("onDrop mantém o jogador; sessão desconhecida ou fechada pelo servidor (kick/treino) não reserva reconexão; código forjado vale como queda", () => {
     const r = makeRoom();
     createAccount("Bia", "h", "s", "paladin");
     const c = fakeClient(r, "b1");
@@ -151,8 +151,14 @@ describe("WorldRoom: sessões", () => {
     expect(allow).toHaveBeenCalledWith(c, 20);
     expect(r.state.players.has("b1")).toBe(true);
     r.onDrop({ sessionId: "zzz" }, 1006);
-    r.onDrop(c, 4002);
     expect(allow).toHaveBeenCalledTimes(1);
+    // O cliente pode fechar com qualquer código 3000–4999: 4101 (treino) / 4002 forjados viram queda comum.
+    r.onDrop(c, 4101);
+    r.onDrop(c, 4002);
+    expect(allow).toHaveBeenCalledTimes(3);
+    r.kicked.add("b1");
+    r.onDrop(c, 4102);
+    expect(allow).toHaveBeenCalledTimes(3);
   });
 
   it("kick de quem caiu e espera reconexão cancela a reconexão (troca de senha, /kick)", () => {
@@ -330,6 +336,21 @@ describe("WorldRoom: sair em combate", () => {
     expect(r.state.players.has("x1")).toBe(false);
   });
 
+  it("código de fechamento forjado (treino/kick) com bloqueio de PZ: fica no mundo do mesmo jeito", () => {
+    const r = makeRoom();
+    const c = join(r, "Bru", "f1");
+    join(r, "Gil", "g1");
+    pvpHit(r, "f1", "g1");
+    for (const code of [4101, 4102]) {
+      expect(r.state.players.has("f1")).toBe(true);
+      r.onLeave(c, code);
+      expect(r.state.players.has("f1")).toBe(true);
+      expect(r.lingering.has("f1")).toBe(true);
+      r.lingering.get("f1").clear();
+      r.lingering.delete("f1");
+    }
+  });
+
   it("parado no mundo: não ataca nem segue; relogar não apaga o bloqueio de PZ", () => {
     const r = makeRoom();
     const c = join(r, "Nina", "n1");
@@ -386,6 +407,87 @@ describe("WorldRoom: sair em combate", () => {
     r.kick("g1", "tchau");
     expect(r.state.players.has("g1")).toBe(false);
     expect(r.lingering.size).toBe(0);
+  });
+});
+
+describe("WorldRoom: duelo", () => {
+  const join = (r: any, name: string, sid: string) => {
+    createAccount(name, "h", "s", "knight");
+    const c = fakeClient(r, sid);
+    r.onJoin(c, {}, auth(name));
+    return c;
+  };
+  const duelAt = (r: any) => {
+    const a = r.state.players.get("a1"), b = r.state.players.get("b1");
+    b.x = a.x + 1; b.y = a.y;
+    return { a, b };
+  };
+
+  it("em combate ou com bloqueio de PZ não duela (o duelo virava fuga com vida cheia)", () => {
+    const r = makeRoom();
+    join(r, "Ana", "a1"); join(r, "Beto", "b1");
+    const { a, b } = duelAt(r);
+    r.combat.markCombat("b1", Date.now());
+    r.duel.onAction(a, { action: "challenge", targetId: b.id, mode: "1x1" });
+    expect(r.duel.inDuel("a1")).toBe(false);
+    expect(r.duel.stateFor("b1")).toBeNull();
+    const noticed = (r.clients.find((c: any) => c.sessionId === "a1").send.mock.calls as any[])
+      .some(([t, m]) => t === S2C.Notice && /Beto está em combate/.test(m.text));
+    expect(noticed).toBe(true);
+  });
+
+  it("logout no meio do duelo: grava onde estava antes, de vida cheia (não a sala do Coliseu)", () => {
+    const r = makeRoom();
+    const ca = join(r, "Ana", "a1"); join(r, "Beto", "b1");
+    const { a, b } = duelAt(r);
+    const home = { x: a.x, y: a.y };
+    r.duel.onAction(a, { action: "challenge", targetId: b.id, mode: "1x1" });
+    r.duel.onAction(b, { action: "accept", fromId: a.id });
+    expect(r.duel.inDuel("a1")).toBe(true);
+    expect([a.x, a.y]).not.toEqual([home.x, home.y]);
+    a.hp = Math.floor(a.maxHp / 5);
+    r.onLeave(ca, 4000);
+    expect(r.state.players.has("a1")).toBe(false);
+    const saved = getCharacterByName("Ana")!;
+    expect([saved.x, saved.y]).toEqual([home.x, home.y]);
+    expect(saved.data.hp).toBe(a.maxHp);
+    expect(r.duel.inDuel("b1")).toBe(false); // desistência: o duelo acabou
+  });
+
+  it("magia de área no duelo segue a regra do duelo (fora da regra dos 2/3 e sem ser o alvo)", () => {
+    const r = makeRoom();
+    join(r, "Ana", "a1"); join(r, "Beto", "b1");
+    const { a, b } = duelAt(r);
+    b.level = 3; a.level = 60; // fora dos 2/3: o PvP comum recusaria
+    const hits = (x: any, y: any) => r.spells["o"].areaHitsPlayer(x, y);
+    r.duel.onAction(a, { action: "challenge", targetId: b.id, mode: "1x1" });
+    r.duel.onAction(b, { action: "accept", fromId: a.id });
+    expect(hits(a, b)).toBe(false); // contagem
+    r.duel.tick(Date.now() + 10_000);
+    a.targetId = "";
+    expect(hits(a, b)).toBe(true);
+  });
+});
+
+describe("WorldRoom: XP do registro", () => {
+  it("acompanha a XP viva a cada ganho (desafios e ranking da semana leem o registro)", () => {
+    const r = makeRoom();
+    createAccount("Xan", "h", "s", "knight");
+    r.onJoin(fakeClient(r, "x1"), {}, auth("Xan"));
+    const p = r.state.players.get("x1");
+    r.combat.gainXp(p, 1234, p.x, p.y);
+    expect(r.records.get("x1").xp).toBe(p.xp);
+  });
+});
+
+describe("WorldRoom: personagem excluído", () => {
+  it("esquece o vínculo do ClickUp e os baús do Coliseu guardados pelo nome", () => {
+    const r = makeRoom();
+    r.clickup.link("Bia", "u1");
+    setKv("arena.prize.bia", "3");
+    r.onCharacterDeleted("Bia");
+    expect(r.clickup.linkOf("Bia")).toBeUndefined();
+    expect(Number(getKv("arena.prize.bia") ?? 0)).toBe(0);
   });
 });
 
@@ -688,9 +790,11 @@ describe("WorldRoom: robustez (morte, caveira vermelha, recompensas, permanênci
     const p = join(r, "Gus", "g1");
     const c = r.clients.find((x: any) => x.sessionId === "g1");
     p.auto = true;
+    p.targetId = "m1"; p.followId = "outro";
     vi.spyOn(r, "allowReconnection").mockImplementation(() => Object.assign(new Promise(() => {}), { reject: vi.fn() }) as any);
     r.onDrop(c, 1006);
     expect(p.auto).toBe(false);
+    expect([p.targetId, p.followId]).toEqual(["", ""]); // caído não persegue nem bate
     r.saveAll();
     expect(getCharacterByName("Gus")!.data.auto).toBe(true);
     c.send.mockClear();

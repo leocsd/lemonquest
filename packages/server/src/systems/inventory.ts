@@ -446,6 +446,19 @@ export class InventorySystem {
     return undefined;
   }
 
+  /**
+   * O `uid` mandado pelo cliente bate com o item em `at`? Ausente = sim (clientes antigos, testes); presente e diferente
+   * (ou não-texto) = não: a mochila mudou depois que o jogador clicou (ver MoveItemMsg).
+   */
+  uidMatches(id: string, at: ItemLocation, uid: unknown): boolean {
+    if (uid === undefined || uid === null) return true;
+    if (typeof uid !== "string") return false;
+    const inv = this.inv.get(id);
+    if (!inv || !this.validLoc(inv, at)) return false;
+    const it = at.where === "equip" ? inv.equipment[at.slot] : this.arr(inv, at.where)[at.index];
+    return it?.uid === uid;
+  }
+
   /** O item em `at` mudou no lugar (refino, systems/refine.ts): reenvia o inventário e, se equipado, recalcula os atributos. */
   itemChanged(p: PlayerState, at: DropFrom): void {
     this.dirty.add(p.id);
@@ -509,6 +522,7 @@ export class InventorySystem {
     if (msg.count !== undefined && msg.count !== null && (!isInt(msg.count) || msg.count < 1)) return;
     if ((from.where === "depot" || to.where === "depot") && !this.o.depotOpen?.(p.id)) return this.warn(p, MSG.depotClosed);
     if (p.hp <= 0) return;
+    if (!this.uidMatches(p.id, from, msg.uid)) return;
 
     if (from.where === "equip") {
       if (to.where === "equip") return;
@@ -532,6 +546,7 @@ export class InventorySystem {
   onUseItem(p: PlayerState, msg: UseItemMsg): void {
     const inv = this.inv.get(p.id);
     if (!inv || !msg || !isInt(msg.index) || msg.index < 0 || msg.index >= inv.backpack.length) return;
+    if (!this.uidMatches(p.id, { where: "backpack", index: msg.index }, msg.uid)) return;
     this.useAt(p, inv, msg.index);
   }
 

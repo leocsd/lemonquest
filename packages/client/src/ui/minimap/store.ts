@@ -60,12 +60,22 @@ class MinimapStore {
     this.disposers.push(room.onMessage(S2C.Explored, (m: ExploredMsg) => this.onExplored(m)));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const $ = Callbacks.get(room as any) as any;
+    // Um desligador por jogador, solto quando ele sai (antes ia para `disposers` e ficava até trocar de sala: um por
+    // login de colega, segurando o schema de quem já saiu). Mesmo padrão de hud/world.ts.
+    const perPlayer = new Map<string, () => void>();
     this.disposers.push(
       $.onAdd("players", (p: Pos, id: string) => {
         this.setPos(id, myId, p.x, p.y);
-        this.disposers.push($.onChange(p, () => this.setPos(id, myId, p.x, p.y)));
+        perPlayer.get(id)?.();
+        perPlayer.set(id, $.onChange(p, () => this.setPos(id, myId, p.x, p.y)));
       }),
-      $.onRemove("players", (_p: Pos, id: string) => { this.others.delete(id); this.bump(); }),
+      $.onRemove("players", (_p: Pos, id: string) => {
+        perPlayer.get(id)?.();
+        perPlayer.delete(id);
+        this.others.delete(id);
+        this.bump();
+      }),
+      () => { for (const off of perPlayer.values()) off(); perPlayer.clear(); },
     );
   }
 

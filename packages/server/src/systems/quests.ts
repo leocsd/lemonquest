@@ -10,7 +10,8 @@
 //   chega por systems/questWorld.ts (que confere alcance e level). Os dos covis pedem o abate do chefe registrado
 //   aqui mesmo (`slain`, gravado em rec.data.quests), com o crédito do passo "boss".
 import {
-  BOUNTIES_PER_DAY, BOUNTY_CHEST_ID, BOUNTY_NPC, ITEMS, MAX_TRACKED_QUESTS, MONSTERS, NPCS, QUEST_LIST, RARITIES, S2C, applyXpStage,
+  BOUNTIES_PER_DAY, BOUNTY_CHEST_ID, BOUNTY_NPC, CHEST_FOOD_CHANCE, CHEST_FOOD_COUNT, CHEST_GEAR_CHANCE, CHEST_GEAR_SPAN, CHEST_GOLD,
+  CHEST_MANA_CHANCE_MAGE, CHEST_MANA_CHANCE_OTHER, CHEST_POTION_CHANCE, CHEST_POTION_COUNT, chestFallbackGem, chestGold, chestPotion, ITEMS, MAX_TRACKED_QUESTS, MONSTERS, NPCS, QUEST_LIST, RARITIES, S2C, applyXpStage,
   CHEST_LOCK_BOSSES, bountyBand, bountyTitle, chestLockReason, isEquipable, isExclusiveItem, isMage, questAvailable, questChestGroup, questDef, questReady, rollInt,
   vocationFits,
   type BountyStatus, type BountyView, type FeedMsg, type ItemDef, type ItemInstance, type LootMsg, type NoticeMsg,
@@ -495,19 +496,7 @@ export class QuestSystem {
 // Sorteio do baú
 // ---------------------------------------------------------------------------
 
-export const CHEST_POTION_CHANCE = 0.65;
-export const CHEST_FOOD_CHANCE = 0.5;
-export const CHEST_GEAR_CHANCE = 0.15;
-/**
- * Equipamento do baú: level entre (L − GEAR_SPAN) e L. Acima do último tier (lv 70 + span) a janela desce até o tier mais
- * alto que o personagem pode usar, senão o baú ficava sem equipamento.
- */
-export const CHEST_GEAR_SPAN = 12;
-
-export function chestPotion(level: number, mana: boolean): string {
-  const tier = level >= 30 ? "_large" : level >= 15 ? "_medium" : "";
-  return (mana ? "mana_potion" : "health_potion") + tier;
-}
+// Números (chances, faixas, quantidades, poção e gema por level) em shared/data/serverOdds.ts, lidos também pela wiki.
 
 let chestEligibleIds: Set<string> | null = null;
 
@@ -538,11 +527,6 @@ export function chestGearPool(level: number, vocation: Vocation, items: ItemDef[
   return usable.filter((d) => (d.level ?? 1) >= floor);
 }
 
-/** Baú sem equipamento possível para o personagem: uma gema da faixa no lugar. */
-export function chestFallbackGem(level: number): string {
-  return level >= 60 ? "gem_purple" : level >= 35 ? "gem_yellow" : "gem_green";
-}
-
 /** Raridade do equipamento do baú: no mínimo incomum. */
 export function chestRarity(rng: () => number): Rarity {
   const r = rollRarity(rng);
@@ -551,15 +535,15 @@ export function chestRarity(rng: () => number): Rarity {
 
 export function rollChest(level: number, vocation: Vocation, rng: () => number): { gold: number; items: ItemInstance[] } {
   const L = Math.max(1, level);
-  const gold = Math.round(rollInt(15, 40, rng) * (1 + L / 5));
+  const gold = chestGold(L, rollInt(CHEST_GOLD[0], CHEST_GOLD[1], rng));
   const items: ItemInstance[] = [];
   if (rng() < CHEST_POTION_CHANCE) {
-    const mana = rng() < (isMage(vocation) ? 0.6 : 0.3);
-    items.push(makeItem(chestPotion(L, mana), rollInt(2, 5, rng)));
+    const mana = rng() < (isMage(vocation) ? CHEST_MANA_CHANCE_MAGE : CHEST_MANA_CHANCE_OTHER);
+    items.push(makeItem(chestPotion(L, mana), rollInt(CHEST_POTION_COUNT[0], CHEST_POTION_COUNT[1], rng)));
   }
   if (rng() < CHEST_FOOD_CHANCE) {
     const foods = Object.values(ITEMS).filter((d) => d.kind === "food" && (d.level ?? 1) <= L);
-    if (foods.length) items.push(makeItem(foods[Math.floor(rng() * foods.length)]!.id, rollInt(2, 4, rng)));
+    if (foods.length) items.push(makeItem(foods[Math.floor(rng() * foods.length)]!.id, rollInt(CHEST_FOOD_COUNT[0], CHEST_FOOD_COUNT[1], rng)));
   }
   if (rng() < CHEST_GEAR_CHANCE) {
     const pool = chestGearPool(L, vocation);

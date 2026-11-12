@@ -112,6 +112,22 @@ describe("Salão de Minijogos: salas", () => {
     const lobby = k.sent.filter((x) => x.type === S2C.MinigameLobby).at(-1)!.msg as MinigameLobbyMsg;
     expect(lobby.rooms[1]).toMatchObject({ phase: "idle", game: null, players: [] });
   });
+
+  it("anfitrião sai do Salão a pé: perde a vaga em até 1 s e a sala não fica presa", () => {
+    const k = setup();
+    const a = k.add("a"), b = k.add("b");
+    k.mg.onAction(a, { action: "join", room: 1, game: "genius" });
+    k.mg.onAction(b, { action: "join", room: 1 });
+    a.x = 10; a.y = 10; // foi caçar
+    k.run(1100);
+    expect(k.mg.roomOf("a")).toBeUndefined();
+    expect(k.mg.roomOf("b")!.host).toBe("b");
+    b.x = 10; b.y = 12;
+    k.run(1100);
+    expect(k.mg.roomOf("b")).toBeUndefined();
+    const last = k.sent.filter((x) => x.type === S2C.MinigameLobby).at(-1)!.msg as MinigameLobbyMsg;
+    expect(last.rooms[0]).toMatchObject({ phase: "idle", players: [] });
+  });
 });
 
 describe("Chuva de Limões", () => {

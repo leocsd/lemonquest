@@ -2,7 +2,8 @@
 // serviços especiais). Os preços seguem as contas do servidor (systems/npcs.ts, via model.soldBy e npcBuyPrice): a wiki
 // nunca mostra um preço que o jogo não cobra.
 import {
-  BLESSING_GOLD_PER_LEVEL, BOUNTIES_PER_DAY, BOUNTY_NPC, BOUNTY_RESET_HOUR, CASINO_MATERIAL_POOL, CASINO_TICKET_PRICE,
+  BLESSING_GOLD_PER_LEVEL, BOUNTIES_PER_DAY, BOUNTY_NPC, BOUNTY_RESET_HOUR, CASINO_GOLD_BACK_MULT, CASINO_JACKPOT_MULT, CASINO_MATERIAL_POOL, CASINO_ODDS,
+  CASINO_TICKET_PRICE,
   DEPOT_SIZE, EXCURSION_MAX_AHEAD_MS, EXCURSION_MAX_SLOTS, EXCURSION_NPC, IMBUE_DURATION_MS, ITEMS, NPC_BUY_RATIO,
   RARITIES, RARITY_LABEL, RARITY_PRICE_MULT, REFINE_ARMOR_PER_LEVEL, REFINE_ATTACK_PER_LEVEL, REFINE_MAX, REFINE_NPC,
   REQUEST_NPC, TRAVEL_FREE_LEVEL, blessingPrice, npcBuyPrice,
@@ -20,13 +21,9 @@ const KIND_PLURAL: Record<ItemKind, string> = {
   amulet: "Amuletos", potion: "Poções", material: "Materiais", food: "Comidas", key: "Chaves", quest: "Itens de missão",
 };
 
-/**
- * Probabilidades da ficha de cassino. Só existem no servidor (systems/npcs.ts, buyCasino), não em `shared`: se mudarem
- * lá, mude aqui (a soma das quatro faixas é 100 %).
- */
-const CASINO_ODDS = { nothing: 0.45, goldBack: 0.35, material: 0.15, jackpot: 0.05 };
-const CASINO_GOLD_BACK = Math.round(CASINO_TICKET_PRICE * 0.4);
-const CASINO_JACKPOT = CASINO_TICKET_PRICE * 3;
+/** Probabilidades da ficha de cassino: as mesmas do servidor (shared/data/serverOdds.ts). */
+const CASINO_GOLD_BACK = Math.round(CASINO_TICKET_PRICE * CASINO_GOLD_BACK_MULT);
+const CASINO_JACKPOT = CASINO_TICKET_PRICE * CASINO_JACKPOT_MULT;
 
 const levelsText = (l: { min: number; max: number } | undefined): string =>
   (l ? (l.min === l.max ? `lv ${l.min}` : `lv ${l.min}–${l.max}`) : "sem monstros");

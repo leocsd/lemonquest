@@ -181,6 +181,13 @@ export class SpellSystem {
     return !!s && !this.check(p, s) && !this.checkCost(p, s, now);
   }
 
+  /** Como `ready`, mas sem olhar a mana: "só falta mana" (diário do Estagiário). */
+  readyIgnoringMana(p: PlayerState, spellId: string, now = this.now()): boolean {
+    const s = (this.o.spells ?? spellDef)(spellId);
+    const r = s && (this.check(p, s) ?? this.checkCost(p, s, now));
+    return !!s && (!r || r.reason === "mana");
+  }
+
   /** Checagens que não dependem de alvo/PZ (mesma ordem de tryCast). null = pronta. */
   private check(p: PlayerState, s: SpellDef): CastResultMsg | null {
     if (p.hp <= 0) return this.fail(s.id, "dead");

@@ -139,7 +139,11 @@ describe("npcs", () => {
     t.npcs.onTrade(p, { npcId: "shop", action: "sell", index: 0, count: 1 });
     expect(t.out.at(-1)!.msg.text).toBe("Não compro isso.");
     t.w.inv.addItem(p, makeItem("sword", 1, "rare"));
-    t.npcs.onTrade(p, { npcId: "shop", action: "sell", index: 2, count: 1 });
+    // O cliente manda o uid do item que viu no índice: se a mochila mudou (outro item ali), nada é vendido.
+    t.npcs.onTrade(p, { npcId: "shop", action: "sell", index: 2, count: 1, uid: "outro-item" });
+    expect(t.w.inv.gold("p1")).toBe(30);
+    expect(t.w.inv.get("p1")!.backpack[2]).not.toBeNull();
+    t.npcs.onTrade(p, { npcId: "shop", action: "sell", index: 2, count: 1, uid: t.w.inv.get("p1")!.backpack[2]!.uid });
     expect(npcBuyPrice(100, "rare")).toBe(75);
     expect(t.w.inv.gold("p1")).toBe(105);
     expect(t.w.inv.get("p1")!.backpack[2]).toBeNull();

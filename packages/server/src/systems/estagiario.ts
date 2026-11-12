@@ -10,7 +10,7 @@ import {
   TURNO_AVISO_MS, alarmeLigado, avancarTurno, compactar, configEfetiva, curaEmGrupo, curaEstimada, curasProprias, decidirCura, dirFromDelta,
   ehInvocacao, escolherAtaque, escolherBuff, escolherCura, escolherRecuo, estagiarioPadrao, RECUO_MAX_TILES, STAMINA_BAIXA_MS, staminaXpMult,
   fecharGravacao, gravarPasso, indiceMaisProximo, indiceRetomada, isFamilyId, needsTarget, novaGravacao, pickFromFamily, pisoDeMana,
-  resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef, doorSides,
+  resolveFamily, sanitizeEstagiario, sanitizeLigado, spellDef, spellMana, doorSides,
   type AlarmeTipo, type ConditionId, type CuraAcao, type DiarioCanal, type DiarioItem, type EstagiarioAlarmeMsg, type EstagiarioConfig,
   type EstagiarioConfigMsg, type EstagiarioDiarioMsg, type EstagiarioEstadoMsg, type EstagiarioGravarMsg, type EstagiarioLigado,
   type EstagiarioPausa, type EstagiarioToggleMsg, type Gravacao, type NoticeMsg, type PontoRota, type QuickPotionKind, type RegraCura,
@@ -62,7 +62,8 @@ const AVISO_LONGE = "Você está longe demais da rota: chegue perto do caminho g
 const AVISO_TRAVADA = `O Estagiário não consegue seguir a rota (${PONTOS_TRAVADOS_MAX} pontos travados seguidos): rota desligada.`;
 
 export interface EstagiarioOptions {
-  spells: { ready(p: PlayerState, id: string, now?: number): boolean; cast(p: PlayerState, id: string, targetId?: string, opts?: { silent?: boolean }): { ok: boolean } };
+  /** `readyIgnoringMana`: pronta se tivesse mana (o diário separa "sem mana" de "em recarga"). */
+  spells: { ready(p: PlayerState, id: string, now?: number): boolean; readyIgnoringMana?(p: PlayerState, id: string, now?: number): boolean; cast(p: PlayerState, id: string, targetId?: string, opts?: { silent?: boolean }): { ok: boolean } };
   /** Condições ativas (ConditionSystem): o buff só é reconjurado quando a condição dele acabou. */
   conditions: { has(targetId: string, id: ConditionId): boolean };
   potions: {
@@ -101,7 +102,7 @@ export interface EstagiarioOptions {
    * Portas de sala (ciclo 22): sem caminho até o ponto (ou o colega), o bot procura uma porta perto que leve até lá e a
    * usa, com o requisito de quem joga (porta trancada para ele = ponto travado, como antes). Ausente = sem portas.
    */
-  doors?: Pick<DoorSystem, "list" | "doorAt" | "isDoorTile" | "use" | "grid">;
+  doors?: Pick<DoorSystem, "list" | "doorAt" | "isDoorTile" | "use" | "grid"> & Partial<Pick<DoorSystem, "isOpen">>;
   /** Em combate (deu/levou dano há pouco; CombatSystem.inCombat): os buffs "em combate"/"fora". Ausente = tem alvo monstro. */
   inCombat?: (id: string, now: number) => boolean;
   /** Invocações vivas do jogador (SummonSystem.ownedBy): a regra de invocação espera elas sumirem. Ausente = 0. */
@@ -110,6 +111,11 @@ export interface EstagiarioOptions {
   alimentadoMs?: (id: string, now: number) => number;
   /** Come a primeira comida da mochila (InventorySystem.eatAny). */
   comer?: (p: PlayerState) => boolean;
+  /**
+   * Em duelo (decisão do dono, 2026-11-11): o Estagiário não cura, não ataca e não reconjura buffs enquanto o jogador
+   * luta, e volta sozinho com o que estava ligado quando o duelo acaba. Ausente = nunca.
+   */
+  pausado?: (id: string) => boolean;
   /** Colegas de grupo (sem o próprio): as regras de cura "aliado". Ausente = nenhum. */
   aliados?: (p: PlayerState) => Iterable<PlayerState>;
   /** Alcance do ataque básico (arma/vocação): "manter distância" só vale acima de 1. Ausente = 1 (colado). */
@@ -153,6 +159,11 @@ interface Estado {
   caminhoAlvo: number;
   /** Porta (tile) que o caminho guardado leva até o lado: ao chegar perto, usa (null = caminho direto). */
   porta: Point | null;
+  /** Porta que acabou de recusar o bot (level, missão, alguém nela): fora do `viaPorta` até `ate`. */
+  portaRecusada: { x: number; y: number; ate: number } | null;
+  /** Seguindo: o colega perto está do outro lado de uma porta (sem caminho a pé), conferido em `seguirChecadoEm`. */
+  seguirPelaPorta: boolean;
+  seguirChecadoEm: number;
   /** Menor distância ao ponto atual e quando ela diminuiu pela última vez (ponto travado → pula). */
   melhorDist: number;
   progressoEm: number;
@@ -255,7 +266,7 @@ export class EstagiarioSystem {
     this.st.set(p.id, {
       config, efetiva: configEfetiva(config, p.vocation),
       turno: avancarTurno(saved?.turno, now, false), cura: !!ligado.cura, ataque: !!ligado.ataque, buffs: !!ligado.buffs, rota: null, indice: 0,
-      caminho: null, caminhoEm: 0, caminhoAlvo: -1, porta: null, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
+      caminho: null, caminhoEm: 0, caminhoAlvo: -1, porta: null, portaRecusada: null, seguirPelaPorta: false, seguirChecadoEm: 0, melhorDist: Infinity, progressoEm: now, travados: 0, travadoAte: 0,
       inalcancavelAte: 0, recuandoAte: 0, foraAlcanceAte: 0, semManaBuffAte: 0, motivoEnviado: "", lutando: false,
       alvoId: "", alvoAnterior: "", alvoDist: Infinity, alvoHp: Infinity, alvoProgressoEm: now, ignorados: new Map(),
       grav: null, gravPos: { x: p.x, y: p.y },
@@ -468,11 +479,18 @@ export class EstagiarioSystem {
    * Desliga só a rota (cura, ataque e buffs ficam), com aviso opcional e o estado. Usado pelo Coliseu ao entrar e ao sair da
    * partida: a saída tira o acompanhante (despawnOwner) e a rota dentro da arena caçaria as ondas sozinha.
    */
-  desligarRota(p: PlayerState, aviso?: string): void {
+  /** Algo do Estagiário está ligado (rota, seguir, cura, ataque ou buffs)? */
+  algoLigado(p: PlayerState): boolean {
+    const s = this.st.get(p.id);
+    return !!s && (!!s.rota || !!s.seguindo || this.curaLigada(s) || s.ataque || s.buffs);
+  }
+
+  /** `motivo` vai no diário ("rota desligada: <motivo>"). */
+  desligarRota(p: PlayerState, aviso?: string, motivo = "Coliseu"): void {
     const s = this.st.get(p.id);
     if (!s?.rota && !s?.seguindo) return;
-    this.pararRota(p, s, this.now(), "Coliseu");
-    this.pararSeguir(p, s, this.now(), "Coliseu");
+    this.pararRota(p, s, this.now(), motivo);
+    this.pararSeguir(p, s, this.now(), motivo);
     if (aviso) this.notice(p, aviso);
     this.enviarEstado(p);
   }
@@ -609,8 +627,8 @@ export class EstagiarioSystem {
   }
 
   private agir(p: PlayerState, s: Estado, now: number): void {
-    // Sem ninguém no cliente (queda) ou ainda carregando o mundo (carência de entrada): nada.
-    if (s.suspenso || now < s.carenciaAte) return;
+    // Sem ninguém no cliente (queda), ainda carregando o mundo (carência de entrada) ou em duelo: nada.
+    if (s.suspenso || now < s.carenciaAte || this.o.pausado?.(p.id)) return;
     // v3: a Cura também liga pela rota (como o ataque e os buffs); desligada com a vida baixa, o diário diz.
     const cura = this.curaLigada(s);
     if (!cura) this.avisarCuraDesligada(p, s, now);
@@ -822,6 +840,21 @@ export class EstagiarioSystem {
       if (v && (p.x !== v.x || p.y !== v.y)) this.passo(p, s, v, now, -2);
       return;
     }
+    // Colega perto, mas do outro lado de uma porta (fechada, de level ou de missão): o follow do FightMode não passa
+    // por porta e o seguidor ficava parado gastando stamina, sem alarme. Sem caminho a pé (conferido a cada
+    // CAMINHO_MS), vai pelo caminho da rota, que abre a porta comum e entra na de requisito.
+    const c = this.o.doors ? this.jogador(s.seguindo!) : undefined;
+    if (c && cheb(p.x, p.y, c.x, c.y) > 1) {
+      if (now - s.seguirChecadoEm >= CAMINHO_MS) {
+        s.seguirChecadoEm = now;
+        s.seguirPelaPorta = !this.o.movement.pathFor(p, { x: c.x, y: c.y });
+      }
+      if (s.seguirPelaPorta) {
+        if (p.followId) this.o.fight.cancelFollow(p);
+        this.passo(p, s, { x: c.x, y: c.y }, now, -3);
+        return;
+      }
+    } else s.seguirPelaPorta = false;
     if (p.followId !== s.seguindo) this.o.fight.follow(p, s.seguindo!);
   }
 
@@ -953,14 +986,22 @@ export class EstagiarioSystem {
     return "pocao" in a ? (a.pocao === "hp" ? "poção de vida" : "poção de mana") : spellDef(a.magia)?.name ?? a.magia;
   }
 
+  /** A magia sairia se houvesse mana (sem o SpellSystem real, como nos kits de teste: a mana abaixo do custo). */
+  private semManaSo(p: PlayerState, id: string, now: number): boolean {
+    if (this.o.spells.readyIgnoringMana) return this.o.spells.readyIgnoringMana(p, id, now) && !this.o.spells.ready(p, id, now);
+    const def = spellDef(id);
+    return !!def && p.mana < spellMana(def, p.level);
+  }
+
   /** Por que a ação da regra não saiu agora (diário): sem poção que dê para beber, recarga, level ou mana. */
   private porQueNaoPronta(p: PlayerState, r: RegraCura, now: number): string {
     const nome = this.nomeDaAcao(r.acao);
     if ("pocao" in r.acao) return this.o.potions.canDrink(p, r.acao.pocao) ? `${nome} em recarga` : `nenhuma ${nome} que você possa beber`;
     const def = spellDef(r.acao.magia);
     if (def && def.level > p.level) return `${nome} acima do seu level`;
-    // Pronta com mana infinita = só a mana segura; senão é a recarga (própria ou global).
-    if (this.o.spells.ready({ ...p, mana: Number.MAX_SAFE_INTEGER } as PlayerState, r.acao.magia, now)) return `${nome} sem mana`;
+    // Pronta se tivesse mana = só a mana segura; senão é a recarga (própria ou global). Antes testava com `{ ...p, mana }`,
+    // mas o PlayerState é Schema (campos no protótipo): o espalhado só tinha a mana e nunca dava "sem mana".
+    if (this.semManaSo(p, r.acao.magia, now)) return `${nome} sem mana`;
     return `${nome} em recarga`;
   }
 
@@ -1001,7 +1042,7 @@ export class EstagiarioSystem {
       return;
     }
     // Nada saiu: se a mana mínima da regra (ou a mana da própria magia) é o que segura, o painel explica.
-    const pronta = (id: string) => this.o.spells.ready(p, id, now) || this.o.spells.ready({ ...p, mana: Number.MAX_SAFE_INTEGER } as PlayerState, id, now);
+    const pronta = (id: string) => this.o.spells.ready(p, id, now) || this.semManaSo(p, id, now);
     if (escolherBuff(s.efetiva.buffs, { ...ctx, mana: Number.MAX_SAFE_INTEGER, maxMana: Number.MAX_SAFE_INTEGER, pronto: pronta })) s.semManaBuffAte = now + MOTIVO_MS;
   }
 
@@ -1240,14 +1281,23 @@ export class EstagiarioSystem {
       s.porta = null;
       s.caminho = null;
       s.caminhoEm = 0;
-      if (d && doors.use(p, d.id)) this.anotar(s, now, "rota", "passando pela porta");
+      if (!d) return;
+      // Porta comum que alguém já abriu: usar a fecharia (e o bot a reabria no tick seguinte). Só recalcula.
+      if (!d.req && doors.isOpen?.(d.id)) return;
+      if (doors.use(p, d.id)) { this.anotar(s, now, "rota", "passando pela porta"); return; }
+      // Recusou (level, missão, alguém na porta): antes recalculava, escolhia a mesma porta e tentava de novo a cada
+      // 2 ticks, com um aviso na tela a cada tentativa. Agora a porta fica de fora por PONTO_TRAVADO_MS e o caminho
+      // espera CAMINHO_MS; a rota trata o ponto como travado, como o portal trancado.
+      s.portaRecusada = { x: d.x, y: d.y, ate: now + PONTO_TRAVADO_MS };
+      s.caminhoEm = now;
+      this.anotar(s, now, "aviso", "a porta não deixou passar");
       return;
     }
     if (s.caminhoAlvo !== chave || (now - s.caminhoEm >= CAMINHO_MS && !s.caminho?.length)) {
       s.caminho = mv.pathFor(p, { x: alvo.x, y: alvo.y });
       s.porta = null;
       if (!s.caminho) {
-        const via = this.viaPorta(p, alvo);
+        const via = this.viaPorta(p, alvo, s, now);
         if (via) { s.caminho = via.caminho; s.porta = via.porta; }
       }
       s.caminhoEm = now;
@@ -1267,7 +1317,7 @@ export class EstagiarioSystem {
    * lado de cá dela. Custo = passos até o lado + passos do outro lado até o alvo (o alvo pode ser a própria porta).
    * O requisito não é conferido aqui: a porta trancada recusa no `use` e o ponto acaba travado, como o portal trancado.
    */
-  private viaPorta(p: PlayerState, alvo: Point): { caminho: Point[]; porta: Point } | null {
+  private viaPorta(p: PlayerState, alvo: Point, s?: Estado, now = 0): { caminho: Point[]; porta: Point } | null {
     const doors = this.o.doors;
     if (!doors) return null;
     const grid = doors.grid;
@@ -1276,6 +1326,8 @@ export class EstagiarioSystem {
     let best: { caminho: Point[]; porta: Point } | null = null, bestCost = Infinity;
     for (const d of doors.list) {
       if (cheb(p.x, p.y, d.x, d.y) > PORTA_BUSCA_TILES) continue;
+      const r = s?.portaRecusada;
+      if (r && r.x === d.x && r.y === d.y && now < r.ate) continue;
       const sides = doorSides(d, walk);
       const ehAlvo = d.x === alvo.x && d.y === alvo.y;
       for (const a of sides) {

@@ -202,13 +202,18 @@ export type ItemLocation =
   | { where: "backpack"; index: number }
   | { where: "equip"; slot: EquipSlot }
   | { where: "depot"; index: number };
-export interface MoveItemMsg { from: ItemLocation; to: ItemLocation; count?: number }
-export interface UseItemMsg { index: number }
+/**
+ * `uid` (opcional) nas ações por posição = o item que o jogador viu ali. A mochila se reorganiza sozinha no servidor (loot
+ * novo, pilha que some) e o índice pode apontar outro item quando a mensagem chega: com o `uid` diferente, nada acontece
+ * (antes vendia/largava o item vizinho, até um raro sem a confirmação).
+ */
+export interface MoveItemMsg { from: ItemLocation; to: ItemLocation; count?: number; uid?: string }
+export interface UseItemMsg { index: number; uid?: string }
 export interface QuickPotionMsg { kind: "hp" | "mana" }
-export interface DiscardItemMsg { index: number }
+export interface DiscardItemMsg { index: number; uid?: string }
 /** De onde sai o item largado no chão (depot não). */
 export type DropFrom = { where: "backpack"; index: number } | { where: "equip"; slot: EquipSlot };
-export interface DropItemMsg { from: DropFrom; x: number; y: number; count?: number }
+export interface DropItemMsg { from: DropFrom; x: number; y: number; count?: number; uid?: string }
 export type PickupTo = { where: "backpack"; index: number } | { where: "equip"; slot: EquipSlot };
 export interface PickupItemMsg { groundId: string; to?: PickupTo }
 /**
@@ -219,7 +224,7 @@ export interface RefineMsg { from: DropFrom; uid: string; level: number }
 export interface NpcInteractMsg { npcId: string }
 export type NpcTradeMsg =
   | { npcId: string; action: "buy"; itemId: string; count: number }
-  | { npcId: string; action: "sell"; index: number; count: number }
+  | { npcId: string; action: "sell"; index: number; count: number; uid?: string }
   /** Vende de uma vez tudo da mochila que o NPC compra (pilhas inteiras). */
   | { npcId: string; action: "sellAll" }
   /** Compra uma bênção (NpcDef.blessing): preço escala com o level, consumida na próxima morte. */

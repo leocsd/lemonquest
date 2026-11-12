@@ -92,6 +92,14 @@ describe("auth: contas", () => {
     expect(b.session).not.toBe(a.session);
   });
 
+  it("create não serve para descobrir contas: senha fraca não revela se existe; 'já existe' conta como falha do IP", async () => {
+    okSession(await create("Existe"));
+    expect(await create("Existe", "abc", "7.7.7.7")).toMatchObject({ error: "weak_password" });
+    expect(await create("NaoExiste", "abc", "7.7.7.7")).toMatchObject({ error: "weak_password" });
+    for (let i = 0; i < LOGIN_MAX_FAILS; i++) expect(await create("Existe", "segredo1", "7.7.7.7")).toMatchObject({ error: "account_taken" });
+    expect(await create("Existe", "segredo1", "7.7.7.7")).toMatchObject({ error: "too_many_attempts" });
+  });
+
   it("personagens: cria até o máximo; nome único entre TODAS as contas; vocação/nome validados", async () => {
     const a = okSession(await create("contaA"));
     const b = okSession(await create("contaB"));

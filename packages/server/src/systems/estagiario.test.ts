@@ -48,6 +48,8 @@ interface SetupOpts {
   alcance?: number;
   /** Ids de jogadores no grupo do "p" que contam como aliados para a cura em grupo. */
   aliados?: string[];
+  /** Em duelo (EstagiarioHost.pausado): o objeto é lido a cada tick. */
+  duelo?: { em: boolean };
 }
 
 /**
@@ -160,6 +162,7 @@ function setup(o: SetupOpts = {}) {
     comer: () => { comida.comeu++; calls.push(["comer"]); return true; },
     aliados: () => (o.aliados ?? []).map((id) => w.players.get(id)).filter((q): q is PlayerState => !!q),
     attackRange: () => o.alcance ?? 1,
+    pausado: () => !!o.duelo?.em,
     now: () => clock,
   });
   sys.load(p, { ...o.saved, config: { ...(o.saved?.config as object | undefined), modo: o.modo ?? "avancado" } } as never);
@@ -323,6 +326,21 @@ describe("Estagiário: liga e desliga", () => {
     expect(w2.p.bot).toBe(false);
     expect(w2.notices().at(-1)).toBe("A stamina do Estagiário acabou. Ela recarrega com ele parado ou com você offline.");
     expect(w2.of("spawn")).toEqual([]);
+  });
+});
+
+describe("Estagiário: duelo (decisão do dono, 2026-11-11)", () => {
+  it("em duelo não cura, não ataca nem buffa; no fim volta sozinho com o que estava ligado", () => {
+    const duelo = { em: true };
+    const w = setup({ over: { hp: 30, mana: 10 }, duelo });
+    w.sys.onToggle(w.p, { cura: true });
+    w.prontas.add("light_heal");
+    w.tick(1000);
+    expect(w.calls.filter((c) => c[0] === "pocao" || c[0] === "cast")).toEqual([]);
+    duelo.em = false;
+    w.tick();
+    expect(w.calls.filter((c) => c[0] === "pocao" || c[0] === "cast").length).toBeGreaterThan(0);
+    expect(w.sys.algoLigado(w.p)).toBe(true);
   });
 });
 
@@ -1045,6 +1063,8 @@ describe("Estagiário: rodar a rota", () => {
     expect(t.visitados.has("15,10")).toBe(false);
     expect(t.indice()).not.toBe(1); // desistiu do ponto do outro lado
     expect(t.notices().some((n) => /level 50/.test(n))).toBe(true);
+    // Uma recusa por vez, não uma a cada 2 ticks (antes: ~100 avisos na tela nesses 10 s).
+    expect(t.notices().filter((n) => /level 50/.test(n)).length).toBeLessThan(4);
   });
 
   it("ponto inalcançável (fora do mapa, sem caminho): pula para o próximo depois de PONTO_TRAVADO_MS", () => {
@@ -1948,6 +1968,18 @@ describe("Estagiário v3: caçar com amigo (seguir um colega do grupo)", () => {
     // Rato morto: volta a seguir.
     longe!.s.hp = 0; w.q.targetId = ""; w.luta.alvo = "";
     w.tick(1000);
+    expect(w.p.followId).toBe("q");
+  });
+
+  it("colega perto do outro lado de uma porta fechada: o seguidor abre a porta e vai (antes ficava parado)", () => {
+    const parede = Array.from({ length: 40 }, (_, y) => ({ x: 15, y }));
+    const w = comColega({ andar: true, paredes: parede, portas: [{ id: "porta", x: 15, y: 10, art: [] }] });
+    w.sys.onToggle(w.p, { seguir: "q" });
+    expect(w.p.bot).toBe(true);
+    w.q.x = 18; w.q.y = 10; // passou pela porta e ela fechou atrás
+    w.tick(6000);
+    // Abriu a porta e chegou até ela; com o caminho livre, volta ao follow (que no kit não anda).
+    expect(w.p.x).toBeGreaterThanOrEqual(15);
     expect(w.p.followId).toBe("q");
   });
 

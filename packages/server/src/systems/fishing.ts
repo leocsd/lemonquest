@@ -1,22 +1,18 @@
 // Pesca: com a Vara de Pesca na mochila, botão direito num tile de água (até 5 tiles) lança a linha. Depois de 5 s sem
 // se mexer nem apanhar, o peixe morde (ou escapa). Quanto mais peixes já pescou, maior a chance. Recasta é manual.
 // Baú do Pescador (ciclo 18): a cada FISHER_CHEST_EVERY peixes, um Baú de Recompensa (o prêmio sai pelo level ao abrir).
-import { BOUNTY_CHEST_ID, S2C, itemDef, type FishCastMsg, type FishMsg, type ItemInstance, type NoticeMsg } from "@lemonquest/shared";
+import { BOUNTY_CHEST_ID, FISHER_CHEST_EVERY, FISH_GOLDEN_PCT, FISH_ROD, FISH_SALMON_PCT, S2C, itemDef, type FishCastMsg, type FishMsg, type ItemInstance, type NoticeMsg } from "@lemonquest/shared";
 import type { PlayerState } from "../state.ts";
 import { makeItem, type InventorySystem } from "./inventory.ts";
 
-export const FISH_ROD = "fishing_rod";
+// Vara, fatias dos peixes e Baú do Pescador em shared/data/serverOdds.ts (a wiki lê de lá); reexportados para os testes.
+export { FISHER_CHEST_EVERY, FISH_ROD };
 export const FISH_CAST_MS = 5000;
 export const FISH_RANGE = 5;
 /** Chance de morder: base + bônus por peixe já pescado (teto 90%). */
 export const FISH_BASE_CHANCE = 0.55;
 export const FISH_PER_CATCH = 0.002;
 export const FISH_MAX_CHANCE = 0.9;
-/** Peixes (na ordem do sorteio): fatia de probabilidade de cada um; o resto é truta. */
-export const FISH_GOLDEN_PCT = 0.04;
-export const FISH_SALMON_PCT = 0.26;
-/** Baú do Pescador: um Baú de Recompensa a cada tantos peixes pescados (25, 50, 75...). */
-export const FISHER_CHEST_EVERY = 25;
 
 interface Cast { x: number; y: number; px: number; py: number; hp: number; endsAt: number }
 

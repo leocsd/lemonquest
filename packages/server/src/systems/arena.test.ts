@@ -213,6 +213,46 @@ describe("coliseu competitivo (2026-11-06)", () => {
     expect(JSON.parse(week[1]).map((r: { names: string[]; wave: number }) => [r.names.join(), r.wave])).toEqual([["a", 1]]);
   });
 
+  it("rival some na contagem (queda): o desafio se resolve quando o outro grupo termina", () => {
+    const kv = new Map<string, string>();
+    const chests: [string, number][] = [];
+    const k = setup(2, { getKv: (key) => kv.get(key), setKv: (key, v) => { kv.set(key, v); }, giveChests: (p, n) => chests.push([p.name, n]) });
+    const a = k.add("a"), b = k.add("b");
+    k.arena.onAction(a, { action: "create" });
+    k.arena.onAction(b, { action: "create" });
+    const la = k.arena.partyFor("a")!.id, lb = k.arena.partyFor("b")!.id;
+    k.arena.onAction(a, { action: "versus", lobbyId: lb });
+    k.arena.onAction(b, { action: "versusAnswer", lobbyId: la, accept: true });
+    k.arena.removePlayer("b"); // fechou a aba ainda na Vila
+    expect(k.arena.partyFor("b")).toBeUndefined();
+    k.toWave1();
+    const pa = () => k.arena.partyFor("a")!;
+    for (let g = 0; g < 100 && (pa().phase !== "fight" || pa().pending.length); g++) k.run(200);
+    for (const m of k.arenaMonsters().filter((x) => x.arenaId === pa().arena!.id)) k.w.combat.damageMonster(m, "", 1e9, "physical", k.w.now());
+    k.run(100);
+    k.arena.onAction(a, { action: "leave" });
+    expect(chests).toEqual([["a", 1]]);
+  });
+
+  it("ranking de ondas: quem desistiu antes de vencer uma onda não entra (nem leva o prêmio da semana)", () => {
+    const kv = new Map<string, string>();
+    const k = setup(1, { getKv: (key) => kv.get(key), setKv: (key, v) => { kv.set(key, v); } });
+    const a = k.add("a"), b = k.add("b");
+    k.arena.onAction(a, { action: "create" });
+    k.arena.onAction(b, { action: "join", lobbyId: k.arena.partyFor("a")!.id });
+    k.arena.onAction(a, { action: "start" });
+    k.toWave1();
+    const pa = () => k.arena.partyFor("a")!;
+    k.arena.onAction(b, { action: "leave" }); // desiste na onda 1
+    for (let g = 0; g < 100 && (pa().phase !== "fight" || pa().pending.length); g++) k.run(200);
+    for (const m of k.arenaMonsters().filter((x) => x.arenaId === pa().arena!.id)) k.w.combat.damageMonster(m, "", 1e9, "physical", k.w.now());
+    k.run(100);
+    expect(pa().cleared).toBe(1);
+    k.arena.onAction(a, { action: "leave" });
+    const week = [...kv.entries()].find(([key]) => key.startsWith("arena.waves.week."))!;
+    expect(JSON.parse(week[1]).map((r: { names: string[] }) => r.names.join())).toEqual(["a"]);
+  });
+
   it("recusar avisa quem desafiou; desafio precisa de duas salas livres", () => {
     const k = setup(1);
     const a = k.add("a"), b = k.add("b");

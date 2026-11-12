@@ -106,6 +106,8 @@ describe("turno restante", () => {
     expect(turnoMostrado(e(null), 0, 120_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_630_000);
     expect(turnoMostrado({ turnoMs: TURNO_MAX_MS - 1, rota: null, pausa: "" }, 0, 3_600_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(TURNO_MAX_MS);
     expect(turnoMostrado({ turnoMs: 5, rota: "R", pausa: "" }, 0, 999_999, TURNO_MAX_MS, TURNO_RECARGA)).toBe(0);
+    // Seguindo um colega também gasta (o servidor conta o seguir como rodando).
+    expect(turnoMostrado({ turnoMs: 3_600_000, rota: null, seguindo: { id: "q", nome: "Quico" }, pausa: "" }, 1000, 61_000, TURNO_MAX_MS, TURNO_RECARGA)).toBe(3_540_000);
   });
 });
 

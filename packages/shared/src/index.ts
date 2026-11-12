@@ -11,6 +11,7 @@ export * from "./data/spells.ts";
 export * from "./data/spellFamilies.ts";
 export * from "./data/items.ts";
 export * from "./data/npcs.ts";
+export * from "./data/serverOdds.ts";
 export * from "./data/outfitTones.ts";
 export * from "./data/materialRequest.ts";
 export * from "./data/imbuement.ts";

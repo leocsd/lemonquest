@@ -9,7 +9,7 @@ import { RANKING_CACHE_S } from "@lemonquest/shared";
 import { rankingJson } from "./persistence/ranking.ts";
 import { ROOT_DIR } from "./paths.ts";
 import { WorldRoom, currentWorld } from "./rooms/WorldRoom.ts";
-import { authRouter, setSessionKicker } from "./persistence/auth.ts";
+import { authRouter, setCharacterDeletedHook, setSessionKicker } from "./persistence/auth.ts";
 import { checkpoint, closeDb, initDb } from "./persistence/db.ts";
 import { backupCopyDir, backupDir, startBackups } from "./persistence/backup.ts";
 import { devAdmins, devCommandsEnabled } from "./systems/devcommands.ts";
@@ -130,6 +130,8 @@ const gameServer = new Server({ transport: new WebSocketTransport({ server: http
 gameServer.define("world", WorldRoom);
 // Troca de senha (código de recuperação) derruba os personagens da conta que estão no mundo.
 setSessionKicker((sid, reason) => currentWorld()?.kick(sid, reason));
+// Personagem excluído: some o vínculo do ClickUp e o prêmio do Coliseu guardados pelo nome (o nome pode ser reusado).
+setCharacterDeletedHook((name) => currentWorld()?.onCharacterDeleted(name));
 // Só joinOrCreate pelo HTTP (create/join/joinById ficam fechados). A reconexão automática do SDK vai direto
 // pelo WebSocket com o reconnectionToken, sem passar por /matchmake.
 matchMaker.controller.exposedMethods = ["joinOrCreate"];

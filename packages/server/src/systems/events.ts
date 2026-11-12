@@ -18,6 +18,12 @@ export interface EventHost {
   onStart?(ev: ActiveEvent): void;
   /** O evento base acabou (hora, /evento parar ou troca por outro): limpeza de quem dependia dele. */
   onEnd?(ev: ActiveEvent): void;
+  /**
+   * O MESMO evento continua com outro fim (`/evento <id> <min>` durante ele, ou um manual do mesmo id que emenda na janela
+   * agendada): não há onEnd/onStart, então quem guarda a ocorrência pelo `until` (raide, corrida) troca a chave aqui.
+   * Antes o fim chegava com o `until` novo e era descartado: chefe do raide vivo para sempre, corrida sem fim.
+   */
+  onExtend?(prev: ActiveEvent, next: ActiveEvent): void;
   /** Guarda o evento manual (JSON) para sobreviver a reinício; ausente = só memória. */
   store?: { get(): string | undefined; set(value: string): void };
   /** Guarda o bônus de código (JSON) para sobreviver a reinício; ausente = só memória. */
@@ -102,6 +108,7 @@ export class EventSystem {
         this.o.broadcast(S2C.Feed, { text: `Evento encerrado: ${prev.name}.${after}`, kind: "info" } satisfies FeedMsg);
         this.o.onEnd?.(prev);
       }
+      if (prev && want && want.id === prev.id) this.o.onExtend?.(prev, want);
       if (want && want.id !== prev?.id) {
         this.o.broadcast(S2C.Announce, { text: `Evento: ${want.name}! ${want.desc} (até ${hhmm(want.until)})`, from: "Evento" } satisfies AnnounceMsg);
         this.o.broadcast(S2C.Feed, { text: `★ ${want.name}: ${want.desc}`, kind: "info" } satisfies FeedMsg);

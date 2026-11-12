@@ -1,6 +1,7 @@
 // Estado da janela de NPC (diálogo/loja/depot). O mundo (Phaser) chama openNpc(npcId) ao clicar num NPC.
 import { BOUNTY_NPC, C2S, EXCURSION_NPC, QUEST_LIST, REFINE_NPC, REQUEST_NPC, npcDef, type NpcInteractMsg, type NpcOpenMsg, type NpcTradeMsg, type TravelMsg } from "@lemonquest/shared";
 import { createStore } from "../hud/store.ts";
+import { uidAt } from "../items/inventory.ts";
 import { send } from "../items/net.ts";
 import { closeArenaWindow, openArenaWindow } from "../arena/arena.ts";
 import { closeMinigameWindow, openMinigameWindow } from "../minigame/minigame.ts";
@@ -60,7 +61,8 @@ export function buyItem(npcId: string, itemId: string, count: number): void {
   send(C2S.NpcTrade, m);
 }
 export function sellItem(npcId: string, index: number, count: number): void {
-  const m: NpcTradeMsg = { npcId, action: "sell", index, count };
+  const uid = uidAt({ where: "backpack", index });
+  const m: NpcTradeMsg = { npcId, action: "sell", index, count, ...(uid ? { uid } : {}) };
   send(C2S.NpcTrade, m);
 }
 

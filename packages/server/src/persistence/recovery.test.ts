@@ -9,7 +9,7 @@ import { closeDb, getCharacterByName, getResetCode, initDb, listDeletedCharacter
 import {
   DELETE_MAX_PER_HOUR, LOGIN_MAX_FAILS, RESET_CODE_TTL_MS, authRouter, claimOnline, createResetCode, handleCreateCharacter,
   handleDeleteCharacter, handleLogin, handlePlay, handleResetPassword, handleResume, normalizeResetCode, releaseOnline, resetAuthState,
-  consumeToken, setSessionKicker,
+  consumeToken, setCharacterDeletedHook, setSessionKicker,
 } from "./auth.ts";
 import { runAdminCli } from "./admincli.ts";
 
@@ -174,6 +174,19 @@ describe("excluir personagem", () => {
     expect(arch!.deleted_at).toBeGreaterThan(0);
     // Nome livre: outra conta cria "Bia".
     expect(ok(handleCreateCharacter({ session: b, name: "Bia", vocation: "paladin" })).characters.map((c) => c.name)).toEqual(["Caio", "Bia"]);
+  });
+
+  it("avisa o mundo do nome excluído (vínculo do ClickUp e prêmio do Coliseu guardados pelo nome); erro no aviso não desfaz", async () => {
+    const { a } = await setup();
+    const avisados: string[] = [];
+    setCharacterDeletedHook((n) => { avisados.push(n); throw new Error("mundo fora"); });
+    try {
+      ok(await handleDeleteCharacter({ session: a, name: "bia", password: "segredo1" }));
+      expect(avisados).toEqual(["Bia"]);
+      expect(getCharacterByName("Bia")).toBeUndefined();
+    } finally {
+      setCharacterDeletedHook(null);
+    }
   });
 
   it("senha errada, sessão inválida, personagem de outra conta → recusa sem apagar", async () => {

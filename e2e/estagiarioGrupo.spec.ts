@@ -1,10 +1,13 @@
 // Estagiário, caçar com amigo (v3): dois jogadores no mesmo grupo; B manda o Estagiário seguir A pela aba Rota, ganha o
 // crachá, anda atrás quando A se afasta e para quando pede. Só colega do grupo aparece na lista.
 import { expect, test, type Page } from "@playwright/test";
-import { clickTile, enterGame, me, meState, teleport, waitSettled, walkableNear } from "./helpers.ts";
+import { clickTile, enterGame, me, meState, teleport, waitSettled } from "./helpers.ts";
 
-/** Floresta ao norte da vila. */
-const FOREST = { x: 70, y: 62 };
+/**
+ * Campo a leste da Vila, fora da PZ e a 14+ tiles de qualquer spawn. Na floresta (70,62) o "seguir" liga o ataque e o
+ * seguidor saía atrás dos bichos: o teste falhava 1 em 6 com B a 10–18 tiles de A (TEST_PLAN, ciclo 23).
+ */
+const CAMPO = { x: 127, y: 106 };
 
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
@@ -16,9 +19,7 @@ test("Estagiário em grupo: seguir um colega, andar atrás dele e parar", async 
     const pa = await enterGame(a, "knight");
     await enterGame(b, "druid");
     // Lado a lado na floresta.
-    const tiles = await walkableNear(a, FOREST.x, FOREST.y, 4);
-    const ta = tiles[0]!;
-    const tb = tiles.find((t) => dist(t, ta) === 2)!;
+    const ta = CAMPO, tb = { x: CAMPO.x + 2, y: CAMPO.y };
     await teleport(a, ta.x, ta.y);
     await teleport(b, tb.x, tb.y);
     const bId = await b.evaluate(() => (window as any).__lq.myId() as string);
@@ -49,8 +50,8 @@ test("Estagiário em grupo: seguir um colega, andar atrás dele e parar", async 
     await expect(win.getByTestId("est-parar-seguir")).toBeVisible();
     await expect(win.locator(".est-head")).toContainText(pa.name);
 
-    // A se afasta 5 tiles: B anda atrás até ficar ao lado.
-    const longe = tiles.find((t) => dist(t, ta) >= 5 && dist(t, ta) <= 7) ?? tiles.at(-1)!;
+    // A se afasta 6 tiles de B: B anda atrás até ficar ao lado.
+    const longe = { x: CAMPO.x + 8, y: CAMPO.y }; // 6 tiles de B
     await teleport(a, longe.x, longe.y);
     await expect.poll(async () => dist((await me(b))!, (await me(a))!), { timeout: 20_000, intervals: [500], message: "B chega ao lado de A" }).toBeLessThanOrEqual(2);
 
