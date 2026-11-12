@@ -859,7 +859,7 @@ describe("Estagiário: gravação de rota", () => {
 
   it("passar por uma porta de sala grava o tile da porta como ponto (é ali que o bot vai usá-la)", () => {
     const parede = Array.from({ length: 40 }, (_, y) => ({ x: 15, y }));
-    const w = setup({ paredes: parede, portas: [{ id: "porta", x: 15, y: 10, style: "arco" }] });
+    const w = setup({ paredes: parede, portas: [{ id: "porta", x: 15, y: 10, art: [] }] });
     w.sys.onGravar(w.p, { acao: "iniciar" });
     w.tick();
     andarAte(w, 17, 10); // reta de (10,10) a (17,10) passando pela porta, sem mudar de direção
@@ -1018,7 +1018,7 @@ describe("Estagiário: rodar a rota", () => {
 
   // Ciclo 22: parede em x = 15 (y 0..39) com uma porta em (15,10); a rota passa de um lado para o outro.
   const parede = Array.from({ length: 40 }, (_, y) => ({ x: 15, y }));
-  const porta = (req?: { minLevel: number }): DoorSpot => ({ id: "porta", x: 15, y: 10, style: "arco", ...(req ? { req } : {}) });
+  const porta = (req?: { minLevel: number }): DoorSpot => ({ id: "porta", x: 15, y: 10, art: [], ...(req ? { req } : {}) });
 
   it("porta de level no caminho: o bot chega ao lado, usa a porta (o requisito é o dele) e segue do outro lado", () => {
     const w = setup({ andar: true, paredes: parede, portas: [porta({ minLevel: 20 })], saved: { config: rota([{ x: 10, y: 12 }, { x: 20, y: 8 }]) } });

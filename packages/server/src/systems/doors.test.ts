@@ -13,8 +13,8 @@ const ROWS = [
   ".....#.",
   ".....#.",
 ];
-const COMUM: DoorSpot = { id: "comum", x: 5, y: 1, style: "arco" };
-const LV20: DoorSpot = { id: "lv20", x: 5, y: 3, style: "arco", req: { minLevel: 20 } };
+const COMUM: DoorSpot = { id: "comum", x: 5, y: 1, art: [] };
+const LV20: DoorSpot = { id: "lv20", x: 5, y: 3, art: [], req: { minLevel: 20 } };
 
 function setup() {
   const g = grid(ROWS);

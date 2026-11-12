@@ -49,7 +49,6 @@ const DOORS = [
   { id: "mt_pintura", minLevel: 60, door: [300, 804], from: "Funilaria e Armação", to: "Cabines de Pintura", old: [[300, 804], [301, 808]] },
   { id: "mt_montagem", minLevel: 80, door: [311, 818], from: "Cabines de Pintura", to: "Montagem Final", old: [[311, 818], [306, 819]] },
   { id: "mt_pista", minLevel: 90, door: [316, 830], from: "Montagem Final", to: "Pista de Testes", old: [[316, 830], [316, 838]] },
-  { id: "mt_prototipos", minLevel: 110, door: [376, 843], from: "Pista de Testes", to: "Sala dos Protótipos", old: [[387, 840], [376, 852]] },
 ];
 /** NPCs e placas (§2.5, globais), com os dois de fora do bloco (cegonha na Vila, Caminhão de Bobinas na Estação do Minério). */
 const NPC_TILES: [string, number, number][] = [
@@ -164,7 +163,7 @@ describe("Montadora: geometria", () => {
 });
 
 describe("Montadora: portas e acesso", () => {
-  it("seis portas de sala com level crescente (25 → 110), na parede entre duas zonas, sem portal nenhum", () => {
+  it("cinco portas de sala com level crescente (25 → 90), na parede entre duas zonas, sem portal nenhum", () => {
     const doors = findDoors(map);
     let last = 0;
     for (const d of DOORS) {
@@ -185,7 +184,23 @@ describe("Montadora: portas e acesso", () => {
       for (const [x, y] of d.old) expect(at("portal", x!, y!), `portal antigo ${x},${y}`).toBeUndefined();
     }
     expect(index.doorAt(320, 766)?.label).toBe("Estamparia · lv 25+");
-    expect(index.doorAt(376, 843)?.label).toBe("Sala dos Protótipos · lv 110+");
+    // Ciclo 23: porta de aço como no Tibia no vão (o mapa vem com a porta fechada; aberta = o vão com a folha encostada,
+    // outro tile, nunca vazio) e nenhuma folha de portão listrada sobrando na linha da parede ao lado.
+    const deco = map.layers.find((l) => l.name === "deco")!.data!;
+    for (const d of findDoors(map).filter((x) => x.id.startsWith("mt_"))) {
+      const [a] = d.art;
+      expect(d.art.length, d.id).toBe(1);
+      expect([a!.layer, a!.dx, a!.dy], d.id).toEqual(["deco", 0, 0]);
+      expect(a!.closed, d.id).toBe(deco[d.y * map.width + d.x]);
+      expect(a!.open > 0 && a!.open !== a!.closed, d.id).toBe(true);
+    }
+  });
+
+  it("Sala dos Protótipos: a rampa (lv 110) desce para a sala de baixo; a saída de volta fica lá embaixo", () => {
+    expect(at("portal", 387, 840)).toBeDefined();
+    expect(at("portal", 376, 852)).toBeDefined();
+    expect(index.portalAt(387, 840)?.label).toBe("Sala dos Protótipos · lv 110+");
+    expect(findDoors(map).some((d) => d.id === "mt_prototipos")).toBe(false);
   });
 
   it("sem o atalho oculto da Oficina: Oficina ↔ Portaria só pelo Cocheiro da Oficina e pelo motorista", () => {

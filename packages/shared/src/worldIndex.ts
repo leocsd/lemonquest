@@ -7,7 +7,7 @@ import { monsterDef } from "./data/monsters.ts";
 import { NPCS } from "./data/npcs.ts";
 import { questDef } from "./data/quests.ts";
 import { doorRequirement, questChestGroup } from "./data/questWorld.ts";
-import { doorSides, findDoors, type DoorStyle } from "./data/doors.ts";
+import { doorSides, findDoors } from "./data/doors.ts";
 
 export interface WorldRect { x0: number; y0: number; x1: number; y1: number }
 export interface WorldZone { name: string; rects: WorldRect[] }
@@ -24,7 +24,7 @@ export interface WorldPortal {
   door?: true;
 }
 /** Porta de sala (shared/data/doors.ts) no índice: rótulo e "olhar" como os portais, com a zona do lado de dentro. */
-export interface WorldDoor extends WorldPortal { id: string; style: DoorStyle; door: true }
+export interface WorldDoor extends WorldPortal { id: string; door: true }
 /** Próximo passo para trocar de região: tile do portal ou do NPC de viagem. */
 export interface WorldHop { x: number; y: number; label: string; kind: "portal" | "travel" | "door" }
 /**
@@ -196,7 +196,7 @@ export function buildWorldIndex(map: TiledMap, opts: WorldIndexOptions = {}): Wo
     const [ix, iy] = inside.length === 2 && inside.every(Number.isFinite) ? inside as [number, number] : [d.x, d.y];
     const zone = zoneAt(ix, iy);
     const door: WorldDoor = {
-      id: d.id, style: d.style, door: true, x: d.x, y: d.y, toX: ix, toY: iy, ...d.req, ...(zone ? { zone } : {}),
+      id: d.id, door: true, x: d.x, y: d.y, toX: ix, toY: iy, ...d.req, ...(zone ? { zone } : {}),
       label: portalLabel(zone, d.req),
     };
     doors.push(door);

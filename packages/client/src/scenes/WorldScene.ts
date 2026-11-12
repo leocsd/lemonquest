@@ -279,7 +279,7 @@ export class WorldScene extends Phaser.Scene {
     this.portalLabels = new PortalLabels(this, this.uiLayer, ensureWorldIndex(this.world.tiled));
     this.portalSprites = new PortalSprites(this, this.worldLayer, ensureWorldIndex(this.world.tiled).portals, { quests: questStore.get, reducedMotion });
     drawDrawnChests(this, this.worldLayer, this.questObjs.list);
-    this.doorSprites = new DoorSprites(this, this.worldLayer, this.questObjs.doors, this.world.grid);
+    this.doorSprites = new DoorSprites(this.world.tilemap, this.questObjs.doors, this.world.grid);
     this.loot = new LootFx(this, this.worldLayer, this.uiLayer, this.fx, () => {
       const me = this.actors.get(this.myId);
       return me ? { x: me.bodyX, y: me.bodyY, headY: me.headY } : null;

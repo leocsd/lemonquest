@@ -10,7 +10,7 @@
  *     o baú não tem tile: o cliente desenha e CollisionGrid bloqueia pelo objeto) e "quest_lever"
  *     (ponto; props `leverId`, `plates`/`dests`/`spawns` = "x,y;x,y", `room` = "x0,y0,x1,y1"). "portal" com `minLevel`,
  *     `quest` ou `chestGroup` tem requisito (bocas das caves): quem não cumpre volta para o tile de onde veio.
- *   - "door" (ponto; props `doorId`, `style`, requisito opcional): porta de sala que se usa para abrir (data/doors.ts).
+ *   - "door" (ponto; props `doorId`, `art`, requisito opcional): porta de sala que se usa para abrir (data/doors.ts).
  *   - Coliseu: "arena" (RETÂNGULO; props `arenaId` 1..ARENA_COUNT) = área de luta da instância;
  *     "arena_entry" (ponto; prop `arenaId`) = onde o grupo nasce; "arena_spawn" (ponto; prop `arenaId`) = pontos
  *     de spawn de monstros (vários por arena); "arena_exit" (ponto) = para onde volta quem sai (na vila, perto do NPC).

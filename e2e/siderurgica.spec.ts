@@ -3,7 +3,7 @@
 // servidor conta as viagens no alcance); a porta de sala com level; um monstro do setor; o posto
 // avançado da Sala de Controle; o evento da segunda que chama o Golem do Convertedor; e as capturas de cada setor.
 import { expect, test, type Page } from "@playwright/test";
-import { doorRefuses, enterGame, passDoor, inventory, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
+import { clickTile, doorRefuses, enterGame, passDoor, inventory, sameTile, me, monsters, openNpc, say, setLevel, snap, teleport, waitInWorld, waitSettled, walkableNear, npcTab } from "./helpers.ts";
 
 /** Coordenadas globais de expansion6.mjs e shared/data/npcs.ts (o servidor usa o tile ou o livre mais perto). */
 const MINERIO_ARRIVAL = { x: 24, y: 594 };
@@ -104,6 +104,25 @@ test("porta das Correias (porta de sala): barra o lv 24, deixa o lv 25 entrar e 
   await passDoor(page, D2.door, D2.front, D2.inside);
   await expect.poll(() => zoneFooter(page)).toBe("Correias e Coqueria");
   await passDoor(page, D2.door, D2.inside, D2.front);
+  await expect.poll(() => zoneFooter(page)).toBe("Pátio de Minério");
+});
+
+test("cancela do Pátio (porta lv 10): o lv 10 entra na cancela, que se ergue enquanto ele está nela, e sai no Pátio", async ({ page }) => {
+  const door = { x: 24, y: 607 }, front = { x: 24, y: 606 }, inside = { x: 24, y: 608 };
+  await enterGame(page, "knight");
+  await setLevel(page, 10);
+  await teleport(page, front.x, front.y);
+  await waitSettled(page);
+  await snap(page, "porta-patio-fechada");
+  await expect.poll(async () => {
+    if (sameTile(await me(page), door)) return true;
+    await clickTile(page, door.x, door.y);
+    await page.waitForTimeout(600);
+    return sameTile(await me(page), door);
+  }, { timeout: 15_000, intervals: [300] }).toBe(true);
+  await expect.poll(async () => ((await page.evaluate(() => (window as any).__lq.doors())) as { id: string; open: boolean }[]).find((d) => d.id === "sid_patio")?.open).toBe(true);
+  await snap(page, "porta-patio-aberta");
+  await passDoor(page, door, door, inside);
   await expect.poll(() => zoneFooter(page)).toBe("Pátio de Minério");
 });
 
