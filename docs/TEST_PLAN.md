@@ -16,6 +16,50 @@
 Rodar o jogo isolado para testes manuais (não toca no banco real):
 `E2E_PORT=2870 E2E_ADMINS="SeuNome" node e2e/start-server.mjs` e abrir `http://localhost:2870/?e2e`.
 
+## Resultados — ciclo 23b, portas e portais como no Tibia (2026-11-12)
+
+Typecheck limpo. `npx vitest run`: 168 arquivos, **2082 testes passados**, 0 falhas, 0 skips. Mapa:
+`diff-world.mjs <world antes do ciclo 22> --removed <45 ids> --allow <DOOR_RECTS> --allow <retângulos doors23>`: 0 tiles
+alterados fora dos retângulos, 1409/1409 objetos antigos idênticos, 18 portas novas, tilesets estáveis; `diff-atlas.mjs`:
+1606/1606 tiles antigos idênticos, 36 novos. Revisão visual por capturas no jogo de todas as 18 portas e 36 portais, antes
+e depois (spec temporário com `/tp`, apagado no fim). E2E `siderurgica`, `montadora`, `caves`, `salao`, `estagiario`,
+`estagiarioGrupo`, `look`, `travel`: 31/31 (tick máx 48 ms, sem CPU saturada). `estagiarioGrupo` no campo novo: 6/6 com
+`--repeat-each=6` (eram 3/6 na floresta).
+
+Depois o dono pediu o portal sem sprite (escadas e vórtice saíram): `npx vitest run` 166 arquivos, **2071 testes passados**
+(saíram `portalSprites.test.ts` e `portalArt.test.ts`); E2E `caves`, `salao`, `look`, `travel`, `siderurgica` 20/20 com o
+build do cliente sem `assets/fx`.
+
+## Resultados — ciclo 23 (2026-11-11)
+
+Typecheck limpo (3× tsc). `npx vitest run`: 167 arquivos, **2077 testes passados**, 0 falhas, 0 skips (antes do ciclo:
+166 arquivos, 2051). Cada correção tem teste que falha sem ela, conferido com `git stash` do arquivo corrigido
+(`monsters.test.ts` chefe no covil; `estagiario.test.ts` porta recusada, 99 avisos antes e ≤ 3 depois, e seguir pela
+porta; `WorldRoom.test.ts` área no duelo). WK-3: wiki regerada antes e depois, `diff -r` idêntico (748 páginas).
+
+E2E dos specs do ciclo (`ground`, `shop`, `depot`, `estagiario`, `estagiarioGrupo`, `salao`, `training`, `arena`,
+`panels`): uma passada 14/14; com `--repeat-each=3`, 41/42. A falha foi `estagiarioGrupo` ("B chega ao lado de A"),
+instabilidade **antiga** do spec: repetido 6× com o código novo, 3/6; com o `estagiario.ts` de antes do ciclo, 1/6, com
+a mesma falha. Nas falhas B termina a 10–18 tiles de A, mais longe que o afastamento do teste (≤ 9): o "seguir" liga o
+ataque e B sai atrás dos bichos da floresta (70,62). O ramo novo do seguir só age sem caminho a pé até o colega. Sem CPU
+saturada: tick médio 0,7–1,5 ms e máximo de 22 ms nas rodadas. `training` passou com o fechamento 4101 marcado pelo
+servidor.
+
+Incidente: um teste novo do backup (`backup.copy.test.ts`, primeira versão) chamou `runBackup` sem banco aberto, e o
+`getDb()` abriu o banco padrão `data/lemonquest.db` (o save local de dev; mtime 20:11:48). Corrigido no teste, e
+`vitest.config.ts` agora define `LEMONQUEST_DB=:memory:`: nenhum teste abre o banco padrão sem passar um caminho. Depois
+da correção, o arquivo não mudou mais.
+
+## Resultados — Portas com a arte do lugar, ciclo 22 correção (2026-11-09)
+
+Mapa: `diff-world.mjs <world antes do ciclo 22> --removed <45 ids> --allow <DOOR_RECTS>`: 0 tiles alterados fora dos
+retângulos, 1409/1409 objetos antigos idênticos, 18 portas novas, tilesets estáveis; `diff-atlas.mjs`: 1606/1606 tiles
+antigos idênticos, 4 novos. Prancha das 18 portas (preview + arte) conferida antes e depois: corredores das cavernas
+com parede, sem buraco de portal sobrando. Typecheck limpo; unitários 166 arquivos, 2051 testes (`doors.test.ts`: o
+mapa vem com a arte fechada em cada porta e o tile da porta muda ao abrir; `siderurgica`/`montadora`: escotilha e rampa
+voltam a portal). E2E `siderurgica`, `montadora`, `caves` 23/23, com o novo "cancela do Pátio" (capturas: braço deitado
+fechada, erguido com o jogador na porta).
+
 ## Resultados — Portas de sala no lugar dos portais, ciclo 22 (2026-11-09)
 
 Mapa: `diff-world.mjs` com `--removed` (51 objetos: 46 portais + 5 luzes deles) e 15 `--allow` (`DOOR_RECTS`): 0 tiles

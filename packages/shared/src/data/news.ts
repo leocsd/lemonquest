@@ -12,6 +12,40 @@ export interface NewsEntry {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "2026-11-12a",
+    date: "12 de novembro",
+    title: "Portas como no Tibia",
+    items: [
+      "As portas agora são portas de verdade: batente e folha, de madeira nas cavernas e de aço nas fábricas. Aberta, você vê o vão e a folha encostada.",
+      "Porta com plaquinha dourada pede level ou missão: olhe nela (Shift+clique) para ver qual.",
+      "Os portais não têm mais o vórtice roxo: a entrada é a própria boca da caverna, o arco ou a escotilha, com o nome do destino em cima (vermelho quando ainda não dá para entrar).",
+      "O Estagiário não luta mais em duelo: ele para e volta sozinho quando o duelo acaba.",
+    ],
+  },
+  {
+    id: "2026-11-11a",
+    date: "11 de novembro",
+    title: "Faxina geral: duelo, raide, Coliseu e mochila",
+    items: [
+      "Duelo só fora de combate e sem bloqueio de PZ, e magia de área agora acerta o adversário do duelo.",
+      "Sair do jogo no meio do duelo volta você para onde estava, de vida cheia.",
+      "O chefe do raide só vai atrás de quem está perto, e o chefe de evento aparece mesmo com o grupo esperando no covil.",
+      "Ranking de ondas e baú do desafio do Coliseu só para quem venceu pelo menos uma onda.",
+      "Vender ou largar logo depois de pegar loot não acerta mais o item do lado na mochila.",
+      "No Salão, quem sai a pé libera a vaga na sala; o Estagiário passa por portas seguindo um colega e para de repetir aviso de porta trancada.",
+    ],
+  },
+  {
+    id: "2026-11-09b",
+    date: "9 de novembro",
+    title: "Portas com cara de porta",
+    items: [
+      "Cada porta agora é a do lugar: fechadura nas cavernas, portão de correr na Siderúrgica e na Montadora, e a cancela no Pátio de Minério, que se ergue quando você passa.",
+      "Os corredores das cavernas ganharam parede: nada de faixa de chão solta no escuro.",
+      "Coração do Forno e Sala dos Protótipos voltaram a ser descida (escotilha e rampa), como as caves.",
+    ],
+  },
+  {
     id: "2026-11-09a",
     date: "9 de novembro",
     title: "Portas de verdade nas salas",

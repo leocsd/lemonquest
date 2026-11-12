@@ -94,7 +94,7 @@ As respostas aparecem só para o admin (aviso + linha no chat). Toda ação fica
 | `/anuncio <texto>` | Faixa grande no centro da tela de todos + linha no chat. |
 | `/tp <nome>` | Leva você para perto do jogador. |
 | `/resetsenha <conta>` | Gera um **código de recuperação** (8 caracteres, vale 24 h, uso único) — só você vê. Passe para o dono da conta, que usa em "Esqueci minha senha" na tela de login. |
-| `/status` | Fotografia do servidor: online, monstros, tick, memória, autosave e a progressão medida (horas por level, mortes e ouro por faixa). |
+| `/status` | Fotografia do servidor: online, monstros, tick, memória, autosave, o último backup (⚠ falha ou atraso, cópia externa) e a progressão medida (horas por level, mortes e ouro por faixa). |
 | `/metricas` · `/metricas <nome>` | Desempenho: servidor agora (RSS, heap, CPU, tick médio/máx/p95, online, monstros, Estagiários com rota, msgs/s), a última hora e os clientes online do mais pesado ao mais leve (app, heap, texturas, FPS e mínimo, objetos, há quanto tempo aberto). Com nome, o histórico curto daquele cliente (heap, texturas e FPS mínimo) para ver se cresce. |
 | `/evento <nome> [minutos]` · `/evento parar` | Liga um evento semanal fora do horário (sem argumentos lista os eventos e o estado). Quem não é admin só lê o estado. |
 | `/desbloquear <nome> <roupa\|addon\|título>` | Libera uma roupa, addon ou título para um personagem (ex.: `pirata`, `pirata_chapeu`, `title:persistente`). |

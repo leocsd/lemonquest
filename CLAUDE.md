@@ -18,9 +18,13 @@ progressão lenta e social, pixel art própria (tema limão). Público é PC na 
   `diff-atlas.mjs <lemon-terrain-antigo.png>`: tiles antigos idênticos). Especificações das regiões em `docs/regioes/`.
   Exceções autorizadas pelo dono: as bocas das 4 caves (`entrances14.mjs`, ciclo 17), provadas com
   `diff-world.mjs <antigo> --allow 87,71,92,75 --allow 282,113,285,116 --allow 162,52,164,55 --allow 254,134,256,138`; e as
-  portas de sala (`doors22.mjs`, ciclo 22: tira 46 portais, cava corredores, fecha 4 saídas), provadas com
-  `--removed <ids que o gerador imprime>` e um `--allow` por retângulo de `DOOR_RECTS`. Sala nova = porta (`door`), não
-  portal; viagem entre regiões = NPC de viagem, não portal; portal só para entrar em área separada (cave, cripta).
+  portas de sala (`doors22.mjs`, ciclo 22: tira 42 portais, cava corredores com parede, fecha 4 saídas; a porta usa a
+  arte do lugar, prop `art`), provadas com
+  `--removed <ids que o gerador imprime>` e um `--allow` por retângulo de `DOOR_RECTS`; e a porta como no Tibia
+  (`doors23.mjs`, ciclo 23: batente + folha sobre a cópia da parede vizinha; folhas de portão antigas ao lado viram parede),
+  com mais um `--allow` por retângulo da linha "doors23: retângulos" do log do gerador. Sala nova = porta (`door`), não
+  portal; viagem entre regiões = NPC de viagem, não portal; portal só para entrar em área separada (cave, cripta). O
+  portal não tem sprite (dono, ciclo 23: a arte do mapa já mostra a entrada); só o rótulo com o destino.
 - Testes unitários ao lado do código (`x.ts` + `x.test.ts`, vitest; kits em `systems/testkit.ts` e `m4kit.ts`);
   E2E em `e2e/*.spec.ts` (Playwright, helpers em `e2e/helpers.ts`, sonda `window.__lq` com `?e2e`).
 

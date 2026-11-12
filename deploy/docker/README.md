@@ -105,7 +105,9 @@ No `docker-compose.yml`, descomente/ajuste:
       # - D:/backups-lemonquest:/backup-copy    # Windows (Docker Desktop): outra unidade
 ```
 
-e rode `docker compose up -d`. Confira no log: `[backup] cópia externa: /backup-copy/lemonquest-....db`.
+e rode `docker compose up -d`. Confira no log: `[backup] cópia externa: /backup-copy/lemonquest-....db`. Sem olhar o log,
+o `/status` (admin, no chat do jogo) tem a linha "Backup": quando foi o último, ⚠ falha com o motivo, ⚠ atraso de mais de
+2 h e o estado da cópia externa.
 
 **Alternativa sem mexer no container (Linux, cron + rsync)** — copia a pasta de backups para outro disco/servidor toda hora:
 

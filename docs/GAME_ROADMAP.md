@@ -13,6 +13,32 @@ Ordem: 14 correções ✅ → 15 balanço das vocações e morte no 60+ ✅ → 
 covis, refino, Coliseu 61–70) ✅ → 17 descoberta e interface (+ bocas de caverna) ✅ → 18 invasões da Vila e Mural de
 Excursões ✅ → 19 Siderúrgica ✅ → 20 Montadora ✅. Para depois (dono): Murphy, guilda, mercado, casas.
 
+## Ciclo 23 (2026-11-11) — análise geral e correções
+
+Pedido do dono: "análise o meu jogo e implemente melhorias no geral e correções". Sete auditorias só de leitura em
+paralelo (núcleo do servidor, monstros/eventos, economia, jogos em grupo, persistência/contas, cliente, Estagiário);
+cada achado conferido no código antes de corrigir, cada correção com teste que falha sem ela.
+
+| # | Item | Status | Validação |
+|---|---|---|---|
+| 23-1 | Duelo: recusa em combate, com bloqueio de PZ e no Salão; área/onda pela regra do duelo; logout grava a volta (vida cheia); no 2×2 quem caiu sai do duelo | ✅ 2026-11-11 | `WorldRoom.test.ts` "duelo" (3), `duel.test.ts` (2×2) |
+| 23-2 | `/evento` no mesmo evento: `onExtend` no raide e na Corrida (antes chefe eterno / corrida sem fim) | ✅ 2026-11-11 | `events.test.ts`, `raid.test.ts`, `huntRace.test.ts` |
+| 23-3 | Chefe do raide percebe só quem está a 16 tiles (`allow`); chefe de evento nasce com o grupo no covil (`CALLED_BOSS_MIN_DIST`) | ✅ 2026-11-11 | `raid.test.ts`, `monsters.test.ts` (falha sem a correção) |
+| 23-4 | Coliseu: ranking/baú só de quem venceu onda na faixa; desafio resolve se o rival some na contagem. Salão: quem sai perde a vaga em 1 s | ✅ 2026-11-11 | `arena.test.ts` (2 novos), `minigames.test.ts` |
+| 23-5 | `uid` em vender/largar/usar/descartar/mover (mochila reorganizada não acerta o item vizinho) | ✅ 2026-11-11 | `m4.test.ts`, `ground.test.ts`, `inventory.test.ts`; E2E abaixo |
+| 23-6 | Chão espera a transação "jogador + chão" (`holdFlush`); XP do registro acompanha a viva | ✅ 2026-11-11 | `ground.test.ts`, `WorldRoom.test.ts` |
+| 23-7 | Fechamento forjado (#11): só o que o servidor fechou (`kicked`) sai na hora; queda larga alvo e seguir | ✅ 2026-11-11 | `WorldRoom.test.ts`, `training.room.test.ts` |
+| 23-8 | Contas: `create` não enumera contas; exclusão limpa ClickUp e prêmio do Coliseu pelo nome; `/status` com o backup | ✅ 2026-11-11 | `auth.test.ts`, `recovery.test.ts`, `WorldRoom.test.ts`, `backup.copy.test.ts` |
+| 23-9 | Estagiário: porta recusada fora da rota por um tempo (99 → ≤3 avisos); seguir atravessa porta; diário "sem mana" (`readyIgnoringMana`); stamina da janela no seguir | ✅ 2026-11-11 | `estagiario.test.ts` (falham sem a correção), `spells.test.ts`, `store.test.ts` |
+| 23-10 | Cliente: sem efeitos com a aba escondida + tetos nos pools e partículas; métricas pelo relógio; arrasto cancela no blur; minimapa solta callbacks | ✅ 2026-11-11 | `tabReturn.test.ts`, `perf.test.ts`; **falta medir** heap de uma aba escondida com o Estagiário por 1 h (`/metricas`) |
+| 23-11 | Testes com `LEMONQUEST_DB=:memory:` (um teste novo chegou a abrir `data/lemonquest.db` uma vez, ver TEST_PLAN) | ✅ 2026-11-11 | suíte inteira; `data/` sem mudança depois |
+| 23-12 | Estagiário no duelo: Cura/Ataque ligados seguem rodando (o Coliseu só desliga a rota); e com Cura/Ataque sem rota ele luta nas ondas do Coliseu, embora o aviso diga "não trabalha no Coliseu" | ✅ 2026-11-12 (dono aprovou a sugestão: no duelo para tudo e volta sozinho; no Coliseu só o texto) | `estagiario.test.ts` "duelo" |
+| 23-14 | E2E `estagiarioGrupo` instável já antes do ciclo (B sai atrás dos bichos da floresta): mudar o teste para um lugar sem monstros fora da PZ ou desligar o Ataque do B no teste | ✅ 2026-11-12 (campo a leste da Vila, 127,106) | 6/6 com `--repeat-each=6` |
+| 23-15 | Portas como no Tibia (dono, 2026-11-12: "as portas hoje não estão ficando com boas UI por conta do que tem em volta"): batente + folha sobre a parede vizinha, aberta com o vão e a folha encostada, plaquinha dourada nas de requisito; folhas de portão antigas ao lado viram parede (`doors23.mjs`, exceção de mapa autorizada pelo pedido) | ✅ 2026-11-12 | `diff-world` (0 tiles fora dos retângulos, 1409/1409 objetos), `diff-atlas` (1606/1606, 36 novos); capturas no jogo das 18 portas; `montadora.test.ts`, `doors.test.ts` |
+| 23-16 | Portal sem sprite (dono, 2026-11-12: escadas e vórtice desenhados ficaram "horríveis"; "o jogo por si só já dá uma sensação de poder entrar"): saem o vórtice (PR #28) e as escadas/porta do ciclo; ficam a arte do mapa, o rótulo, o "olhar" e a luz | ✅ 2026-11-12 | unitários e E2E `caves`, `salao`, `look`, `travel`, `siderurgica` 20/20 (build sem `assets/fx`) |
+| 23-17 | Porta na parede em pé ('v') é desenhada de frente (a folha atravessa o vão); se o dono preferir, uma versão de quina como a do Tibia | 🧭 | conferir no jogo |
+| 23-13 | Invasão: com `/evento` prorrogando a invasão, ela acaba no fim antigo (o anúncio do evento segue). Pequenos mapas por sessão sem limpeza (`excursions.lastFeed/guided`, `challenges.sent`, `loot.lastSplit`, `clickup.linking`) | ⏳ | desprezível com ~10 jogadores |
+
 ## Ciclo 22 (2026-11-09) — portas de sala no lugar dos portais
 
 Pedido do dono: tirar os portais "sem nexo" (entra na sala por um, sai pelo do lado), portas com ação de abrir e fechar
@@ -28,7 +54,8 @@ recompensa; entradas de área separada revistas uma a uma (tabela abaixo).
 | 22-4 | Índice do mundo, guia, banner de level e Estagiário pela porta | ✅ | `worldIndex.test.ts`, `guide.test.ts`, `questInfo.test.ts`, `estagiario.test.ts` (porta de level, comum, trancada, gravação) |
 | 22-5 | Tiles de arte de porta/portal que sobraram nos lugares dos portais de viagem (63,321 Oficina; 44,371 Malha; 8,591 Minério; 46,384 casinha de cargas; 83,332 e 219,776 Montadora): recantos andáveis que parecem porta e não levam a nada | 🧭 | tirar a arte muda tiles (nova exceção) |
 | 22-6 | Túnel da Serra: a boca fica na parede norte da Via Permanente e o túnel ao sul (17 tiles de rocha). Mantido como portal (arco dos dois lados); cavar o túnel de verdade seria a próxima exceção | 🧭 | — |
-| 22-7 | Ninho do Yeti e Sala dos Piratas: o corredor atravessa o vão escuro entre as paredes de rocha como uma faixa de chão (sem borda de penhasco); arte melhor é opcional | ⏳ | conferido no preview |
+| 22-7 | Ninho do Yeti e Sala dos Piratas: o corredor atravessa o vão escuro entre as paredes de rocha como uma faixa de chão (sem borda de penhasco); arte melhor é opcional | ✅ resolvido em 22-8 | parede de rocha dos dois lados do corredor |
+| 22-8 | Porta com a arte do lugar (dono: "ficou estranho… não só barreira de passagem de nível"): fechadura nas cavernas, folha do portão de correr na Siderúrgica, cancela no Pátio (braço erguido = aberta), painel de portão na Montadora; corredor com parede; Coração do Forno e Sala dos Protótipos voltam a portal (descidas). 18 portas, 42 portais fora | ✅ | `diff-world.mjs` (0 tiles fora dos retângulos, 45 removidos), `diff-atlas.mjs` (1606/1606 antigos, 4 novos); `doors.test.ts` (o mapa vem com a arte fechada); E2E da cancela com captura fechada/aberta |
 
 Entradas de área separada (revistas uma a uma; todas ficam como portal, com o rótulo do destino):
 
@@ -42,6 +69,8 @@ Entradas de área separada (revistas uma a uma; todas ficam como portal, com o r
 | 372,106 | Vulcão de Goroma → Cidadela de Ferumbras | descida para a cidadela |
 | 89,74 · 283,116 · 163,54 · 256,136 | as 4 caves (lv 10/35/60/100) | bocas desenhadas no ciclo 17 |
 | 62,415 | Via Permanente → Túnel da Serra | arco de túnel dos dois lados (ver 22-6) |
+| 34,672 | Lingotamento → Coração do Forno (lv 100) | escotilha: desce para a área de baixo (22-8) |
+| 387,840 | Pista de Testes → Sala dos Protótipos (lv 110) | rampa: desce para a sala de baixo (22-8) |
 | 79,106 | Vila → Salão de Minijogos | porta da casinha laranja; o Salão é um interior |
 | 209,273 / 270,853 | tesouro da Aniquilação / Boxe dos Troféus → entrada | saída de sala de recompensa (decisão do dono) |
 
@@ -198,7 +227,7 @@ no GitHub Releases; URL padrão `http://embeddo-geral-00:2567`; update pergunta 
 |---|---|---|---|
 | WK-1 | Wiki gerada dos dados (`npm run wiki`, servida em `/wiki/`, link no F1) — PR #35 | ✅ (2026-10-27) | build falha com link quebrado; 735 páginas conferidas por amostra |
 | WK-2 | Dono: "uma carinha mais do Lemon Quest". Visual do HUD: Pixelify Sans, painel-janela sobre fundo de cor sólida com grain (o dono dispensou o mapa ao fundo), cabeçalhos de seção com ▸, infobox como o painel Personagem, tabelas em poço | ✅ (2026-10-27) | capturas (início, criatura, item, NPC, missão, mapa, mecânica) |
-| WK-3 | Números do servidor copiados na wiki (Baú de Recompensa, pesca, cassino): mover para o `shared` para nunca divergirem | ⏳ | — |
+| WK-3 | Números do servidor copiados na wiki (Baú de Recompensa, pesca, cassino): mover para o `shared` para nunca divergirem | ✅ 2026-11-11 (ciclo 23: `shared/data/serverOdds.ts`) | `serverOdds.test.ts`; wiki regerada idêntica byte a byte (748 páginas) |
 
 ## Mochila automática e capacidade por vocação (2026-10-27)
 
@@ -254,7 +283,7 @@ Especificação: [regioes/montadora.md](regioes/montadora.md). Último ciclo do 
 | 20-8 | Heap do cliente com o mapa 400×888 | ✅ | `tools/mapmem.mjs`: 84 MB (era 120 MB antes de tirar o vazio do Phaser; 88 MB no mapa de 560 sem a mitigação) |
 | 20-12 | "Lava-Jato" mantido (dono, 2026-10-26: desfeita a troca para "Lava-Rápido"; o título "o Lava-Rápido" continua) | ✅ | `diff-world`: só o objeto da zona renomeado |
 | 20-10 | Revisão: Galeria com Colosso (tier 8 comum +25%, não +83%), Rubi fora do refino 5–6, textos, mapa M fracionário | ✅ | `montadora.test.ts`, `refine`, `worldIndex` |
-| 20-11 | % explorado das conquistas varre ~355 mil células por jogador a cada 5 s (cresceu com o mapa): guardar índices alcançáveis | ⏳ | otimização opcional |
+| 20-11 | % explorado das conquistas varre ~355 mil células por jogador a cada 5 s (cresceu com o mapa): guardar índices alcançáveis | ✅ 2026-11-11 (ciclo 23: contagem incremental a cada tile revelado) | `exploration.test.ts` (igual à varredura completa) |
 | 20-9 | Parar de gravar o `leverDay` antigo e o `imbuement` antigo (mantidos para rollback) | ⏳ | ciclo seguinte |
 
 ## Ciclo 19 (2026-10-26) — região Siderúrgica

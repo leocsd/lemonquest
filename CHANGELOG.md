@@ -1,5 +1,134 @@
 # Changelog
 
+## [Não lançado] — 2026-11-12 · ciclo 23b: portas e portais como no Tibia
+
+Dono: "melhore o UI/UX das portas/portais… deixe parecido com Tibia, as portas hoje não estão ficando com boas UI por
+conta do que tem em volta dela". Antes de mexer, capturei no jogo todas as 18 portas e os 36 portais. Nas cavernas, a
+porta era um bloquinho laranja com fechadura que lembrava um baú. Na Siderúrgica e na Montadora, eram faixas de perigo
+amarelo e preto iguais às pintadas no chão, com as folhas do portão antigo ao lado também listradas (2 ou 3 "portas"
+seguidas). E o mesmo vórtice roxo aparecia em cima de boca de caverna, arco de túnel, porta de casa, escotilha e rampa.
+- **Portas como no Tibia** (`tools/mapgen/doors23.mjs`): batente, verga e folha com puxador, desenhados sobre a cópia da
+  parede vizinha, para encaixar em qualquer parede (rocha, metal, tijolo, cerca). Fechada mostra a folha; aberta mostra o
+  vão com o chão dos dois lados e a folha encostada no batente. Madeira com moldura de pedra nas cavernas, aço com visor
+  nas áreas industriais. **Porta com requisito** (level ou missão) tem uma plaquinha dourada na verga. A cancela do Pátio
+  de Minério continua (é a porta natural da cerca da passagem de nível).
+- **Em volta da porta:** as folhas do portão de correr antigo que sobravam ao lado viraram a parede daquela linha. Fica
+  uma porta só, e a faixa de perigo volta a ser só sinalização.
+- **Portal sem sprite** (dono, depois de ver escadas e vórtice no jogo: "está horrível… podemos deixar sem o sprite do
+  portal. O jogo por si só já dá uma sensação de poder entrar, como na caverna"): saíram o vórtice roxo animado (PR #28)
+  e as escadas e a porta desenhadas neste ciclo. A entrada é a própria arte do mapa (boca da caverna, arco, escotilha,
+  rampa, porta da casinha), com o rótulo do destino em cima (vermelho quando falta level ou missão), o "olhar" e a luz de
+  sempre à noite. Saíram também `client/game/portalSprites.ts`, `tools/fx/portal.mjs` e `assets/fx/`.
+- **Estagiário no duelo e no Coliseu** (sugestão aprovada, 23-12): no duelo ele para tudo e volta sozinho no fim (antes
+  Cura e Ataque seguiam rodando). No Coliseu o aviso agora diz a verdade: a rota desliga, e Cura, Ataque e Buffs
+  continuam ajudando nas ondas. O diário passou a dizer o motivo certo (Salão ou duelo; antes era sempre "Coliseu").
+- **E2E "seguir um colega"** (23-14): saiu da floresta para um campo sem bichos a leste da Vila. Falhava 3 em 6 porque o
+  seguidor saía caçando; passou 6 em 6.
+- Mapa: 0 tiles alterados fora dos retângulos autorizados (corredores do ciclo 22 e a linha de cada porta) e 1409/1409
+  objetos antigos iguais. Atlas: os 1606 tiles antigos iguais e 36 novos (as portas).
+
+## [Não lançado] — 2026-11-11 · ciclo 23: análise geral e correções
+
+Dono: "análise o meu jogo e implemente melhorias no geral e correções". Sete auditorias só de leitura em paralelo
+(núcleo do servidor, monstros e eventos, economia, jogos em grupo, persistência e contas, cliente, Estagiário). Cada
+achado foi conferido no código antes de mexer, e cada correção tem um teste que falha sem ela.
+
+**Duelo**
+- **Não serve mais de fuga:** em combate, com bloqueio de PZ ou dentro do Salão de Minijogos não dá para desafiar nem
+  aceitar. Antes o duelo enchia vida e mana, tirava o jogador da luta e o logout dentro dele era imediato.
+- **Magia de área e de onda seguem a regra do duelo.** Antes iam pela regra do PvP comum: fora dos 2/3 de level a área
+  não acertava ninguém, e no 2×2 acertava só o alvo.
+- **Logout no meio do duelo** grava o lugar de onde o jogador saiu, de vida cheia. Antes gravava o tile da sala do
+  Coliseu, e no login ele aparecia na saída do Coliseu com a vida do meio da luta.
+- **No 2×2, quem caiu sai do duelo na hora.** Antes ficava até 3 min imune ao PvP fora da sala e saía do jogo sem a
+  permanência.
+
+**Eventos, raide e chefes**
+- **`/evento` durante o mesmo evento** (prorrogar ou encurtar) avisa o raide e a Corrida de Caça (`onExtend`). Antes o
+  chefe do raide ficava vivo para sempre, a corrida não acabava e a da semana seguinte não começava até reiniciar.
+- **O chefe do raide só percebe quem está perto (16 tiles).** Antes mirava quem caçava do outro lado do mapa, e os
+  ajudantes que ele invoca ficavam parados atrás desse alvo distante.
+- **Chefe de evento com o grupo esperando no covil** nasce mesmo assim, num tile livre que não encoste em ninguém.
+  Antes um jogador no meio de um covil de raio 3 impedia o chefe de nascer, e o evento podia passar inteiro sem ele.
+
+**Coliseu e Salão**
+- **Ranking semanal de ondas e baú do desafio** só para quem venceu ao menos uma onda na faixa de level, a mesma regra do
+  recorde de tempo e da XP das ondas. Antes entrava até quem desistiu na contagem ou o alt carregado.
+- **Desafio grupo × grupo:** se o rival cai ou se afasta ainda na contagem da Vila, o desafio se resolve quando o outro
+  grupo termina. Antes ficava "Esperando o outro grupo..." para sempre, sem baú.
+- **Salão:** quem sai do Salão a pé perde a vaga na sala em até 1 s. Antes a sala do anfitrião que foi caçar ficava
+  presa em "lobby", porque só ele podia começar.
+
+**Itens e gravação**
+- **Vender, largar, usar, descartar e mover levam o `uid` do item que o jogador viu.** A mochila se reorganiza sozinha
+  (loot novo, pilha que acaba) e o índice podia apontar o item vizinho quando a mensagem chegava: vendia ou largava
+  outro item, até um raro, sem a confirmação. Agora, com o `uid` diferente, nada acontece.
+- **O chão não vai mais ao banco sozinho** enquanto um item que entrou ou saiu dele ainda não foi gravado junto com o
+  jogador. Numa queda do processo nesse meio-tempo, o item podia ficar duplicado (na mochila e no chão) ou sumir dos dois.
+- **A XP do personagem guardado acompanha a XP viva.** O desafio "Evolução da semana", o ranking e o campeão da semana
+  liam a XP do último save (até 15 s atrás): o "cumprido" demorava e o "Resgatar" respondia "ainda não concluído".
+
+**Sessão e contas**
+- **Código de fechamento forjado (#11):** o servidor só tira o jogador na hora quando foi ele mesmo que fechou a sessão
+  (kick, treino offline). Um `ws.close(4101)` no console fingia o treino e escapava dos 20 s da queda e da permanência em
+  combate. Agora vale como uma queda comum.
+- **Na queda de conexão o personagem larga o alvo e o "seguir"**, como já fazia na permanência. Antes continuava
+  perseguindo e batendo por até 20 s, e no PvP renovava o bloqueio de PZ e a caveira sem ninguém no teclado.
+- **Criar conta não serve para descobrir quais contas existem:** a senha fraca é avisada antes de conferir o nome, e
+  "conta já existe" conta como falha do IP.
+- **Personagem excluído:** o vínculo do ClickUp e os baús do Coliseu guardados pelo nome somem. Antes quem criasse outro
+  personagem com o mesmo nome herdava as tarefas e o prêmio de outra pessoa.
+- **`/status` mostra o backup:** último backup bom, falha (com o motivo), atraso de mais de 2 h e a cópia externa. Antes a
+  falha era só uma linha no console, que some no rodízio do `docker logs`.
+
+**Estagiário**
+- **Porta que recusa** (level, missão, alguém parado nela) fica de fora da rota por um tempo. Antes o bot tentava a cada
+  2 ticks, com ~100 avisos na tela em 10 s. Porta comum que alguém já abriu não é mais fechada pelo bot.
+- **Seguindo um colega que está atrás de uma porta**, o bot vai pela porta. Antes ficava parado, gastando stamina, sem
+  alarme.
+- **Diário:** "sem mana" volta a aparecer. Antes dizia "em recarga", porque copiar o `PlayerState` (Schema, com os campos
+  no protótipo) perdia tudo menos a mana. **Janela:** a stamina desce também durante o "seguir".
+
+**Cliente (sessões abertas o dia todo)**
+- **Com a aba escondida, efeitos de golpe, magia, cadáver, loot e números não são desenhados.** O Phaser pausa o laço,
+  mas as mensagens continuam chegando: com o Estagiário caçando em segundo plano, cada golpe prendia um sprite novo nos
+  pools (milhares por hora, pela vida inteira da aba) e ao voltar caía uma chuva de efeitos velhos. Os pools de efeito
+  ganharam teto, e os emissores de partícula também.
+- **Métricas do cliente (`/metricas`)** pelo relógio, não pela contagem de disparos do timer. Em aba escondida o navegador
+  segura o timer em 1×/min e o relatório saía 1×/h, justo nos clientes ociosos que o ciclo de métricas quis medir.
+- **Arrastar item e perder o foco** (Alt+Tab, notificação) cancela o arrasto. Antes o item ficava grudado no mouse e
+  caía no chão no próximo clique.
+- **Minimapa:** solta o callback de cada jogador que sai. Antes juntava um a cada login de colega.
+
+**Internos**
+- **WK-3:** chances do Baú de Recompensa, da pesca e da ficha de cassino em `shared/data/serverOdds.ts`, lidas pelo
+  servidor e pela wiki. A wiki gerada continua idêntica byte a byte.
+- **20-11:** o "% explorado" das conquistas é contado a cada tile revelado. Antes varria as ~374 mil células do mapa por
+  jogador a cada 5 s.
+- **Testes não abrem mais o banco padrão:** `vitest.config.ts` define `LEMONQUEST_DB=:memory:`. Um teste chamando
+  `getDb()` sem banco aberto abria `data/lemonquest.db`, e isso aconteceu uma vez neste ciclo, com um teste novo, já
+  corrigido.
+
+## [Não lançado] — 2026-11-09 · Portas com a arte do lugar (ciclo 22, correção)
+
+Dono, depois do deploy das portas: "as portas aonde tem barreira de passagem de nível de trem ficou estranho. Não só
+barreira de passagem de nível." A porta de madeira do Tibia era desenhada por cima da arte que já marcava cada passagem:
+grade ao lado da cancela no Pátio, porta de madeira sobre metade do portão de correr na Siderúrgica, no vão de um portão
+industrial na Montadora e na frente do bloco de fechadura das cavernas; e o corredor cavado era uma faixa de chão solta
+no vazio, com o buraco do portal antigo na outra ponta.
+- **A porta é a arte do lugar** (prop `art` do objeto `door`: "camada,dx,dy,gidFechada,gidAberta;…"; o mapa já vem com
+  a porta fechada e o cliente só troca os tiles da camada): **cavernas** = o bloco de fechadura que já marcava a
+  porta-portal (aberta = o chão); **Siderúrgica** = a folha do portão de correr que já estava no tile (aberta = a folha
+  some e sobra a outra metade, portão meio aberto); **Pátio de Minério** = a cancela da passagem de nível (fechada =
+  braço deitado; aberta = braço erguido; a porta passou para o tile do braço, 24,607); **Montadora** = painel de portão
+  de correr no vão (as folhas abertas ao lado continuam). Saiu a porta em arco do `TilesetHouse` desenhada pelo cliente.
+- **Corredores com parede**: nas cavernas o corredor ganha parede de rocha dos dois lados, pela mesma regra de parede da
+  caverna do gerador, e a antiga saída (buraco/caveira na parede da sala de dentro) vira abertura; no Boxe dos Troféus,
+  parede da fábrica dos dois lados. A saída fechada de Goroma (374,96) virou parede de verdade (antes ficava a arte do buraco).
+- **Coração do Forno e Sala dos Protótipos voltam a ser portal**: são áreas de baixo (escotilha e rampa), entradas de área
+  separada como as caves; o corredor que atravessava o vazio até elas saiu. Ficam 18 portas e 42 portais removidos.
+- 4 tiles novos no fim do atlas Lemon (painel de portão 'v' e 'h', cancela erguida em 2 tiles); os 1606 antigos iguais.
+
 ## [Não lançado] — 2026-11-09 · Portas de sala no lugar dos portais (ciclo 22)
 
 Dono: "portal para entrar em uma sala e outro ao lado para sair, sem nexo. Avalie esses portais e retire. Deixe só os
